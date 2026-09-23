@@ -248,3 +248,27 @@ export interface MaterialListing {
 	canUpload: boolean;
 	canSuggest: boolean;
 }
+
+export interface SearchSegment {
+	text: string;
+	hit: boolean;
+}
+
+export type SearchKind = 'homework' | 'news' | 'material' | 'subject';
+
+export interface SearchHit {
+	kind: SearchKind;
+	id: number;
+	title: SearchSegment[];
+	snippet: SearchSegment[];
+	subject: SubjectRef | null;
+	date: number | null;
+	url: string;
+	hidden: boolean;
+}
+
+export interface SearchResult {
+	query: string;
+	items: SearchHit[];
+	counts: Partial<Record<SearchKind, number>>;
+}

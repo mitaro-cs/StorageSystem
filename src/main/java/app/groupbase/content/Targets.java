@@ -69,7 +69,7 @@ public class Targets {
   }
 
   /** Непустой список для IN (...): пустой заменяется на заведомо несуществующий id. */
-  static List<Long> nonEmpty(Collection<Long> ids) {
+  public static List<Long> nonEmpty(Collection<Long> ids) {
     return ids.isEmpty() ? List.of(-1L) : List.copyOf(ids);
   }
 }
