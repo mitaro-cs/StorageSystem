@@ -8,6 +8,7 @@
 	import Hotkeys from '$lib/shell/Hotkeys.svelte';
 	import SwipeBack from '$lib/shell/SwipeBack.svelte';
 	import { initPwa, pwa } from '$lib/pwa.svelte';
+	import { startBell } from '$lib/notify.svelte';
 	import { onMount } from 'svelte';
 	import { slide } from '$lib/motion';
 	import { WifiOff } from '@lucide/svelte';
@@ -17,6 +18,7 @@
 	const detail = $derived(/^\/(homework|news|subjects|materials)\/[^/]+/.test(page.url.pathname));
 	let collapsed = $state(false);
 	onMount(initPwa);
+	onMount(startBell);
 
 	// Палитра грузится при первом открытии — её код не нужен для первого экрана.
 	let paletteWanted = $state(false);

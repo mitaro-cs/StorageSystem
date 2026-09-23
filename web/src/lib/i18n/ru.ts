@@ -10,6 +10,7 @@ export const ru = {
 		subjects: 'Предметы',
 		members: 'Участники',
 		search: 'Поиск',
+		notifications: 'Уведомления',
 		profile: 'Профиль',
 		settings: 'Настройки',
 		allGroups: 'Все группы',

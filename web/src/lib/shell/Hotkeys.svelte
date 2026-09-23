@@ -16,7 +16,8 @@
 		s: '/subjects',
 		u: '/members',
 		o: '/settings',
-		p: '/profile'
+		p: '/profile',
+		b: '/notifications'
 	};
 
 	function typing(t: EventTarget | null): boolean {
@@ -76,6 +77,7 @@
 		['g u', 'Участники'],
 		['g o', 'Настройки'],
 		['g p', 'Профиль'],
+		['g b', 'Уведомления'],
 		['?', 'Эта подсказка']
 	];
 </script>

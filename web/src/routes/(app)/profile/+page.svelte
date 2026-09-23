@@ -1,5 +1,6 @@
 <script lang="ts">
 	import RecoveryCodes from '$lib/auth/RecoveryCodes.svelte';
+	import NotificationSettings from '$lib/settings/NotificationSettings.svelte';
 	import { fioError } from '$lib/names';
 	import { goto } from '$app/navigation';
 	import { LogOut, Settings, Users, Newspaper, BookOpen } from '@lucide/svelte';
@@ -205,6 +206,8 @@
 		<span>Тема оформления</span><span class="spacer"></span><ThemeToggle />
 	</div>
 </section>
+
+<NotificationSettings />
 
 <section class="card block">
 	<h2>Пароль</h2>

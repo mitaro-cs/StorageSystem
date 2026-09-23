@@ -168,7 +168,16 @@ public class UserStore {
 
   /** Удаление аккаунта: персональные данные стираются, строка остаётся для подписи контента. */
   public void anonymize(long id, long now) {
-    db.sql("DELETE FROM totp_recovery_codes WHERE user_id = ?").param(id).update();
+    for (String table :
+        new String[] {
+          "totp_recovery_codes",
+          "notifications",
+          "push_subscriptions",
+          "notification_prefs",
+          "homework_reminders"
+        }) {
+      db.sql("DELETE FROM " + table + " WHERE user_id = ?").param(id).update();
+    }
     db.sql(
             """
             UPDATE users SET username = 'deleted-' || id, display_name = '', password_hash = NULL,

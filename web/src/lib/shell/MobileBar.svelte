@@ -6,6 +6,7 @@
 	import GroupSwitcher from './GroupSwitcher.svelte';
 	import SubjectList from './SubjectList.svelte';
 	import ThemeToggle from './ThemeToggle.svelte';
+	import Bell from './Bell.svelte';
 	import { isActive, mainNav } from './nav';
 
 	let open = $state(false);
@@ -33,6 +34,7 @@
 		<MenuIcon size={19} />
 	</button>
 	<strong class="title">{title}</strong>
+	<Bell />
 	<ThemeToggle />
 </header>
 

@@ -10,6 +10,7 @@
 	import SubjectList from './SubjectList.svelte';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import { isActive, mainNav } from './nav';
+	import { bell } from '$lib/notify.svelte';
 
 	let { collapsed = $bindable(false) }: { collapsed?: boolean } = $props();
 
@@ -67,7 +68,11 @@
 				title={collapsed ? item.label : undefined}
 			>
 				<Icon size={19} strokeWidth={1.8} />
-				{#if !collapsed}<span>{item.label}</span>{/if}
+				{#if !collapsed}<span class="label-text">{item.label}</span>{/if}
+				{#if item.href === '/notifications' && bell.unread}<span
+						class="count num"
+						aria-label="непрочитанных: {bell.unread}">{bell.unread > 99 ? '99+' : bell.unread}</span
+					>{/if}
 			</a>
 		{/each}
 	</nav>
@@ -198,6 +203,34 @@
 	.main a.active {
 		background: var(--accent);
 		color: var(--accent-text);
+	}
+	.main a {
+		position: relative;
+	}
+	.label-text {
+		flex: 1;
+	}
+	.count {
+		min-width: 22px;
+		height: 22px;
+		padding: 0 6px;
+		border-radius: 11px;
+		background: var(--danger);
+		color: #fff;
+		font-size: 12px;
+		font-weight: 700;
+		line-height: 22px;
+		text-align: center;
+	}
+	.collapsed .count {
+		position: absolute;
+		top: 2px;
+		right: 2px;
+		min-width: 18px;
+		height: 18px;
+		font-size: 10.5px;
+		line-height: 18px;
+		padding: 0 4px;
 	}
 	.collapsed .main a {
 		width: 48px;

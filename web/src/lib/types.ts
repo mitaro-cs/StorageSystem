@@ -272,3 +272,42 @@ export interface SearchResult {
 	items: SearchHit[];
 	counts: Partial<Record<SearchKind, number>>;
 }
+
+export interface NotificationItem {
+	id: number;
+	kind: 'homework' | 'news' | 'material' | 'material_pending' | 'reminder' | 'digest' | 'test';
+	title: string;
+	body: string;
+	url: string;
+	createdAt: number;
+	read: boolean;
+}
+
+export interface NotificationPage {
+	items: NotificationItem[];
+	unread: number;
+	next: number | null;
+}
+
+export interface NotificationPrefs {
+	homework: boolean;
+	news: 'all' | 'urgent' | 'none';
+	materials: boolean;
+	reminders: boolean;
+	digest: boolean;
+	digestAt: number;
+}
+
+export interface PushDevice {
+	id: number;
+	device: string;
+	createdAt: number;
+	lastOkAt: number | null;
+}
+
+export interface NotificationSettings {
+	prefs: NotificationPrefs;
+	devices: PushDevice[];
+	pushEnabled: boolean;
+	publicKey: string;
+}

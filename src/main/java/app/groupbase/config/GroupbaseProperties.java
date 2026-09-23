@@ -16,7 +16,8 @@ public record GroupbaseProperties(
     @DefaultValue("Europe/Moscow") ZoneId timezone,
     @DefaultValue Http http,
     @DefaultValue Auth auth,
-    @DefaultValue Uploads uploads) {
+    @DefaultValue Uploads uploads,
+    @DefaultValue Push push) {
 
   /**
    * @param insecure разрешить работу по HTTP (режим «только локальная сеть»): cookie без Secure.
@@ -46,6 +47,26 @@ public record GroupbaseProperties(
       return maxFileMb * 1024L * 1024L;
     }
   }
+
+  /**
+   * Web Push. Уведомления уходят только в службы браузеров из списка — защита от запросов сервера
+   * на произвольные адреса. Содержимое зашифровано для устройства (RFC 8291), службы его не видят.
+   *
+   * @param subject контакт администратора для служб push (mailto: или https://); по умолчанию —
+   *     base-url
+   * @param allowedHosts домены служб push (совпадение домена или его поддомена)
+   */
+  public record Push(
+      @DefaultValue("true") boolean enabled,
+      @DefaultValue("") String subject,
+      @DefaultValue({
+            "fcm.googleapis.com",
+            "android.googleapis.com",
+            "push.services.mozilla.com",
+            "notify.windows.com",
+            "push.apple.com"
+          })
+          java.util.List<String> allowedHosts) {}
 
   public Path filesDir() {
     return dataDir.resolve("files");

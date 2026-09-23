@@ -89,3 +89,46 @@ sw.addEventListener('fetch', (event) => {
 		event.respondWith(networkFirst(req));
 	}
 });
+
+/** Push-уведомление: содержимое расшифровал браузер, показываем и говорим открытым вкладкам. */
+sw.addEventListener('push', (event) => {
+	let data: { title?: string; body?: string; url?: string; tag?: string };
+	try {
+		data = event.data?.json() ?? {};
+	} catch {
+		data = { body: event.data?.text() };
+	}
+	event.waitUntil(
+		Promise.all([
+			sw.registration.showNotification(data.title || 'groupbase', {
+				body: data.body ?? '',
+				tag: data.tag,
+				icon: '/icons/icon-192.png',
+				badge: '/icons/badge-96.png',
+				lang: 'ru',
+				data: { url: data.url ?? '/' }
+			}),
+			sw.clients
+				.matchAll({ type: 'window' })
+				.then((all) => all.forEach((c) => c.postMessage({ type: 'push' })))
+		])
+	);
+});
+
+/** Нажатие на уведомление: открываем нужную страницу в уже открытом окне или в новом. */
+sw.addEventListener('notificationclick', (event) => {
+	event.notification.close();
+	const url = new URL(event.notification.data?.url ?? '/', sw.location.origin).href;
+	event.waitUntil(
+		(async () => {
+			const all = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true });
+			for (const c of all) {
+				if (new URL(c.url).origin === sw.location.origin) {
+					await c.focus();
+					return c.navigate(url).catch(() => sw.clients.openWindow(url));
+				}
+			}
+			return sw.clients.openWindow(url);
+		})()
+	);
+});
