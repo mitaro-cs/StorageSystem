@@ -14,7 +14,8 @@ public record GroupbaseProperties(
     @DefaultValue("./data") Path dataDir,
     @DefaultValue("") String baseUrl,
     @DefaultValue("Europe/Moscow") ZoneId timezone,
-    @DefaultValue Http http) {
+    @DefaultValue Http http,
+    @DefaultValue Auth auth) {
 
   /**
    * @param insecure разрешить работу по HTTP (режим «только локальная сеть»): cookie без Secure.
@@ -23,6 +24,18 @@ public record GroupbaseProperties(
       @DefaultValue("8080") int port,
       @DefaultValue("127.0.0.1") String address,
       @DefaultValue("false") boolean insecure) {}
+
+  /**
+   * @param sessionDays срок жизни сессии; продлевается при активности
+   * @param requireStaffTotp обязательная 2FA для admin и moderator
+   * @param activationDays срок действия ссылок активации и сброса пароля
+   */
+  public record Auth(
+      @DefaultValue("30") int sessionDays,
+      @DefaultValue("true") boolean requireStaffTotp,
+      @DefaultValue("7") int activationDays,
+      @DefaultValue("5") int maxLoginAttempts,
+      @DefaultValue("15") int loginWindowMinutes) {}
 
   public Path secretsDir() {
     return dataDir.resolve("secrets");
