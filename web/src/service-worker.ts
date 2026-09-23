@@ -8,19 +8,12 @@ import { build, files, version } from '$service-worker';
 const sw = self as unknown as ServiceWorkerGlobalScope;
 const SHELL = `shell-${version}`;
 const DATA = 'data-v1';
+/** Файлы материалов: открытые и скачанные заранее (см. lib/offline/files.ts). */
+const FILES = 'files-v1';
 const INDEX = '/index.html';
 
 /** Оболочка приложения: код, стили, шрифты, иконки. Предсжатые копии не нужны. */
 const ASSETS = [...build, ...files.filter((f) => !/\.(br|gz)$/.test(f)), INDEX];
-
-/** Эти GET-запросы API доступны офлайн: сначала сеть, при её отсутствии — последний ответ. */
-const OFFLINE_API = [
-	/^\/api\/me$/,
-	/^\/api\/today/,
-	/^\/api\/news/,
-	/^\/api\/homework/,
-	/^\/api\/subjects/
-];
 
 sw.addEventListener('install', (event) => {
 	event.waitUntil(caches.open(SHELL).then((c) => c.addAll(ASSETS)));
@@ -32,7 +25,9 @@ sw.addEventListener('activate', (event) => {
 		caches
 			.keys()
 			.then((keys) =>
-				Promise.all(keys.filter((k) => k !== SHELL && k !== DATA).map((k) => caches.delete(k)))
+				Promise.all(
+					keys.filter((k) => ![SHELL, DATA, FILES].includes(k)).map((k) => caches.delete(k))
+				)
 			)
 			.then(() => sw.clients.claim())
 	);
@@ -40,22 +35,18 @@ sw.addEventListener('activate', (event) => {
 
 /** При выходе из аккаунта сохранённые данные удаляются с устройства. */
 sw.addEventListener('message', (event) => {
-	if (event.data === 'logout') event.waitUntil(caches.delete(DATA));
+	if (event.data === 'logout')
+		event.waitUntil(Promise.all([caches.delete(DATA), caches.delete(FILES)]));
 });
 
-async function networkFirst(req: Request): Promise<Response> {
-	const cache = await caches.open(DATA);
-	try {
-		const res = await fetch(req);
-		if (res.ok) cache.put(req, res.clone());
-		return res;
-	} catch {
-		const hit = await cache.match(req);
-		if (!hit) throw new Error('offline');
-		const headers = new Headers(hit.headers);
-		headers.set('X-From-Cache', '1');
-		return new Response(hit.body, { status: hit.status, headers });
-	}
+/** Файл по id не меняется: сначала сохранённая копия, иначе сеть — и запоминаем. */
+async function fileFirst(req: Request, path: string): Promise<Response> {
+	const cache = await caches.open(FILES);
+	const hit = await cache.match(path, { ignoreSearch: true });
+	if (hit) return hit;
+	const res = await fetch(req);
+	if (res.ok && res.status === 200) cache.put(path, res.clone());
+	return res;
 }
 
 sw.addEventListener('fetch', (event) => {
@@ -85,8 +76,8 @@ sw.addEventListener('fetch', (event) => {
 		);
 		return;
 	}
-	if (OFFLINE_API.some((r) => r.test(url.pathname))) {
-		event.respondWith(networkFirst(req));
+	if (/^\/api\/files\/\d+$/.test(url.pathname)) {
+		event.respondWith(fileFirst(req, url.pathname));
 	}
 });
 

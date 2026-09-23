@@ -1,4 +1,5 @@
 import { get } from './api';
+import { rememberMe } from './offline/engine';
 import type { Me, MeGroup, Permission } from './types';
 
 const GROUP_KEY = 'gb-group';
@@ -13,6 +14,7 @@ export async function loadMe(f?: typeof fetch): Promise<Me> {
 	const me = await get<Me>('/api/me', { fetch: f });
 	session.me = me;
 	restoreGroup(me);
+	rememberMe(me);
 	return me;
 }
 

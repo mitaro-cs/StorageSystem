@@ -176,6 +176,36 @@ public class NewsService {
     return new Page(views(actor, pinned), views(actor, rows), next);
   }
 
+  /**
+   * Для офлайн-синхронизации: видимые новости среди {@code ids} или, если ids == null, все видимые
+   * новее {@code since}.
+   */
+  public List<Item> visible(Actor actor, java.util.Collection<Long> ids, long since) {
+    List<Long> scope = access.visibleGroups(actor);
+    if (scope.isEmpty() || (ids != null && ids.isEmpty())) {
+      return List.of();
+    }
+    Map<String, Object> p = new HashMap<>();
+    p.put("g", scope);
+    p.put("mod", Targets.nonEmpty(access.groupsWith(actor, Permission.MODERATE_CONTENT, scope)));
+    p.put("uid", actor.id());
+    p.put("subject", null);
+    String where =
+        """
+        EXISTS (SELECT 1 FROM post_targets t WHERE t.post_id = p.id AND t.group_id IN (:g))
+        AND (p.hidden = 0 OR p.author_id = :uid OR EXISTS (
+          SELECT 1 FROM post_targets t2 WHERE t2.post_id = p.id AND t2.group_id IN (:mod)))
+        """;
+    if (ids == null) {
+      p.put("since", since);
+      where += " AND p.created_at >= :since";
+    } else {
+      p.put("ids", List.copyOf(ids));
+      where += " AND p.id IN (:ids)";
+    }
+    return views(actor, query(where + " ORDER BY p.id", p));
+  }
+
   public Item get(Actor actor, long id) {
     Row r = row(id);
     List<Long> t = targets.of(Targets.Kind.POST, id);

@@ -35,10 +35,18 @@
 	let loadingMore = $state(false);
 	let pushOn = $state(true);
 
+	let unavailable = $state(false);
+
 	async function load(before?: number) {
-		const page = await get<NotificationPage>(
-			`/api/notifications${before ? `?before=${before}` : ''}`
-		);
+		let page: NotificationPage;
+		try {
+			page = await get<NotificationPage>(`/api/notifications${before ? `?before=${before}` : ''}`);
+		} catch {
+			unavailable = true;
+			items ??= [];
+			return;
+		}
+		unavailable = false;
 		items = before ? [...(items ?? []), ...page.items] : page.items;
 		next = page.next;
 		bell.unread = page.unread;
@@ -97,7 +105,11 @@
 	</a>
 {/if}
 
-{#if !items}
+{#if unavailable && !items?.length}
+	<div class="card">
+		<Empty title="Нужен интернет" text="Уведомления загрузятся, когда появится сеть." />
+	</div>
+{:else if !items}
 	<Skeleton lines={5} />
 {:else if items.length === 0}
 	<div class="card">

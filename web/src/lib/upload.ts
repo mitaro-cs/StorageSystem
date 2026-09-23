@@ -1,4 +1,5 @@
 import { ApiError } from './api';
+import { enabled as offlineEnabled, stashFile } from './offline/engine';
 import type { FileInfo } from './types';
 
 function csrf(): string {
@@ -18,6 +19,9 @@ export function uploadFile(
 	onProgress?: (fraction: number) => void,
 	signal?: AbortSignal
 ): Promise<FileInfo> {
+	// Без сети файл ждёт на устройстве и уйдёт вместе с публикацией.
+	if (!navigator.onLine && offlineEnabled())
+		return stashFile(file).then((f) => (onProgress?.(1), f));
 	return new Promise((resolve, reject) => {
 		const xhr = new XMLHttpRequest();
 		xhr.open('POST', '/api/files');

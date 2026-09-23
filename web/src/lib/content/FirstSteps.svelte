@@ -42,7 +42,8 @@
 		}
 		isInstalled = installed();
 		pushOn = !pushSupported() || (await currentSubscription()) !== null;
-		if (manager && group) progress = await get<Progress>(`/api/groups/${group.id}/progress`);
+		if (manager && group)
+			progress = await get<Progress>(`/api/groups/${group.id}/progress`).catch(() => null);
 	});
 
 	const steps = $derived.by((): Step[] => {

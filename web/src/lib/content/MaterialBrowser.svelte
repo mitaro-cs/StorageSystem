@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { offline } from '$lib/offline/engine';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Folder as FolderIcon, FolderPlus, Plus, ChevronRight } from '@lucide/svelte';
@@ -35,6 +36,7 @@
 	$effect(() => {
 		void folder;
 		void subjectId;
+		void offline.version;
 		load();
 	});
 

@@ -5,7 +5,9 @@
 	import { fioError } from '$lib/names';
 	import { goto } from '$app/navigation';
 	import { Download, LogOut, Settings, Users, Newspaper, BookOpen } from '@lucide/svelte';
-	import { del, get, patch, post } from '$lib/api';
+	import { ApiError, del, get, patch, post, request } from '$lib/api';
+	import { offline, wipeOffline } from '$lib/offline/engine';
+	import OfflineSettings from '$lib/settings/OfflineSettings.svelte';
 	import { t } from '$lib/i18n/ru';
 	import { loadMe, session } from '$lib/session.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
@@ -127,18 +129,40 @@
 		}
 	}
 
-	async function logout() {
-		await post('/api/auth/logout');
+	/** Всё, что хранилось на устройстве, стирается: копия данных, файлы, недавнее. */
+	async function forgetDevice() {
 		forgetOfflineData();
+		await wipeOffline();
 		clearCache();
 		clearRecent();
 		session.me = null;
+	}
+
+	async function logout() {
+		if (
+			offline.pending > 0 &&
+			!window.confirm(
+				`Без сети сделано действий: ${offline.pending}. Они ещё не отправлены и пропадут. Выйти?`
+			)
+		)
+			return;
+		try {
+			await request('/api/auth/logout', { method: 'POST', body: {} });
+		} catch (err) {
+			return toastError(
+				err instanceof ApiError && err.status === 0
+					? new Error('Выйти можно, когда появится интернет')
+					: err
+			);
+		}
+		await forgetDevice();
 		goto('/login', { replaceState: true });
 	}
 
 	async function deleteAccount() {
 		try {
 			await del('/api/me', { password: deletePassword });
+			await forgetDevice();
 			goto('/login', { replaceState: true });
 		} catch (err) {
 			toastError(err);
@@ -200,6 +224,8 @@
 </section>
 
 <NotificationSettings />
+
+<OfflineSettings />
 
 <section class="card block">
 	<h2>Пароль</h2>

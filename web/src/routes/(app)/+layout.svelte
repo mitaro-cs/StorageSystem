@@ -9,9 +9,13 @@
 	import SwipeBack from '$lib/shell/SwipeBack.svelte';
 	import { initPwa, pwa } from '$lib/pwa.svelte';
 	import { startBell } from '$lib/notify.svelte';
+	import { ApiError } from '$lib/api';
+	import { toast } from '$lib/toasts.svelte';
+	import { initOffline, offline } from '$lib/offline/engine';
+	import { session } from '$lib/session.svelte';
 	import { onMount } from 'svelte';
 	import { slide } from '$lib/motion';
-	import { WifiOff } from '@lucide/svelte';
+	import { CloudUpload, WifiOff } from '@lucide/svelte';
 
 	let { children } = $props();
 	// На страницах деталей верхнюю панель заменяет «← Раздел» (BackBar), как на макете.
@@ -21,6 +25,22 @@
 	let collapsed = $state(false);
 	onMount(initPwa);
 	onMount(startBell);
+	onMount(() => {
+		let told = false;
+		const onRejection = (e: PromiseRejectionEvent) => {
+			if (e.reason instanceof ApiError && e.reason.code === 'offline') {
+				e.preventDefault();
+				if (!told) toast(e.reason.message, 'info');
+				told = true;
+				setTimeout(() => (told = false), 10_000);
+			}
+		};
+		addEventListener('unhandledrejection', onRejection);
+		return () => removeEventListener('unhandledrejection', onRejection);
+	});
+	onMount(() => {
+		if (session.me) initOffline(session.me);
+	});
 
 	// Палитра грузится при первом открытии — её код не нужен для первого экрана.
 	let paletteWanted = $state(false);
@@ -36,7 +56,13 @@
 		{#if !detail}<div class="mobile-only"><MobileBar /></div>{/if}
 		{#if pwa.offline}
 			<div class="offline" role="status" transition:slide>
-				<WifiOff size={15} /> Нет сети — показаны сохранённые данные
+				<WifiOff size={15} /> Нет сети — показаны сохранённые данные{offline.pending
+					? ` · отправится позже: ${offline.pending}`
+					: ''}
+			</div>
+		{:else if offline.pending}
+			<div class="offline sending" role="status" transition:slide>
+				<CloudUpload size={15} /> Отправляем сделанное без сети: {offline.pending}
 			</div>
 		{/if}
 		<main id="content" tabindex="-1">
@@ -95,6 +121,10 @@
 		color: var(--amber);
 		font-size: 13.5px;
 		font-weight: 550;
+	}
+	.offline.sending {
+		background: var(--surface-2);
+		color: var(--text-2);
 	}
 	.skip {
 		position: absolute;

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Paperclip, MessageCircle, EyeOff } from '@lucide/svelte';
+	import { Paperclip, MessageCircle, EyeOff, CloudOff } from '@lucide/svelte';
 	import type { Homework } from '$lib/types';
 	import { fmtDue } from '$lib/format';
 	import SubjectTag from '$lib/ui/SubjectTag.svelte';
@@ -26,6 +26,11 @@
 					><MessageCircle size={13} />{item.comments}</span
 				>{/if}
 			{#if item.hidden}<span class="chip"><EyeOff size={12} /> скрыто</span>{/if}
+			{#if item.pending}<span
+					class="chip amber"
+					title="Создано без сети — уйдёт на сервер, когда появится интернет"
+					><CloudOff size={12} /> ждёт отправки</span
+				>{/if}
 		</div>
 	</div>
 	<span class="due num" class:overdue class:soon>{fmtDue(item.dueAt, now)}</span>

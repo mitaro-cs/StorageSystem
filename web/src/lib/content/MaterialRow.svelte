@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ExternalLink } from '@lucide/svelte';
+	import { CloudOff, ExternalLink } from '@lucide/svelte';
 	import { fmtAgo, fmtSize } from '$lib/format';
 	import { t } from '$lib/i18n/ru';
 	import type { Material } from '$lib/types';
@@ -25,6 +25,11 @@
 	</div>
 	{#if m.status === 'pending'}<span class="chip amber">на проверке</span>{/if}
 	{#if m.hidden}<span class="chip">скрыт</span>{/if}
+	{#if m.pending}<span
+			class="chip amber"
+			title="Создано без сети — уйдёт на сервер, когда появится интернет"
+			><CloudOff size={12} /> ждёт отправки</span
+		>{/if}
 	{#if m.kind === 'link' && m.url}
 		<a
 			class="ext"

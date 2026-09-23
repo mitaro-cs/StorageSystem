@@ -102,6 +102,8 @@ export interface NewsItem {
 	groups: GroupRef[];
 	comments: number;
 	can: ItemCan;
+	/** Создано без сети и ещё не отправлено на сервер. */
+	pending?: boolean;
 }
 
 export interface NewsPage {
@@ -126,6 +128,8 @@ export interface Homework {
 	comments: number;
 	attachments: FileInfo[];
 	can: ItemCan;
+	/** Создано без сети и ещё не отправлено на сервер. */
+	pending?: boolean;
 }
 
 export interface Today {
@@ -142,6 +146,8 @@ export interface Comment {
 	createdAt: number;
 	hidden: boolean;
 	canDelete: boolean;
+	/** Создано без сети и ещё не отправлено на сервер. */
+	pending?: boolean;
 }
 
 export interface Member {
@@ -214,6 +220,8 @@ export interface FileInfo {
 	name: string;
 	mime: string;
 	size: number;
+	/** Создано без сети и ещё не отправлено на сервер. */
+	pending?: boolean;
 }
 
 export interface Material {
@@ -233,6 +241,8 @@ export interface Material {
 	createdAt: number;
 	comments: number;
 	can: { edit: boolean; delete: boolean; moderate: boolean };
+	/** Создано без сети и ещё не отправлено на сервер. */
+	pending?: boolean;
 }
 
 export interface Folder {

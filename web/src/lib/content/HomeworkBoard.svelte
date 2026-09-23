@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { offline } from '$lib/offline/engine';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
@@ -49,6 +50,7 @@
 	$effect(() => {
 		void session.groupId;
 		void view;
+		void offline.version;
 		load();
 		countOverdue();
 	});

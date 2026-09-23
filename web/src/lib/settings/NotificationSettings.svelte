@@ -21,8 +21,15 @@
 	const supported = pushSupported();
 	const needsInstall = supported && needsInstallForPush();
 
+	let offlineOnly = $state(false);
+
 	async function load() {
-		s = await get<NotificationSettings>('/api/me/notifications');
+		try {
+			s = await get<NotificationSettings>('/api/me/notifications');
+			offlineOnly = false;
+		} catch {
+			offlineOnly = true;
+		}
 		subscribed = (await currentSubscription()) !== null;
 	}
 	onMount(load);
@@ -82,6 +89,9 @@
 
 <section class="card block" id="notifications">
 	<h2>Уведомления</h2>
+	{#if offlineOnly}<p class="faint small">
+			Настройки уведомлений откроются, когда появится интернет.
+		</p>{/if}
 
 	<div class="device">
 		<span class="circle"><Smartphone size={19} /></span>

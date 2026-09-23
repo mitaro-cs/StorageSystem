@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { offline } from '$lib/offline/engine';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import BackBar from '$lib/ui/BackBar.svelte';
@@ -26,6 +27,7 @@
 
 	$effect(() => {
 		void page.params.id;
+		void offline.version;
 		load();
 	});
 </script>

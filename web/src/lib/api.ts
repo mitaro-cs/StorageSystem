@@ -1,5 +1,6 @@
 import { goto } from '$app/navigation';
-import { markCached } from './pwa.svelte';
+import { pwa } from './pwa.svelte';
+import { enabled as offlineEnabled, enqueue, queueable, resolveLocal } from './offline/engine';
 
 export class ApiError extends Error {
 	constructor(
@@ -41,8 +42,8 @@ export interface RequestOptions {
 	anonymous?: boolean;
 }
 
-/** Запрос к API: JSON, CSRF-заголовок для мутаций, ошибки → ApiError с текстом по-русски. */
-export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+/** Запрос к API по сети: JSON, CSRF для мутаций, ошибки → ApiError с текстом по-русски. */
+export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 	const f = opts.fetch ?? fetch;
 	const method = opts.method ?? (opts.body !== undefined || opts.form ? 'POST' : 'GET');
 	const headers: Record<string, string> = { Accept: 'application/json' };
@@ -53,14 +54,19 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
 		headers['Content-Type'] = 'application/json';
 		body = JSON.stringify(opts.body);
 	}
+	// Чтение без ответа дольше 10 секунд считаем отсутствием сети: покажем сохранённое.
+	const signal =
+		opts.signal ??
+		(method === 'GET' && typeof AbortSignal.timeout === 'function'
+			? AbortSignal.timeout(10_000)
+			: undefined);
 	let res: Response;
 	try {
-		res = await f(path, { method, headers, body, signal: opts.signal, credentials: 'same-origin' });
+		res = await f(path, { method, headers, body, signal, credentials: 'same-origin' });
 	} catch (e) {
-		if ((e as Error).name === 'AbortError') throw e;
+		if ((e as Error).name === 'AbortError' && opts.signal?.aborted) throw e;
 		throw new ApiError(0, 'network', 'Нет связи с сервером. Проверьте интернет');
 	}
-	markCached(res);
 	const isJson = res.headers.get('Content-Type')?.startsWith('application/json');
 	const data = isJson ? await res.json() : null;
 	if (!res.ok) {
@@ -76,6 +82,42 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
 		);
 	}
 	return data as T;
+}
+
+/**
+ * Запрос с офлайн-режимом: без сети чтение идёт из копии на устройстве, а часть действий
+ * (отметки, комментарии, публикации) встаёт в очередь и уйдёт на сервер позже.
+ */
+export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+	const method = opts.method ?? (opts.body !== undefined || opts.form ? 'POST' : 'GET');
+	const local = !opts.anonymous && !opts.form && offlineEnabled();
+	// Объекты, созданные без сети, есть только на устройстве (временный отрицательный id).
+	if (local && (!navigator.onLine || /\/-\d+(\/|$|\?)/.test(path)))
+		return fallback<T>(method, path, opts.body);
+	try {
+		const r = await request<T>(path, opts);
+		if (local) pwa.offline = false;
+		return r;
+	} catch (e) {
+		if (local && e instanceof ApiError && e.code === 'network')
+			return fallback<T>(method, path, opts.body);
+		throw e;
+	}
+}
+
+async function fallback<T>(method: string, path: string, body: unknown): Promise<T> {
+	pwa.offline = true;
+	if (method === 'GET') {
+		const r = await resolveLocal(path);
+		if (r !== undefined) return r as T;
+		throw new ApiError(
+			0,
+			'offline',
+			'Без интернета это недоступно — откройте, когда появится сеть'
+		);
+	}
+	if (queueable(method, path)) return (await enqueue(method, path, body)) as T;
+	throw new ApiError(0, 'offline', 'Нужен интернет: это действие без сети не сохранить');
 }
 
 export const get = <T>(path: string, opts: RequestOptions = {}) => api<T>(path, opts);

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { offline } from '$lib/offline/engine';
 	import { firstName } from '$lib/names';
 	import { Plus, Search, ArrowRight, CalendarCheck, TriangleAlert } from '@lucide/svelte';
 	import { get } from '$lib/api';
@@ -30,6 +31,7 @@
 	}
 
 	$effect(() => {
+		void offline.version;
 		load(session.groupId);
 	});
 

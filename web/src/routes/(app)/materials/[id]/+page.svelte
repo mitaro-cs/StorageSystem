@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { offline } from '$lib/offline/engine';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { ChevronRight, Download, ExternalLink } from '@lucide/svelte';
@@ -38,6 +39,7 @@
 
 	$effect(() => {
 		void page.params.id;
+		void offline.version;
 		load();
 	});
 

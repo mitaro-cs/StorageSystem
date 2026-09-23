@@ -27,11 +27,6 @@ export async function install() {
 	pwa.canInstall = false;
 }
 
-/** Ответ пришёл из офлайн-кеша service worker. */
-export function markCached(res: Response) {
-	if (res.headers.get('X-From-Cache') === '1') pwa.offline = true;
-}
-
 export function forgetOfflineData() {
 	navigator.serviceWorker?.controller?.postMessage('logout');
 }

@@ -212,6 +212,63 @@ public class MaterialService {
         access.can(actor, Permission.SUGGEST_MATERIALS, groups));
   }
 
+  /**
+   * Для офлайн-синхронизации: видимые материалы среди {@code ids} или (ids == null) все видимые.
+   */
+  public List<Item> visible(Actor actor, java.util.Collection<Long> ids) {
+    List<Long> scope = access.visibleGroups(actor);
+    if (scope.isEmpty() || (ids != null && ids.isEmpty())) {
+      return List.of();
+    }
+    Map<String, Object> p = new HashMap<>();
+    p.put("g", scope);
+    p.put("mod", Targets.nonEmpty(access.groupsWith(actor, Permission.MODERATE_CONTENT, scope)));
+    p.put("uid", actor.id());
+    String where =
+        """
+        m.status != 'rejected'
+        AND EXISTS (SELECT 1 FROM subject_groups sg WHERE sg.subject_id = m.subject_id AND sg.group_id IN (:g))
+        AND ((m.status = 'published' AND m.hidden = 0) OR m.author_id = :uid OR EXISTS (
+          SELECT 1 FROM subject_groups sg2 WHERE sg2.subject_id = m.subject_id AND sg2.group_id IN (:mod)))
+        """;
+    if (ids != null) {
+      p.put("ids", List.copyOf(ids));
+      where += " AND m.id IN (:ids)";
+    }
+    return views(actor, query(where + " ORDER BY m.id", p));
+  }
+
+  /** Папка для офлайн-копии: без счётчика, его считает клиент. */
+  public record FolderRef(long id, long subjectId, Long parentId, String name) {}
+
+  public List<FolderRef> visibleFolders(Actor actor, java.util.Collection<Long> ids) {
+    List<Long> scope = access.visibleGroups(actor);
+    if (scope.isEmpty() || (ids != null && ids.isEmpty())) {
+      return List.of();
+    }
+    Map<String, Object> p = new HashMap<>();
+    p.put("g", scope);
+    String where =
+        "EXISTS (SELECT 1 FROM subject_groups sg WHERE sg.subject_id = f.subject_id"
+            + " AND sg.group_id IN (:g))";
+    if (ids != null) {
+      p.put("ids", List.copyOf(ids));
+      where += " AND f.id IN (:ids)";
+    }
+    var q = db.sql("SELECT f.id, f.subject_id, f.parent_id, f.name FROM folders f WHERE " + where);
+    for (var e : p.entrySet()) {
+      q = q.param(e.getKey(), e.getValue());
+    }
+    return q.query(
+            (rs, i) ->
+                new FolderRef(
+                    rs.getLong("id"),
+                    rs.getLong("subject_id"),
+                    Rows.longOrNull(rs, "parent_id"),
+                    rs.getString("name")))
+        .list();
+  }
+
   /** Недавние материалы по видимым предметам (раздел «Материалы»). */
   public List<Item> recent(Actor actor, Long group, int limit) {
     List<Long> scope = access.scope(actor, group);

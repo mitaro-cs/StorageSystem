@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MessageCircle, Pin, EyeOff } from '@lucide/svelte';
+	import { MessageCircle, Pin, EyeOff, CloudOff } from '@lucide/svelte';
 	import type { NewsItem } from '$lib/types';
 	import { fmtAgo } from '$lib/format';
 	import { isMulti } from '$lib/session.svelte';
@@ -28,6 +28,11 @@
 	<div class="meta">
 		{#if item.urgent}<span class="chip amber">Срочно</span>{/if}
 		{#if item.hidden}<span class="chip"><EyeOff size={13} /> Скрыто</span>{/if}
+		{#if item.pending}<span
+				class="chip amber"
+				title="Создано без сети — уйдёт на сервер, когда появится интернет"
+				><CloudOff size={12} /> ждёт отправки</span
+			>{/if}
 		{#if item.subject}<SubjectTag {...item.subject} />{/if}
 		{#if isMulti()}{#each item.groups as g (g.id)}<span class="chip">{g.name}</span>{/each}{/if}
 	</div>

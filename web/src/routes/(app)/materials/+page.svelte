@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { offline } from '$lib/offline/engine';
 	import { get, qs } from '$lib/api';
 	import { session } from '$lib/session.svelte';
 	import { sortedSubjects } from '$lib/data.svelte';
@@ -23,6 +24,7 @@
 
 	$effect(() => {
 		void session.groupId;
+		void offline.version;
 		load();
 	});
 

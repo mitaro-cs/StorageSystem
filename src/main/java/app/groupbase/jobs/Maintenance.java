@@ -7,6 +7,7 @@ import app.groupbase.auth.SessionService;
 import app.groupbase.files.FileStore;
 import app.groupbase.notify.NotificationStore;
 import app.groupbase.store.UserTokenStore;
+import app.groupbase.sync.SyncService;
 import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ class Maintenance {
   private final AuditService audit;
   private final FileStore files;
   private final NotificationStore notifications;
+  private final SyncService sync;
   private final Clock clock;
 
   Maintenance(
@@ -43,7 +45,9 @@ class Maintenance {
       AuditService audit,
       FileStore files,
       NotificationStore notifications,
+      SyncService sync,
       Clock clock) {
+    this.sync = sync;
     this.files = files;
     this.notifications = notifications;
     this.sessions = sessions;
@@ -68,6 +72,7 @@ class Maintenance {
     int orphans = files.deleteOrphans(clock.millis() - java.time.Duration.ofDays(1).toMillis());
     int old =
         notifications.deleteOlderThan(clock.millis() - java.time.Duration.ofDays(90).toMillis());
+    sync.purge();
     log.info(
         "Уборка: сессий {}, ссылок {}, IP в аудите {}, файлов {}, уведомлений {}",
         s,

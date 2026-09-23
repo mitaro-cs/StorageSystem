@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { CloudOff } from '@lucide/svelte';
+	import { offline } from '$lib/offline/engine';
 	import { del, get, post } from '$lib/api';
 	import { fmtAgo } from '$lib/format';
 	import { fly, slide } from '$lib/motion';
@@ -16,9 +17,11 @@
 	let text = $state('');
 	let busy = $state(false);
 
-	onMount(async () => {
-		items = await get<Comment[]>(`${base}/comments`);
-		loaded = true;
+	$effect(() => {
+		void offline.version;
+		get<Comment[]>(`${base}/comments`)
+			.then((c) => ((items = c), (loaded = true)))
+			.catch(() => (loaded = true));
 	});
 
 	async function send(e: SubmitEvent) {
@@ -54,6 +57,11 @@
 			<div class="head">
 				<Author person={c.author} size={24} />
 				<span class="faint small num">{fmtAgo(c.createdAt)}</span>
+				{#if c.pending}<span
+						class="chip amber"
+						title="Создано без сети — уйдёт на сервер, когда появится интернет"
+						><CloudOff size={12} /> ждёт отправки</span
+					>{/if}
 				<span class="spacer"></span>
 				{#if c.canDelete}
 					<button class="link small" onclick={() => remove(c)}>Удалить</button>
