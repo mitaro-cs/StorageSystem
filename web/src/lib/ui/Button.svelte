@@ -59,12 +59,12 @@
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
-		height: 40px;
-		padding: 0 16px;
+		height: 44px;
+		padding: 0 20px;
 		border: 1px solid transparent;
-		border-radius: var(--r-s);
-		font-weight: 560;
-		font-size: 14.5px;
+		border-radius: var(--r-full);
+		font-weight: 580;
+		font-size: 15px;
 		white-space: nowrap;
 		text-decoration: none;
 		transition:
@@ -81,21 +81,20 @@
 		text-decoration: none;
 	}
 	.btn:disabled {
-		opacity: 0.55;
+		opacity: 0.5;
 		cursor: not-allowed;
 	}
 	.s {
-		height: 32px;
-		padding: 0 12px;
-		font-size: 13.5px;
-		border-radius: 9px;
+		height: 36px;
+		padding: 0 14px;
+		font-size: 14px;
 	}
 	.icon {
-		width: 40px;
+		width: 44px;
 		padding: 0;
 	}
 	.icon.s {
-		width: 32px;
+		width: 36px;
 	}
 	.content {
 		display: inline-flex;
@@ -108,7 +107,6 @@
 	.primary {
 		background: var(--accent);
 		color: var(--accent-text);
-		box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
 	}
 	.primary:hover:not(:disabled) {
 		background: var(--accent-hover);

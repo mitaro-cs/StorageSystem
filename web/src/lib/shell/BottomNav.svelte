@@ -3,65 +3,86 @@
 	import { bottomNav, isActive } from './nav';
 </script>
 
+<!-- Плавающая матовая панель: иконки, активный раздел — белый круг. Подписи — для скринридеров. -->
+<div class="fade" aria-hidden="true"></div>
 <nav class="bottom-nav" aria-label="Основные разделы">
 	{#each bottomNav as item (item.href)}
 		{@const Icon = item.icon}
 		{@const on = isActive(page.url.pathname, item.href)}
-		<a href={item.href} class:on aria-current={on ? 'page' : undefined}>
-			<span class="icon"><Icon size={22} strokeWidth={on ? 2.1 : 1.7} /></span>
-			<span class="label">{item.label}</span>
+		<a
+			href={item.href}
+			class:on
+			aria-current={on ? 'page' : undefined}
+			aria-label={item.label}
+			title={item.label}
+		>
+			<span class="icon"><Icon size={22} strokeWidth={on ? 2 : 1.8} /></span>
 		</a>
 	{/each}
 </nav>
 
 <style>
-	.bottom-nav {
+	.fade {
 		position: fixed;
-		z-index: 40;
+		z-index: 39;
 		left: 0;
 		right: 0;
 		bottom: 0;
+		height: calc(var(--bottom-nav) + var(--bottom-gap) * 3 + env(safe-area-inset-bottom));
+		background: linear-gradient(to bottom, transparent, var(--bg) 70%);
+		pointer-events: none;
+	}
+	.bottom-nav {
+		position: fixed;
+		z-index: 40;
+		left: var(--bottom-gap);
+		right: var(--bottom-gap);
+		bottom: calc(var(--bottom-gap) + env(safe-area-inset-bottom));
+		max-width: 420px;
+		margin: 0 auto;
 		display: grid;
 		grid-template-columns: repeat(5, 1fr);
-		height: calc(var(--bottom-nav) + env(safe-area-inset-bottom));
-		padding-bottom: env(safe-area-inset-bottom);
-		background: color-mix(in srgb, var(--surface) 88%, transparent);
-		backdrop-filter: saturate(1.4) blur(14px);
-		-webkit-backdrop-filter: saturate(1.4) blur(14px);
-		border-top: 1px solid var(--border);
+		align-items: center;
+		height: var(--bottom-nav);
+		padding: 0 8px;
+		border: 1px solid var(--glass-border);
+		border-radius: var(--r-full);
+		/* матовое стекло: сильное размытие и приглушённая прозрачность */
+		background: var(--glass);
+		backdrop-filter: blur(28px) saturate(1.5);
+		-webkit-backdrop-filter: blur(28px) saturate(1.5);
+		box-shadow:
+			0 18px 40px -12px rgb(0 0 0 / 0.4),
+			inset 0 1px 0 rgb(255 255 255 / 0.06);
 	}
 	a {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 2px;
-		color: var(--text-3);
-		font-size: 11px;
-		font-weight: 550;
+		display: grid;
+		place-items: center;
+		height: 100%;
+		color: var(--glass-text);
 		-webkit-tap-highlight-color: transparent;
 	}
 	a:hover {
+		color: #fff;
 		text-decoration: none;
 	}
 	.icon {
 		display: grid;
 		place-items: center;
 		width: 48px;
-		height: 30px;
-		border-radius: 999px;
+		height: 48px;
+		border-radius: 50%;
 		transition:
-			background-color var(--dur) var(--ease),
+			background-color 220ms var(--ease),
+			color 220ms var(--ease),
 			transform 150ms var(--ease);
 	}
 	a:active .icon {
-		transform: scale(0.92);
-	}
-	a.on {
-		color: var(--text);
+		transform: scale(0.9);
 	}
 	a.on .icon {
-		background: var(--accent-soft);
-		color: var(--accent);
+		background: #fff;
+		color: #0d0d0f;
+		box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
 	}
 </style>

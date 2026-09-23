@@ -4,6 +4,8 @@
 	import type { Subject } from '$lib/types';
 	import Modal from '$lib/ui/Modal.svelte';
 	import Button from '$lib/ui/Button.svelte';
+	import Avatar from '$lib/ui/Avatar.svelte';
+	import AvatarCropper from '$lib/ui/AvatarCropper.svelte';
 
 	interface Props {
 		open: boolean;
@@ -31,6 +33,7 @@
 	let color = $state(palette[0]);
 	let error = $state('');
 	let busy = $state(false);
+	let cropper = $state(false);
 
 	$effect(() => {
 		if (!open) return;
@@ -78,6 +81,19 @@
 			>
 			<input id="s-teacher" class="input" bind:value={teacher} maxlength="80" />
 		</div>
+		{#if edit}
+			<div class="row">
+				<Avatar
+					id={edit.id}
+					name={edit.name}
+					avatar={edit.avatar}
+					size={40}
+					kind="subject"
+					square
+				/>
+				<Button size="s" onclick={() => (cropper = true)}>Иконка предмета</Button>
+			</div>
+		{/if}
 		<fieldset class="colors">
 			<legend class="label">Цвет метки</legend>
 			{#each palette as c (c)}
@@ -102,6 +118,15 @@
 		>
 	{/snippet}
 </Modal>
+
+{#if edit}
+	<AvatarCropper
+		bind:open={cropper}
+		endpoint="/api/subjects/{edit.id}/avatar"
+		title="Иконка предмета"
+		ondone={(a) => edit && onsaved({ ...edit, avatar: a })}
+	/>
+{/if}
 
 <style>
 	.form {

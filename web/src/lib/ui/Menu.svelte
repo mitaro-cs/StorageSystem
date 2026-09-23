@@ -66,7 +66,7 @@
 		width: 32px;
 		height: 32px;
 		border: 0;
-		border-radius: 8px;
+		border-radius: 50%;
 		background: transparent;
 		color: var(--text-3);
 	}
@@ -91,7 +91,7 @@
 		width: 100%;
 		padding: 8px 12px;
 		border: 0;
-		border-radius: 8px;
+		border-radius: 10px;
 		background: transparent;
 		text-align: left;
 		font-size: 14px;

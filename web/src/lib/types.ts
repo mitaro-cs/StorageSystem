@@ -17,6 +17,7 @@ export type Permission =
 	| 'comment'
 	| 'view_audit'
 	| 'manage_permissions'
+	| 'view_usernames'
 	| 'view_group';
 
 export type GroupRole = 'headman' | 'deputy' | 'student';
@@ -144,7 +145,8 @@ export interface Comment {
 
 export interface Member {
 	userId: number;
-	username: string;
+	/** Только для старосты и администратора (право view_usernames), остальным — null. */
+	username: string | null;
 	displayName: string;
 	avatar: string | null;
 	status: 'pending' | 'active' | 'blocked' | 'deleted';

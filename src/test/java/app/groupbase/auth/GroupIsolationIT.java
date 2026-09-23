@@ -2,6 +2,7 @@ package app.groupbase.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import app.groupbase.ApiClient;
 import app.groupbase.IntegrationTest;
 import java.util.List;
 import java.util.Map;
@@ -14,7 +15,7 @@ import tools.jackson.databind.JsonNode;
 class GroupIsolationIT extends IntegrationTest {
 
   private static Map<String, Object> oneAccount() {
-    return Map.of("accounts", List.of(Map.of("displayName", "Новый Студент")));
+    return Map.of("accounts", List.of(Map.of("displayName", "Студентов Новый")));
   }
 
   @Test
@@ -190,6 +191,30 @@ class GroupIsolationIT extends IntegrationTest {
     assertThat(modApi.patch("/api/admin/settings", Map.of("name", "x")).status()).isEqualTo(403);
     assertThat(modApi.post("/api/groups/" + b + "/invites", Map.of("ttlHours", 1)).status())
         .isEqualTo(403);
+  }
+
+  @Test
+  void onlyHeadmanAndAdminSeeUsernames() {
+    long g = newGroup("Логины");
+    TestUser headman = newUser(g, "headman");
+    TestUser deputy = newUser(g, "deputy");
+    TestUser student = newUser(g, "student");
+    String path = "/api/groups/" + g + "/members";
+
+    for (ApiClient c : List.of(admin(), headman.api())) {
+      var list = c.get(path).json();
+      assertThat(list.size()).isEqualTo(3);
+      list.forEach(m -> assertThat(m.get("username").isString()).isTrue());
+    }
+    for (ApiClient c : List.of(deputy.api(), student.api())) {
+      var list = c.get(path).json();
+      assertThat(list.size()).isEqualTo(3);
+      list.forEach(
+          m -> {
+            assertThat(m.get("username").isNull()).as("логин скрыт").isTrue();
+            assertThat(m.get("displayName").asString()).isNotBlank();
+          });
+    }
   }
 
   private static Map<String, Object> with(Map<String, Object> cell, Boolean allowed) {

@@ -47,7 +47,7 @@
 		gap: 10px;
 		padding: 12px 16px;
 		border: 0;
-		border-radius: var(--r);
+		border-radius: var(--r-l);
 		background: var(--text);
 		color: var(--bg);
 		box-shadow: var(--shadow-3);

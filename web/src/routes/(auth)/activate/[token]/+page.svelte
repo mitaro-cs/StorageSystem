@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { firstName } from '$lib/names';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -59,7 +60,7 @@
 	<h1>Ссылка не работает</h1>
 	<p class="muted">{invalid}</p>
 {:else if info}
-	<h1>{info.purpose === 'reset' ? 'Новый пароль' : `Привет, ${info.displayName}!`}</h1>
+	<h1>{info.purpose === 'reset' ? 'Новый пароль' : `Привет, ${firstName(info.displayName)}!`}</h1>
 	<p class="muted">
 		{info.purpose === 'reset'
 			? 'Задайте новый пароль для'

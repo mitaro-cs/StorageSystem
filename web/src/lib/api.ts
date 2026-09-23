@@ -1,4 +1,5 @@
 import { goto } from '$app/navigation';
+import { markCached } from './pwa.svelte';
 
 export class ApiError extends Error {
 	constructor(
@@ -59,6 +60,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
 		if ((e as Error).name === 'AbortError') throw e;
 		throw new ApiError(0, 'network', 'Нет связи с сервером. Проверьте интернет');
 	}
+	markCached(res);
 	const isJson = res.headers.get('Content-Type')?.startsWith('application/json');
 	const data = isJson ? await res.json() : null;
 	if (!res.ok) {

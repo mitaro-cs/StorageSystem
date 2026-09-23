@@ -10,4 +10,10 @@ public record Member(
     String avatar,
     User.Status status,
     GroupRole role,
-    long joinedAt) {}
+    long joinedAt) {
+
+  /** Копия без логина — для тех, кому его видеть не положено. */
+  public Member withoutUsername() {
+    return new Member(userId, null, displayName, avatar, status, role, joinedAt);
+  }
+}

@@ -44,14 +44,14 @@
 		padding: 0;
 		border: 0;
 		background: transparent;
-		border-radius: 12px;
+		border-radius: var(--r);
 	}
 	.ring {
 		display: grid;
 		place-items: center;
 		width: 40px;
 		height: 40px;
-		border-radius: 13px;
+		border-radius: var(--r);
 		border: 2px solid transparent;
 		transition:
 			border-color var(--dur) var(--ease),

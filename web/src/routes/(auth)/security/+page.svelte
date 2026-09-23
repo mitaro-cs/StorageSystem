@@ -39,6 +39,8 @@
 		else if (session.me.restriction === 'totp_setup_required') await startTotp();
 	});
 
+	const groupKey = (s: string) => s.match(/.{1,4}/g)?.join(' ') ?? s;
+
 	async function startTotp() {
 		const r = await post<{ secret: string; uri: string }>('/api/me/totp/setup');
 		secret = r.secret;
@@ -94,7 +96,10 @@
 				<rect x="-2" y="-2" width={qr.size + 4} height={qr.size + 4} fill="#fff" />
 				<path d={qr.path} fill="#111" />
 			</svg>
-			<p class="hint">Не сканируется? Введите ключ вручную: <code class="num">{secret}</code></p>
+			<p class="hint">
+				Не сканируется? Введите ключ вручную: <code class="num">{groupKey(secret)}</code>. Если
+				запись groupbase уже была в приложении — удалите её и добавьте заново.
+			</p>
 		{/if}
 		<div>
 			<label class="label" for="code">Код из приложения</label>

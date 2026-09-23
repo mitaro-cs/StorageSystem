@@ -29,14 +29,23 @@ public class TotpService {
     this.clock = clock;
   }
 
-  /** Новый секрет (ещё не включён, пока пользователь не подтвердит кодом). */
+  /**
+   * Секрет для подключения (включается, только когда пользователь подтвердит кодом). Пока 2FA не
+   * включена, повторный вызов возвращает тот же секрет: обновление страницы не должно ломать уже
+   * отсканированный QR-код.
+   */
   public Setup begin(Actor actor, String issuer) {
     User u = users.find(actor.id()).orElseThrow(ApiException::unauthorized);
     if (u.totpEnabled()) {
       throw ApiException.conflict("totp_enabled", "Двухфакторная аутентификация уже включена");
     }
-    byte[] secret = Totp.newSecret();
-    users.setTotpSecret(u.id(), secrets.seal(secret, LoginService.TOTP_CONTEXT));
+    byte[] secret;
+    if (u.totpSecret() != null) {
+      secret = secrets.open(u.totpSecret(), LoginService.TOTP_CONTEXT);
+    } else {
+      secret = Totp.newSecret();
+      users.setTotpSecret(u.id(), secrets.seal(secret, LoginService.TOTP_CONTEXT));
+    }
     return new Setup(Totp.base32(secret), Totp.uri(issuer, u.username(), secret));
   }
 
@@ -46,11 +55,16 @@ public class TotpService {
       throw ApiException.badRequest("Сначала начните настройку заново");
     }
     byte[] secret = secrets.open(u.totpSecret(), LoginService.TOTP_CONTEXT);
-    long step = Totp.verify(secret, code, clock.millis(), null);
+    // Часы телефона нередко расходятся с сервером на минуту-другую: при подключении ищем код в
+    // окне ±5 минут и запоминаем сдвиг. Подобрать код это не помогает — ключ и так у владельца
+    // сессии.
+    long now = clock.millis();
+    long step = Totp.verify(secret, code, now, null, 0, Totp.MAX_DRIFT);
     if (step < 0) {
-      throw ApiException.invalid("code", "Неверный код. Проверьте время на телефоне");
+      throw ApiException.invalid(
+          "code", "Неверный код. Проверьте, что в приложении добавлен ключ с этой страницы");
     }
-    users.enableTotp(u.id(), step);
+    users.enableTotp(u.id(), step, Totp.drift(step, now));
     audit.log(actor, null, "user.totp_enable", "user", u.id());
   }
 

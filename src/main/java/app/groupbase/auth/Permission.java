@@ -34,6 +34,8 @@ public enum Permission {
   VIEW_AUDIT(false),
   /** Включать и выключать настраиваемые права (⚙) в своей группе. */
   MANAGE_PERMISSIONS(false),
+  /** Видеть логины участников (в списке участников и поиске). */
+  VIEW_USERNAMES(false),
   /** Видеть группу и её контент. */
   VIEW_GROUP(false);
 

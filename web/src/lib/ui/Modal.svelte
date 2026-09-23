@@ -55,7 +55,7 @@
 		max-height: min(86dvh, 900px);
 		padding: 0;
 		border: 0;
-		border-radius: var(--r-l);
+		border-radius: var(--r-xl);
 		background: var(--surface);
 		color: var(--text);
 		box-shadow: var(--shadow-3);

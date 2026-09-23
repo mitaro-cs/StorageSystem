@@ -28,7 +28,7 @@ test('староста создаёт предмет, задание и ново
 	await expect(page.getByRole('link', { name: 'Перенос пары в четверг' })).toBeVisible();
 
 	await page.goto('/');
-	await expect(page.getByText('Типовой расчёт №1')).toBeVisible();
+	await expect(page.getByText('Типовой расчёт №1').first()).toBeVisible();
 	await page.screenshot({ path: 'test-results/shots/today-desktop.png', fullPage: true });
 	expect(errors).toEqual([]);
 });

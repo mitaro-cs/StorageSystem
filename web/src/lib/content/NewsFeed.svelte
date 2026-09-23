@@ -1,6 +1,10 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { Plus } from '@lucide/svelte';
 	import { get, qs } from '$lib/api';
+	import { peek, put } from '$lib/cache';
+	import { untrack } from 'svelte';
 	import { can, session } from '$lib/session.svelte';
 	import { fly, stagger } from '$lib/motion';
 	import type { NewsItem, NewsPage } from '$lib/types';
@@ -13,22 +17,25 @@
 
 	let { subjectId = null }: { subjectId?: number | null } = $props();
 
-	let pinned = $state<NewsItem[]>([]);
-	let items = $state<NewsItem[]>([]);
-	let next = $state<number | null>(null);
-	let loading = $state(true);
+	const key = () => `news:${session.groupId}:${subjectId}`;
+	const cached = untrack(() => peek<NewsPage>(key()));
+	let pinned = $state<NewsItem[]>(cached?.pinned ?? []);
+	let items = $state<NewsItem[]>(cached?.items ?? []);
+	let next = $state<number | null>(cached?.next ?? null);
+	let loading = $state(!cached);
 	let loadingMore = $state(false);
 	let composer = $state(false);
 	let editing = $state<NewsItem | null>(null);
 	let sentinel: HTMLElement | undefined = $state();
 
 	async function load() {
-		loading = true;
+		if (!peek(key())) loading = true;
 		const p = await get<NewsPage>(`/api/news${qs({ group: session.groupId, subject: subjectId })}`);
 		pinned = p.pinned;
 		items = p.items;
 		next = p.next;
 		loading = false;
+		put(key(), p);
 	}
 
 	async function more() {
@@ -72,6 +79,17 @@
 			changed: load
 		});
 	}
+
+	// Горячая клавиша «n» и палитра открывают форму через ?new=1.
+	$effect(() => {
+		if (page.url.searchParams.get('new') === '1') {
+			editing = null;
+			composer = true;
+			const url = new URL(page.url);
+			url.searchParams.delete('new');
+			goto(url.pathname + url.search, { replaceState: true, noScroll: true, keepFocus: true });
+		}
+	});
 </script>
 
 {#if subjectId === null}

@@ -34,8 +34,7 @@ public class SetupService {
       GroupService.GroupInput group,
       String username,
       String displayName,
-      String password,
-      boolean adminIsHeadman) {}
+      String password) {}
 
   private final UserStore users;
   private final AccountService accounts;
@@ -119,7 +118,7 @@ public class SetupService {
             req.password(),
             InstanceRole.ADMIN,
             g == null ? null : g.id(),
-            req.adminIsHeadman() && g != null ? GroupRole.HEADMAN : null);
+            g == null ? null : GroupRole.HEADMAN);
     log.info("Первичная настройка завершена");
     return users.find(admin.userId()).orElseThrow();
   }

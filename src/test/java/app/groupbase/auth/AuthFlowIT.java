@@ -22,7 +22,7 @@ class AuthFlowIT extends IntegrationTest {
                 Map.of(
                     "code", setup.setupCode(),
                     "username", "intruder",
-                    "displayName", "X",
+                    "displayName", "Иксов Икс",
                     "password", "intruder-password"));
     assertThat(again.status()).isEqualTo(409);
   }
@@ -33,7 +33,15 @@ class AuthFlowIT extends IntegrationTest {
         client()
             .post(
                 "/api/setup",
-                Map.of("code", "wrong", "username", "x1", "displayName", "X", "password", "p"));
+                Map.of(
+                    "code",
+                    "wrong",
+                    "username",
+                    "x1",
+                    "displayName",
+                    "Иксов Икс",
+                    "password",
+                    "p"));
     assertThat(r.status()).isIn(403, 409);
   }
 

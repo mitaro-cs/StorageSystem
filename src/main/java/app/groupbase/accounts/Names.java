@@ -9,6 +9,9 @@ import java.util.regex.Pattern;
 public final class Names {
 
   private static final Pattern USERNAME = Pattern.compile("[a-z0-9][a-z0-9._-]{2,31}");
+  // Слово ФИО: буквы любого алфавита, внутри допустимы дефис, апостроф и точка (Анна-Мария,
+  // д'Артаньян).
+  private static final Pattern NAME_WORD = Pattern.compile("\\p{L}[\\p{L}\\p{M}'’.-]*");
   private static final Map<Character, String> TRANSLIT =
       Map.ofEntries(
           Map.entry('а', "a"),
@@ -60,18 +63,29 @@ public final class Names {
     return u;
   }
 
+  /**
+   * ФИО в порядке «Фамилия Имя Отчество». Отчество необязательно (его может не быть), фамилия и имя
+   * — обязательно; до пяти слов, чтобы поместились «оглы», «кызы» и двойные имена.
+   */
   public static String displayName(String raw) {
     String d = raw == null ? "" : raw.strip().replaceAll("\\s+", " ");
-    if (d.isEmpty() || d.length() > 64) {
-      throw ApiException.invalid("displayName", "Отображаемое имя: от 1 до 64 символов");
+    if (d.length() > 64) {
+      throw ApiException.invalid("displayName", "ФИО — не длиннее 64 символов");
     }
-    if (d.chars().anyMatch(Character::isISOControl)) {
-      throw ApiException.invalid("displayName", "Недопустимые символы в имени");
+    String[] words = d.isEmpty() ? new String[0] : d.split(" ");
+    if (words.length < 2 || words.length > 5) {
+      throw ApiException.invalid("displayName", "Укажите ФИО: фамилию, имя и отчество (если есть)");
+    }
+    for (String w : words) {
+      if (!NAME_WORD.matcher(w).matches()) {
+        throw ApiException.invalid(
+            "displayName", "ФИО пишется буквами, например: Иванов Иван Иванович");
+      }
     }
     return d;
   }
 
-  /** «Иван Петров» → «ivan.petrov». Пустая строка, если из имени ничего не получилось. */
+  /** «Петров Иван Сергеевич» → «petrov.ivan». Пустая строка, если из имени ничего не получилось. */
   public static String suggestUsername(String displayName) {
     StringBuilder out = new StringBuilder();
     String[] words = displayName.toLowerCase(Locale.ROOT).trim().split("\\s+");

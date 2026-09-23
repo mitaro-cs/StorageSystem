@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { PanelLeftClose, PanelLeftOpen } from '@lucide/svelte';
+	import { PanelLeftClose, PanelLeftOpen, Search } from '@lucide/svelte';
+	import { openPalette } from './palette.svelte';
 	import { t } from '$lib/i18n/ru';
 	import { currentGroup, isMulti, session } from '$lib/session.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
@@ -51,6 +52,11 @@
 		{/if}
 	</div>
 
+	<button class="finder" onclick={() => openPalette()} title="Командная палитра (Ctrl/⌘+K)">
+		<Search size={17} />
+		{#if !collapsed}<span>Найти или перейти</span><kbd>⌘K</kbd>{/if}
+	</button>
+
 	<nav class="main">
 		{#each mainNav as item (item.href)}
 			{@const Icon = item.icon}
@@ -80,7 +86,7 @@
 					id={session.me.user.id}
 					name={session.me.user.displayName}
 					avatar={session.me.user.avatar}
-					size={30}
+					size={36}
 				/>
 				{#if !collapsed}<span class="name">{session.me.user.displayName}</span>{/if}
 			</a>
@@ -106,7 +112,7 @@
 		gap: var(--s4);
 		width: var(--sidebar);
 		height: 100dvh;
-		padding: var(--s4) var(--s3);
+		padding: var(--s5) var(--s4);
 		border-right: 1px solid var(--border);
 		background: var(--bg);
 		transition: width 220ms var(--ease);
@@ -128,8 +134,42 @@
 		line-height: 1.3;
 	}
 	.title strong {
-		font-size: 17px;
-		letter-spacing: -0.02em;
+		font-size: 20px;
+		letter-spacing: -0.025em;
+	}
+	/* Поиск-пилюля, как «Search» на макете */
+	.finder {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		height: 44px;
+		padding: 0 8px 0 16px;
+		border: 1px solid var(--border);
+		border-radius: var(--r-full);
+		background: var(--surface);
+		color: var(--text-3);
+		font-size: 14.5px;
+		white-space: nowrap;
+	}
+	.finder:hover {
+		border-color: var(--border-strong);
+		color: var(--text-2);
+	}
+	.finder span {
+		flex: 1;
+		text-align: left;
+	}
+	.finder kbd {
+		font: 600 11px var(--font);
+		padding: 4px 8px;
+		border-radius: var(--r-full);
+		background: var(--surface-2);
+		color: var(--text-2);
+	}
+	.collapsed .finder {
+		width: 44px;
+		justify-content: center;
+		padding: 0;
 	}
 	.main {
 		display: flex;
@@ -140,28 +180,30 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		height: 38px;
-		padding: 0 10px;
-		border-radius: 10px;
+		height: 44px;
+		padding: 0 16px;
+		border-radius: var(--r-full);
 		color: var(--text-2);
-		font-weight: 520;
+		font-weight: 540;
 		white-space: nowrap;
 		transition:
 			background-color var(--dur) var(--ease),
 			color var(--dur) var(--ease);
 	}
 	.main a:hover {
-		background: var(--surface-2);
+		background: var(--surface);
 		color: var(--text);
 		text-decoration: none;
 	}
 	.main a.active {
-		background: var(--surface);
-		color: var(--text);
-		box-shadow: var(--shadow-1);
+		background: var(--accent);
+		color: var(--accent-text);
 	}
-	.main a.active :global(svg) {
-		color: var(--accent);
+	.collapsed .main a {
+		width: 48px;
+		height: 48px;
+		justify-content: center;
+		padding: 0;
 	}
 	.section {
 		flex: 1;
@@ -196,14 +238,14 @@
 		gap: 10px;
 		flex: 1;
 		min-width: 0;
-		padding: 4px 6px;
-		border-radius: 10px;
+		padding: 4px 10px 4px 4px;
+		border-radius: var(--r-full);
 		color: var(--text);
 		font-weight: 550;
 		font-size: 14px;
 	}
 	.me:hover {
-		background: var(--surface-2);
+		background: var(--surface);
 		text-decoration: none;
 	}
 	.name {
@@ -214,15 +256,16 @@
 	.collapse {
 		display: grid;
 		place-items: center;
-		width: 36px;
-		height: 36px;
+		flex: none;
+		width: 40px;
+		height: 40px;
 		border: 0;
-		border-radius: 10px;
+		border-radius: 50%;
 		background: transparent;
 		color: var(--text-3);
 	}
 	.collapse:hover {
-		background: var(--surface-2);
+		background: var(--surface);
 		color: var(--text);
 	}
 </style>

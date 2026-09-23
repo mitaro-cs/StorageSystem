@@ -29,8 +29,11 @@ class StaffTotpIT extends IntegrationTest {
     return out.toByteArray();
   }
 
+  /** Часы телефона спешат на 90 секунд — обычное дело, сервер должен это пережить. */
+  private static final int PHONE_AHEAD_STEPS = 3;
+
   private String code(byte[] secret) {
-    return Totp.code(secret, Totp.step(clock.millis()));
+    return Totp.code(secret, Totp.step(clock.millis()) + PHONE_AHEAD_STEPS);
   }
 
   @Test
@@ -45,6 +48,9 @@ class StaffTotpIT extends IntegrationTest {
     assertThat(setupResp.status()).isEqualTo(200);
     assertThat(setupResp.json().get("uri").asString()).startsWith("otpauth://totp/");
     byte[] secret = decodeBase32(setupResp.json().get("secret").asString());
+    // Обновление страницы не меняет ключ, пока 2FA не включена: отсканированный QR остаётся верным.
+    assertThat(a.post("/api/me/totp/setup", null).json().get("secret").asString())
+        .isEqualTo(setupResp.json().get("secret").asString());
 
     assertThat(a.post("/api/me/totp/enable", Map.of("code", "000000")).status()).isEqualTo(400);
     assertThat(a.post("/api/me/totp/enable", Map.of("code", code(secret))).status()).isEqualTo(200);

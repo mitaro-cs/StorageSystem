@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { ArrowLeft, EyeOff } from '@lucide/svelte';
+	import { Paperclip, MessageCircle, Check, RotateCcw, Clock } from '@lucide/svelte';
 	import { del, get, put } from '$lib/api';
-	import { fmtAgo, fmtDue, fmtSize, relativeDay } from '$lib/format';
+	import { fmtAgo, fmtDue, fmtSize, plural, relativeDay } from '$lib/format';
 	import { can, isMulti } from '$lib/session.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import type { Homework } from '$lib/types';
@@ -12,7 +12,8 @@
 	import Comments from '$lib/content/Comments.svelte';
 	import HomeworkComposer from '$lib/content/HomeworkComposer.svelte';
 	import SubjectTag from '$lib/ui/SubjectTag.svelte';
-	import DoneToggle from '$lib/ui/DoneToggle.svelte';
+	import BackBar from '$lib/ui/BackBar.svelte';
+	import SubjectArt from '$lib/ui/SubjectArt.svelte';
 	import Menu, { type MenuItem } from '$lib/ui/Menu.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
@@ -73,20 +74,12 @@
 	});
 
 	const overdue = $derived(item ? !item.done && item.dueAt < now : false);
+	const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 </script>
 
 <svelte:head><title>{item?.title ?? 'Задание'} · groupbase</title></svelte:head>
 
-<a
-	class="back"
-	href="/homework"
-	onclick={(e) => {
-		if (history.length > 1) {
-			e.preventDefault();
-			history.back();
-		}
-	}}><ArrowLeft size={16} /> Задания</a
->
+<BackBar href="/homework" label="Задания"><Menu items={actions} /></BackBar>
 
 {#if missing}
 	<div class="card">
@@ -95,125 +88,188 @@
 {:else if !item}
 	<Skeleton lines={6} />
 {:else}
-	<article class="card hw">
-		<div class="meta">
-			<SubjectTag {...item.subject} />
-			{#if isMulti()}{#each item.groups as g (g.id)}<span class="chip">{g.name}</span>{/each}{/if}
-			{#if item.hidden}<span class="chip"><EyeOff size={13} /> Скрыто</span>{/if}
-			<span class="spacer"></span>
-			<Menu items={actions} />
-		</div>
-		<h1>{item.title}</h1>
-		<div class="due-box" class:overdue class:done={item.done}>
-			<DoneToggle
-				done={item.done}
-				label={item.title}
-				onchange={(v) => item && toggleDone(item, v)}
-			/>
+	<article class="hw">
+		<!-- Карточка-обложка: инверсная, как главная карточка на макете -->
+		<header class="hero">
+			<span class="cover">
+				<SubjectArt {...item.subject} class="fill" />
+				<span class="badge num">{cap(relativeDay(item.dueAt, now))}</span>
+			</span>
+			<div class="hero-info">
+				<h1>{item.title}</h1>
+				<span class="sub">{item.subject.name}</span>
+				<span class="facts">
+					<span><Clock size={15} /> <span class="num">{fmtDue(item.dueAt, now)}</span></span>
+					{#if item.attachments.length}<span
+							><Paperclip size={15} />
+							<span class="num">{item.attachments.length}</span>
+							{plural(item.attachments.length, ['файл', 'файла', 'файлов'])}</span
+						>{/if}
+					{#if item.comments}<span
+							><MessageCircle size={15} /> <span class="num">{item.comments}</span></span
+						>{/if}
+				</span>
+			</div>
+		</header>
+
+		<dl class="kv">
 			<div>
-				<strong class="num">{fmtDue(item.dueAt, now)}</strong>
-				<span class="small"
-					>{item.done
-						? 'Отмечено как выполненное — видно только вам'
-						: overdue
-							? 'Срок прошёл'
-							: `Сдать ${relativeDay(item.dueAt, now)}`}</span
-				>
+				<dt>Статус</dt>
+				<dd class:ok={item.done} class:bad={overdue}>
+					{item.done ? 'Выполнено' : overdue ? 'Срок прошёл' : 'Не выполнено'}
+				</dd>
 			</div>
-		</div>
-		{#if item.bodyHtml}<Prose html={item.bodyHtml} />{/if}
+			<div>
+				<dt>Срок</dt>
+				<dd class="num">{fmtDue(item.dueAt, now)}</dd>
+			</div>
+			<div>
+				<dt>Предмет</dt>
+				<dd><SubjectTag {...item.subject} /></dd>
+			</div>
+			{#if isMulti()}
+				<div>
+					<dt>Группы</dt>
+					<dd>{item.groups.map((g) => g.name).join(', ')}</dd>
+				</div>
+			{/if}
+			<div>
+				<dt>Автор</dt>
+				<dd class="author"><Author person={item.author} size={22} /></dd>
+			</div>
+			<div>
+				<dt>Опубликовано</dt>
+				<dd class="num">{fmtAgo(item.createdAt)}</dd>
+			</div>
+		</dl>
+
+		{#if item.hidden}<p class="tip">
+				<span><strong>Скрыто.</strong> Задание видят только те, кто может его вернуть.</span>
+			</p>{/if}
+		{#if item.done}<p class="tip">
+				<span>Отметка «выполнено» видна <strong>только вам</strong>.</span>
+			</p>{/if}
+
+		{#if item.bodyHtml}<div class="body"><Prose html={item.bodyHtml} /></div>{/if}
+
 		{#if item.attachments.length}
-			<div class="files">
-				{#each item.attachments as f (f.id)}
-					<a class="file" href="/api/files/{f.id}" target="_blank" rel="noopener">
-						<FileIcon mime={f.mime} size={18} />
-						<span class="fname">{f.name}</span>
-						<span class="faint small num">{fmtSize(f.size)}</span>
-					</a>
-				{/each}
-			</div>
+			<section>
+				<div class="section-head">
+					<h2>Файлы</h2>
+					<span class="aside num">{item.attachments.length}</span>
+				</div>
+				<div class="list">
+					{#each item.attachments as f (f.id)}
+						<a class="list-row" href="/api/files/{f.id}" target="_blank" rel="noopener">
+							<FileIcon mime={f.mime} size={20} />
+							<span class="fname">{f.name}</span>
+							<span class="faint small num">{fmtSize(f.size)}</span>
+						</a>
+					{/each}
+				</div>
+			</section>
 		{/if}
-		<footer class="row faint small">
-			<Author person={item.author} size={22} />
-			<span class="num">· {fmtAgo(item.createdAt)}</span>
-		</footer>
 	</article>
 	<Comments
 		base="/api/homework/{item.id}"
 		canComment={item.groups.some((g) => can('comment', g.id))}
 	/>
+	<div class="cta-space" aria-hidden="true"></div>
+	<button
+		class="glass-cta"
+		aria-pressed={item.done}
+		onclick={() => item && toggleDone(item, !item.done)}
+	>
+		{#if item.done}<RotateCcw size={18} /> Вернуть в работу{:else}<Check size={19} /> Отметить выполненным{/if}
+	</button>
 	<HomeworkComposer bind:open={composer} edit={item} onsaved={(h) => (item = h)} />
 {/if}
 
 <style>
-	.back {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		margin-bottom: var(--s4);
-		color: var(--text-2);
-		font-size: 14px;
-		font-weight: 550;
-	}
 	.hw {
 		display: flex;
 		flex-direction: column;
+		gap: var(--s5);
+		margin-bottom: var(--s6);
+	}
+	.hero {
+		display: grid;
+		grid-template-columns: minmax(120px, 40%) 1fr;
 		gap: var(--s4);
-		padding: var(--s5);
+		padding: 12px;
+		border-radius: var(--r-xl);
+		background: var(--inverse);
+		color: var(--inverse-text);
+		box-shadow: var(--shadow-2);
 	}
-	.meta {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		flex-wrap: wrap;
+	.cover {
+		position: relative;
+		min-height: 160px;
 	}
-	h1 {
-		font-size: 24px;
+	.cover :global(.fill) {
+		position: absolute;
+		inset: 0;
+		border-radius: 18px;
 	}
-	.due-box {
-		display: flex;
-		align-items: center;
-		gap: 14px;
-		padding: 12px 16px;
-		border-radius: var(--r);
-		background: var(--amber-soft);
-		color: var(--amber);
+	.badge {
+		position: absolute;
+		left: 10px;
+		bottom: 10px;
+		padding: 6px 12px;
+		border-radius: 12px;
+		background: rgb(0 0 0 / 0.78);
+		color: #fff;
+		font: 600 14px var(--mono);
 	}
-	.due-box div {
+	.hero-info {
 		display: flex;
 		flex-direction: column;
+		gap: 4px;
+		min-width: 0;
+		padding: 6px 4px 2px 0;
 	}
-	.due-box strong {
-		color: var(--text);
+	h1 {
+		font-size: clamp(20px, 4.4vw, 26px);
+		line-height: 1.2;
+		overflow-wrap: anywhere;
 	}
-	.due-box.overdue {
-		background: var(--danger-soft);
-		color: var(--danger);
+	.sub {
+		color: var(--inverse-muted);
 	}
-	.due-box.done {
-		background: var(--ok-soft);
+	.facts {
+		display: inline-flex;
+		flex-wrap: wrap;
+		align-self: flex-start;
+		align-items: center;
+		margin-top: auto;
+		padding: 8px 4px;
+		border-radius: 14px;
+		background: var(--inverse-2);
+		color: var(--inverse-muted);
+		font-size: 13.5px;
+	}
+	.facts > span {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 0 10px;
+	}
+	.facts > span + span {
+		border-left: 1px solid color-mix(in srgb, var(--inverse-muted) 40%, transparent);
+	}
+	.kv dd.ok {
 		color: var(--ok);
 	}
-	footer {
-		gap: 6px;
+	.kv dd.bad {
+		color: var(--danger);
 	}
-	.files {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-		gap: 8px;
-	}
-	.file {
+	.author {
 		display: flex;
-		align-items: center;
-		gap: 10px;
-		padding: 8px 10px;
-		border-radius: var(--r);
-		background: var(--surface-2);
-		color: var(--text);
+		justify-content: flex-end;
+		min-width: 0;
 	}
-	.file:hover {
-		text-decoration: none;
-		background: var(--surface-3);
+	.body {
+		font-size: 16px;
 	}
 	.fname {
 		flex: 1;
@@ -221,6 +277,8 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-size: 14px;
+	}
+	.cta-space {
+		height: 88px;
 	}
 </style>

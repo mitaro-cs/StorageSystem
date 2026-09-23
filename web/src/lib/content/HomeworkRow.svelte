@@ -36,8 +36,8 @@
 		display: flex;
 		align-items: center;
 		gap: 14px;
-		padding: 12px var(--s4);
-		min-height: 64px;
+		padding: 14px var(--s4);
+		min-height: 68px;
 		background: var(--surface);
 		transition: background-color var(--dur) var(--ease);
 	}
@@ -53,7 +53,8 @@
 	}
 	.title {
 		color: var(--text);
-		font-weight: 560;
+		font-size: 15.5px;
+		font-weight: 600;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;

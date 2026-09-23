@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { Plus } from '@lucide/svelte';
 	import { get, qs } from '$lib/api';
+	import { peek, put } from '$lib/cache';
 	import { can, session } from '$lib/session.svelte';
 	import { fmtDate, fmtWeekday, relativeDay } from '$lib/format';
-	import { fly, stagger } from '$lib/motion';
+	import { flip, fly, stagger } from '$lib/motion';
 	import type { Homework } from '$lib/types';
 	import { byDay, toggleDone } from './homework';
 	import HomeworkRow from './HomeworkRow.svelte';
@@ -19,16 +22,20 @@
 
 	type View = 'week' | 'calendar' | 'overdue' | 'all';
 	let view = $state<View>(untrack(() => subjectId) === null ? 'week' : 'all');
-	let items = $state<Homework[] | null>(null);
+	const key = () => `hw:${view}:${session.groupId}:${subjectId}`;
+	let items = $state<Homework[] | null>(untrack(() => peek<Homework[]>(key()) ?? null));
 	let overdueCount = $state(0);
 	let composer = $state(false);
 	const now = Date.now();
 
 	async function load() {
 		if (view === 'calendar') return;
-		items = null;
-		items = await get<Homework[]>(
-			`/api/homework${qs({ view, group: session.groupId, subject: subjectId })}`
+		items = peek<Homework[]>(key()) ?? null;
+		items = put(
+			key(),
+			await get<Homework[]>(
+				`/api/homework${qs({ view, group: session.groupId, subject: subjectId })}`
+			)
 		);
 	}
 
@@ -54,10 +61,24 @@
 		{ label: 'Просрочено', value: 'overdue', count: overdueCount }
 	]);
 
+	/** Выполненные опускаются вниз — с анимацией перестановки. */
+	const sortDone = (list: Homework[]) =>
+		[...list].sort((a, b) => Number(a.done) - Number(b.done) || a.dueAt - b.dueAt);
+
 	async function toggle(h: Homework, done: boolean) {
 		await toggleDone(h, done);
 		countOverdue();
 	}
+
+	// Горячая клавиша «n» и палитра открывают форму через ?new=1.
+	$effect(() => {
+		if (page.url.searchParams.get('new') === '1') {
+			composer = true;
+			const url = new URL(page.url);
+			url.searchParams.delete('new');
+			goto(url.pathname + url.search, { replaceState: true, noScroll: true, keepFocus: true });
+		}
+	});
 </script>
 
 {#if title}
@@ -99,8 +120,8 @@
 			>
 		</p>
 		<div class="list">
-			{#each d.items as h, i (h.id)}
-				<div in:fly={{ y: 8, delay: stagger(i + di * 2) }}>
+			{#each sortDone(d.items) as h, i (h.id)}
+				<div in:fly={{ y: 8, delay: stagger(i + di * 2) }} animate:flip>
 					<HomeworkRow item={h} {now} ontoggle={toggle} />
 				</div>
 			{/each}

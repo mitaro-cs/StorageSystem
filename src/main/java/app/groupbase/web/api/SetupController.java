@@ -23,8 +23,7 @@ class SetupController {
       GroupService.GroupInput group,
       String username,
       String displayName,
-      String password,
-      Boolean adminIsHeadman) {}
+      String password) {}
 
   private final SetupService setup;
   private final Http http;
@@ -50,8 +49,7 @@ class SetupController {
                 b.group(),
                 b.username(),
                 b.displayName(),
-                b.password(),
-                Boolean.TRUE.equals(b.adminIsHeadman())));
+                b.password()));
     return http.startSession(user, res);
   }
 }

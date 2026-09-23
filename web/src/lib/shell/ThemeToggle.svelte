@@ -35,16 +35,16 @@
 	.theme {
 		display: grid;
 		place-items: center;
-		width: 36px;
-		height: 36px;
-		border: 0;
-		border-radius: 10px;
-		background: transparent;
-		color: var(--text-2);
+		flex: none;
+		width: 40px;
+		height: 40px;
+		border: 1px solid var(--border);
+		border-radius: 50%;
+		background: var(--surface);
+		color: var(--text);
 	}
 	.theme:hover {
 		background: var(--surface-2);
-		color: var(--text);
 	}
 	.icon {
 		display: grid;

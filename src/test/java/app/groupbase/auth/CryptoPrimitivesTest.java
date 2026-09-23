@@ -48,6 +48,31 @@ class CryptoPrimitivesTest {
     assertThat(Totp.verify(secret, Totp.code(secret, step), now, step)).isEqualTo(-1);
     assertThat(Totp.verify(secret, "12345", now, null)).isEqualTo(-1);
     assertThat(Totp.verify(secret, null, now, null)).isEqualTo(-1);
+    // Пробелы, в т.ч. неразрывные, из буфера обмена не мешают.
+    String c = Totp.code(secret, step);
+    assertThat(Totp.verify(secret, c.substring(0, 3) + "\u00a0" + c.substring(3), now, null))
+        .isEqualTo(step);
+  }
+
+  @Test
+  void totpClockDrift() {
+    byte[] secret = Totp.newSecret();
+    long now = 1_700_000_000_000L;
+    long step = Totp.step(now);
+    String ahead = Totp.code(secret, step + 3); // телефон спешит на 90 с
+    assertThat(Totp.verify(secret, ahead, now, null)).isEqualTo(-1);
+    // При подключении окно шире, сдвиг запоминается.
+    assertThat(Totp.verify(secret, ahead, now, null, 0, Totp.MAX_DRIFT)).isEqualTo(step + 3);
+    assertThat(Totp.drift(step + 3, now)).isEqualTo(3);
+    assertThat(Totp.drift(step + 40, now)).isEqualTo(Totp.MAX_DRIFT);
+    // При входе окно ±1 вокруг сдвига и ±1 вокруг времени сервера (часы могли поправить).
+    assertThat(Totp.verify(secret, ahead, now, null, 3, Totp.WINDOW)).isEqualTo(step + 3);
+    assertThat(Totp.verify(secret, Totp.code(secret, step), now, null, 3, Totp.WINDOW))
+        .isEqualTo(step);
+    assertThat(Totp.verify(secret, Totp.code(secret, step + 6), now, null, 3, Totp.WINDOW))
+        .isEqualTo(-1);
+    assertThat(Totp.verify(secret, Totp.code(secret, step - 11), now, null, 0, Totp.MAX_DRIFT))
+        .isEqualTo(-1);
   }
 
   @Test

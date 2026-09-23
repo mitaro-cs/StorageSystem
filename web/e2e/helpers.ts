@@ -3,9 +3,9 @@ import { expect, type Page } from '@playwright/test';
 export const ADMIN = {
 	username: 'anna.admin',
 	password: 'e2e-admin-password',
-	name: 'Анна Староста'
+	name: 'Смирнова Анна Сергеевна'
 };
-export const STUDENT = { username: 'oleg.kim', password: 'e2e-student-password', name: 'Олег Ким' };
+export const STUDENT = { username: 'oleg.kim', password: 'e2e-student-password', name: 'Ким Олег' };
 
 export async function login(page: Page, user: { username: string; password: string }) {
 	await page.goto('/login');

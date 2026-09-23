@@ -6,6 +6,8 @@
 	import { t } from '$lib/i18n/ru';
 	import Button from '$lib/ui/Button.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
+	import FioField from '$lib/auth/FioField.svelte';
+	import { fioError } from '$lib/names';
 	import type { GroupRole } from '$lib/types';
 
 	interface Info {
@@ -43,12 +45,9 @@
 
 	async function register(e: SubmitEvent) {
 		e.preventDefault();
-		if (password !== confirm) {
-			error = 'Пароли не совпадают';
-			return;
-		}
+		error = fioError(displayName) || (password !== confirm ? 'Пароли не совпадают' : '');
+		if (error) return;
 		busy = true;
-		error = '';
 		try {
 			await post(
 				`/api/invites/${token}/accept`,
@@ -96,11 +95,7 @@
 		</form>
 	{:else}
 		<form onsubmit={register}>
-			<div>
-				<label class="label" for="dname">Как вас зовут</label>
-				<input id="dname" class="input" bind:value={displayName} autocomplete="name" required />
-				<p class="hint">Достаточно имени, которое узнают одногруппники</p>
-			</div>
+			<FioField bind:value={displayName} />
 			<div>
 				<label class="label" for="uname">Имя пользователя для входа</label>
 				<input
@@ -110,7 +105,7 @@
 					autocomplete="username"
 					autocapitalize="none"
 					spellcheck="false"
-					placeholder="ivan.petrov"
+					placeholder="ivanov.ivan"
 					required
 				/>
 				<p class="hint">Латиница, цифры, точка или дефис</p>

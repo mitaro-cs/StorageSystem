@@ -40,27 +40,27 @@
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		height: 34px;
-		padding: 0 10px;
-		border-radius: 9px;
+		height: 40px;
+		padding: 0 14px;
+		border-radius: var(--r-full);
 		color: var(--text-2);
-		font-size: 14px;
+		font-size: 14.5px;
 	}
 	a:hover {
-		background: var(--surface-2);
+		background: var(--surface);
 		color: var(--text);
 		text-decoration: none;
 	}
 	a.active {
-		background: var(--surface-2);
+		background: var(--surface);
 		color: var(--text);
-		font-weight: 550;
+		font-weight: 600;
 	}
 	.dot {
 		flex: none;
 		width: 10px;
 		height: 10px;
-		border-radius: 3.5px;
+		border-radius: 50%;
 	}
 	.name {
 		flex: 1;

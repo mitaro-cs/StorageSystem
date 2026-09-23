@@ -20,7 +20,7 @@
 <article class="news card" class:urgent={item.urgent} class:hidden={item.hidden}>
 	<header>
 		<Author person={item.author} />
-		<span class="faint small num">{fmtAgo(item.createdAt)}</span>
+		<span class="faint small num when">{fmtAgo(item.createdAt)}</span>
 		<span class="spacer"></span>
 		{#if item.pinned}<span class="faint" title="Закреплено"><Pin size={15} /></span>{/if}
 		<Menu items={actions} />
@@ -52,8 +52,8 @@
 		position: relative;
 		display: flex;
 		flex-direction: column;
-		gap: 10px;
-		padding: var(--s4) var(--s4) var(--s3);
+		gap: 12px;
+		padding: 20px 20px var(--s4);
 		transition:
 			box-shadow var(--dur) var(--ease),
 			transform var(--dur) var(--ease);
@@ -61,10 +61,16 @@
 	.news:has(.stretched):hover {
 		box-shadow: var(--shadow-2);
 	}
-	.urgent {
-		box-shadow:
-			inset 3px 0 0 var(--amber),
-			var(--shadow-1);
+	/* Срочное — толстая полоса слева, как у подсказки */
+	.urgent::before {
+		content: '';
+		position: absolute;
+		left: 8px;
+		top: 20px;
+		bottom: 20px;
+		width: 4px;
+		border-radius: 2px;
+		background: var(--amber);
 	}
 	.hidden {
 		opacity: 0.7;
@@ -88,7 +94,8 @@
 		display: none;
 	}
 	h3 {
-		font-size: 17px;
+		font-size: 19px;
+		letter-spacing: -0.02em;
 	}
 	h3 a {
 		color: var(--text);
@@ -121,6 +128,10 @@
 	}
 	.news :global(.body:not(.clamp)) {
 		pointer-events: auto;
+	}
+	.when {
+		flex: none;
+		white-space: nowrap;
 	}
 	footer {
 		display: flex;

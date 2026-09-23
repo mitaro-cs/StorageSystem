@@ -3,6 +3,8 @@
 	import { post } from '$lib/api';
 	import Button from '$lib/ui/Button.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
+	import FioField from '$lib/auth/FioField.svelte';
+	import { fioError } from '$lib/names';
 
 	let code = $state('');
 	let mode = $state<'single' | 'multi'>('single');
@@ -14,17 +16,13 @@
 	let username = $state('');
 	let password = $state('');
 	let confirm = $state('');
-	let adminIsHeadman = $state(true);
 	let error = $state('');
 	let busy = $state(false);
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
-		if (password !== confirm) {
-			error = 'Пароли не совпадают';
-			return;
-		}
-		error = '';
+		error = fioError(displayName) || (password !== confirm ? 'Пароли не совпадают' : '');
+		if (error) return;
 		busy = true;
 		try {
 			await post(
@@ -36,8 +34,7 @@
 					group: { name: groupName, university, course },
 					username,
 					displayName,
-					password,
-					adminIsHeadman
+					password
 				},
 				{ anonymous: true }
 			);
@@ -53,7 +50,10 @@
 <svelte:head><title>Первый запуск · groupbase</title></svelte:head>
 
 <h1>Первый запуск</h1>
-<p class="muted">Создадим группу и аккаунт администратора. Это займёт минуту.</p>
+<p class="muted">
+	Создадим группу и ваш аккаунт: вы станете администратором сайта и старостой группы. Роль старосты
+	потом можно передать в «Участниках».
+</p>
 
 <form onsubmit={submit}>
 	<div>
@@ -102,11 +102,7 @@
 
 	<hr />
 
-	<div>
-		<label class="label" for="dname">Ваше имя</label>
-		<input id="dname" class="input" bind:value={displayName} autocomplete="name" required />
-		<p class="hint">Так вас увидят другие. ФИО не обязательно.</p>
-	</div>
+	<FioField bind:value={displayName} />
 	<div>
 		<label class="label" for="uname">Имя пользователя для входа</label>
 		<input
@@ -116,14 +112,11 @@
 			autocomplete="username"
 			autocapitalize="none"
 			spellcheck="false"
-			placeholder="ivan.petrov"
+			placeholder="ivanov.ivan"
 			required
 		/>
 	</div>
 	<PasswordFields bind:password bind:confirm />
-	<label class="check"
-		><input type="checkbox" bind:checked={adminIsHeadman} /> Я староста этой группы</label
-	>
 
 	{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 	<Button variant="primary" type="submit" loading={busy}>Создать</Button>

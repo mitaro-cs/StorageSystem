@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { fioError } from '$lib/names';
 	import { goto } from '$app/navigation';
 	import { LogOut, Settings, Users, Newspaper, BookOpen } from '@lucide/svelte';
 	import { encode } from 'uqr';
@@ -11,6 +12,10 @@
 	import Modal from '$lib/ui/Modal.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
 	import ThemeToggle from '$lib/shell/ThemeToggle.svelte';
+	import AvatarCropper from '$lib/ui/AvatarCropper.svelte';
+	import { forgetOfflineData, install, pwa } from '$lib/pwa.svelte';
+	import { clearCache } from '$lib/cache';
+	import { clearRecent } from '$lib/recent';
 
 	const me = $derived(session.me!);
 	let displayName = $derived(me.user.displayName);
@@ -24,6 +29,16 @@
 	let code = $state('');
 	let deleteOpen = $state(false);
 	let deletePassword = $state('');
+	let avatarOpen = $state(false);
+
+	async function removeAvatar() {
+		try {
+			await del('/api/me/avatar');
+			await loadMe();
+		} catch (err) {
+			toastError(err);
+		}
+	}
 
 	const qr = $derived.by(() => {
 		if (!totpUri) return null;
@@ -35,10 +50,12 @@
 
 	async function saveName(e: SubmitEvent) {
 		e.preventDefault();
+		const problem = fioError(displayName);
+		if (problem) return toastError(new Error(problem));
 		try {
 			await patch('/api/me', { displayName });
 			await loadMe();
-			toast('Имя сохранено', 'ok');
+			toast('ФИО сохранено', 'ok');
 		} catch (err) {
 			toastError(err);
 		}
@@ -93,6 +110,9 @@
 
 	async function logout() {
 		await post('/api/auth/logout');
+		forgetOfflineData();
+		clearCache();
+		clearRecent();
 		session.me = null;
 		goto('/login', { replaceState: true });
 	}
@@ -110,7 +130,15 @@
 <svelte:head><title>Профиль · groupbase</title></svelte:head>
 
 <header class="me-head">
-	<Avatar id={me.user.id} name={me.user.displayName} avatar={me.user.avatar} size={72} />
+	<button
+		class="avatar-btn"
+		onclick={() => (avatarOpen = true)}
+		aria-label="Сменить аватар"
+		title="Сменить аватар"
+	>
+		<Avatar id={me.user.id} name={me.user.displayName} avatar={me.user.avatar} size={72} />
+		<span class="edit" aria-hidden="true">Изменить</span>
+	</button>
 	<div>
 		<h1>{me.user.displayName}</h1>
 		<p class="muted">
@@ -121,6 +149,9 @@
 					>{g.name} · {t.roles[g.role!].toLowerCase()}</span
 				>{/each}
 		</div>
+		{#if me.user.avatar}
+			<button class="linklike small" onclick={removeAvatar}>Убрать аватар</button>
+		{/if}
 	</div>
 </header>
 
@@ -132,9 +163,16 @@
 </nav>
 
 <section class="card block">
-	<h2>Отображаемое имя</h2>
+	<h2>ФИО</h2>
 	<form class="row" onsubmit={saveName}>
-		<input class="input" bind:value={displayName} maxlength="64" aria-label="Отображаемое имя" />
+		<input
+			class="input"
+			bind:value={displayName}
+			maxlength="64"
+			autocomplete="name"
+			placeholder="Иванов Иван Иванович"
+			aria-label="ФИО"
+		/>
 		<Button type="submit">Сохранить</Button>
 	</form>
 	<div class="row theme">
@@ -181,6 +219,21 @@
 </section>
 
 <section class="card block">
+	<h2>Приложение</h2>
+	<p class="muted">
+		groupbase можно установить на телефон как приложение: он откроется без браузерной строки, а
+		лента и ДЗ будут доступны без сети.
+	</p>
+	{#if pwa.canInstall}
+		<div><Button variant="primary" onclick={install}>Установить</Button></div>
+	{:else}
+		<p class="faint small">
+			iPhone: «Поделиться» → «На экран „Домой“». Android: меню браузера → «Установить приложение».
+		</p>
+	{/if}
+</section>
+
+<section class="card block">
 	<h2>Выход и удаление</h2>
 	<div class="row wrap">
 		<Button onclick={logout}><LogOut size={16} /> Выйти</Button>
@@ -188,6 +241,13 @@
 	</div>
 	<p class="faint small">groupbase {me.instance.version}</p>
 </section>
+
+<AvatarCropper
+	bind:open={avatarOpen}
+	endpoint="/api/me/avatar"
+	title="Ваш аватар"
+	ondone={() => loadMe()}
+/>
 
 <Modal bind:open={totpOpen} title="Включить 2FA">
 	<div class="stack">
@@ -244,6 +304,39 @@
 		align-items: center;
 		gap: var(--s4);
 		margin-bottom: var(--s5);
+	}
+	.avatar-btn {
+		position: relative;
+		padding: 0;
+		border: 0;
+		background: none;
+		border-radius: 50%;
+	}
+	.edit {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		border-radius: 50%;
+		background: rgb(0 0 0 / 0.45);
+		color: #fff;
+		font-size: 12px;
+		font-weight: 600;
+		opacity: 0;
+		transition: opacity var(--dur) var(--ease);
+	}
+	.avatar-btn:hover .edit,
+	.avatar-btn:focus-visible .edit {
+		opacity: 1;
+	}
+	.linklike {
+		border: 0;
+		background: none;
+		padding: 0;
+		color: var(--text-3);
+	}
+	.linklike:hover {
+		color: var(--danger);
 	}
 	.roles {
 		display: flex;

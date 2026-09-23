@@ -4,16 +4,37 @@
 	import Sidebar from '$lib/shell/Sidebar.svelte';
 	import BottomNav from '$lib/shell/BottomNav.svelte';
 	import MobileBar from '$lib/shell/MobileBar.svelte';
+	import { palette } from '$lib/shell/palette.svelte';
+	import Hotkeys from '$lib/shell/Hotkeys.svelte';
+	import SwipeBack from '$lib/shell/SwipeBack.svelte';
+	import { initPwa, pwa } from '$lib/pwa.svelte';
+	import { onMount } from 'svelte';
+	import { slide } from '$lib/motion';
+	import { WifiOff } from '@lucide/svelte';
 
 	let { children } = $props();
+	// На страницах деталей верхнюю панель заменяет «← Раздел» (BackBar), как на макете.
+	const detail = $derived(/^\/(homework|news|subjects|materials)\/[^/]+/.test(page.url.pathname));
 	let collapsed = $state(false);
+	onMount(initPwa);
+
+	// Палитра грузится при первом открытии — её код не нужен для первого экрана.
+	let paletteWanted = $state(false);
+	$effect(() => {
+		if (palette.open) paletteWanted = true;
+	});
 </script>
 
 <a class="skip" href="#content">Перейти к содержимому</a>
 <div class="shell" class:collapsed>
 	<div class="desktop-only"><Sidebar bind:collapsed /></div>
 	<div class="main-col">
-		<div class="mobile-only"><MobileBar /></div>
+		{#if !detail}<div class="mobile-only"><MobileBar /></div>{/if}
+		{#if pwa.offline}
+			<div class="offline" role="status" transition:slide>
+				<WifiOff size={15} /> Нет сети — показаны сохранённые данные
+			</div>
+		{/if}
 		<main id="content" tabindex="-1">
 			{#key page.url.pathname}
 				<div class="page" in:fly={{ y: 6, duration: 180 }}>
@@ -24,6 +45,11 @@
 	</div>
 	<div class="mobile-only"><BottomNav /></div>
 </div>
+{#if paletteWanted}
+	{#await import('$lib/shell/CommandPalette.svelte') then m}<m.default />{/await}
+{/if}
+<Hotkeys />
+<SwipeBack />
 
 <style>
 	.shell {
@@ -37,7 +63,8 @@
 	main {
 		max-width: calc(var(--content) + 2 * var(--s5));
 		margin: 0 auto;
-		padding: var(--s4) var(--s4) calc(var(--bottom-nav) + var(--s6) + env(safe-area-inset-bottom));
+		padding: var(--s4) var(--s4)
+			calc(var(--bottom-nav) + var(--bottom-gap) + var(--s7) + env(safe-area-inset-bottom));
 		outline: none;
 	}
 	.desktop-only {
@@ -53,6 +80,17 @@
 		main {
 			padding: var(--s6) var(--s5) var(--s7);
 		}
+	}
+	.offline {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		padding: 8px 16px;
+		background: var(--amber-soft);
+		color: var(--amber);
+		font-size: 13.5px;
+		font-weight: 550;
 	}
 	.skip {
 		position: absolute;

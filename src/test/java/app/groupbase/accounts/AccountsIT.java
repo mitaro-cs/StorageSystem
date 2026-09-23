@@ -23,15 +23,15 @@ class AccountsIT extends IntegrationTest {
         admin()
             .post(
                 "/api/groups/" + g + "/accounts",
-                Map.of("accounts", List.of(Map.of("displayName", "Мария Иванова"))));
+                Map.of("accounts", List.of(Map.of("displayName", "Иванова Мария"))));
     assertThat(r.status()).isEqualTo(200);
     JsonNode created = r.json().get(0);
-    assertThat(created.get("username").asString()).startsWith("mariya.ivanova");
+    assertThat(created.get("username").asString()).startsWith("ivanova.mariya");
     String t = token(created.get("activationPath").asString());
 
     var info = client().get("/api/auth/links/" + t);
     assertThat(info.json().get("purpose").asString()).isEqualTo("activate");
-    assertThat(info.json().get("displayName").asString()).isEqualTo("Мария Иванова");
+    assertThat(info.json().get("displayName").asString()).isEqualTo("Иванова Мария");
 
     // До активации войти нельзя.
     var early =
@@ -61,7 +61,7 @@ class AccountsIT extends IntegrationTest {
                 "/api/groups/" + g + "/accounts",
                 Map.of(
                     "accounts",
-                    List.of(Map.of("displayName", "Пётр Сидоров")),
+                    List.of(Map.of("displayName", "Сидоров Пётр")),
                     "delivery",
                     "PASSWORD"));
     JsonNode created = r.json().get(0);
@@ -89,9 +89,9 @@ class AccountsIT extends IntegrationTest {
                 Map.of(
                     "accounts",
                     List.of(
-                        Map.of("displayName", "Анна Смирнова"),
-                        Map.of("displayName", "Анна Смирнова"),
-                        Map.of("displayName", "Олег Ким"))));
+                        Map.of("displayName", "Смирнова Анна"),
+                        Map.of("displayName", "Смирнова Анна"),
+                        Map.of("displayName", "Ким Олег"))));
     assertThat(r.status()).isEqualTo(200);
     assertThat(r.json().size()).isEqualTo(3);
     assertThat(r.json().get(0).get("username").asString())
@@ -110,8 +110,8 @@ class AccountsIT extends IntegrationTest {
                 Map.of(
                     "accounts",
                     List.of(
-                        Map.of("username", "fresh" + uniq(), "displayName", "Новый"),
-                        Map.of("username", existing.username(), "displayName", "Дубль"))));
+                        Map.of("username", "fresh" + uniq(), "displayName", "Новиков Новый"),
+                        Map.of("username", existing.username(), "displayName", "Дублев Дубль"))));
     assertThat(r.status()).isEqualTo(409);
     assertThat(r.json().get("details").get("row").asInt()).isEqualTo(1);
     assertThat(admin().get("/api/groups/" + g + "/members").json().size()).isEqualTo(1);
@@ -133,7 +133,8 @@ class AccountsIT extends IntegrationTest {
     var accept =
         newbie.post(
             "/api/invites/" + t + "/accept",
-            Map.of("username", "inv" + uniq(), "displayName", "Новенький", "password", PASSWORD));
+            Map.of(
+                "username", "inv" + uniq(), "displayName", "Новенький Иван", "password", PASSWORD));
     assertThat(accept.status()).as(accept.body()).isEqualTo(200);
     assertThat(newbie.get("/api/me").json().get("groups").size()).isEqualTo(1);
 
@@ -141,7 +142,13 @@ class AccountsIT extends IntegrationTest {
         client()
             .post(
                 "/api/invites/" + t + "/accept",
-                Map.of("username", "inv" + uniq(), "displayName", "Второй", "password", PASSWORD));
+                Map.of(
+                    "username",
+                    "inv" + uniq(),
+                    "displayName",
+                    "Вторых Пётр",
+                    "password",
+                    PASSWORD));
     assertThat(second.status()).isEqualTo(410);
 
     var multi = a.post("/api/groups/" + g + "/invites", Map.of("ttlHours", 1));
@@ -157,7 +164,13 @@ class AccountsIT extends IntegrationTest {
             client()
                 .post(
                     "/api/invites/" + rt + "/accept",
-                    Map.of("username", "inv" + uniq(), "displayName", "X", "password", PASSWORD))
+                    Map.of(
+                        "username",
+                        "inv" + uniq(),
+                        "displayName",
+                        "Иксов Икс",
+                        "password",
+                        PASSWORD))
                 .status())
         .isEqualTo(410);
   }
@@ -273,7 +286,7 @@ class AccountsIT extends IntegrationTest {
       var r =
           a.post(
               "/api/groups/" + g + "/accounts",
-              Map.of("accounts", List.of(Map.of("displayName", "Кто-то"))));
+              Map.of("accounts", List.of(Map.of("displayName", "Кто-то Такой"))));
       assertThat(r.status()).isEqualTo(403);
     } finally {
       a.patch("/api/admin/settings", Map.of("directAccounts", true));

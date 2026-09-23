@@ -30,7 +30,7 @@
 		aria-label="Меню и предметы"
 		aria-haspopup="dialog"
 	>
-		<MenuIcon size={22} />
+		<MenuIcon size={19} />
 	</button>
 	<strong class="title">{title}</strong>
 	<ThemeToggle />
@@ -72,26 +72,27 @@
 		z-index: 30;
 		display: flex;
 		align-items: center;
-		gap: var(--s2);
-		height: 56px;
-		padding: 0 var(--s2);
-		padding-top: env(safe-area-inset-top);
-		background: color-mix(in srgb, var(--bg) 88%, transparent);
-		backdrop-filter: saturate(1.4) blur(14px);
-		-webkit-backdrop-filter: saturate(1.4) blur(14px);
+		gap: var(--s3);
+		height: calc(64px + env(safe-area-inset-top));
+		padding: env(safe-area-inset-top) var(--s4) 0;
+		background: color-mix(in srgb, var(--bg) 80%, transparent);
+		backdrop-filter: blur(24px) saturate(1.5);
+		-webkit-backdrop-filter: blur(24px) saturate(1.5);
 	}
 	.menu {
 		display: grid;
 		place-items: center;
-		width: 44px;
-		height: 44px;
-		border: 0;
-		border-radius: 12px;
-		background: transparent;
+		flex: none;
+		width: 40px;
+		height: 40px;
+		border: 1px solid var(--border);
+		border-radius: 50%;
+		background: var(--surface);
+		color: var(--text);
 	}
 	.title {
 		flex: 1;
-		font-size: 17px;
+		font-size: 19px;
 		letter-spacing: -0.02em;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -104,7 +105,7 @@
 		margin: auto 0 0;
 		padding: 0;
 		border: 0;
-		border-radius: 20px 20px 0 0;
+		border-radius: var(--r-xl) var(--r-xl) 0 0;
 		background: var(--surface);
 		color: var(--text);
 		box-shadow: var(--shadow-3);
@@ -137,16 +138,16 @@
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		height: 44px;
-		padding: 0 12px;
-		border-radius: 12px;
+		height: 48px;
+		padding: 0 16px;
+		border-radius: var(--r-full);
 		background: var(--surface-2);
 		color: var(--text);
-		font-weight: 520;
+		font-weight: 540;
 	}
 	.links a.active {
-		background: var(--accent-soft);
-		color: var(--accent);
+		background: var(--accent);
+		color: var(--accent-text);
 	}
 	.links a:hover {
 		text-decoration: none;

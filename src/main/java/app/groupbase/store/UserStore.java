@@ -25,6 +25,7 @@ public class UserStore {
               rs.getBytes("totp_secret"),
               Rows.bool(rs, "totp_enabled"),
               Rows.longOrNull(rs, "totp_last_step"),
+              rs.getInt("totp_drift"),
               rs.getString("avatar"),
               rs.getInt("failed_logins"),
               Rows.longOrNull(rs, "locked_until"),
@@ -130,31 +131,36 @@ public class UserStore {
   }
 
   public void setTotpSecret(long id, byte[] sealedSecret) {
-    db.sql("UPDATE users SET totp_secret = ?, totp_enabled = 0, totp_last_step = NULL WHERE id = ?")
+    db.sql(
+            "UPDATE users SET totp_secret = ?, totp_enabled = 0, totp_last_step = NULL,"
+                + " totp_drift = 0 WHERE id = ?")
         .params(sealedSecret, id)
         .update();
   }
 
-  public void enableTotp(long id, long step) {
-    db.sql("UPDATE users SET totp_enabled = 1, totp_last_step = ? WHERE id = ?")
-        .params(step, id)
+  public void enableTotp(long id, long step, int drift) {
+    db.sql("UPDATE users SET totp_enabled = 1, totp_last_step = ?, totp_drift = ? WHERE id = ?")
+        .params(step, drift, id)
         .update();
   }
 
   public void disableTotp(long id) {
     db.sql(
-            "UPDATE users SET totp_enabled = 0, totp_secret = NULL, totp_last_step = NULL"
-                + " WHERE id = ?")
+            "UPDATE users SET totp_enabled = 0, totp_secret = NULL, totp_last_step = NULL,"
+                + " totp_drift = 0 WHERE id = ?")
         .param(id)
         .update();
   }
 
-  /** Отмечает использованный шаг TOTP; false, если шаг уже был использован (гонка). */
-  public boolean useTotpStep(long id, long step) {
+  /**
+   * Отмечает использованный шаг TOTP и уточняет сдвиг часов; false, если шаг уже был использован
+   * (гонка).
+   */
+  public boolean useTotpStep(long id, long step, int drift) {
     return db.sql(
-                "UPDATE users SET totp_last_step = ? WHERE id = ?"
+                "UPDATE users SET totp_last_step = ?, totp_drift = ? WHERE id = ?"
                     + " AND (totp_last_step IS NULL OR totp_last_step < ?)")
-            .params(step, id, step)
+            .params(step, drift, id, step)
             .update()
         == 1;
   }
@@ -165,7 +171,8 @@ public class UserStore {
             """
             UPDATE users SET username = 'deleted-' || id, display_name = '', password_hash = NULL,
               must_change_password = 0, instance_role = NULL, status = 'deleted',
-              totp_secret = NULL, totp_enabled = 0, totp_last_step = NULL, avatar = NULL,
+              totp_secret = NULL, totp_enabled = 0, totp_last_step = NULL, totp_drift = 0,
+              avatar = NULL,
               failed_logins = 0, locked_until = NULL, deleted_at = ?
             WHERE id = ?
             """)

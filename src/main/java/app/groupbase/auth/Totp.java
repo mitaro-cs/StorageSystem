@@ -7,10 +7,20 @@ import java.security.GeneralSecurityException;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-/** TOTP по RFC 6238: SHA-1, 6 цифр, шаг 30 секунд, допуск ±1 шаг. */
+/**
+ * TOTP по RFC 6238: SHA-1, 6 цифр, шаг 30 секунд, допуск ±1 шаг. Часы телефона могут спешить или
+ * отставать: при подключении допуск шире, найденный сдвиг запоминается и учитывается при входе.
+ */
 public final class Totp {
 
   public static final int STEP_SECONDS = 30;
+
+  /** Обычный допуск: код соседнего шага (задержка ввода). */
+  public static final int WINDOW = 1;
+
+  /** Допуск при подключении и предел запоминаемого сдвига часов: ±5 минут. */
+  public static final int MAX_DRIFT = 10;
+
   private static final String BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
   private Totp() {}
@@ -23,21 +33,33 @@ public final class Totp {
     return Math.floorDiv(epochMillis / 1000, STEP_SECONDS);
   }
 
-  /**
-   * Номер шага, которому соответствует код, или -1. Шаги не больше {@code lastUsedStep} отвергаются
-   * (код нельзя использовать повторно).
-   */
   public static long verify(byte[] secret, String code, long nowMillis, Long lastUsedStep) {
+    return verify(secret, code, nowMillis, lastUsedStep, 0, WINDOW);
+  }
+
+  /**
+   * Номер шага, которому соответствует код, или -1. Подходят шаги в пределах ±{@code window} от
+   * «времени телефона» (сейчас + {@code drift}) и в обычном окне ±1 от времени сервера — на случай,
+   * если часы телефона уже поправили. Шаги не больше {@code lastUsedStep} отвергаются (код нельзя
+   * использовать повторно).
+   */
+  public static long verify(
+      byte[] secret, String code, long nowMillis, Long lastUsedStep, int drift, int window) {
     if (code == null) {
       return -1;
     }
-    String digits = code.replaceAll("\\s", "");
+    // Пробелы (в т.ч. неразрывные) и невидимые символы попадают при копировании из приложений.
+    String digits = code.replaceAll("[\\s\\p{Z}\\p{Cf}-]", "");
     if (!digits.matches("\\d{6}")) {
       return -1;
     }
     long now = step(nowMillis);
-    for (long s = now - 1; s <= now + 1; s++) {
-      if (lastUsedStep != null && s <= lastUsedStep) {
+    long phone = now + drift;
+    for (long s = Math.min(now - WINDOW, phone - window);
+        s <= Math.max(now + WINDOW, phone + window);
+        s++) {
+      boolean near = Math.abs(s - now) <= WINDOW || Math.abs(s - phone) <= window;
+      if (!near || (lastUsedStep != null && s <= lastUsedStep)) {
         continue;
       }
       if (java.security.MessageDigest.isEqual(
@@ -47,6 +69,12 @@ public final class Totp {
       }
     }
     return -1;
+  }
+
+  /** Сдвиг часов телефона для найденного шага, в пределах ±{@link #MAX_DRIFT}. */
+  public static int drift(long matchedStep, long nowMillis) {
+    long d = matchedStep - step(nowMillis);
+    return (int) Math.max(-MAX_DRIFT, Math.min(MAX_DRIFT, d));
   }
 
   public static String code(byte[] secret, long step) {

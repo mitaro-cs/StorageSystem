@@ -3,8 +3,10 @@ package app.groupbase.accounts;
 import app.groupbase.audit.AuditService;
 import app.groupbase.auth.Actor;
 import app.groupbase.auth.Authz;
+import app.groupbase.auth.Permission;
 import app.groupbase.store.Group;
 import app.groupbase.store.GroupStore;
+import app.groupbase.store.Member;
 import app.groupbase.web.ApiException;
 import java.time.Clock;
 import java.util.List;
@@ -31,6 +33,15 @@ public class GroupService {
     this.settings = settings;
     this.audit = audit;
     this.clock = clock;
+  }
+
+  /** Участники группы; логины видят только те, у кого есть право VIEW_USERNAMES. */
+  public List<Member> members(Actor actor, long groupId) {
+    List<Member> list = groups.members(groupId);
+    if (authz.can(actor, Permission.VIEW_USERNAMES, groupId)) {
+      return list;
+    }
+    return list.stream().map(Member::withoutUsername).toList();
   }
 
   public List<Group> visible(Actor actor) {

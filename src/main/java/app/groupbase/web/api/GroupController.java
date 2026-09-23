@@ -114,8 +114,8 @@ class GroupController {
   // --- участники ---
 
   @GetMapping("/{groupId}/members")
-  List<Member> members(@PathVariable long groupId) {
-    return groups.members(groupId);
+  List<Member> members(Actor actor, @PathVariable long groupId) {
+    return groupService.members(actor, groupId);
   }
 
   @PutMapping("/{groupId}/members/{userId}/role")

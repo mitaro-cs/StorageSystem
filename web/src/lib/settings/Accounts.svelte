@@ -17,7 +17,7 @@
 	let busy = $state(false);
 	let result = $state<CreatedAccount[] | null>(null);
 
-	const example = 'Иван Петров\nАнна Смирнова\nОлег Ким';
+	const example = 'Петров Иван Сергеевич\nСмирнова Анна Олеговна\nКим Олег';
 	const rows = $derived(parseNames(text));
 
 	async function create(e: SubmitEvent) {
@@ -78,7 +78,7 @@
 		<table>
 			<thead
 				><tr
-					><th>Имя</th><th>Логин</th><th
+					><th>ФИО</th><th>Логин</th><th
 						>{delivery === 'LINK' ? 'Ссылка активации' : 'Временный пароль'}</th
 					></tr
 				></thead
@@ -101,8 +101,8 @@
 	<form class="card form" onsubmit={create}>
 		<h2>Создать аккаунты</h2>
 		<p class="muted small">
-			Вставьте список: по одному имени на строку или CSV <code>username,имя</code>. Логины для имён
-			без логина придумаются сами (Иван Петров → ivan.petrov).
+			Вставьте список: по одному ФИО на строку или CSV <code>username,ФИО</code>. Отчество — если
+			есть. Логины без указания придумаются сами (Петров Иван → petrov.ivan).
 		</p>
 		<textarea
 			class="textarea"

@@ -16,7 +16,7 @@ test('студент регистрируется по инвайту, види�
 	const errors = watchConsole(student);
 	await student.goto(link);
 	await expect(student.getByRole('heading', { name: 'БИН2509' })).toBeVisible();
-	await student.getByLabel('Как вас зовут').fill(STUDENT.name);
+	await student.getByLabel('ФИО').fill(STUDENT.name);
 	await student.getByLabel('Имя пользователя для входа').fill(STUDENT.username);
 	await student.getByLabel('Пароль', { exact: true }).fill(STUDENT.password);
 	await student.getByLabel('Повторите пароль').fill(STUDENT.password);

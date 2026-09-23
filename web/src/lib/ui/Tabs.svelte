@@ -48,15 +48,17 @@
 </nav>
 
 <style>
+	/* Чипы-пилюли: активный — чернильный, остальные — светлые (как «Asia / Europe») */
 	.tabs {
 		display: flex;
-		gap: 4px;
-		padding: 4px;
-		background: var(--surface-2);
-		border-radius: var(--r);
+		gap: 8px;
+		margin: 0 calc(-1 * var(--s4)) var(--s4);
+		padding: 2px var(--s4);
 		overflow-x: auto;
 		scrollbar-width: none;
-		margin-bottom: var(--s4);
+	}
+	.tabs::-webkit-scrollbar {
+		display: none;
 	}
 	.tab {
 		position: relative;
@@ -64,32 +66,42 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
-		height: 32px;
-		padding: 0 14px;
-		border: 0;
-		border-radius: 9px;
-		background: transparent;
+		height: 38px;
+		padding: 0 18px;
+		border: 1px solid var(--border);
+		border-radius: var(--r-full);
+		background: var(--surface);
 		color: var(--text-2);
-		font-size: 14px;
+		font-size: 14.5px;
 		font-weight: 550;
 		text-decoration: none;
 		transition:
 			background-color var(--dur) var(--ease),
-			color var(--dur) var(--ease),
-			box-shadow var(--dur) var(--ease);
+			border-color var(--dur) var(--ease),
+			color var(--dur) var(--ease);
 	}
 	.tab:hover {
 		color: var(--text);
 		text-decoration: none;
 	}
 	.tab.active {
-		background: var(--surface);
-		color: var(--text);
-		box-shadow: var(--shadow-1);
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-text);
 	}
 	.count {
 		font-size: 12px;
 		color: var(--amber);
 		font-weight: 650;
+	}
+	.tab.active .count {
+		color: inherit;
+		opacity: 0.7;
+	}
+	@media (min-width: 900px) {
+		.tabs {
+			margin: 0 0 var(--s4);
+			padding: 2px 0;
+		}
 	}
 </style>

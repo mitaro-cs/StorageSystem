@@ -13,6 +13,7 @@ public record User(
     byte[] totpSecret,
     boolean totpEnabled,
     Long totpLastStep,
+    int totpDrift,
     String avatar,
     int failedLogins,
     Long lockedUntil,

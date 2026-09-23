@@ -99,7 +99,7 @@ public abstract class IntegrationTest {
                     "username",
                     ADMIN,
                     "displayName",
-                    "Администратор",
+                    "Админов Админ Админович",
                     "password",
                     ADMIN_PASSWORD));
         assertThat(r.status()).as(r.body()).isEqualTo(200);
@@ -132,7 +132,7 @@ public abstract class IntegrationTest {
                 "/api/groups/" + groupId + "/accounts",
                 Map.of(
                     "accounts",
-                    List.of(Map.of("username", username, "displayName", "Тест " + username)),
+                    List.of(Map.of("username", username, "displayName", "Тестов Тест")),
                     "role",
                     role,
                     "delivery",

@@ -2,19 +2,22 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Pin, PinOff, Users } from '@lucide/svelte';
+	import { tick } from 'svelte';
 	import { get, post, put } from '$lib/api';
-	import { loadSubjects } from '$lib/data.svelte';
+	import { loadSubjects, sortedSubjects } from '$lib/data.svelte';
+	import { plural } from '$lib/format';
+	import { session } from '$lib/session.svelte';
+	import { track } from '$lib/recent';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import type { Subject } from '$lib/types';
 	import Menu, { type MenuItem } from '$lib/ui/Menu.svelte';
+	import BackBar from '$lib/ui/BackBar.svelte';
+	import SubjectArt from '$lib/ui/SubjectArt.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 	import NewsFeed from '$lib/content/NewsFeed.svelte';
-	import HomeworkBoard from '$lib/content/HomeworkBoard.svelte';
-	import MemberList from '$lib/content/MemberList.svelte';
-	import MaterialBrowser from '$lib/content/MaterialBrowser.svelte';
 	import SubjectEditor from '$lib/content/SubjectEditor.svelte';
 
 	let subject = $state<Subject | null>(null);
@@ -37,6 +40,7 @@
 		try {
 			subject = await get<Subject>(`/api/subjects/${id}`);
 			missing = false;
+			track({ type: 'subject', id: subject.id, title: subject.name, color: subject.color });
 		} catch {
 			missing = true;
 		}
@@ -45,6 +49,19 @@
 	$effect(() => {
 		void id;
 		load();
+	});
+
+	// Полоса миниатюр предметов: текущий крупнее и прокручен в видимую область.
+	let strip: HTMLElement | undefined = $state();
+	const others = $derived(sortedSubjects(session.groupId));
+	$effect(() => {
+		void id;
+		void others.length;
+		tick().then(() =>
+			strip
+				?.querySelector('[aria-current="page"]')
+				?.scrollIntoView({ inline: 'center', block: 'nearest' })
+		);
 	});
 
 	async function togglePin() {
@@ -121,35 +138,74 @@
 {:else if !subject}
 	<Skeleton lines={4} />
 {:else}
-	<header class="head" style:--c={subject.color}>
-		<nav class="crumbs small" aria-label="Путь">
-			<a href="/subjects">Предметы</a><span aria-hidden="true">/</span><span aria-current="page"
-				>{subject.name}</span
-			>
-		</nav>
-		<div class="title-row">
-			<span class="swatch" aria-hidden="true"></span>
-			<h1>{subject.name}</h1>
-			<button
-				class="pin"
-				onclick={togglePin}
-				aria-label={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
-				title={subject.pinned ? 'Открепить' : 'Закрепить'}
-			>
-				{#if subject.pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
-			</button>
-			<Menu items={actions} />
-		</div>
-		<p class="muted">
-			{subject.teacher}
-			{#if subject.groups.length > 1}
-				<span class="chip accent"
-					><Users size={12} /> {subject.groups.map((g) => g.name).join(', ')}</span
+	<BackBar href="/subjects" label="Предметы">
+		<button
+			class="circle"
+			onclick={togglePin}
+			aria-label={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
+			title={subject.pinned ? 'Открепить' : 'Закрепить'}
+		>
+			{#if subject.pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
+		</button>
+		<Menu items={actions} />
+	</BackBar>
+
+	{#if others.length > 1}
+		<nav class="strip" aria-label="Другие предметы" bind:this={strip}>
+			{#each others as o (o.id)}
+				<a
+					href="/subjects/{o.id}"
+					class="thumb"
+					class:on={o.id === subject.id}
+					aria-current={o.id === subject.id ? 'page' : undefined}
+					title={o.name}
+					aria-label={o.name}
+					data-sveltekit-replacestate
 				>
-			{/if}
-			{#if subject.archived}<span class="chip">в архиве</span>{/if}
-		</p>
+					<SubjectArt id={o.id} name={o.name} color={o.color} avatar={o.avatar} class="fill" />
+				</a>
+			{/each}
+		</nav>
+	{/if}
+
+	<header class="hero">
+		<span class="cover">
+			<SubjectArt
+				id={subject.id}
+				name={subject.name}
+				color={subject.color}
+				avatar={subject.avatar}
+				class="fill"
+			/>
+		</span>
+		<div class="hero-info">
+			<h1>{subject.name}</h1>
+			<span class="sub">{subject.teacher || 'Преподаватель не указан'}</span>
+			<span class="facts">
+				<span
+					><Users size={15} />
+					<span class="num">{subject.groups.length}</span>
+					{plural(subject.groups.length, ['группа', 'группы', 'групп'])}</span
+				>
+				{#if subject.pinned}<span><Pin size={15} /> закреплён</span>{/if}
+			</span>
+		</div>
 	</header>
+
+	<dl class="kv info">
+		<div>
+			<dt>Преподаватель</dt>
+			<dd>{subject.teacher || '—'}</dd>
+		</div>
+		<div>
+			<dt>{subject.groups.length > 1 ? 'Общий для групп' : 'Группа'}</dt>
+			<dd>{subject.groups.map((g) => g.name).join(', ')}</dd>
+		</div>
+		<div>
+			<dt>Статус</dt>
+			<dd>{subject.archived ? 'В архиве' : 'Идёт'}</dd>
+		</div>
+	</dl>
 
 	<nav class="subtabs" aria-label="Разделы предмета">
 		{#each activeTabs as t (t.label)}
@@ -163,12 +219,21 @@
 		{/each}
 	</nav>
 
+	<!-- Вкладки подгружаются при открытии: код ДЗ, материалов и участников не нужен для ленты. -->
 	{#if tab === 'homework'}
-		<HomeworkBoard subjectId={subject.id} title={false} />
+		{#await import('$lib/content/HomeworkBoard.svelte')}<Skeleton lines={4} />{:then m}<m.default
+				subjectId={subject.id}
+				title={false}
+			/>{/await}
 	{:else if tab === 'materials'}
-		<MaterialBrowser subjectId={subject.id} subjectName={subject.name} />
+		{#await import('$lib/content/MaterialBrowser.svelte')}<Skeleton lines={4} />{:then m}<m.default
+				subjectId={subject.id}
+				subjectName={subject.name}
+			/>{/await}
 	{:else if tab === 'members'}
-		<MemberList groupIds={subject.groups.map((g) => g.id)} />
+		{#await import('$lib/content/MemberList.svelte')}<Skeleton lines={4} />{:then m}<m.default
+				groupIds={subject.groups.map((g) => g.id)}
+			/>{/await}
 	{:else}
 		<NewsFeed subjectId={subject.id} />
 	{/if}
@@ -201,85 +266,146 @@
 {/if}
 
 <style>
-	.head {
-		margin-bottom: var(--s4);
-	}
-	.crumbs {
-		display: flex;
-		gap: 6px;
-		color: var(--text-3);
-		margin-bottom: var(--s2);
-	}
-	.crumbs a {
-		color: var(--text-2);
-	}
-	.title-row {
+	.strip {
 		display: flex;
 		align-items: center;
-		gap: 12px;
+		gap: 10px;
+		margin: 0 calc(-1 * var(--s4)) var(--s4);
+		padding: 6px var(--s4);
+		overflow-x: auto;
+		scrollbar-width: none;
 	}
-	.title-row h1 {
-		flex: 1;
-		min-width: 0;
+	.strip::-webkit-scrollbar {
+		display: none;
 	}
-	.swatch {
-		width: 14px;
-		height: 32px;
-		border-radius: 5px;
-		background: var(--c);
+	.thumb {
+		position: relative;
 		flex: none;
+		width: 60px;
+		height: 72px;
+		border-radius: 16px;
+		opacity: 0.75;
+		transition:
+			width 220ms var(--ease),
+			height 220ms var(--ease),
+			opacity var(--dur) var(--ease);
 	}
-	.pin {
+	.thumb:hover {
+		opacity: 1;
+	}
+	.thumb.on {
+		width: 84px;
+		height: 96px;
+		opacity: 1;
+		box-shadow:
+			0 0 0 3px var(--bg),
+			0 0 0 5px var(--text);
+		border-radius: 18px;
+	}
+	.thumb :global(.fill),
+	.cover :global(.fill) {
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+	}
+	.hero {
 		display: grid;
-		place-items: center;
-		width: 36px;
-		height: 36px;
-		border: 0;
-		border-radius: 10px;
-		background: transparent;
-		color: var(--text-3);
+		grid-template-columns: minmax(120px, 40%) 1fr;
+		gap: var(--s4);
+		padding: 12px;
+		margin-bottom: var(--s2);
+		border-radius: var(--r-xl);
+		background: var(--inverse);
+		color: var(--inverse-text);
+		box-shadow: var(--shadow-2);
 	}
-	.pin:hover {
-		background: var(--surface-2);
-		color: var(--text);
+	.cover {
+		position: relative;
+		min-height: 150px;
+		border-radius: 18px;
 	}
-	.head p {
+	.hero-info {
 		display: flex;
-		align-items: center;
-		gap: 8px;
-		margin-top: 6px;
-		padding-left: 26px;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 0;
+		padding: 6px 4px 2px 0;
+	}
+	.hero h1 {
+		font-size: clamp(21px, 4.6vw, 28px);
+		overflow-wrap: anywhere;
+	}
+	.sub {
+		color: var(--inverse-muted);
+	}
+	.facts {
+		display: inline-flex;
 		flex-wrap: wrap;
+		align-self: flex-start;
+		align-items: center;
+		margin-top: auto;
+		padding: 8px 4px;
+		border-radius: 14px;
+		background: var(--inverse-2);
+		color: var(--inverse-muted);
+		font-size: 13.5px;
+	}
+	.facts > span {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 0 10px;
+	}
+	.facts > span + span {
+		border-left: 1px solid color-mix(in srgb, var(--inverse-muted) 40%, transparent);
+	}
+	.info {
+		margin-bottom: var(--s4);
 	}
 	.subtabs {
 		display: flex;
-		gap: 4px;
-		padding: 4px;
-		margin-bottom: var(--s4);
-		background: var(--surface-2);
-		border-radius: var(--r);
+		gap: 8px;
+		margin: 0 calc(-1 * var(--s4)) var(--s4);
+		padding: 2px var(--s4);
 		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.subtabs::-webkit-scrollbar {
+		display: none;
 	}
 	.subtabs a {
 		flex: none;
-		height: 32px;
+		height: 40px;
 		display: grid;
 		place-items: center;
-		padding: 0 14px;
-		border-radius: 9px;
+		padding: 0 18px;
+		border: 1px solid var(--border);
+		border-radius: var(--r-full);
+		background: var(--surface);
 		color: var(--text-2);
 		font-weight: 550;
-		font-size: 14px;
-		transition: all var(--dur) var(--ease);
+		font-size: 15px;
+		transition:
+			background-color var(--dur) var(--ease),
+			color var(--dur) var(--ease);
 	}
 	.subtabs a:hover {
 		text-decoration: none;
 		color: var(--text);
 	}
 	.subtabs a.active {
-		background: var(--surface);
-		color: var(--text);
-		box-shadow: var(--shadow-1);
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-text);
+	}
+	@media (min-width: 900px) {
+		.strip,
+		.subtabs {
+			margin-left: 0;
+			margin-right: 0;
+			padding-left: 2px;
+			padding-right: 2px;
+		}
 	}
 	.options {
 		display: flex;

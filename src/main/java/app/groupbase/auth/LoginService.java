@@ -119,8 +119,9 @@ public class LoginService {
       return false;
     }
     byte[] secret = secrets.open(u.totpSecret(), TOTP_CONTEXT);
-    long step = Totp.verify(secret, code, clock.millis(), u.totpLastStep());
-    return step >= 0 && users.useTotpStep(u.id(), step);
+    long now = clock.millis();
+    long step = Totp.verify(secret, code, now, u.totpLastStep(), u.totpDrift(), Totp.WINDOW);
+    return step >= 0 && users.useTotpStep(u.id(), step, Totp.drift(step, now));
   }
 
   public void cleanupTickets() {

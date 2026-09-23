@@ -4,6 +4,8 @@
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import type { MeGroup } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
+	import Avatar from '$lib/ui/Avatar.svelte';
+	import AvatarCropper from '$lib/ui/AvatarCropper.svelte';
 
 	let { group }: { group: MeGroup } = $props();
 
@@ -12,6 +14,7 @@
 	let course = $state<number | null>(null);
 	let busy = $state(false);
 	let newName = $state('');
+	let cropper = $state(false);
 
 	$effect(() => {
 		name = group.name;
@@ -47,7 +50,11 @@
 </script>
 
 <form class="card form" onsubmit={save}>
-	<h2>Группа</h2>
+	<div class="row">
+		<Avatar id={group.id} name={group.name} avatar={group.avatar} size={48} kind="group" square />
+		<h2 class="spacer">Группа</h2>
+		<Button size="s" onclick={() => (cropper = true)}>Аватар группы</Button>
+	</div>
 	<div class="grid">
 		<div>
 			<label class="label" for="g-name">Название</label>
@@ -64,6 +71,13 @@
 	</div>
 	<div><Button variant="primary" type="submit" loading={busy}>Сохранить</Button></div>
 </form>
+
+<AvatarCropper
+	bind:open={cropper}
+	endpoint="/api/groups/{group.id}/avatar"
+	title="Аватар группы"
+	ondone={() => loadMe()}
+/>
 
 {#if session.me?.instance.mode === 'multi'}
 	<form class="card form" onsubmit={create}>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { ArrowLeft } from '@lucide/svelte';
+	import BackBar from '$lib/ui/BackBar.svelte';
 	import { get } from '$lib/api';
 	import type { NewsItem } from '$lib/types';
 	import { newsActions } from '$lib/content/newsActions';
@@ -32,16 +32,7 @@
 
 <svelte:head><title>{item?.title ?? 'Новость'} · groupbase</title></svelte:head>
 
-<a
-	class="back"
-	href="/news"
-	onclick={(e) => {
-		if (history.length > 1) {
-			e.preventDefault();
-			history.back();
-		}
-	}}><ArrowLeft size={16} /> Новости</a
->
+<BackBar href="/news" label="Новости" />
 
 {#if missing}
 	<div class="card">
@@ -62,15 +53,3 @@
 	<Comments base="/api/news/{item.id}" canComment={item.groups.some((g) => can('comment', g.id))} />
 	<NewsComposer bind:open={composer} edit={item} onsaved={(n) => (item = n)} />
 {/if}
-
-<style>
-	.back {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		margin-bottom: var(--s4);
-		color: var(--text-2);
-		font-size: 14px;
-		font-weight: 550;
-	}
-</style>

@@ -32,6 +32,15 @@ class StaticWebConfig implements WebMvcConfigurer {
         .addResolver(new EncodedResourceResolver())
         .addResolver(new PathResourceResolver());
 
+    // Шрифты и иконки меняются редко, имена без хеша — кешируем на месяц.
+    registry
+        .addResourceHandler("/fonts/**", "/icons/**")
+        .addResourceLocations("classpath:/static/fonts/", "classpath:/static/icons/")
+        .setCacheControl(CacheControl.maxAge(Duration.ofDays(30)).cachePrivate())
+        .resourceChain(true)
+        .addResolver(new EncodedResourceResolver())
+        .addResolver(new PathResourceResolver());
+
     registry
         .addResourceHandler("/**")
         .addResourceLocations("classpath:/static/")

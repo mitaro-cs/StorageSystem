@@ -41,7 +41,7 @@
 			(r) =>
 				!query ||
 				r.member.displayName.toLowerCase().includes(query.toLowerCase()) ||
-				r.member.username.includes(query.toLowerCase())
+				!!r.member.username?.includes(query.toLowerCase())
 		)
 	);
 </script>
@@ -65,7 +65,7 @@
 				<Avatar id={m.userId} name={m.displayName} avatar={m.avatar} size={36} />
 				<div class="who">
 					<strong>{m.displayName}</strong>
-					<span class="faint small">@{m.username}</span>
+					{#if m.username}<span class="faint small">@{m.username}</span>{/if}
 				</div>
 				{#if m.role !== 'student'}<span class="chip accent">{t.roles[m.role]}</span>{/if}
 				{#if m.status === 'pending'}<span class="chip amber">не активирован</span>{/if}

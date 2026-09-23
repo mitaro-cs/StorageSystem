@@ -80,6 +80,26 @@ public class ApiClient {
     }
   }
 
+  /** PUT сырым телом (аватары). */
+  public Response putRaw(String path, byte[] data) {
+    try {
+      if (csrfToken() == null) {
+        get("/api/health");
+      }
+      HttpRequest req =
+          HttpRequest.newBuilder(URI.create(base.apply(port) + path))
+              .PUT(HttpRequest.BodyPublishers.ofByteArray(data))
+              .header("Content-Type", "application/octet-stream")
+              .header("X-CSRF-Token", csrfToken())
+              .build();
+      HttpResponse<String> r = http.send(req, HttpResponse.BodyHandlers.ofString());
+      JsonNode json = r.body().isEmpty() ? null : JSON.readTree(r.body());
+      return new Response(r.statusCode(), json, r.body(), r);
+    } catch (IOException | InterruptedException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   /** Скачивание как байты. */
   public HttpResponse<byte[]> download(String path) {
     try {

@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { ChevronRight, Download, ExternalLink } from '@lucide/svelte';
 	import { get } from '$lib/api';
+	import { track } from '$lib/recent';
 	import { fmtAgo, fmtSize } from '$lib/format';
 	import { can, currentGroup, isMulti } from '$lib/session.svelte';
 	import type { Material, MaterialListing } from '$lib/types';
@@ -10,6 +11,7 @@
 	import Author from '$lib/content/Author.svelte';
 	import Comments from '$lib/content/Comments.svelte';
 	import FileIcon from '$lib/content/FileIcon.svelte';
+	import BackBar from '$lib/ui/BackBar.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Menu from '$lib/ui/Menu.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
@@ -22,6 +24,7 @@
 	async function load() {
 		try {
 			m = await get<Material>(`/api/materials/${page.params.id}`);
+			track({ type: 'material', id: m.id, title: m.title, color: m.subjectColor });
 			if (m.folderId) {
 				const l = await get<MaterialListing>(
 					`/api/subjects/${m.subjectId}/materials?folder=${m.folderId}`
@@ -44,6 +47,11 @@
 </script>
 
 <svelte:head><title>{m?.title ?? 'Материал'} · groupbase</title></svelte:head>
+
+<BackBar
+	href={m ? `/subjects/${m.subjectId}?tab=materials` : '/materials'}
+	label={m?.subjectName ?? 'Материалы'}
+/>
 
 {#if missing}
 	<div class="card">

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Plus, Users, Archive } from '@lucide/svelte';
+	import { Plus, Users, Archive, ArrowRight } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { get, post } from '$lib/api';
 	import { can, currentGroup, groups, session } from '$lib/session.svelte';
@@ -10,6 +10,7 @@
 	import SubjectEditor from '$lib/content/SubjectEditor.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
+	import SubjectArt from '$lib/ui/SubjectArt.svelte';
 
 	let editor = $state(false);
 	let showArchived = $state(false);
@@ -84,18 +85,26 @@
 			<a
 				class="subject card"
 				href="/subjects/{s.id}"
-				style:--c={s.color}
 				in:fly={{ y: 10, delay: stagger(i) }}
 				class:archived={s.archived}
 			>
-				<span class="bar"></span>
-				<strong class="name">{s.name}</strong>
-				<span class="muted small teacher">{s.teacher || ' '}</span>
+				<span class="cover">
+					<SubjectArt id={s.id} name={s.name} color={s.color} avatar={s.avatar} class="fill" />
+					{#if s.groups.length > 1 || s.archived}
+						<span class="tags">
+							{#if s.groups.length > 1}<span class="chip glass"
+									><Users size={12} /> общий · {s.groups.length}</span
+								>{/if}
+							{#if s.archived}<span class="chip glass"><Archive size={12} /> архив</span>{/if}
+						</span>
+					{/if}
+				</span>
 				<span class="foot">
-					{#if s.groups.length > 1}<span class="chip accent"
-							><Users size={12} /> общий · {s.groups.length}</span
-						>{/if}
-					{#if s.archived}<span class="chip"><Archive size={12} /> архив</span>{/if}
+					<span class="text">
+						<strong class="name">{s.name}</strong>
+						<span class="muted small teacher">{s.teacher || 'Преподаватель не указан'}</span>
+					</span>
+					<span class="circle ink" aria-hidden="true"><ArrowRight size={18} /></span>
 				</span>
 			</a>
 		{/each}
@@ -122,24 +131,20 @@
 		align-items: center;
 		gap: var(--s2);
 		flex-wrap: wrap;
-		box-shadow:
-			inset 3px 0 0 var(--amber),
-			var(--shadow-1);
 	}
+	/* Карточки как «Upcoming tours»: обложка, название, круглая чёрная стрелка */
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-		gap: var(--s3);
+		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+		gap: var(--s4);
 	}
 	.subject {
 		position: relative;
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
-		min-height: 128px;
-		padding: var(--s4) var(--s4) var(--s3) calc(var(--s4) + 6px);
+		gap: 12px;
+		padding: 8px 8px 12px;
 		color: var(--text);
-		overflow: hidden;
 		transition:
 			transform var(--dur) var(--ease),
 			box-shadow var(--dur) var(--ease);
@@ -149,22 +154,52 @@
 		transform: translateY(-2px);
 		box-shadow: var(--shadow-2);
 	}
-	.bar {
+	.cover {
+		position: relative;
+		height: 148px;
+	}
+	.cover :global(.fill) {
 		position: absolute;
-		left: 0;
-		top: 0;
-		bottom: 0;
-		width: 5px;
-		background: var(--c);
+		inset: 0;
+		border-radius: 18px;
 	}
-	.name {
-		font-size: 16px;
-		letter-spacing: -0.01em;
-	}
-	.foot {
-		margin-top: auto;
+	.tags {
+		position: absolute;
+		top: 10px;
+		left: 10px;
 		display: flex;
 		gap: 6px;
+	}
+	.chip.glass {
+		background: rgb(255 255 255 / 0.78);
+		color: #0d0d0f;
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+	}
+	.foot {
+		display: flex;
+		align-items: center;
+		gap: var(--s3);
+		padding: 0 6px 0 8px;
+	}
+	.text {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.name {
+		font-size: 17px;
+		letter-spacing: -0.02em;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.teacher {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.archived {
 		opacity: 0.6;
