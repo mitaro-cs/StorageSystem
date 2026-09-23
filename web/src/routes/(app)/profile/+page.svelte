@@ -1,9 +1,10 @@
 <script lang="ts">
+	import RecoveryCodes from '$lib/auth/RecoveryCodes.svelte';
 	import { fioError } from '$lib/names';
 	import { goto } from '$app/navigation';
 	import { LogOut, Settings, Users, Newspaper, BookOpen } from '@lucide/svelte';
 	import { encode } from 'uqr';
-	import { del, patch, post } from '$lib/api';
+	import { del, get, patch, post } from '$lib/api';
 	import { t } from '$lib/i18n/ru';
 	import { loadMe, session } from '$lib/session.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
@@ -27,6 +28,11 @@
 	let totpUri = $state('');
 	let totpSecret = $state('');
 	let code = $state('');
+	// Резервные коды: показываются после включения 2FA или по запросу нового набора.
+	let recoveryCodes = $state<string[] | null>(null);
+	let recoveryLeft = $state<number | null>(null);
+	let regenOpen = $state(false);
+	let regenCode = $state('');
 	let deleteOpen = $state(false);
 	let deletePassword = $state('');
 	let avatarOpen = $state(false);
@@ -87,10 +93,30 @@
 
 	async function finishTotp() {
 		try {
-			await post('/api/me/totp/enable', { code });
-			totpOpen = false;
+			const r = await post<{ recoveryCodes: string[] }>('/api/me/totp/enable', { code });
+			recoveryCodes = r.recoveryCodes;
 			await loadMe();
 			toast('Двухфакторная защита включена', 'ok');
+		} catch (err) {
+			toastError(err);
+		}
+	}
+
+	$effect(() => {
+		if (me.user.totpEnabled && recoveryLeft === null)
+			get<{ remaining: number }>('/api/me/totp/recovery')
+				.then((r) => (recoveryLeft = r.remaining))
+				.catch(() => {});
+	});
+
+	async function regenerate() {
+		try {
+			const r = await post<{ recoveryCodes: string[] }>('/api/me/totp/recovery', {
+				code: regenCode
+			});
+			recoveryCodes = r.recoveryCodes;
+			recoveryLeft = r.recoveryCodes.length;
+			regenCode = '';
 		} catch (err) {
 			toastError(err);
 		}
@@ -207,8 +233,21 @@
 			? 'Включена.'
 			: 'Выключена.'}
 	</p>
-	<div>
+	{#if me.user.totpEnabled && recoveryLeft !== null}
+		<dl class="kv">
+			<div>
+				<dt>Резервные коды</dt>
+				<dd class:low={recoveryLeft <= 3}>
+					осталось <span class="num">{recoveryLeft}</span> из 10
+				</dd>
+			</div>
+		</dl>
+	{/if}
+	<div class="row wrap">
 		{#if me.user.totpEnabled}
+			<Button onclick={() => ((regenCode = ''), (recoveryCodes = null), (regenOpen = true))}
+				>Новые резервные коды</Button
+			>
 			{#if !me.user.instanceRole || !me.instance.requireStaffTotp}<Button onclick={disableTotp}
 					>Отключить</Button
 				>{/if}
@@ -249,29 +288,66 @@
 	ondone={() => loadMe()}
 />
 
-<Modal bind:open={totpOpen} title="Включить 2FA">
-	<div class="stack">
-		<p class="muted">Отсканируйте код приложением-аутентификатором и введите 6 цифр.</p>
-		{#if qr}
-			<svg class="qr" viewBox="-2 -2 {qr.size + 4} {qr.size + 4}" role="img" aria-label="QR-код">
-				<rect x="-2" y="-2" width={qr.size + 4} height={qr.size + 4} fill="#fff" /><path
-					d={qr.path}
-					fill="#111"
-				/>
-			</svg>
-		{/if}
-		<p class="hint">Ключ вручную: <code>{totpSecret}</code></p>
-		<input
-			class="input num"
-			inputmode="numeric"
-			autocomplete="one-time-code"
-			bind:value={code}
-			aria-label="Код"
+<Modal bind:open={totpOpen} title={recoveryCodes ? 'Резервные коды' : 'Включить 2FA'}>
+	{#if recoveryCodes}
+		<RecoveryCodes
+			codes={recoveryCodes}
+			ondone={() => ((totpOpen = false), (recoveryCodes = null), (recoveryLeft = null))}
 		/>
-	</div>
+	{:else}
+		<div class="stack">
+			<p class="muted">Отсканируйте код приложением-аутентификатором и введите 6 цифр.</p>
+			{#if qr}
+				<svg class="qr" viewBox="-2 -2 {qr.size + 4} {qr.size + 4}" role="img" aria-label="QR-код">
+					<rect x="-2" y="-2" width={qr.size + 4} height={qr.size + 4} fill="#fff" /><path
+						d={qr.path}
+						fill="#111"
+					/>
+				</svg>
+			{/if}
+			<p class="hint">Ключ вручную: <code>{totpSecret}</code></p>
+			<input
+				class="input num"
+				inputmode="numeric"
+				autocomplete="one-time-code"
+				bind:value={code}
+				aria-label="Код"
+			/>
+		</div>
+	{/if}
 	{#snippet footer()}
-		<Button onclick={() => (totpOpen = false)}>Отмена</Button>
-		<Button variant="primary" onclick={finishTotp}>Включить</Button>
+		{#if !recoveryCodes}
+			<Button onclick={() => (totpOpen = false)}>Отмена</Button>
+			<Button variant="primary" onclick={finishTotp}>Включить</Button>
+		{/if}
+	{/snippet}
+</Modal>
+
+<Modal bind:open={regenOpen} title="Новые резервные коды">
+	{#if recoveryCodes}
+		<RecoveryCodes
+			codes={recoveryCodes}
+			ondone={() => ((regenOpen = false), (recoveryCodes = null))}
+		/>
+	{:else}
+		<div class="stack">
+			<p class="muted">
+				Старые коды перестанут действовать. Для подтверждения введите код из приложения.
+			</p>
+			<input
+				class="input num"
+				inputmode="numeric"
+				autocomplete="one-time-code"
+				bind:value={regenCode}
+				aria-label="Код из приложения"
+			/>
+		</div>
+	{/if}
+	{#snippet footer()}
+		{#if !recoveryCodes}
+			<Button onclick={() => (regenOpen = false)}>Отмена</Button>
+			<Button variant="primary" onclick={regenerate}>Получить</Button>
+		{/if}
 	{/snippet}
 </Modal>
 
@@ -390,5 +466,8 @@
 		width: 200px;
 		align-self: center;
 		border-radius: var(--r);
+	}
+	.kv dd.low {
+		color: var(--danger);
 	}
 </style>

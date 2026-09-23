@@ -145,6 +145,7 @@ public class UserStore {
   }
 
   public void disableTotp(long id) {
+    db.sql("DELETE FROM totp_recovery_codes WHERE user_id = ?").param(id).update();
     db.sql(
             "UPDATE users SET totp_enabled = 0, totp_secret = NULL, totp_last_step = NULL,"
                 + " totp_drift = 0 WHERE id = ?")
@@ -167,6 +168,7 @@ public class UserStore {
 
   /** Удаление аккаунта: персональные данные стираются, строка остаётся для подписи контента. */
   public void anonymize(long id, long now) {
+    db.sql("DELETE FROM totp_recovery_codes WHERE user_id = ?").param(id).update();
     db.sql(
             """
             UPDATE users SET username = 'deleted-' || id, display_name = '', password_hash = NULL,

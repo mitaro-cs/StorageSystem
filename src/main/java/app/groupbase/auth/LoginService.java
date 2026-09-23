@@ -1,5 +1,6 @@
 package app.groupbase.auth;
 
+import app.groupbase.audit.AuditService;
 import app.groupbase.config.Secrets;
 import app.groupbase.store.User;
 import app.groupbase.store.UserStore;
@@ -31,13 +32,23 @@ public class LoginService {
   private final UserStore users;
   private final LoginThrottle throttle;
   private final Secrets secrets;
+  private final RecoveryCodes recovery;
+  private final AuditService audit;
   private final Clock clock;
   private final Map<String, Ticket> tickets = new ConcurrentHashMap<>();
 
-  public LoginService(UserStore users, LoginThrottle throttle, Secrets secrets, Clock clock) {
+  public LoginService(
+      UserStore users,
+      LoginThrottle throttle,
+      Secrets secrets,
+      RecoveryCodes recovery,
+      AuditService audit,
+      Clock clock) {
     this.users = users;
     this.throttle = throttle;
     this.secrets = secrets;
+    this.recovery = recovery;
+    this.audit = audit;
     this.clock = clock;
   }
 
@@ -100,7 +111,10 @@ public class LoginService {
           HttpStatus.UNAUTHORIZED, "ticket_expired", "Время на ввод кода истекло, войдите заново");
     }
     User u = users.find(t.userId()).orElseThrow(ApiException::unauthorized);
-    if (!verifyTotp(u, code)) {
+    // Вместо кода из приложения можно ввести резервный код (в нём есть буквы).
+    boolean byRecovery = RecoveryCodes.looksLikeRecovery(code);
+    boolean ok = byRecovery ? recovery.use(u.id(), code) : verifyTotp(u, code);
+    if (!ok) {
       synchronized (t) {
         if (++t.attempts()[0] >= 5) {
           tickets.remove(ticketToken);
@@ -110,6 +124,9 @@ public class LoginService {
       throw new ApiException(HttpStatus.UNAUTHORIZED, "bad_code", "Неверный код");
     }
     tickets.remove(ticketToken);
+    if (byRecovery) {
+      audit.log(null, null, "user.recovery_code_used", "user", u.id());
+    }
     return u;
   }
 

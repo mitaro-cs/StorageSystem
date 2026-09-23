@@ -6,6 +6,7 @@
 	import { loadMe, session } from '$lib/session.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
+	import RecoveryCodes from '$lib/auth/RecoveryCodes.svelte';
 
 	let password = $state('');
 	let confirm = $state('');
@@ -14,6 +15,7 @@
 	let busy = $state(false);
 	let secret = $state('');
 	let uri = $state('');
+	let recoveryCodes = $state<string[] | null>(null);
 
 	const restriction = $derived(session.me?.restriction);
 
@@ -56,7 +58,9 @@
 				if (password !== confirm) throw new Error('Пароли не совпадают');
 				await post('/api/me/password', { password });
 			} else {
-				await post('/api/me/totp/enable', { code });
+				const r = await post<{ recoveryCodes: string[] }>('/api/me/totp/enable', { code });
+				recoveryCodes = r.recoveryCodes;
+				return;
 			}
 			const me = await loadMe();
 			if (me.restriction === 'totp_setup_required') {
@@ -76,7 +80,15 @@
 
 <svelte:head><title>Безопасность · groupbase</title></svelte:head>
 
-{#if restriction === 'password_change_required'}
+{#if recoveryCodes}
+	<h1>Сохраните резервные коды</h1>
+	<p class="muted">Двухфакторная защита включена. Эти коды выручат, если телефон потеряется.</p>
+	<RecoveryCodes
+		codes={recoveryCodes}
+		doneLabel="Продолжить"
+		ondone={() => goto('/', { replaceState: true, invalidateAll: true })}
+	/>
+{:else if restriction === 'password_change_required'}
 	<h1>Смените пароль</h1>
 	<p class="muted">Вы вошли по временному паролю. Придумайте свой — его будете знать только вы.</p>
 	<form onsubmit={submit}>

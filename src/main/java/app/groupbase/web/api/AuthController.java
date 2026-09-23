@@ -3,6 +3,7 @@ package app.groupbase.web.api;
 import app.groupbase.accounts.AccountService;
 import app.groupbase.auth.Actor;
 import app.groupbase.auth.LoginService;
+import app.groupbase.auth.RecoveryCodes;
 import app.groupbase.auth.SessionService;
 import app.groupbase.web.AllowRestricted;
 import app.groupbase.web.Cookies;
@@ -32,18 +33,21 @@ class AuthController {
   private final AccountService accounts;
   private final Cookies cookies;
   private final Http http;
+  private final RecoveryCodes recovery;
 
   AuthController(
       LoginService login,
       SessionService sessions,
       AccountService accounts,
       Cookies cookies,
-      Http http) {
+      Http http,
+      RecoveryCodes recovery) {
     this.login = login;
     this.sessions = sessions;
     this.accounts = accounts;
     this.cookies = cookies;
     this.http = http;
+    this.recovery = recovery;
   }
 
   @Public
@@ -61,7 +65,13 @@ class AuthController {
   @PostMapping("/login/totp")
   Map<String, String> totp(
       @RequestBody TotpBody b, HttpServletRequest req, HttpServletResponse res) {
-    return http.startSession(login.loginTotp(req.getRemoteAddr(), b.ticket(), b.code()), res);
+    var user = login.loginTotp(req.getRemoteAddr(), b.ticket(), b.code());
+    Map<String, String> out = new java.util.HashMap<>(http.startSession(user, res));
+    if (RecoveryCodes.looksLikeRecovery(b.code())) {
+      // Фронт напомнит, сколько резервных кодов осталось.
+      out.put("recoveryLeft", String.valueOf(recovery.remaining(user.id())));
+    }
+    return out;
   }
 
   @AllowRestricted

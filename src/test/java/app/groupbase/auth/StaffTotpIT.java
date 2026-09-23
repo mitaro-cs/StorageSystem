@@ -53,7 +53,11 @@ class StaffTotpIT extends IntegrationTest {
         .isEqualTo(setupResp.json().get("secret").asString());
 
     assertThat(a.post("/api/me/totp/enable", Map.of("code", "000000")).status()).isEqualTo(400);
-    assertThat(a.post("/api/me/totp/enable", Map.of("code", code(secret))).status()).isEqualTo(200);
+    var enabled = a.post("/api/me/totp/enable", Map.of("code", code(secret)));
+    assertThat(enabled.status()).isEqualTo(200);
+    var codes = enabled.json().get("recoveryCodes");
+    assertThat(codes.size()).isEqualTo(RecoveryCodes.COUNT);
+    assertThat(codes.get(0).asString()).matches("[a-z2-9]{4}-[a-z2-9]{4}");
     assertThat(a.get("/api/groups").status()).isEqualTo(200);
 
     // Следующий вход требует код; повтор кода из того же шага не проходит.
@@ -82,6 +86,47 @@ class StaffTotpIT extends IntegrationTest {
     clock.advance(Duration.ofSeconds(30));
     assertThat(c.post("/api/me/totp/disable", Map.of("code", code(secret))).status())
         .isEqualTo(403);
+
+    // Резервный код заменяет код из приложения один раз; регистр и пробелы не важны.
+    String rc = codes.get(0).asString();
+    ApiClient e = client();
+    var t1 = e.post("/api/auth/login", Map.of("username", ADMIN, "password", ADMIN_PASSWORD));
+    var byCode =
+        e.post(
+            "/api/auth/login/totp",
+            Map.of(
+                "ticket",
+                t1.json().get("ticket").asString(),
+                "code",
+                rc.toUpperCase().replace("-", " ")));
+    assertThat(byCode.status()).as(byCode.body()).isEqualTo(200);
+    assertThat(byCode.json().get("recoveryLeft").asString()).isEqualTo("9");
+    ApiClient f = client();
+    var t2 = f.post("/api/auth/login", Map.of("username", ADMIN, "password", ADMIN_PASSWORD));
+    assertThat(
+            f.post(
+                    "/api/auth/login/totp",
+                    Map.of("ticket", t2.json().get("ticket").asString(), "code", rc))
+                .status())
+        .isEqualTo(401);
+
+    // Новый набор — только с кодом из приложения; старые коды после этого не действуют.
+    assertThat(c.get("/api/me/totp/recovery").json().get("remaining").asInt()).isEqualTo(9);
+    assertThat(c.post("/api/me/totp/recovery", Map.of("code", "000000")).status()).isEqualTo(400);
+    var fresh = c.post("/api/me/totp/recovery", Map.of("code", code(secret)));
+    assertThat(fresh.json().get("recoveryCodes").size()).isEqualTo(RecoveryCodes.COUNT);
+    assertThat(c.get("/api/me/totp/recovery").json().get("remaining").asInt()).isEqualTo(10);
+    var t3 = f.post("/api/auth/login", Map.of("username", ADMIN, "password", ADMIN_PASSWORD));
+    assertThat(
+            f.post(
+                    "/api/auth/login/totp",
+                    Map.of(
+                        "ticket",
+                        t3.json().get("ticket").asString(),
+                        "code",
+                        codes.get(1).asString()))
+                .status())
+        .isEqualTo(401);
   }
 
   @Override

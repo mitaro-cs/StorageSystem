@@ -6,6 +6,7 @@ import app.groupbase.store.User;
 import app.groupbase.store.UserStore;
 import app.groupbase.web.ApiException;
 import java.time.Clock;
+import java.util.List;
 import org.springframework.stereotype.Service;
 
 /** Подключение и отключение TOTP в профиле. */
@@ -18,14 +19,21 @@ public class TotpService {
   private final Secrets secrets;
   private final LoginService login;
   private final AuditService audit;
+  private final RecoveryCodes recovery;
   private final Clock clock;
 
   public TotpService(
-      UserStore users, Secrets secrets, LoginService login, AuditService audit, Clock clock) {
+      UserStore users,
+      Secrets secrets,
+      LoginService login,
+      AuditService audit,
+      RecoveryCodes recovery,
+      Clock clock) {
     this.users = users;
     this.secrets = secrets;
     this.login = login;
     this.audit = audit;
+    this.recovery = recovery;
     this.clock = clock;
   }
 
@@ -49,7 +57,8 @@ public class TotpService {
     return new Setup(Totp.base32(secret), Totp.uri(issuer, u.username(), secret));
   }
 
-  public void enable(Actor actor, String code) {
+  /** Включает 2FA и возвращает резервные коды — их показывают один раз. */
+  public List<String> enable(Actor actor, String code) {
     User u = users.find(actor.id()).orElseThrow(ApiException::unauthorized);
     if (u.totpSecret() == null || u.totpEnabled()) {
       throw ApiException.badRequest("Сначала начните настройку заново");
@@ -66,6 +75,24 @@ public class TotpService {
     }
     users.enableTotp(u.id(), step, Totp.drift(step, now));
     audit.log(actor, null, "user.totp_enable", "user", u.id());
+    return recovery.issue(u.id());
+  }
+
+  /** Новый набор резервных кодов; старые перестают действовать. Нужен код из приложения. */
+  public List<String> regenerateRecovery(Actor actor, String code) {
+    User u = users.find(actor.id()).orElseThrow(ApiException::unauthorized);
+    if (!u.totpEnabled()) {
+      throw ApiException.badRequest("Двухфакторная аутентификация не включена");
+    }
+    if (!login.verifyTotp(u, code)) {
+      throw ApiException.invalid("code", "Неверный код");
+    }
+    audit.log(actor, null, "user.recovery_codes", "user", u.id());
+    return recovery.issue(u.id());
+  }
+
+  public int recoveryLeft(Actor actor) {
+    return recovery.remaining(actor.id());
   }
 
   public void disable(Actor actor, String code, boolean staffRequired) {

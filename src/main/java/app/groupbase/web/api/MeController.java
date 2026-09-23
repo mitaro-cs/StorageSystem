@@ -153,9 +153,18 @@ class MeController {
 
   @AllowRestricted
   @PostMapping("/totp/enable")
-  Map<String, String> totpEnable(Actor actor, @RequestBody CodeBody b) {
-    totp.enable(actor, b.code());
-    return Map.of("status", "ok");
+  Map<String, Object> totpEnable(Actor actor, @RequestBody CodeBody b) {
+    return Map.of("status", "ok", "recoveryCodes", totp.enable(actor, b.code()));
+  }
+
+  @GetMapping("/totp/recovery")
+  Map<String, Integer> recoveryLeft(Actor actor) {
+    return Map.of("remaining", totp.recoveryLeft(actor));
+  }
+
+  @PostMapping("/totp/recovery")
+  Map<String, Object> recoveryRegenerate(Actor actor, @RequestBody CodeBody b) {
+    return Map.of("recoveryCodes", totp.regenerateRecovery(actor, b.code()));
   }
 
   @PostMapping("/totp/disable")
