@@ -135,4 +135,10 @@
 			font-size: 18px;
 		}
 	}
+	/* Узко — пункты переносятся: разделитель-черта тогда только мешает */
+	@media (max-width: 480px) {
+		.facts > span + span {
+			border-left: 0;
+		}
+	}
 </style>

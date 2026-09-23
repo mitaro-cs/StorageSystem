@@ -420,4 +420,10 @@
 	.opt:hover {
 		background: var(--surface-2);
 	}
+	/* Узко — пункты переносятся: разделитель-черта тогда только мешает */
+	@media (max-width: 480px) {
+		.facts > span + span {
+			border-left: 0;
+		}
+	}
 </style>
