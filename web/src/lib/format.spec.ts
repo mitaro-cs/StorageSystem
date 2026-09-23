@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { plural, relativeDay } from './format';
+import { fmtDue, hueFor, initials, plural, relativeDay } from './format';
 
 describe('plural', () => {
 	const forms: [string, string, string] = ['файл', 'файла', 'файлов'];
@@ -26,5 +26,28 @@ describe('relativeDay', () => {
 	it('считает дни в обе стороны', () => {
 		expect(relativeDay(new Date(2026, 8, 28).getTime(), now)).toBe('через 5 дней');
 		expect(relativeDay(new Date(2026, 8, 20).getTime(), now)).toBe('3 дня назад');
+	});
+});
+
+describe('initials', () => {
+	it('берёт первые буквы двух слов', () => {
+		expect(initials('Иван Петров')).toBe('ИП');
+		expect(initials('  анна ')).toBe('А');
+		expect(initials('')).toBe('?');
+	});
+});
+
+describe('hueFor', () => {
+	it('стабилен и в диапазоне', () => {
+		expect(hueFor(42)).toBe(hueFor(42));
+		expect(hueFor(7)).toBeGreaterThanOrEqual(0);
+		expect(hueFor(7)).toBeLessThan(360);
+	});
+});
+
+describe('fmtDue', () => {
+	it('для близких дат пишет относительный день', () => {
+		const now = new Date(2026, 8, 23, 12, 0).getTime();
+		expect(fmtDue(new Date(2026, 8, 24, 23, 59).getTime(), now)).toBe('завтра, 23:59');
 	});
 });

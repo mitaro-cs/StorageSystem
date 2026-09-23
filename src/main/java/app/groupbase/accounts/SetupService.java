@@ -42,7 +42,7 @@ public class SetupService {
   private final GroupService groups;
   private final InstanceSettings settings;
   private final Environment env;
-  private final String setupCode = Tokens.newToken().substring(0, 12);
+  private final String setupCode;
 
   public SetupService(
       UserStore users,
@@ -51,6 +51,9 @@ public class SetupService {
       InstanceSettings settings,
       Environment env) {
     this.env = env;
+    String fixed = env.getProperty("groupbase.setup-code", "");
+    // Фиксированный код — для автоматического развёртывания и e2e-тестов.
+    this.setupCode = fixed.isBlank() ? Tokens.newToken().substring(0, 12) : fixed.trim();
     this.users = users;
     this.accounts = accounts;
     this.groups = groups;

@@ -76,6 +76,17 @@ class GroupController {
     return groupService.visible(actor);
   }
 
+  record DirectoryEntry(long id, String name, String university) {}
+
+  /** Все активные группы инстанса: чтобы выбрать, с кем поделиться предметом. */
+  @GetMapping("/directory")
+  List<DirectoryEntry> directory() {
+    return groups.listAll().stream()
+        .filter(g -> g.archivedAt() == null)
+        .map(g -> new DirectoryEntry(g.id(), g.name(), g.university()))
+        .toList();
+  }
+
   @Require(Permission.MANAGE_INSTANCE)
   @PostMapping
   Group create(Actor actor, @RequestBody GroupService.GroupInput in) {

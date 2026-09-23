@@ -26,7 +26,8 @@ export default defineConfig({
 			GROUPBASE_DATA_DIR: '.e2e-data',
 			GROUPBASE_HTTP_PORT: String(port),
 			GROUPBASE_HTTP_INSECURE: 'true',
-			GROUPBASE_AUTH_REQUIRE_STAFF_TOTP: 'false'
+			GROUPBASE_AUTH_REQUIRE_STAFF_TOTP: 'false',
+			GROUPBASE_SETUP_CODE: 'e2e-setup-code'
 		}
 	}
 });
