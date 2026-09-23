@@ -1,4 +1,4 @@
-import { get } from './api';
+import { get, patch } from './api';
 import { rememberMe } from './offline/engine';
 import type { Me, MeGroup, Permission } from './types';
 
@@ -56,8 +56,61 @@ export function isMulti(): boolean {
 	return (session.me?.instance.mode ?? 'single') === 'multi' && groups().length > 1;
 }
 
+/**
+ * Права управления: их кнопки прячутся, когда режим управления выключен. Публиковать новости,
+ * задания и материалы можно и без него.
+ */
+const MANAGE: ReadonlySet<Permission> = new Set<Permission>([
+	'manage_instance',
+	'assign_moderator',
+	'assign_headman',
+	'assign_deputy',
+	'create_accounts',
+	'create_invites',
+	'block_users',
+	'reset_passwords',
+	'manage_subjects',
+	'share_subjects',
+	'moderate_content',
+	'view_audit',
+	'manage_permissions',
+	'view_usernames',
+	'export_group'
+]);
+
+/** Режим управления включён (или у пользователя и нечем управлять). */
+export function manageMode(): boolean {
+	return session.me?.user.manageMode ?? true;
+}
+
+/** Переключить режим управления: сразу на экране, сервер запоминает его для всех устройств. */
+export async function setManageMode(on: boolean): Promise<void> {
+	if (!session.me) return;
+	session.me.user.manageMode = on;
+	try {
+		await patch('/api/me/preferences', { manageMode: on });
+	} catch (e) {
+		if (session.me) session.me.user.manageMode = !on;
+		throw e;
+	}
+}
+
+/** Есть ли вообще что включать: права управления в группе или роль в инстансе. */
+export function canManage(): boolean {
+	const me = session.me;
+	if (!me) return false;
+	if (me.user.instanceRole) return true;
+	return [...me.permissions, ...me.groups.flatMap((g) => g.permissions)].some((p) => MANAGE.has(p));
+}
+
 /** Право в конкретной группе или (без группы) хотя бы в одной. */
 export function can(perm: Permission, groupId?: number | null): boolean {
+	if (!manageMode() && MANAGE.has(perm)) return false;
+	return realCan(perm, groupId);
+}
+
+/** Право без учёта режима управления — для проверок, которые не про кнопки. */
+export function realCan(perm: Permission, groupId?: number | null): boolean {
 	const me = session.me;
 	if (!me) return false;
 	if (me.permissions.includes(perm)) return true;
@@ -73,5 +126,5 @@ export function groupsWith(perm: Permission): MeGroup[] {
 }
 
 export function isAdmin(): boolean {
-	return session.me?.user.instanceRole === 'admin';
+	return manageMode() && session.me?.user.instanceRole === 'admin';
 }

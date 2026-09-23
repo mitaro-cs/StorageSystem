@@ -95,6 +95,11 @@ public class SetupService {
   /** Настройка через веб: проверяет код из лога. */
   @Transactional
   public User setupWithCode(String code, Request req) {
+    checkCode(code);
+    return setup(req);
+  }
+
+  public void checkCode(String code) {
     if (code == null
         || !MessageDigest.isEqual(
             code.trim().getBytes(StandardCharsets.UTF_8),
@@ -102,7 +107,6 @@ public class SetupService {
       throw new ApiException(
           HttpStatus.FORBIDDEN, "bad_setup_code", "Неверный код настройки. Он есть в логе сервера");
     }
-    return setup(req);
   }
 
   @Transactional

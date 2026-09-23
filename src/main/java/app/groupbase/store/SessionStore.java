@@ -7,8 +7,16 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class SessionStore {
 
+  /**
+   * @param local сессия окна приложения на компьютере хоста: действует только с этого компьютера
+   */
   public record Row(
-      byte[] tokenHash, long userId, long createdAt, long lastSeenAt, long expiresAt) {}
+      byte[] tokenHash,
+      long userId,
+      long createdAt,
+      long lastSeenAt,
+      long expiresAt,
+      boolean local) {}
 
   private final JdbcClient db;
 
@@ -16,11 +24,11 @@ public class SessionStore {
     this.db = db;
   }
 
-  public void insert(byte[] tokenHash, long userId, long now, long expiresAt) {
+  public void insert(byte[] tokenHash, long userId, long now, long expiresAt, boolean local) {
     db.sql(
-            "INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at, expires_at)"
-                + " VALUES (?, ?, ?, ?, ?)")
-        .params(tokenHash, userId, now, now, expiresAt)
+            "INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at, expires_at,"
+                + " local) VALUES (?, ?, ?, ?, ?, ?)")
+        .params(tokenHash, userId, now, now, expiresAt, local ? 1 : 0)
         .update();
   }
 
@@ -34,7 +42,8 @@ public class SessionStore {
                     rs.getLong("user_id"),
                     rs.getLong("created_at"),
                     rs.getLong("last_seen_at"),
-                    rs.getLong("expires_at")))
+                    rs.getLong("expires_at"),
+                    rs.getInt("local") == 1))
         .optional();
   }
 

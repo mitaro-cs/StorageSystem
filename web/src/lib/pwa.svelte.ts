@@ -1,5 +1,8 @@
-/** Состояние сети и установка PWA. */
-export const pwa = $state({ offline: false, canInstall: false });
+/**
+ * Состояние сети и установка PWA. offline — сервер сейчас недоступен (показываются сохранённые
+ * данные); network — есть ли у устройства интернет: если есть, значит выключен компьютер хоста.
+ */
+export const pwa = $state({ offline: false, canInstall: false, network: true });
 
 interface InstallEvent extends Event {
 	prompt: () => Promise<void>;
@@ -10,8 +13,9 @@ let deferred: InstallEvent | null = null;
 export function initPwa() {
 	if (typeof window === 'undefined') return;
 	pwa.offline = !navigator.onLine;
-	addEventListener('online', () => (pwa.offline = false));
-	addEventListener('offline', () => (pwa.offline = true));
+	pwa.network = navigator.onLine;
+	addEventListener('online', () => ((pwa.offline = false), (pwa.network = true)));
+	addEventListener('offline', () => ((pwa.offline = true), (pwa.network = false)));
 	addEventListener('appinstalled', () => markInstalled());
 	addEventListener('beforeinstallprompt', (e) => {
 		e.preventDefault();

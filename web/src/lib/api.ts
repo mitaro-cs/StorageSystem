@@ -54,11 +54,12 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 		headers['Content-Type'] = 'application/json';
 		body = JSON.stringify(opts.body);
 	}
-	// Чтение без ответа дольше 10 секунд считаем отсутствием сети: покажем сохранённое.
+	// Чтение без ответа дольше 10 секунд считаем отсутствием сети: покажем сохранённое. Если сервер
+	// уже недоступен, ждём меньше — чтобы сохранённое открывалось сразу.
 	const signal =
 		opts.signal ??
 		(method === 'GET' && typeof AbortSignal.timeout === 'function'
-			? AbortSignal.timeout(10_000)
+			? AbortSignal.timeout(pwa.offline ? 3_000 : 10_000)
 			: undefined);
 	let res: Response;
 	try {
@@ -67,6 +68,12 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 		if ((e as Error).name === 'AbortError' && opts.signal?.aborted) throw e;
 		throw new ApiError(0, 'network', 'Нет связи с сервером. Проверьте интернет');
 	}
+	// Ответ не от сервера группы: компьютер хоста выключен, и туннель отвечает своей страницей
+	// ошибки. Это то же, что нет сети: показываем сохранённое, действия уходят в очередь.
+	if (!res.headers.has('X-Groupbase')) {
+		throw new ApiError(0, 'network', 'Сервер группы сейчас выключен — попробуйте позже');
+	}
+	pwa.offline = false;
 	const isJson = res.headers.get('Content-Type')?.startsWith('application/json');
 	const data = isJson ? await res.json() : null;
 	if (!res.ok) {
@@ -95,9 +102,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
 	if (local && (!navigator.onLine || /\/-\d+(\/|$|\?)/.test(path)))
 		return fallback<T>(method, path, opts.body);
 	try {
-		const r = await request<T>(path, opts);
-		if (local) pwa.offline = false;
-		return r;
+		return await request<T>(path, opts);
 	} catch (e) {
 		if (local && e instanceof ApiError && e.code === 'network')
 			return fallback<T>(method, path, opts.body);

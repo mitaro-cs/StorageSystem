@@ -10,7 +10,7 @@ import picocli.CommandLine.IVersionProvider;
     mixinStandardHelpOptions = true,
     versionProvider = Main.Version.class,
     description = "Сервис для студенческих групп: новости, ДЗ, материалы.",
-    subcommands = {ServeCommand.class, CommandLine.HelpCommand.class})
+    subcommands = {ServeCommand.class, DesktopCommand.class, CommandLine.HelpCommand.class})
 public class Main implements Runnable {
 
   @CommandLine.Spec CommandLine.Model.CommandSpec spec;

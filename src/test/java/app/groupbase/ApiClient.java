@@ -24,6 +24,7 @@ public class ApiClient {
 
   private final IntFunction<String> base;
   private final CookieManager cookies = new CookieManager();
+  private final java.util.Map<String, String> extra = new java.util.LinkedHashMap<>();
   private final HttpClient http;
   private final int port;
 
@@ -31,6 +32,16 @@ public class ApiClient {
     this.port = port;
     this.base = p -> "http://127.0.0.1:" + p;
     this.http = HttpClient.newBuilder().cookieHandler(cookies).build();
+  }
+
+  /** Заголовок для всех следующих запросов (например, X-Forwarded-For — «запрос через туннель»). */
+  public ApiClient header(String name, String value) {
+    if (value == null) {
+      extra.remove(name);
+    } else {
+      extra.put(name, value);
+    }
+    return this;
   }
 
   public Response get(String path) {
@@ -138,6 +149,7 @@ public class ApiClient {
       if (csrf && csrfToken() != null) {
         b.header("X-CSRF-Token", csrfToken());
       }
+      extra.forEach(b::header);
       HttpResponse<String> r = http.send(b.build(), HttpResponse.BodyHandlers.ofString());
       JsonNode json = null;
       String ct = r.headers().firstValue("Content-Type").orElse("");

@@ -43,10 +43,10 @@ public class AuthFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest req, HttpServletResponse res, FilterChain chain)
       throws ServletException, IOException {
-    String csrfCookie = cookies.read(req, cookies.csrf);
+    String csrfCookie = cookies.readCsrf(req);
     if (!Tokens.looksValid(csrfCookie)) {
       csrfCookie = null;
-      cookies.setCsrf(res, Tokens.newToken());
+      cookies.setCsrf(req, res, Tokens.newToken());
     }
 
     boolean api = req.getRequestURI().startsWith("/api/");
@@ -67,13 +67,13 @@ public class AuthFilter extends OncePerRequestFilter {
       }
     }
 
-    String token = cookies.read(req, cookies.session);
+    String token = cookies.readSession(req);
     if (token != null) {
-      Actor actor = sessions.resolve(token).orElse(null);
+      Actor actor = sessions.resolve(token, Requests.fromThisComputer(req)).orElse(null);
       if (actor != null) {
         req.setAttribute(ACTOR, actor);
       } else {
-        cookies.clearSession(res);
+        cookies.clearSession(req, res);
       }
     }
     chain.doFilter(req, res);

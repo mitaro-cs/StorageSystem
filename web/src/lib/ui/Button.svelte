@@ -7,6 +7,8 @@
 		type?: 'button' | 'submit';
 		form?: string;
 		href?: string;
+		/** Для ссылок наружу: _blank — в новой вкладке (в приложении хоста — в браузере). */
+		target?: '_blank';
 		loading?: boolean;
 		disabled?: boolean;
 		icon?: boolean;
@@ -21,6 +23,7 @@
 		type = 'button',
 		form,
 		href,
+		target,
 		loading = false,
 		disabled = false,
 		icon = false,
@@ -31,7 +34,15 @@
 </script>
 
 {#if href}
-	<a {href} class="btn {variant} {size}" class:icon aria-label={label} title={label}>
+	<a
+		{href}
+		{target}
+		rel={target ? 'noreferrer' : undefined}
+		class="btn {variant} {size}"
+		class:icon
+		aria-label={label}
+		title={label}
+	>
 		{@render children()}
 	</a>
 {:else}

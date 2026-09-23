@@ -1,7 +1,20 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { can, currentGroup, groups, isAdmin, isMulti } from '$lib/session.svelte';
+	import {
+		can,
+		canManage,
+		currentGroup,
+		groups,
+		isAdmin,
+		isMulti,
+		manageMode,
+		session,
+		setManageMode
+	} from '$lib/session.svelte';
+	import { toastError } from '$lib/toasts.svelte';
+	import Button from '$lib/ui/Button.svelte';
+	import ServerPanel from '$lib/settings/server/ServerPanel.svelte';
 	import Tabs from '$lib/ui/Tabs.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 	import Invites from '$lib/settings/Invites.svelte';
@@ -15,8 +28,11 @@
 	let picked = $state<number | null>(null);
 	const group = $derived(groups().find((g) => g.id === picked) ?? currentGroup() ?? groups()[0]);
 
+	// В приложении хоста «Сервер» — первая вкладка: с неё начинается доступ для группы.
+	const desktop = $derived(!!session.me?.instance.desktop);
 	const tabs = $derived(
 		[
+			{ value: 'server', label: 'Сервер', show: isAdmin() && desktop },
 			{ value: 'invites', label: 'Приглашения', show: !!group && can('create_invites', group.id) },
 			{ value: 'accounts', label: 'Аккаунты', show: !!group && can('create_accounts', group.id) },
 			{
@@ -26,6 +42,7 @@
 			},
 			{ value: 'group', label: 'Группа', show: !!group && isAdmin() },
 			{ value: 'instance', label: 'Инстанс', show: isAdmin() },
+			{ value: 'server', label: 'Сервер', show: isAdmin() && !desktop },
 			{ value: 'audit', label: 'Журнал', show: !!group && can('view_audit', group.id) },
 			{ value: 'export', label: 'Архив', show: !!group && can('export_group', group.id) }
 		].filter((t) => t.show)
@@ -35,6 +52,14 @@
 			? page.url.searchParams.get('tab')!
 			: tabs[0]?.value
 	);
+
+	async function enableManage() {
+		try {
+			await setManageMode(true);
+		} catch (e) {
+			toastError(e);
+		}
+	}
 
 	function select(v: string) {
 		goto(`/settings?tab=${v}`, { replaceState: true, noScroll: true, keepFocus: true });
@@ -57,7 +82,16 @@
 	{/if}
 </div>
 
-{#if tabs.length === 0}
+{#if !manageMode() && canManage()}
+	<div class="card">
+		<Empty
+			title="Режим управления выключен"
+			text="Кнопки администратора и старосты скрыты — сайт выглядит так же, как у участников."
+		>
+			<Button variant="primary" onclick={enableManage}>Включить режим управления</Button>
+		</Empty>
+	</div>
+{:else if tabs.length === 0}
 	<div class="card">
 		<Empty
 			title="Здесь пока нечего настраивать"
@@ -78,6 +112,7 @@
 	{:else if group && tab === 'permissions'}<Permissions groupId={group.id} />
 	{:else if group && tab === 'group'}<GroupSettings {group} />
 	{:else if tab === 'instance'}<InstancePanel />
+	{:else if tab === 'server'}<ServerPanel />
 	{:else if group && tab === 'audit'}<Audit groupId={isAdmin() ? null : group.id} />
 	{:else if group && tab === 'export'}<GroupExport groupId={group.id} groupName={group.name} />
 	{/if}

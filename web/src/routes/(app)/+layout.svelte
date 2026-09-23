@@ -9,14 +9,14 @@
 	import SwipeBack from '$lib/shell/SwipeBack.svelte';
 	import { initPwa, pwa } from '$lib/pwa.svelte';
 	import { startBell } from '$lib/notify.svelte';
-	import { ApiError } from '$lib/api';
+	import { ApiError, request } from '$lib/api';
 	import { toast } from '$lib/toasts.svelte';
-	import { initOffline, offline } from '$lib/offline/engine';
+	import { flushOutbox, initOffline, offline, syncNow } from '$lib/offline/engine';
 	import { rememberAccount } from '$lib/accounts';
 	import { session } from '$lib/session.svelte';
 	import { onMount } from 'svelte';
 	import { slide } from '$lib/motion';
-	import { CloudUpload, WifiOff } from '@lucide/svelte';
+	import { CloudOff, CloudUpload, WifiOff } from '@lucide/svelte';
 
 	let { children } = $props();
 	// На страницах деталей верхнюю панель заменяет «← Раздел» (BackBar), как на макете.
@@ -52,6 +52,22 @@
 		}
 	});
 
+	// Сервер группы недоступен, а интернет есть (выключен компьютер хоста): раз в 30 секунд
+	// проверяем, не вернулся ли он, — и сразу отправляем сделанное без него.
+	$effect(() => {
+		if (!pwa.offline || !pwa.network) return;
+		const id = setInterval(async () => {
+			try {
+				await request('/api/health');
+				await flushOutbox();
+				await syncNow();
+			} catch {
+				/* всё ещё недоступен */
+			}
+		}, 30_000);
+		return () => clearInterval(id);
+	});
+
 	// Палитра грузится при первом открытии — её код не нужен для первого экрана.
 	let paletteWanted = $state(false);
 	$effect(() => {
@@ -64,7 +80,13 @@
 	<div class="desktop-only"><Sidebar bind:collapsed /></div>
 	<div class="main-col">
 		{#if !detail}<div class="mobile-only"><MobileBar /></div>{/if}
-		{#if pwa.offline}
+		{#if pwa.offline && pwa.network}
+			<div class="offline" role="status" transition:slide>
+				<CloudOff size={15} /> Сервер группы выключен — показаны сохранённые данные{offline.pending
+					? ` · отправится, когда он включится: ${offline.pending}`
+					: ''}
+			</div>
+		{:else if pwa.offline}
 			<div class="offline" role="status" transition:slide>
 				<WifiOff size={15} /> Нет сети — показаны сохранённые данные{offline.pending
 					? ` · отправится позже: ${offline.pending}`

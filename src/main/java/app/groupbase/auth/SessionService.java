@@ -35,9 +35,16 @@ public class SessionService {
 
   /** Создаёт сессию и возвращает токен для cookie. */
   public String create(long userId) {
+    return create(userId, false);
+  }
+
+  /**
+   * @param local сессия окна приложения хоста: принимается только от запросов с этого компьютера
+   */
+  public String create(long userId, boolean local) {
     String token = Tokens.newToken();
     long now = clock.millis();
-    sessions.insert(Tokens.sha256(token), userId, now, now + ttl);
+    sessions.insert(Tokens.sha256(token), userId, now, now + ttl, local);
     return token;
   }
 
@@ -45,8 +52,12 @@ public class SessionService {
     return ttl / 1000;
   }
 
-  /** Пользователь по токену из cookie или пусто, если сессия истекла или аккаунт неактивен. */
-  public Optional<Actor> resolve(String token) {
+  /**
+   * Пользователь по токену из cookie или пусто, если сессия истекла или аккаунт неактивен.
+   *
+   * @param fromThisComputer запрос пришёл напрямую с компьютера сервера (не через туннель)
+   */
+  public Optional<Actor> resolve(String token, boolean fromThisComputer) {
     if (!Tokens.looksValid(token)) {
       return Optional.empty();
     }
@@ -60,6 +71,9 @@ public class SessionService {
       sessions.delete(hash);
       return Optional.empty();
     }
+    if (row.get().local() && !fromThisComputer) {
+      return Optional.empty();
+    }
     Optional<User> user = users.find(row.get().userId());
     if (user.isEmpty() || user.get().status() != User.Status.ACTIVE) {
       sessions.delete(hash);
@@ -68,18 +82,29 @@ public class SessionService {
     if (now - row.get().lastSeenAt() > TOUCH_EVERY) {
       sessions.touch(hash, now, now + ttl);
     }
-    return Optional.of(actor(user.get(), hash));
+    return Optional.of(actor(user.get(), hash, row.get().local()));
   }
 
-  public Actor actor(User u, byte[] sessionHash) {
+  /**
+   * @param local сессия окна хоста на его компьютере: 2FA не требуется — кто сидит за этим
+   *     компьютером, и так может прочитать файлы сервера
+   */
+  public Actor actor(User u, byte[] sessionHash, boolean local) {
     Actor.Restriction r = null;
     if (u.mustChangePassword()) {
       r = Actor.Restriction.PASSWORD_CHANGE_REQUIRED;
-    } else if (requireStaffTotp && u.isStaff() && !u.totpEnabled()) {
+    } else if (requireStaffTotp && u.isStaff() && !u.totpEnabled() && !local) {
       r = Actor.Restriction.TOTP_SETUP_REQUIRED;
     }
     return new Actor(
-        u.id(), u.username(), u.displayName(), u.instanceRole(), u.totpEnabled(), r, sessionHash);
+        u.id(),
+        u.username(),
+        u.displayName(),
+        u.instanceRole(),
+        u.totpEnabled(),
+        r,
+        sessionHash,
+        local);
   }
 
   public void revoke(String token) {

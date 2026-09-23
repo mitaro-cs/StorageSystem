@@ -51,3 +51,23 @@ export function uploadFile(
 		xhr.send(file);
 	});
 }
+
+/** Файл целиком сырым телом PUT — для архивов резервных копий (без multipart и без очереди). */
+export async function putFile<T>(path: string, file: Blob): Promise<T> {
+	let res: Response;
+	try {
+		res = await fetch(path, {
+			method: 'PUT',
+			headers: { 'X-CSRF-Token': csrf(), 'Content-Type': 'application/zip' },
+			body: file
+		});
+	} catch {
+		throw new ApiError(0, 'network', 'Нет связи с сервером');
+	}
+	const data = res.headers.get('Content-Type')?.startsWith('application/json')
+		? await res.json()
+		: {};
+	if (!res.ok)
+		throw new ApiError(res.status, data.error ?? 'error', data.message ?? `Ошибка ${res.status}`);
+	return data as T;
+}

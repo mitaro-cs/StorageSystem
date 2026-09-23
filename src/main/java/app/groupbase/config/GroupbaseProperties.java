@@ -17,7 +17,10 @@ public record GroupbaseProperties(
     @DefaultValue Http http,
     @DefaultValue Auth auth,
     @DefaultValue Uploads uploads,
-    @DefaultValue Push push) {
+    @DefaultValue Push push,
+    @DefaultValue Backup backup,
+    @DefaultValue Desktop desktop,
+    @DefaultValue("true") boolean updateCheck) {
 
   /**
    * @param insecure разрешить работу по HTTP (режим «только локальная сеть»): cookie без Secure.
@@ -68,12 +71,38 @@ public record GroupbaseProperties(
           })
           java.util.List<String> allowedHosts) {}
 
+  /**
+   * Автобэкапы: раз в сутки после {@code at} (часовой пояс инстанса) в {@code dir} (по умолчанию
+   * data/backups), хранятся {@code keep} последних.
+   */
+  public record Backup(
+      @DefaultValue("true") boolean enabled,
+      @DefaultValue("03:30") String at,
+      @DefaultValue("14") int keep,
+      @DefaultValue("") String dir) {}
+
+  /**
+   * Сервер внутри приложения для компьютера (команда {@code desktop}): окно хоста ходит напрямую по
+   * HTTP на 127.0.0.1, участники — по HTTPS через туннель. Поэтому Secure у cookie и HSTS решаются
+   * для каждого запроса отдельно.
+   */
+  public record Desktop(@DefaultValue("false") boolean enabled) {}
+
+  public Path backupsDir() {
+    return backup.dir().isBlank() ? dataDir.resolve("backups") : Path.of(backup.dir());
+  }
+
   public Path filesDir() {
     return dataDir.resolve("files");
   }
 
   public Path secretsDir() {
     return dataDir.resolve("secrets");
+  }
+
+  /** Программы, которые сервер скачивает сам (клиент туннеля). */
+  public Path toolsDir() {
+    return dataDir.resolve("tools");
   }
 
   public Path databaseFile() {

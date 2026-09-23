@@ -124,8 +124,8 @@ class AuthController {
   @AllowRestricted
   @PostMapping("/logout")
   Map<String, String> logout(Actor actor, HttpServletRequest req, HttpServletResponse res) {
-    sessions.revoke(cookies.read(req, cookies.session));
-    cookies.clearSession(res);
+    sessions.revoke(cookies.readSession(req));
+    cookies.clearSession(req, res);
     return Map.of("status", "ok");
   }
 

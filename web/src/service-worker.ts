@@ -39,14 +39,31 @@ sw.addEventListener('message', (event) => {
 		event.waitUntil(Promise.all([caches.delete(DATA), caches.delete(FILES)]));
 });
 
+/**
+ * Ответил ли сам сервер группы. Когда компьютер хоста выключен, туннель отвечает своей страницей
+ * ошибки — такой ответ нельзя ни показывать вместо приложения, ни сохранять.
+ */
+const fromServer = (res: Response) => res.headers.has('X-Groupbase');
+
 /** Файл по id не меняется: сначала сохранённая копия, иначе сеть — и запоминаем. */
 async function fileFirst(req: Request, path: string): Promise<Response> {
 	const cache = await caches.open(FILES);
 	const hit = await cache.match(path, { ignoreSearch: true });
 	if (hit) return hit;
 	const res = await fetch(req);
-	if (res.ok && res.status === 200) cache.put(path, res.clone());
+	if (res.ok && res.status === 200 && fromServer(res)) cache.put(path, res.clone());
 	return res;
+}
+
+/** Страница: из сети, а если сервер недоступен — оболочка приложения из кеша. */
+async function page(req: Request): Promise<Response> {
+	try {
+		const res = await fetch(req);
+		if (fromServer(res)) return res;
+		return (await caches.match(INDEX)) ?? res;
+	} catch {
+		return (await caches.match(INDEX)) ?? Response.error();
+	}
 }
 
 sw.addEventListener('fetch', (event) => {
@@ -55,9 +72,7 @@ sw.addEventListener('fetch', (event) => {
 	if (req.method !== 'GET' || url.origin !== location.origin) return;
 
 	if (req.mode === 'navigate') {
-		event.respondWith(
-			fetch(req).catch(async () => (await caches.match(INDEX)) ?? Response.error())
-		);
+		event.respondWith(page(req));
 		return;
 	}
 	if (ASSETS.includes(url.pathname)) {
@@ -70,7 +85,7 @@ sw.addEventListener('fetch', (event) => {
 				const hit = await c.match(req);
 				if (hit) return hit;
 				const res = await fetch(req);
-				if (res.ok) c.put(req, res.clone());
+				if (res.ok && fromServer(res)) c.put(req, res.clone());
 				return res;
 			})
 		);

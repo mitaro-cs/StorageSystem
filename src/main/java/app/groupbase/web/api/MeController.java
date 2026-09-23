@@ -2,6 +2,7 @@ package app.groupbase.web.api;
 
 import app.groupbase.accounts.AccountService;
 import app.groupbase.accounts.InstanceSettings;
+import app.groupbase.accounts.PublicUrl;
 import app.groupbase.auth.Actor;
 import app.groupbase.auth.Authz;
 import app.groupbase.auth.GroupRole;
@@ -17,6 +18,7 @@ import app.groupbase.store.UserStore;
 import app.groupbase.web.AllowRestricted;
 import app.groupbase.web.ApiException;
 import app.groupbase.web.Cookies;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +41,8 @@ class MeController {
       String displayName,
       String avatar,
       InstanceRole instanceRole,
-      boolean totpEnabled) {}
+      boolean totpEnabled,
+      boolean manageMode) {}
 
   record GroupView(
       long id,
@@ -52,16 +55,29 @@ class MeController {
       GroupRole role,
       Set<Permission> permissions) {}
 
-  record InstanceView(String name, String mode, String version, boolean requireStaffTotp) {}
+  /**
+   * @param publicUrl адрес сайта для участников (для ссылок и QR), null — адрес из браузера
+   * @param desktop сервер работает в приложении хоста на его компьютере
+   */
+  record InstanceView(
+      String name,
+      String mode,
+      String version,
+      boolean requireStaffTotp,
+      String publicUrl,
+      boolean desktop) {}
 
   record MeView(
       UserView user,
       String restriction,
       InstanceView instance,
       List<GroupView> groups,
-      Set<Permission> permissions) {}
+      Set<Permission> permissions,
+      boolean hostWindow) {}
 
   record ProfileBody(String displayName) {}
+
+  record PreferencesBody(Boolean manageMode) {}
 
   record PasswordBody(String current, String password) {}
 
@@ -77,6 +93,8 @@ class MeController {
   private final TotpService totp;
   private final Cookies cookies;
   private final boolean requireStaffTotp;
+  private final boolean desktop;
+  private final PublicUrl publicUrl;
 
   MeController(
       UserStore users,
@@ -86,7 +104,8 @@ class MeController {
       AccountService accounts,
       TotpService totp,
       Cookies cookies,
-      GroupbaseProperties props) {
+      GroupbaseProperties props,
+      PublicUrl publicUrl) {
     this.users = users;
     this.groups = groups;
     this.authz = authz;
@@ -95,6 +114,8 @@ class MeController {
     this.totp = totp;
     this.cookies = cookies;
     this.requireStaffTotp = props.auth().requireStaffTotp();
+    this.desktop = props.desktop().enabled();
+    this.publicUrl = publicUrl;
   }
 
   @AllowRestricted
@@ -111,11 +132,33 @@ class MeController {
     String name = settings.name();
     return new MeView(
         new UserView(
-            u.id(), u.username(), u.displayName(), u.avatar(), u.instanceRole(), u.totpEnabled()),
+            u.id(),
+            u.username(),
+            u.displayName(),
+            u.avatar(),
+            u.instanceRole(),
+            u.totpEnabled(),
+            users.manageMode(u.id())),
         actor.restriction() == null ? null : actor.restriction().id(),
-        new InstanceView(name, settings.mode().id(), Main.version(), requireStaffTotp),
+        new InstanceView(
+            name,
+            settings.mode().id(),
+            Main.version(),
+            requireStaffTotp,
+            publicUrl.get().orElse(null),
+            desktop),
         gs,
-        authz.instancePermissions(actor));
+        authz.instancePermissions(actor),
+        actor.local());
+  }
+
+  /** Режим управления: выключенный прячет кнопки администратора и старосты в интерфейсе. */
+  @PatchMapping("/preferences")
+  Map<String, Object> preferences(Actor actor, @RequestBody PreferencesBody b) {
+    if (b.manageMode() != null) {
+      users.setManageMode(actor.id(), b.manageMode());
+    }
+    return Map.of("manageMode", users.manageMode(actor.id()));
   }
 
   private GroupView view(Group g, GroupRole role, Actor actor) {
@@ -174,9 +217,10 @@ class MeController {
   }
 
   @DeleteMapping
-  Map<String, String> delete(Actor actor, @RequestBody DeleteBody b, HttpServletResponse res) {
+  Map<String, String> delete(
+      Actor actor, @RequestBody DeleteBody b, HttpServletRequest req, HttpServletResponse res) {
     accounts.deleteSelf(actor, b.password());
-    cookies.clearSession(res);
+    cookies.clearSession(req, res);
     return Map.of("status", "ok");
   }
 }

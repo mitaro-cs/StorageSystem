@@ -10,7 +10,8 @@
 	import OfflineSettings from '$lib/settings/OfflineSettings.svelte';
 	import { forgetAccount } from '$lib/accounts';
 	import { t } from '$lib/i18n/ru';
-	import { loadMe, session } from '$lib/session.svelte';
+	import { canManage, loadMe, session, setManageMode } from '$lib/session.svelte';
+	import Switch from '$lib/ui/Switch.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import Button from '$lib/ui/Button.svelte';
@@ -48,6 +49,15 @@
 			await loadMe();
 		} catch (err) {
 			toastError(err);
+		}
+	}
+
+	async function setManage(on: boolean) {
+		try {
+			await setManageMode(on);
+			toast(on ? 'Кнопки управления снова видны' : 'Кнопки управления скрыты', 'ok');
+		} catch (e) {
+			toastError(e);
 		}
 	}
 
@@ -212,6 +222,21 @@
 	<a href="/members"><Users size={18} /> {t.nav.members}</a>
 	<a href="/settings"><Settings size={18} /> {t.nav.settings}</a>
 </nav>
+
+{#if canManage()}
+	<section class="card block">
+		<div class="row manage">
+			<div class="grow">
+				<h2>Режим управления</h2>
+				<p class="small muted">
+					Кнопки администратора и старосты: приглашения, права, сервер, модерация. Выключите, чтобы
+					пользоваться сайтом как участник, — публиковать новости и задания можно и так.
+				</p>
+			</div>
+			<Switch checked={me.user.manageMode} label="Режим управления" onchange={setManage} />
+		</div>
+	</section>
+{/if}
 
 <section class="card block">
 	<h2>ФИО</h2>
@@ -419,6 +444,17 @@
 </Modal>
 
 <style>
+	.manage {
+		align-items: flex-start;
+		gap: var(--s4);
+	}
+	.manage .grow {
+		flex: 1;
+		min-width: 0;
+	}
+	.manage h2 {
+		margin-bottom: 4px;
+	}
 	.me-head {
 		display: flex;
 		align-items: center;

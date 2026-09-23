@@ -23,6 +23,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /**
  * Заголовки безопасности на каждый ответ. CSP запрещает inline-скрипты: хеши единственного
  * загрузочного скрипта SvelteKit считаются один раз при старте из index.html.
+ *
+ * <p>{@code X-Groupbase} — метка «ответил сам сервер». Если компьютер хоста выключен, туннель
+ * отвечает своей страницей ошибки; по отсутствию метки приложение понимает, что сервер недоступен,
+ * и показывает сохранённые данные.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -31,11 +35,15 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
   private static final Pattern INLINE_SCRIPT =
       Pattern.compile("<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)</script>");
 
+  public static final String MARK = "X-Groupbase";
+
   private final String csp;
   private final boolean hsts;
+  private final boolean perRequest;
 
   public SecurityHeadersFilter(GroupbaseProperties props) throws IOException {
     this.hsts = !props.http().insecure();
+    this.perRequest = props.desktop().enabled();
     this.csp = buildCsp(inlineScriptHashes());
   }
 
@@ -103,7 +111,8 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
     res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
     res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
     res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
-    if (hsts) {
+    res.setHeader(MARK, "1");
+    if (hsts && (!perRequest || req.isSecure())) {
       res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     }
     chain.doFilter(req, res);

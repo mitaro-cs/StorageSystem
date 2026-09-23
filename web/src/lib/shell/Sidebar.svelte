@@ -4,7 +4,9 @@
 	import { PanelLeftClose, PanelLeftOpen, Search } from '@lucide/svelte';
 	import { openPalette } from './palette.svelte';
 	import { t } from '$lib/i18n/ru';
-	import { currentGroup, isMulti, session } from '$lib/session.svelte';
+	import { canManage, currentGroup, isMulti, session, setManageMode } from '$lib/session.svelte';
+	import { toastError } from '$lib/toasts.svelte';
+	import Switch from '$lib/ui/Switch.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import GroupSwitcher from './GroupSwitcher.svelte';
 	import SubjectList from './SubjectList.svelte';
@@ -84,6 +86,17 @@
 		</div>
 	{/if}
 
+	{#if !collapsed && session.me && canManage()}
+		<div class="manage">
+			<span>Режим управления</span>
+			<Switch
+				checked={session.me.user.manageMode}
+				label="Режим управления"
+				onchange={(on) => setManageMode(on).catch(toastError)}
+			/>
+		</div>
+	{/if}
+
 	<div class="bottom">
 		{#if session.me}
 			<a class="me" href="/profile" title={session.me.user.displayName}>
@@ -109,6 +122,19 @@
 </aside>
 
 <style>
+	.manage {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		margin-top: auto;
+		padding: 0 4px;
+		color: var(--text-2);
+		font-size: 14px;
+	}
+	.manage + .bottom {
+		margin-top: 0;
+	}
 	.sidebar {
 		position: sticky;
 		top: 0;

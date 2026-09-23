@@ -1,0 +1,124 @@
+package app.groupbase.cli;
+
+import app.groupbase.desktop.DesktopBridge;
+import app.groupbase.desktop.DesktopConfig;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.event.ContextClosedEvent;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+
+/**
+ * Сервер внутри приложения для компьютера. Оболочка (desktop/) запускает эту команду дочерним
+ * процессом и общается через стандартные потоки:
+ *
+ * <ul>
+ *   <li>stdout — события {@code @gb {"event": ...}}: ready (адрес и ссылка входа для окна), enter,
+ *       public-url, restart, error;
+ *   <li>stdin — команды построчно: {@code enter} (новая ссылка входа), {@code quit}. Конец stdin —
+ *       оболочка закрылась: сервер тоже завершается.
+ * </ul>
+ *
+ * Код выхода {@value #RESTART} — «перезапусти меня» (после восстановления из копии или смены сети).
+ */
+@Command(
+    name = "desktop",
+    hidden = true,
+    description = "Сервер для приложения хоста (запускается самим приложением).",
+    mixinStandardHelpOptions = true)
+public class DesktopCommand implements Callable<Integer> {
+
+  public static final int RESTART = 3;
+
+  @Option(names = "--data", required = true, description = "Каталог данных.")
+  Path data;
+
+  @Override
+  public Integer call() throws Exception {
+    DesktopBridge.Out out = DesktopBridge.Out.stdout();
+    ConfigurableApplicationContext ctx;
+    int port;
+    try {
+      Files.createDirectories(data);
+      DesktopConfig net = DesktopConfig.load(data);
+      port = net.choosePort();
+      Map<String, Object> props = new LinkedHashMap<>();
+      props.put("groupbase.data-dir", data.toAbsolutePath().toString());
+      props.put("groupbase.http.port", String.valueOf(port));
+      props.put("groupbase.http.address", net.bindAddress());
+      props.put("groupbase.desktop.enabled", "true");
+      ctx = AppContext.desktop(data, props, msg -> out.event("status", Map.of("message", msg)));
+    } catch (Exception e) {
+      out.event("error", Map.of("message", reason(e)));
+      return 1;
+    }
+
+    DesktopBridge bridge = ctx.getBean(DesktopBridge.class);
+    CountDownLatch done = new CountDownLatch(1);
+    bridge.onRestart(done::countDown);
+    ctx.addApplicationListener((ApplicationListener<ContextClosedEvent>) e -> done.countDown());
+    Thread.ofPlatform().daemon().name("desktop-stdin").start(() -> readCommands(bridge, done));
+
+    bridge.event(
+        "ready",
+        Map.of(
+            "url", bridge.localUrl(),
+            "enter", bridge.enterUrl(),
+            "version", Main.version(),
+            "port", port));
+    done.await();
+    boolean restart = bridge.restartRequested();
+    if (ctx.isActive()) {
+      ctx.close();
+    }
+    return restart ? RESTART : 0;
+  }
+
+  private static void readCommands(DesktopBridge bridge, CountDownLatch done) {
+    try (BufferedReader in =
+        new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
+      for (String line; (line = in.readLine()) != null; ) {
+        switch (line.strip()) {
+          case "enter" -> bridge.event("enter", Map.of("url", bridge.enterUrl()));
+          case "quit" -> {
+            done.countDown();
+            return;
+          }
+          default -> {
+            // Неизвестные команды пропускаем: оболочка может быть новее сервера.
+          }
+        }
+      }
+    } catch (IOException e) {
+      // stdin закрыт — как и конец потока, значит оболочки больше нет.
+    }
+    done.countDown();
+  }
+
+  /** Понятная причина, почему сервер не запустился. */
+  static String reason(Throwable e) {
+    for (Throwable t = e; t != null; t = t.getCause()) {
+      String m = t.getMessage();
+      if (t instanceof java.net.BindException) {
+        return "Порт уже занят другой программой. Перезапустите приложение.";
+      }
+      if (m != null && m.contains("уже запущен")) {
+        return "groupbase уже запущен на этом компьютере.";
+      }
+      if (t.getCause() == null && m != null) {
+        return m;
+      }
+    }
+    return String.valueOf(e);
+  }
+}

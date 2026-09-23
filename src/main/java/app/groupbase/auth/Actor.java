@@ -4,6 +4,8 @@ package app.groupbase.auth;
  * Пользователь текущего запроса.
  *
  * @param restriction не null — сессия ограничена: разрешены только смена пароля или настройка 2FA
+ * @param local окно приложения хоста на его компьютере (см. {@link SessionService#create(long,
+ *     boolean)})
  */
 public record Actor(
     long id,
@@ -12,7 +14,8 @@ public record Actor(
     InstanceRole instanceRole,
     boolean totpEnabled,
     Restriction restriction,
-    byte[] sessionHash) {
+    byte[] sessionHash,
+    boolean local) {
 
   public enum Restriction {
     PASSWORD_CHANGE_REQUIRED,

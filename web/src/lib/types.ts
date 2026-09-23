@@ -44,11 +44,24 @@ export interface Me {
 		avatar: string | null;
 		instanceRole: InstanceRole | null;
 		totpEnabled: boolean;
+		/** Режим управления: false — кнопки администратора и старосты скрыты. */
+		manageMode: boolean;
 	};
 	restriction: 'password_change_required' | 'totp_setup_required' | null;
-	instance: { name: string; mode: 'single' | 'multi'; version: string; requireStaffTotp: boolean };
+	instance: {
+		name: string;
+		mode: 'single' | 'multi';
+		version: string;
+		requireStaffTotp: boolean;
+		/** Адрес сайта для участников (ссылки, QR); null — адрес из браузера. */
+		publicUrl: string | null;
+		/** Сервер работает в приложении хоста на его компьютере. */
+		desktop: boolean;
+	};
 	groups: MeGroup[];
 	permissions: Permission[];
+	/** Это окно приложения хоста на его компьютере. */
+	hostWindow: boolean;
 }
 
 export interface Person {

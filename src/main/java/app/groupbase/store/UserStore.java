@@ -197,6 +197,29 @@ public class UserStore {
         .list();
   }
 
+  /** Хост в приложении для компьютера — первый активный администратор (создан при настройке). */
+  public Optional<User> firstAdmin() {
+    return db.sql(
+            "SELECT * FROM users WHERE instance_role = 'admin' AND status = 'active'"
+                + " ORDER BY id LIMIT 1")
+        .query(MAPPER)
+        .optional();
+  }
+
+  /** Режим управления: false — интерфейс без кнопок администратора и старосты. */
+  public boolean manageMode(long id) {
+    return db.sql("SELECT manage_mode FROM users WHERE id = ?")
+            .param(id)
+            .query(Integer.class)
+            .optional()
+            .orElse(1)
+        == 1;
+  }
+
+  public void setManageMode(long id, boolean on) {
+    db.sql("UPDATE users SET manage_mode = ? WHERE id = ?").params(on ? 1 : 0, id).update();
+  }
+
   public List<User> listStaff() {
     return db.sql(
             "SELECT * FROM users WHERE instance_role IS NOT NULL AND status != 'deleted'"

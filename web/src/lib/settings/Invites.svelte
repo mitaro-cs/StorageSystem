@@ -24,7 +24,9 @@
 	let busy = $state(false);
 	let fullscreen = $state(false);
 	// Ссылка на localhost откроется только на этом компьютере — предупреждаем заранее.
-	const local = /^(localhost|127\.|\[?::1\]?$)/.test(location.hostname);
+	const local = $derived(
+		!session.me?.instance.publicUrl && /^(localhost|127\.|\[?::1\]?$)/.test(location.hostname)
+	);
 	const groupName = $derived(session.me?.groups.find((g) => g.id === groupId)?.name ?? '');
 
 	async function load() {
@@ -127,10 +129,9 @@
 				{#if local}
 					<p class="tip amber small">
 						<span
-							>Сайт открыт по локальному адресу — с других телефонов по этой ссылке не зайти.
-							Откройте groupbase по адресу, который видят одногруппники (например, после настройки
-							через
-							<code>groupbase deploy</code>).</span
+							>Доступ для группы ещё не открыт — с других телефонов по этой ссылке не зайти.
+							Откройте его в <a href="/settings?tab=server">Настройки → Сервер</a>, и ссылки поведут
+							на адрес, который видят одногруппники.</span
 						>
 					</p>
 				{/if}

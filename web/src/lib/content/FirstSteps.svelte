@@ -4,7 +4,7 @@
 	import { get } from '$lib/api';
 	import { currentSubscription, pushSupported } from '$lib/push';
 	import { installed } from '$lib/pwa.svelte';
-	import { can, currentGroup, session } from '$lib/session.svelte';
+	import { can, currentGroup, isAdmin, session } from '$lib/session.svelte';
 	import { slide } from '$lib/motion';
 
 	// Чек-лист «Первые шаги»: старосте — наполнить группу, всем — поставить приложение и уведомления.
@@ -48,6 +48,16 @@
 
 	const steps = $derived.by((): Step[] => {
 		const out: Step[] = [];
+		// Сервер на компьютере хоста: пока доступ не открыт, одногруппники сайт не увидят.
+		if (session.me?.instance.desktop && isAdmin()) {
+			out.push({
+				id: 'access',
+				title: 'Откройте доступ группе',
+				text: 'Бесплатная ссылка, которая откроется с любого телефона',
+				done: !!session.me.instance.publicUrl,
+				href: '/settings?tab=server'
+			});
+		}
 		if (manager && progress) {
 			out.push(
 				{

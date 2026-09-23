@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Copy, Download, Printer } from '@lucide/svelte';
-	import { copy } from '$lib/copy';
+	import { copy, siteUrl } from '$lib/copy';
 	import { session } from '$lib/session.svelte';
 	import Button from '$lib/ui/Button.svelte';
 
@@ -18,7 +18,7 @@
 		const who = session.me?.user.username ?? '';
 		return [
 			'groupbase — резервные коды для входа',
-			`Сайт: ${location.origin}`,
+			`Сайт: ${siteUrl()}`,
 			who ? `Пользователь: ${who}` : '',
 			`Создано: ${new Date().toLocaleString('ru-RU')}`,
 			'',
