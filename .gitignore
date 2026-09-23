@@ -1,0 +1,21 @@
+# сборка
+target/
+web/build/
+web/.svelte-kit/
+web/node_modules/
+web/test-results/
+web/playwright-report/
+dist/
+
+# данные и секреты
+data/
+data-dev/
+/groupbase.toml
+secrets/
+*.key
+
+# системное
+.DS_Store
+.idea/
+.vscode/
+*.iml
