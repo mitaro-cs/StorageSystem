@@ -11,6 +11,7 @@
 	let code = $state('');
 	let ticket = $state<string | null>(null);
 	let useRecovery = $state(false);
+	let forgot = $state(false);
 	let error = $state('');
 	let busy = $state(false);
 
@@ -142,7 +143,20 @@
 	{/if}
 	{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 	<Button variant="primary" type="submit" loading={busy}>{ticket ? 'Подтвердить' : 'Войти'}</Button>
-	<p class="faint small">Забыли пароль? Попросите старосту выдать ссылку для сброса.</p>
+	{#if !ticket}
+		<button type="button" class="linkish" onclick={() => (forgot = !forgot)} aria-expanded={forgot}
+			>Забыли пароль или логин?</button
+		>
+		{#if forgot}
+			<div class="tip forgot">
+				<span
+					>Пароль восстанавливает <strong>староста</strong> или администратор: попросите у них ссылку
+					для сброса. Они покажут QR-код — отсканируйте его камерой телефона и задайте новый пароль. Логин
+					тоже подскажет староста.</span
+				>
+			</div>
+		{/if}
+	{/if}
 </form>
 
 <style>
@@ -158,5 +172,8 @@
 	}
 	.linkish:hover {
 		color: var(--text);
+	}
+	.forgot {
+		font-size: 14.5px;
 	}
 </style>

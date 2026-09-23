@@ -7,7 +7,7 @@
 	import Button from '$lib/ui/Button.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
 	import FioField from '$lib/auth/FioField.svelte';
-	import { fioError } from '$lib/names';
+	import { fioError, suggestUsername } from '$lib/names';
 	import type { GroupRole } from '$lib/types';
 
 	interface Info {
@@ -22,6 +22,10 @@
 	let loggedIn = $state(false);
 	let displayName = $state('');
 	let username = $state('');
+	let usernameTouched = $state(false);
+	$effect(() => {
+		if (!usernameTouched) username = suggestUsername(displayName);
+	});
 	let password = $state('');
 	let confirm = $state('');
 	let error = $state('');
@@ -106,8 +110,10 @@
 					autocapitalize="none"
 					spellcheck="false"
 					placeholder="ivanov.ivan"
+					oninput={() => (usernameTouched = true)}
 					required
 				/>
+				<p class="hint">Придумали по ФИО — можно поменять. Латиница, цифры, точка.</p>
 				<p class="hint">Латиница, цифры, точка или дефис</p>
 			</div>
 			<PasswordFields bind:password bind:confirm />

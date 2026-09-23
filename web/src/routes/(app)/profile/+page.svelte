@@ -1,10 +1,10 @@
 <script lang="ts">
 	import RecoveryCodes from '$lib/auth/RecoveryCodes.svelte';
+	import QrCode from '$lib/ui/QrCode.svelte';
 	import NotificationSettings from '$lib/settings/NotificationSettings.svelte';
 	import { fioError } from '$lib/names';
 	import { goto } from '$app/navigation';
 	import { Download, LogOut, Settings, Users, Newspaper, BookOpen } from '@lucide/svelte';
-	import { encode } from 'uqr';
 	import { del, get, patch, post } from '$lib/api';
 	import { t } from '$lib/i18n/ru';
 	import { loadMe, session } from '$lib/session.svelte';
@@ -46,14 +46,6 @@
 			toastError(err);
 		}
 	}
-
-	const qr = $derived.by(() => {
-		if (!totpUri) return null;
-		const { data } = encode(totpUri, { ecc: 'M' });
-		let path = '';
-		data.forEach((row, y) => row.forEach((on, x) => on && (path += `M${x} ${y}h1v1h-1z`)));
-		return { size: data.length, path };
-	});
 
 	async function saveName(e: SubmitEvent) {
 		e.preventDefault();
@@ -266,13 +258,10 @@
 		groupbase можно установить на телефон как приложение: он откроется без браузерной строки, а
 		лента и ДЗ будут доступны без сети.
 	</p>
-	{#if pwa.canInstall}
-		<div><Button variant="primary" onclick={install}>Установить</Button></div>
-	{:else}
-		<p class="faint small">
-			iPhone: «Поделиться» → «На экран „Домой“». Android: меню браузера → «Установить приложение».
-		</p>
-	{/if}
+	<div class="row wrap">
+		{#if pwa.canInstall}<Button variant="primary" onclick={install}>Установить</Button>{/if}
+		<a class="download" href="/install">Как установить — по шагам</a>
+	</div>
 </section>
 
 <section class="card block">
@@ -311,14 +300,7 @@
 	{:else}
 		<div class="stack">
 			<p class="muted">Отсканируйте код приложением-аутентификатором и введите 6 цифр.</p>
-			{#if qr}
-				<svg class="qr" viewBox="-2 -2 {qr.size + 4} {qr.size + 4}" role="img" aria-label="QR-код">
-					<rect x="-2" y="-2" width={qr.size + 4} height={qr.size + 4} fill="#fff" /><path
-						d={qr.path}
-						fill="#111"
-					/>
-				</svg>
-			{/if}
+			{#if totpUri}<div class="qr"><QrCode value={totpUri} label="QR-код" /></div>{/if}
 			<p class="hint">Ключ вручную: <code>{totpSecret}</code></p>
 			<input
 				class="input num"

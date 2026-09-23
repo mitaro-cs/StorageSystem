@@ -13,6 +13,7 @@
 	import HomeworkRow from '$lib/content/HomeworkRow.svelte';
 	import NewsCard from '$lib/content/NewsCard.svelte';
 	import NextDeadline from '$lib/content/NextDeadline.svelte';
+	import FirstSteps from '$lib/content/FirstSteps.svelte';
 	import NewsComposer from '$lib/content/NewsComposer.svelte';
 	import HomeworkComposer from '$lib/content/HomeworkComposer.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
@@ -79,6 +80,8 @@
 	<a class="pill" href="/subjects">Предметы</a>
 	<a class="pill" href="/materials">Материалы</a>
 </div>
+
+<FirstSteps oncreate={() => (hwOpen = true)} />
 
 {#if !data}
 	<div class="stack"><Skeleton /><Skeleton /></div>

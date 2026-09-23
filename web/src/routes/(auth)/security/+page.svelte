@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { encode } from 'uqr';
 	import { post } from '$lib/api';
 	import { loadMe, session } from '$lib/session.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
 	import RecoveryCodes from '$lib/auth/RecoveryCodes.svelte';
+	import QrCode from '$lib/ui/QrCode.svelte';
 
 	let password = $state('');
 	let confirm = $state('');
@@ -18,18 +18,6 @@
 	let recoveryCodes = $state<string[] | null>(null);
 
 	const restriction = $derived(session.me?.restriction);
-
-	const qr = $derived.by(() => {
-		if (!uri) return null;
-		const { data } = encode(uri, { ecc: 'M' });
-		let path = '';
-		data.forEach((row, y) =>
-			row.forEach((on, x) => {
-				if (on) path += `M${x} ${y}h1v1h-1z`;
-			})
-		);
-		return { size: data.length, path };
-	});
 
 	onMount(async () => {
 		try {
@@ -103,11 +91,8 @@
 		Google Authenticator, Aegis) и введите 6 цифр.
 	</p>
 	<form onsubmit={submit}>
-		{#if qr}
-			<svg class="qr" viewBox="-2 -2 {qr.size + 4} {qr.size + 4}" role="img" aria-label="QR-код">
-				<rect x="-2" y="-2" width={qr.size + 4} height={qr.size + 4} fill="#fff" />
-				<path d={qr.path} fill="#111" />
-			</svg>
+		{#if uri}
+			<div class="qr"><QrCode value={uri} label="QR-код" /></div>
 			<p class="hint">
 				Не сканируется? Введите ключ вручную: <code class="num">{groupKey(secret)}</code>. Если
 				запись groupbase уже была в приложении — удалите её и добавьте заново.
@@ -134,9 +119,7 @@
 <style>
 	.qr {
 		width: 200px;
-		height: 200px;
 		align-self: center;
-		border-radius: var(--r);
 	}
 	code {
 		word-break: break-all;

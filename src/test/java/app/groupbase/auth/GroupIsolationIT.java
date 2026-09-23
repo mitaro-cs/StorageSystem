@@ -194,6 +194,21 @@ class GroupIsolationIT extends IntegrationTest {
   }
 
   @Test
+  void progressIsForThoseWhoInvite() {
+    long g = newGroup("Шаги");
+    TestUser headman = newUser(g, "headman");
+    TestUser student = newUser(g, "student");
+    var p = headman.api().get("/api/groups/" + g + "/progress");
+    assertThat(p.status()).isEqualTo(200);
+    assertThat(p.json().get("members").asInt()).isEqualTo(2);
+    assertThat(p.json().get("subjects").asInt()).isZero();
+    headman.api().post("/api/groups/" + g + "/subjects", Map.of("name", "Физика"));
+    assertThat(headman.api().get("/api/groups/" + g + "/progress").json().get("subjects").asInt())
+        .isEqualTo(1);
+    assertThat(student.api().get("/api/groups/" + g + "/progress").status()).isEqualTo(403);
+  }
+
+  @Test
   void onlyHeadmanAndAdminSeeUsernames() {
     long g = newGroup("Логины");
     TestUser headman = newUser(g, "headman");

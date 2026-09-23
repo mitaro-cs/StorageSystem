@@ -113,6 +113,13 @@ class GroupController {
 
   // --- участники ---
 
+  /** Прогресс для чек-листа старосты на главной. */
+  @Require(Permission.CREATE_INVITES)
+  @GetMapping("/{groupId}/progress")
+  GroupStore.Progress progress(@PathVariable long groupId) {
+    return groups.progress(groupId);
+  }
+
   @GetMapping("/{groupId}/members")
   List<Member> members(Actor actor, @PathVariable long groupId) {
     return groupService.members(actor, groupId);

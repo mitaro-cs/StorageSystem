@@ -118,6 +118,29 @@ public class GroupStore {
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
+  /** Для чек-листа «Первые шаги»: что в группе уже есть. */
+  public record Progress(int subjects, int members, int homework, int news) {}
+
+  public Progress progress(long groupId) {
+    return db.sql(
+            """
+            SELECT
+              (SELECT count(*) FROM subject_groups WHERE group_id = :g) AS subjects,
+              (SELECT count(*) FROM memberships WHERE group_id = :g) AS members,
+              (SELECT count(*) FROM homework_targets WHERE group_id = :g) AS homework,
+              (SELECT count(*) FROM post_targets WHERE group_id = :g) AS news
+            """)
+        .param("g", groupId)
+        .query(
+            (rs, i) ->
+                new Progress(
+                    rs.getInt("subjects"),
+                    rs.getInt("members"),
+                    rs.getInt("homework"),
+                    rs.getInt("news")))
+        .single();
+  }
+
   public List<Member> members(long groupId) {
     return db.sql(
             """

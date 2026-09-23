@@ -15,7 +15,9 @@
 
 	let { children } = $props();
 	// На страницах деталей верхнюю панель заменяет «← Раздел» (BackBar), как на макете.
-	const detail = $derived(/^\/(homework|news|subjects|materials)\/[^/]+/.test(page.url.pathname));
+	const detail = $derived(
+		/^\/((homework|news|subjects|materials)\/[^/]+|install$)/.test(page.url.pathname)
+	);
 	let collapsed = $state(false);
 	onMount(initPwa);
 	onMount(startBell);

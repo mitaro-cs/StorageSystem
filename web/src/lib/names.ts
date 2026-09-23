@@ -22,3 +22,54 @@ export function fioError(fio: string): string {
 	if (!w.every((x) => WORD.test(x))) return 'ФИО пишется буквами, например: Иванов Иван Иванович';
 	return '';
 }
+
+const TRANSLIT: Record<string, string> = {
+	а: 'a',
+	б: 'b',
+	в: 'v',
+	г: 'g',
+	д: 'd',
+	е: 'e',
+	ё: 'e',
+	ж: 'zh',
+	з: 'z',
+	и: 'i',
+	й: 'y',
+	к: 'k',
+	л: 'l',
+	м: 'm',
+	н: 'n',
+	о: 'o',
+	п: 'p',
+	р: 'r',
+	с: 's',
+	т: 't',
+	у: 'u',
+	ф: 'f',
+	х: 'kh',
+	ц: 'ts',
+	ч: 'ch',
+	ш: 'sh',
+	щ: 'shch',
+	ъ: '',
+	ы: 'y',
+	ь: '',
+	э: 'e',
+	ю: 'yu',
+	я: 'ya'
+};
+
+/**
+ * Логин из ФИО, как на сервере (accounts.Names.suggestUsername):
+ * «Петров Иван Сергеевич» → «petrov.ivan». Пустая строка, если ничего не вышло.
+ */
+export function suggestUsername(fio: string): string {
+	const parts = words(fio.toLowerCase())
+		.slice(0, 2)
+		.map((w) =>
+			[...w].map((c) => (c in TRANSLIT ? TRANSLIT[c] : /[a-z0-9]/.test(c) ? c : '')).join('')
+		)
+		.filter(Boolean);
+	const s = parts.join('.').slice(0, 28);
+	return s.length < 3 ? '' : s;
+}

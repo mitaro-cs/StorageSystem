@@ -8,7 +8,7 @@ test('студент регистрируется по инвайту, види�
 	await login(page, ADMIN);
 	await page.goto('/settings?tab=invites');
 	await page.getByRole('button', { name: 'Создать ссылку' }).click();
-	const link = await page.locator('.fresh code').innerText();
+	const link = await page.locator('.fresh .link').innerText();
 	expect(link).toContain('/invite/');
 
 	const ctx = await browser.newContext({ locale: 'ru-RU', viewport: { width: 390, height: 844 } });

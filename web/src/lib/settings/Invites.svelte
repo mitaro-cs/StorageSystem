@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Link2, Copy } from '@lucide/svelte';
+	import { Link2, Copy, Maximize2, Share2 } from '@lucide/svelte';
 	import { del, get, post } from '$lib/api';
-	import { absolute, copy } from '$lib/copy';
+	import { absolute, canShare, copy, share } from '$lib/copy';
 	import { fmtAgo, fmtDue } from '$lib/format';
 	import { t } from '$lib/i18n/ru';
 	import { fly } from '$lib/motion';
@@ -9,6 +9,9 @@
 	import { toastError } from '$lib/toasts.svelte';
 	import type { GroupRole, Invite } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
+	import QrCode from '$lib/ui/QrCode.svelte';
+	import QrScreen from '$lib/ui/QrScreen.svelte';
+	import { session } from '$lib/session.svelte';
 
 	let { groupId }: { groupId: number } = $props();
 
@@ -19,6 +22,10 @@
 	let note = $state('');
 	let fresh = $state<string | null>(null);
 	let busy = $state(false);
+	let fullscreen = $state(false);
+	// Ссылка на localhost откроется только на этом компьютере — предупреждаем заранее.
+	const local = /^(localhost|127\.|\[?::1\]?$)/.test(location.hostname);
+	const groupName = $derived(session.me?.groups.find((g) => g.id === groupId)?.name ?? '');
 
 	async function load() {
 		list = await get<Invite[]>(`/api/groups/${groupId}/invites`);
@@ -110,15 +117,39 @@
 	</div>
 	{#if fresh}
 		<div class="fresh" in:fly>
-			<p class="small">Ссылка показывается один раз — скопируйте её сейчас:</p>
-			<div class="row">
-				<code>{fresh}</code><Button
-					size="s"
-					onclick={() => fresh && copy(fresh, 'Ссылка скопирована')}
-					><Copy size={15} /> Копировать</Button
-				>
+			<div class="qr-mini"><QrCode value={fresh} label="QR-код приглашения" /></div>
+			<div class="fresh-info">
+				<p class="small">
+					Ссылка показывается один раз. Отправьте её в чат группы или покажите QR-код на паре —
+					одногруппники отсканируют его камерой.
+				</p>
+				<code class="link">{fresh}</code>
+				{#if local}
+					<p class="tip amber small">
+						<span
+							>Сайт открыт по локальному адресу — с других телефонов по этой ссылке не зайти.
+							Откройте groupbase по адресу, который видят одногруппники (например, после настройки
+							через
+							<code>groupbase deploy</code>).</span
+						>
+					</p>
+				{/if}
+				<div class="row wrap">
+					<Button size="s" variant="primary" onclick={() => (fullscreen = true)}
+						><Maximize2 size={15} /> QR на весь экран</Button
+					>
+					<Button size="s" onclick={() => fresh && copy(fresh, 'Ссылка скопирована')}
+						><Copy size={15} /> Копировать</Button
+					>
+					{#if canShare()}<Button
+							size="s"
+							onclick={() => fresh && share(fresh, `Вступайте в ${groupName}`)}
+							><Share2 size={15} /> Поделиться</Button
+						>{/if}
+				</div>
 			</div>
 		</div>
+		<QrScreen bind:open={fullscreen} value={fresh} title="Вступайте в {groupName}" />
 	{/if}
 </form>
 
@@ -185,5 +216,26 @@
 	.empty {
 		padding: var(--s4);
 		text-align: center;
+	}
+	.fresh {
+		display: flex;
+		gap: var(--s4);
+		align-items: flex-start;
+		flex-wrap: wrap;
+	}
+	.qr-mini {
+		width: 132px;
+		flex: none;
+	}
+	.fresh-info {
+		flex: 1;
+		min-width: 220px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+	.fresh-info .link {
+		word-break: break-all;
+		font-size: 12.5px;
 	}
 </style>

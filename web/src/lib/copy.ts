@@ -11,3 +11,14 @@ export async function copy(text: string, message = 'Скопировано') {
 		toast('Не удалось скопировать — выделите текст вручную', 'error');
 	}
 }
+
+/** Системное меню «Поделиться» (на телефоне — сразу в чат группы). */
+export const canShare = () => typeof navigator !== 'undefined' && 'share' in navigator;
+
+export async function share(url: string, title: string) {
+	try {
+		await navigator.share({ title, url });
+	} catch {
+		/* пользователь закрыл меню */
+	}
+}

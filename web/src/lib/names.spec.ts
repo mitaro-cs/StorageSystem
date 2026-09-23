@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fioError, firstName } from './names';
+import { fioError, firstName, suggestUsername } from './names';
 
 describe('firstName', () => {
 	it.each([
@@ -25,4 +25,14 @@ describe('fioError', () => {
 		expect(fioError('А Б В Г Д Е')).toMatch(/фамилию, имя/);
 		expect(fioError('Петров ' + 'И'.repeat(60))).toMatch(/64/);
 	});
+});
+
+describe('suggestUsername', () => {
+	it.each([
+		['Петров Иван Сергеевич', 'petrov.ivan'],
+		['Щукина Юлия', 'shchukina.yuliya'],
+		['  Ёжиков   Олег ', 'ezhikov.oleg'],
+		["O'Brien Sean", 'obrien.sean'],
+		['Я', '']
+	])('%s → %s', (fio, login) => expect(suggestUsername(fio)).toBe(login));
 });

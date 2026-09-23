@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { UserPlus } from '@lucide/svelte';
 	import { del, post, put } from '$lib/api';
-	import { absolute, copy } from '$lib/copy';
+	import { absolute, canShare, copy, share } from '$lib/copy';
+	import QrCode from '$lib/ui/QrCode.svelte';
 	import { t } from '$lib/i18n/ru';
 	import { can, currentGroup, groups, session } from '$lib/session.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
@@ -100,10 +101,15 @@
 
 <Modal open={link !== null} title="Ссылка для сброса пароля" onclose={() => (link = null)}>
 	<p class="muted">
-		Отправьте её лично. Ссылка одноразовая и действует 7 дней; старые сессии пользователя закроются.
+		Покажите человеку QR-код — он отсканирует его камерой и задаст новый пароль. Или отправьте
+		ссылку лично. Она одноразовая и действует 7 дней; старые сессии пользователя закроются.
 	</p>
+	{#if link}<div class="qr"><QrCode value={link} label="QR-код для сброса пароля" /></div>{/if}
 	<div class="linkbox"><code>{link}</code></div>
 	{#snippet footer()}
+		{#if canShare()}<Button onclick={() => link && share(link, 'Новый пароль для groupbase')}
+				>Поделиться</Button
+			>{/if}
 		<Button variant="primary" onclick={() => link && copy(link, 'Ссылка скопирована')}
 			>Скопировать</Button
 		>
@@ -111,6 +117,10 @@
 </Modal>
 
 <style>
+	.qr {
+		width: min(240px, 70%);
+		margin: var(--s3) auto 0;
+	}
 	.linkbox {
 		margin-top: var(--s3);
 		padding: 12px;
