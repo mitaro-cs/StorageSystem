@@ -12,6 +12,7 @@
 	import { ApiError } from '$lib/api';
 	import { toast } from '$lib/toasts.svelte';
 	import { initOffline, offline } from '$lib/offline/engine';
+	import { rememberAccount } from '$lib/accounts';
 	import { session } from '$lib/session.svelte';
 	import { onMount } from 'svelte';
 	import { slide } from '$lib/motion';
@@ -39,7 +40,16 @@
 		return () => removeEventListener('unhandledrejection', onRejection);
 	});
 	onMount(() => {
-		if (session.me) initOffline(session.me);
+		if (session.me) {
+			initOffline(session.me);
+			const u = session.me.user;
+			rememberAccount({
+				userId: u.id,
+				username: u.username,
+				displayName: u.displayName,
+				avatar: u.avatar
+			});
+		}
 	});
 
 	// Палитра грузится при первом открытии — её код не нужен для первого экрана.

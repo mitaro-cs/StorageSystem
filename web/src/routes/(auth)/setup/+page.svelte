@@ -1,12 +1,16 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { Check } from '@lucide/svelte';
 	import { post } from '$lib/api';
 	import Button from '$lib/ui/Button.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
 	import FioField from '$lib/auth/FioField.svelte';
-	import { fioError } from '$lib/names';
+	import { fioError, suggestUsername } from '$lib/names';
 
-	let code = $state('');
+	// Сервер печатает ссылку с кодом (а установщик сам её открывает) — вводить его не нужно.
+	const fromLink = page.url.searchParams.get('code');
+	let code = $state(fromLink ?? '');
 	let mode = $state<'single' | 'multi'>('single');
 	let groupName = $state('');
 	let university = $state('МТУСИ');
@@ -14,6 +18,12 @@
 	let instanceName = $state('');
 	let displayName = $state('');
 	let username = $state('');
+	let usernameTouched = $state(false);
+	$effect(() => {
+		if (!usernameTouched) username = suggestUsername(displayName);
+	});
+	const UNIVERSITIES = ['МТУСИ', 'МИРЭА', 'МЭИ', 'МАИ', 'Бауманка'];
+	let otherUni = $state(false);
 	let password = $state('');
 	let confirm = $state('');
 	let error = $state('');
@@ -56,15 +66,19 @@
 </p>
 
 <form onsubmit={submit}>
-	<div>
-		<label class="label" for="code">Код настройки</label>
-		<input id="code" class="input num" bind:value={code} autocomplete="off" required />
-		<p class="hint">
-			Он напечатан в логе сервера при запуске. Можно вместо этого выполнить <code
-				>groupbase init</code
-			>.
-		</p>
-	</div>
+	{#if fromLink}
+		<p class="linked"><Check size={16} /> Код настройки подставлен из ссылки</p>
+	{:else}
+		<div>
+			<label class="label" for="code">Код настройки</label>
+			<input id="code" class="input num" bind:value={code} autocomplete="off" required />
+			<p class="hint">
+				Проще открыть ссылку из окна сервера — в ней код уже есть. Или выполните <code
+					>groupbase init</code
+				>.
+			</p>
+		</div>
+	{/if}
 
 	<fieldset class="modes">
 		<legend class="label">Режим</legend>
@@ -85,20 +99,53 @@
 		</div>
 	{/if}
 
-	<div class="grid">
-		<div>
-			<label class="label" for="gname">{mode === 'multi' ? 'Первая группа' : 'Группа'}</label>
-			<input id="gname" class="input" bind:value={groupName} placeholder="БИН2509" required />
-		</div>
-		<div>
-			<label class="label" for="course">Курс</label>
-			<input id="course" class="input num" type="number" min="1" max="6" bind:value={course} />
-		</div>
-	</div>
 	<div>
-		<label class="label" for="uni">Вуз</label>
-		<input id="uni" class="input" bind:value={university} />
+		<label class="label" for="gname">{mode === 'multi' ? 'Первая группа' : 'Группа'}</label>
+		<input id="gname" class="input" bind:value={groupName} placeholder="БИН2509" required />
 	</div>
+	<fieldset class="pick">
+		<legend class="label">Курс</legend>
+		<div class="chips" role="radiogroup" aria-label="Курс">
+			{#each [1, 2, 3, 4, 5, 6] as n (n)}
+				<button
+					type="button"
+					role="radio"
+					aria-checked={course === n}
+					class:on={course === n}
+					onclick={() => (course = n)}>{n}</button
+				>
+			{/each}
+		</div>
+	</fieldset>
+	<fieldset class="pick">
+		<legend class="label">Вуз</legend>
+		<div class="chips" role="radiogroup" aria-label="Вуз">
+			{#each UNIVERSITIES as u (u)}
+				<button
+					type="button"
+					role="radio"
+					aria-checked={!otherUni && university === u}
+					class:on={!otherUni && university === u}
+					onclick={() => ((university = u), (otherUni = false))}>{u}</button
+				>
+			{/each}
+			<button
+				type="button"
+				role="radio"
+				aria-checked={otherUni}
+				class:on={otherUni}
+				onclick={() => ((otherUni = true), (university = ''))}>Другой</button
+			>
+		</div>
+		{#if otherUni}
+			<input
+				class="input other"
+				bind:value={university}
+				placeholder="Название вуза"
+				aria-label="Вуз"
+			/>
+		{/if}
+	</fieldset>
 
 	<hr />
 
@@ -113,8 +160,10 @@
 			autocapitalize="none"
 			spellcheck="false"
 			placeholder="ivanov.ivan"
+			oninput={() => (usernameTouched = true)}
 			required
 		/>
+		<p class="hint">Придумали по ФИО — можно поменять.</p>
 	</div>
 	<PasswordFields bind:password bind:confirm />
 
@@ -158,10 +207,46 @@
 		outline: 2px solid var(--focus);
 		outline-offset: 2px;
 	}
-	.grid {
-		display: grid;
-		grid-template-columns: 1fr 96px;
-		gap: var(--s3);
+	.linked {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 10px 14px;
+		border-radius: var(--r);
+		background: var(--ok-soft);
+		color: var(--ok);
+		font-weight: 550;
+	}
+	.pick {
+		border: 0;
+		padding: 0;
+		margin: 0;
+	}
+	.pick legend {
+		padding: 0;
+	}
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.chips button {
+		min-width: 44px;
+		height: 40px;
+		padding: 0 14px;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--r-full);
+		background: var(--surface);
+		color: var(--text);
+		font-weight: 550;
+	}
+	.chips button.on {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-text);
+	}
+	.other {
+		margin-top: 8px;
 	}
 	hr {
 		border: 0;

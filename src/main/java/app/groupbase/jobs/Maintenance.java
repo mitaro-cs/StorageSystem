@@ -1,6 +1,7 @@
 package app.groupbase.jobs;
 
 import app.groupbase.audit.AuditService;
+import app.groupbase.auth.DeviceLinks;
 import app.groupbase.auth.LoginService;
 import app.groupbase.auth.LoginThrottle;
 import app.groupbase.auth.SessionService;
@@ -35,6 +36,7 @@ class Maintenance {
   private final FileStore files;
   private final NotificationStore notifications;
   private final SyncService sync;
+  private final DeviceLinks links;
   private final Clock clock;
 
   Maintenance(
@@ -46,7 +48,9 @@ class Maintenance {
       FileStore files,
       NotificationStore notifications,
       SyncService sync,
+      DeviceLinks links,
       Clock clock) {
+    this.links = links;
     this.sync = sync;
     this.files = files;
     this.notifications = notifications;
@@ -62,6 +66,7 @@ class Maintenance {
   void everyQuarterHour() {
     throttle.cleanup();
     login.cleanupTickets();
+    links.cleanup();
   }
 
   @Scheduled(initialDelayString = "PT2M", fixedDelayString = "PT6H")

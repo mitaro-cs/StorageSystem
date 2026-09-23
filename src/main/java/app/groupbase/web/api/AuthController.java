@@ -2,10 +2,14 @@ package app.groupbase.web.api;
 
 import app.groupbase.accounts.AccountService;
 import app.groupbase.auth.Actor;
+import app.groupbase.auth.DeviceLinks;
 import app.groupbase.auth.LoginService;
 import app.groupbase.auth.RecoveryCodes;
 import app.groupbase.auth.SessionService;
+import app.groupbase.store.User;
+import app.groupbase.store.UserStore;
 import app.groupbase.web.AllowRestricted;
+import app.groupbase.web.ApiException;
 import app.groupbase.web.Cookies;
 import app.groupbase.web.Public;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,6 +38,8 @@ class AuthController {
   private final Cookies cookies;
   private final Http http;
   private final RecoveryCodes recovery;
+  private final DeviceLinks links;
+  private final UserStore users;
 
   AuthController(
       LoginService login,
@@ -41,7 +47,11 @@ class AuthController {
       AccountService accounts,
       Cookies cookies,
       Http http,
-      RecoveryCodes recovery) {
+      RecoveryCodes recovery,
+      DeviceLinks links,
+      UserStore users) {
+    this.links = links;
+    this.users = users;
     this.login = login;
     this.sessions = sessions;
     this.accounts = accounts;
@@ -72,6 +82,43 @@ class AuthController {
       out.put("recoveryLeft", String.valueOf(recovery.remaining(user.id())));
     }
     return out;
+  }
+
+  record QrStartBody(String device) {}
+
+  record QrPollBody(String poll) {}
+
+  /** Вход по QR: новое устройство получает код для показа и секрет для опроса. */
+  @Public
+  @PostMapping("/qr")
+  DeviceLinks.Started qrStart(@RequestBody QrStartBody b, HttpServletRequest req) {
+    return links.start(req.getRemoteAddr(), b.device());
+  }
+
+  /** Что подтверждает человек на своём телефоне. */
+  @GetMapping("/qr/{code}")
+  DeviceLinks.Info qrInfo(@PathVariable String code) {
+    return links.info(code);
+  }
+
+  @PostMapping("/qr/{code}/approve")
+  Map<String, String> qrApprove(Actor actor, @PathVariable String code) {
+    links.approve(actor, code);
+    return Map.of("status", "ok");
+  }
+
+  @Public
+  @PostMapping("/qr/poll")
+  Map<String, String> qrPoll(@RequestBody QrPollBody b, HttpServletResponse res) {
+    Long userId = links.poll(b.poll());
+    if (userId == null) {
+      return Map.of("status", "waiting");
+    }
+    User user = users.find(userId).orElseThrow(ApiException::unauthorized);
+    if (user.status() != User.Status.ACTIVE) {
+      throw ApiException.forbidden();
+    }
+    return http.startSession(user, res);
   }
 
   @AllowRestricted

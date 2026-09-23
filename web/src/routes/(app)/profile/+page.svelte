@@ -4,10 +4,11 @@
 	import NotificationSettings from '$lib/settings/NotificationSettings.svelte';
 	import { fioError } from '$lib/names';
 	import { goto } from '$app/navigation';
-	import { Download, LogOut, Settings, Users, Newspaper, BookOpen } from '@lucide/svelte';
+	import { Download, LogOut, ScanLine, Settings, Users, Newspaper, BookOpen } from '@lucide/svelte';
 	import { ApiError, del, get, patch, post, request } from '$lib/api';
 	import { offline, wipeOffline } from '$lib/offline/engine';
 	import OfflineSettings from '$lib/settings/OfflineSettings.svelte';
+	import { forgetAccount } from '$lib/accounts';
 	import { t } from '$lib/i18n/ru';
 	import { loadMe, session } from '$lib/session.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
@@ -37,6 +38,7 @@
 	let regenOpen = $state(false);
 	let regenCode = $state('');
 	let deleteOpen = $state(false);
+	let scanOpen = $state(false);
 	let deletePassword = $state('');
 	let avatarOpen = $state(false);
 
@@ -135,6 +137,11 @@
 		await wipeOffline();
 		clearCache();
 		clearRecent();
+	}
+
+	/** Сначала уходим со страницы профиля, потом забываем пользователя — иначе она упадёт. */
+	async function leave() {
+		await goto('/login', { replaceState: true });
 		session.me = null;
 	}
 
@@ -156,14 +163,15 @@
 			);
 		}
 		await forgetDevice();
-		goto('/login', { replaceState: true });
+		await leave();
 	}
 
 	async function deleteAccount() {
 		try {
 			await del('/api/me', { password: deletePassword });
+			forgetAccount(me.user.id);
 			await forgetDevice();
-			goto('/login', { replaceState: true });
+			await leave();
 		} catch (err) {
 			toastError(err);
 		}
@@ -222,6 +230,20 @@
 		<span>Тема оформления</span><span class="spacer"></span><ThemeToggle />
 	</div>
 </section>
+
+<section class="card block">
+	<h2>Вход на другом устройстве</h2>
+	<p class="muted">
+		На компьютере откройте groupbase, выберите «По QR-коду» и отсканируйте код отсюда — логин и
+		пароль вводить не придётся.
+	</p>
+	<div>
+		<Button onclick={() => (scanOpen = true)}><ScanLine size={17} /> Сканировать QR-код</Button>
+	</div>
+</section>
+{#if scanOpen}
+	{#await import('$lib/auth/QrScanner.svelte') then m}<m.default bind:open={scanOpen} />{/await}
+{/if}
 
 <NotificationSettings />
 

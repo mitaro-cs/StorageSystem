@@ -11,6 +11,13 @@ import org.junit.jupiter.api.Test;
 class AuthFlowIT extends IntegrationTest {
 
   @Test
+  void setupLinkCarriesTheCode() {
+    assertThat(setup.setupLink())
+        .startsWith("http://localhost:")
+        .endsWith("/setup?code=" + setup.setupCode());
+  }
+
+  @Test
   void setupNeedsCodeAndRunsOnce() {
     admin();
     var r = client().get("/api/setup");

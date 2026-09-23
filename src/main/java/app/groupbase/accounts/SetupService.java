@@ -67,12 +67,27 @@ public class SetupService {
     return setupCode;
   }
 
+  /** Ссылка на первичную настройку с кодом: её печатает сервер и открывает установщик. */
+  public String setupLink() {
+    String base = env.getProperty("groupbase.base-url", "");
+    if (base.isBlank()) {
+      String address = env.getProperty("groupbase.http.address", "127.0.0.1");
+      String host =
+          address.equals("0.0.0.0") || address.equals("::") || address.startsWith("127.")
+              ? "localhost"
+              : address;
+      base = "http://" + host + ":" + env.getProperty("groupbase.http.port", "8080");
+    }
+    return base.replaceAll("/+$", "") + "/setup?code=" + setupCode;
+  }
+
   @EventListener(ApplicationReadyEvent.class)
   void announce() {
     if (env.matchesProfiles("serve") && needed()) {
       log.warn(
-          "Инстанс ещё не настроен. Откройте сайт и введите код первичной настройки: {}"
-              + " (или выполните groupbase init)",
+          "Инстанс ещё не настроен. Откройте ссылку — код уже в ней: {}"
+              + " (код отдельно: {}; или выполните groupbase init)",
+          setupLink(),
           setupCode);
     }
   }
