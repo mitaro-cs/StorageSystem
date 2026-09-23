@@ -3,8 +3,9 @@
 	import { t } from '$lib/i18n/ru';
 	import Avatar from '$lib/ui/Avatar.svelte';
 
-	let { person, size = 28 }: { person: Person; size?: number } = $props();
-	const name = $derived(person.deleted ? t.common.deletedUser : person.displayName);
+	/** label — короткая подпись вместо ФИО (в комментариях — имя), полное ФИО во всплывающей подсказке. */
+	let { person, size = 28, label }: { person: Person; size?: number; label?: string } = $props();
+	const name = $derived(person.deleted ? t.common.deletedUser : (label ?? person.displayName));
 </script>
 
 <span class="author">
@@ -14,7 +15,11 @@
 		avatar={person.avatar}
 		{size}
 	/>
-	<span class="name" class:deleted={person.deleted}>{name}</span>
+	<span
+		class="name"
+		class:deleted={person.deleted}
+		title={label && !person.deleted ? person.displayName : undefined}>{name}</span
+	>
 </span>
 
 <style>

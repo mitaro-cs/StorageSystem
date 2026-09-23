@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { MessageCircle, Pin, EyeOff, CloudOff } from '@lucide/svelte';
+	import { MessageCircle, Pin, EyeOff, CloudOff, Zap } from '@lucide/svelte';
 	import type { NewsItem } from '$lib/types';
 	import { fmtAgo } from '$lib/format';
 	import { isMulti } from '$lib/session.svelte';
 	import Author from './Author.svelte';
+	import { firstName, lastName } from '$lib/names';
 	import SubjectTag from '$lib/ui/SubjectTag.svelte';
 	import Menu, { type MenuItem } from '$lib/ui/Menu.svelte';
 	import Prose from '$lib/ui/Prose.svelte';
@@ -11,22 +12,35 @@
 	interface Props {
 		item: NewsItem;
 		full?: boolean;
+		/** Карточка на главной: текст в две строки. */
+		compact?: boolean;
 		actions?: MenuItem[];
 	}
 
-	let { item, full = false, actions = [] }: Props = $props();
+	let { item, full = false, compact = false, actions = [] }: Props = $props();
+
+	/** В списках — «Имя Фамилия»: ФИО целиком не помещается в строку на телефоне. */
+	const shortName = (fio: string) => [firstName(fio), lastName(fio)].filter(Boolean).join(' ');
 </script>
 
-<article class="news card" class:urgent={item.urgent} class:hidden={item.hidden}>
+<article
+	class="news card"
+	class:urgent={item.urgent}
+	class:hidden={item.hidden}
+	class:compact
+	style:--subject={item.subject?.color ?? 'var(--border-strong)'}
+>
+	{#if item.urgent}
+		<div class="band"><Zap size={15} strokeWidth={2.4} /> Срочно</div>
+	{/if}
 	<header>
-		<Author person={item.author} />
+		<Author person={item.author} label={full ? undefined : shortName(item.author.displayName)} />
 		<span class="faint small num when">{fmtAgo(item.createdAt)}</span>
 		<span class="spacer"></span>
 		{#if item.pinned}<span class="faint" title="Закреплено"><Pin size={15} /></span>{/if}
 		<Menu items={actions} />
 	</header>
 	<div class="meta">
-		{#if item.urgent}<span class="chip amber">Срочно</span>{/if}
 		{#if item.hidden}<span class="chip"><EyeOff size={13} /> Скрыто</span>{/if}
 		{#if item.pending}<span
 				class="chip amber"
@@ -66,8 +80,8 @@
 	.news:has(.stretched):hover {
 		box-shadow: var(--shadow-2);
 	}
-	/* Срочное — толстая полоса слева, как у подсказки */
-	.urgent::before {
+	/* Полоса слева — цвет предмета (у новостей без предмета — нейтральная) */
+	.news::before {
 		content: '';
 		position: absolute;
 		left: 8px;
@@ -75,7 +89,31 @@
 		bottom: 20px;
 		width: 4px;
 		border-radius: 2px;
-		background: var(--amber);
+		background: var(--subject);
+	}
+	/* Срочное — янтарная плашка по верху карточки и обводка */
+	.urgent {
+		box-shadow:
+			0 0 0 2px var(--urgent),
+			var(--shadow-2);
+	}
+	.urgent::before {
+		top: 48px;
+	}
+	.band {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin: -20px -20px 0;
+		padding: 9px 20px;
+		border-top-left-radius: inherit;
+		border-top-right-radius: inherit;
+		background: var(--urgent);
+		color: var(--urgent-text);
+		font-size: 13px;
+		font-weight: 750;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
 	}
 	.hidden {
 		opacity: 0.7;
@@ -130,6 +168,29 @@
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 		color: var(--text-2);
+	}
+	.compact {
+		gap: 8px;
+		padding: 16px 18px 14px;
+	}
+	.compact h3 {
+		font-size: 18px;
+	}
+	.compact :global(.clamp) {
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
+	.compact::before {
+		left: 6px;
+		top: 16px;
+		bottom: 16px;
+	}
+	.compact .band {
+		margin: -16px -18px 0;
+		padding: 8px 18px;
+	}
+	.compact.urgent::before {
+		top: 42px;
 	}
 	.news :global(.body:not(.clamp)) {
 		pointer-events: auto;

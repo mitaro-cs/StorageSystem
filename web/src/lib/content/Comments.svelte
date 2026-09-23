@@ -3,9 +3,12 @@
 	import { offline } from '$lib/offline/engine';
 	import { del, get, post } from '$lib/api';
 	import { fmtAgo } from '$lib/format';
+	import { shortNames } from '$lib/names';
+	import { peek, put } from '$lib/cache';
+	import { currentGroup, groups } from '$lib/session.svelte';
 	import { fly, slide } from '$lib/motion';
 	import { toastError } from '$lib/toasts.svelte';
-	import type { Comment } from '$lib/types';
+	import type { Comment, Member } from '$lib/types';
 	import Author from './Author.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Prose from '$lib/ui/Prose.svelte';
@@ -14,6 +17,28 @@
 
 	let items = $state<Comment[]>([]);
 	let loaded = $state(false);
+	let members = $state<Member[]>([]);
+
+	// Подписи — только имена; если имя повторяется среди участников группы или в обсуждении,
+	// к нему добавляется фамилия.
+	const names = $derived(
+		shortNames([
+			...members
+				.filter((m) => m.status !== 'deleted')
+				.map((m) => ({ id: m.userId, displayName: m.displayName })),
+			...items.map((c) => c.author)
+		])
+	);
+
+	$effect(() => {
+		const g = currentGroup()?.id ?? groups()[0]?.id;
+		if (!g) return;
+		const key = `members:${g}`;
+		members = peek<Member[]>(key) ?? [];
+		get<Member[]>(`/api/groups/${g}/members`)
+			.then((m) => (members = put(key, m)))
+			.catch(() => {});
+	});
 	let text = $state('');
 	let busy = $state(false);
 
@@ -55,7 +80,7 @@
 	{#each items as c (c.id)}
 		<div class="comment" in:fly={{ y: 6 }} out:slide>
 			<div class="head">
-				<Author person={c.author} size={24} />
+				<Author person={c.author} size={24} label={names.get(c.author.id)} />
 				<span class="faint small num">{fmtAgo(c.createdAt)}</span>
 				{#if c.pending}<span
 						class="chip amber"

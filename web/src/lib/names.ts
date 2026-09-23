@@ -14,6 +14,52 @@ export function firstName(fio: string): string {
 	return w[1] ?? w[0] ?? '';
 }
 
+/** Фамилия из ФИО — первое слово. */
+export function lastName(fio: string): string {
+	const w = words(fio);
+	return w.length > 1 ? w[0] : '';
+}
+
+const norm = (s: string) => s.toLowerCase().replaceAll('ё', 'е');
+
+/**
+ * Короткие подписи людей в обсуждении: только имя, а если имя встречается у разных людей — имя и
+ * фамилия (дальше — инициал отчества, в крайнем случае ФИО целиком).
+ */
+export function shortNames(
+	people: { id: number; displayName: string; deleted?: boolean }[]
+): Map<number, string> {
+	const fio = new Map<number, string>();
+	for (const p of people) if (!p.deleted && p.displayName) fio.set(p.id, p.displayName);
+	const label = (f: string, level: number): string => {
+		const w = words(f);
+		const first = firstName(f);
+		const last = lastName(f);
+		if (level === 0) return first;
+		if (level === 1) return last ? `${first} ${last}` : f;
+		if (level === 2 && w.length > 2) return `${first} ${last} ${w[2][0]}.`;
+		return w.join(' ');
+	};
+	const level = new Map<number, number>([...fio.keys()].map((id) => [id, 0]));
+	for (let round = 0; round < 3; round++) {
+		const byLabel = new Map<string, number[]>();
+		for (const [id, f] of fio) {
+			const key = norm(label(f, level.get(id)!));
+			byLabel.set(key, [...(byLabel.get(key) ?? []), id]);
+		}
+		let changed = false;
+		for (const ids of byLabel.values()) {
+			if (ids.length < 2) continue;
+			for (const id of ids) {
+				level.set(id, level.get(id)! + 1);
+				changed = true;
+			}
+		}
+		if (!changed) break;
+	}
+	return new Map([...fio].map(([id, f]) => [id, label(f, level.get(id)!)]));
+}
+
 /** Текст ошибки или пустая строка, если ФИО записано верно. */
 export function fioError(fio: string): string {
 	const w = words(fio);

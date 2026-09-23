@@ -68,6 +68,9 @@
 	--inverse-muted: #a3a6ae;
 	--amber: #b86a00;
 	--amber-soft: #fcf0da;
+	/* Плашка «Срочно»: яркий янтарь с тёмным текстом в обеих темах */
+	--urgent: #f5a524;
+	--urgent-text: #1f1400;
 	--danger: #d93a2f;
 	--danger-soft: #fce9e7;
 	--ok: #1f8a4c;

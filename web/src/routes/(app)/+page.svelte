@@ -42,8 +42,14 @@
 	const next = $derived(open.length ? open.reduce((a, b) => (b.dueAt < a.dueAt ? b : a)) : null);
 	const days = $derived(data ? byDay(data.upcoming) : []);
 	const overdue = $derived(data ? data.overdue.filter((h) => !h.done) : []);
-	const urgent = $derived(data ? [...data.pinned, ...data.news].filter((n) => n.urgent) : []);
-	const feed = $derived(data ? [...data.pinned, ...data.news].filter((n) => !n.urgent) : []);
+	// Новости на главной — сразу под сводкой: срочные первыми, затем закреплённые и свежие.
+	const news = $derived.by(() => {
+		if (!data) return [];
+		const all = [...data.pinned, ...data.news].filter(
+			(n, i, a) => a.findIndex((x) => x.id === n.id) === i
+		);
+		return [...all.filter((n) => n.urgent), ...all.filter((n) => !n.urgent)].slice(0, 3);
+	});
 	const sortDone = (list: Today['upcoming']) =>
 		[...list].sort((a, b) => Number(a.done) - Number(b.done) || a.dueAt - b.dueAt);
 	const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -103,17 +109,19 @@
 		{/if}
 	</div>
 
-	{#each urgent as n (n.id)}
-		<a class="tip amber urgent" href="/news/{n.id}" in:fly={{ y: 6 }}>
-			<span
-				><strong>{n.title}.</strong>
-				{n.bodyMd
-					.split('\n')[0]
-					.replace(/[*_`#>[\]]/g, '')
-					.slice(0, 160)}</span
-			>
-		</a>
-	{/each}
+	{#if news.length}
+		<section class="block">
+			<div class="section-head">
+				<h2>Новости</h2>
+				<a class="more-link" href="/news">Все новости</a>
+			</div>
+			<div class="stack">
+				{#each news as n, i (n.id)}
+					<div in:fly={{ y: 10, delay: stagger(i, 40) }}><NewsCard item={n} compact /></div>
+				{/each}
+			</div>
+		</section>
+	{/if}
 
 	{#if overdue.length}
 		<section class="block" out:slide>
@@ -168,20 +176,6 @@
 				{/each}
 			</ol>
 		{/if}
-	</section>
-
-	<section class="block">
-		<div class="section-head">
-			<h2>Новости</h2>
-			<a class="more-link" href="/news">Все новости</a>
-		</div>
-		<div class="stack">
-			{#each feed as n, i (n.id)}
-				<div in:fly={{ y: 10, delay: stagger(i, 40) }}><NewsCard item={n} /></div>
-			{:else}
-				{#if urgent.length === 0}<div class="card"><Empty title="Новостей пока нет" /></div>{/if}
-			{/each}
-		</div>
 	</section>
 {/if}
 
@@ -289,13 +283,6 @@
 	.summary .bad,
 	.summary .bad strong {
 		color: var(--danger);
-	}
-	.urgent {
-		margin-bottom: var(--s5);
-		text-decoration: none;
-	}
-	.urgent:hover strong {
-		text-decoration: underline;
 	}
 	.danger {
 		color: var(--danger);
