@@ -36,6 +36,8 @@ public enum Permission {
   MANAGE_PERMISSIONS(false),
   /** Видеть логины участников (в списке участников и поиске). */
   VIEW_USERNAMES(false),
+  /** Скачать архив группы: участники, новости, задания, материалы. */
+  EXPORT_GROUP(false),
   /** Видеть группу и её контент. */
   VIEW_GROUP(false);
 

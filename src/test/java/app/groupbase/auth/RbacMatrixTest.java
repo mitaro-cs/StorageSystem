@@ -40,6 +40,7 @@ class RbacMatrixTest {
     {VIEW_AUDIT, "yyy--"},
     {MANAGE_PERMISSIONS, "y-y--"},
     {VIEW_USERNAMES, "y-y--"},
+    {EXPORT_GROUP, "y-y--"},
     {VIEW_GROUP, "yyyyy"},
   };
 

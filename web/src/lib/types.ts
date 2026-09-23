@@ -18,6 +18,7 @@ export type Permission =
 	| 'view_audit'
 	| 'manage_permissions'
 	| 'view_usernames'
+	| 'export_group'
 	| 'view_group';
 
 export type GroupRole = 'headman' | 'deputy' | 'student';

@@ -3,7 +3,7 @@
 	import NotificationSettings from '$lib/settings/NotificationSettings.svelte';
 	import { fioError } from '$lib/names';
 	import { goto } from '$app/navigation';
-	import { LogOut, Settings, Users, Newspaper, BookOpen } from '@lucide/svelte';
+	import { Download, LogOut, Settings, Users, Newspaper, BookOpen } from '@lucide/svelte';
 	import { encode } from 'uqr';
 	import { del, get, patch, post } from '$lib/api';
 	import { t } from '$lib/i18n/ru';
@@ -276,6 +276,17 @@
 </section>
 
 <section class="card block">
+	<h2>Мои данные</h2>
+	<p class="muted">
+		ZIP-файл со всем, что связано с вами: профиль, отметки «сделано», комментарии, ваши публикации и
+		загруженные файлы.
+	</p>
+	<div>
+		<a class="download" href="/api/me/export" download><Download size={17} /> Скачать мои данные</a>
+	</div>
+</section>
+
+<section class="card block">
 	<h2>Выход и удаление</h2>
 	<div class="row wrap">
 		<Button onclick={logout}><LogOut size={16} /> Выйти</Button>
@@ -472,5 +483,21 @@
 	}
 	.kv dd.low {
 		color: var(--danger);
+	}
+	.download {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		height: 44px;
+		padding: 0 20px;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--r-full);
+		background: var(--surface);
+		color: var(--text);
+		font-weight: 580;
+	}
+	.download:hover {
+		background: var(--surface-2);
+		text-decoration: none;
 	}
 </style>

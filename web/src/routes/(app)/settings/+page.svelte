@@ -8,6 +8,7 @@
 	import Accounts from '$lib/settings/Accounts.svelte';
 	import Permissions from '$lib/settings/Permissions.svelte';
 	import GroupSettings from '$lib/settings/GroupSettings.svelte';
+	import GroupExport from '$lib/settings/GroupExport.svelte';
 	import InstancePanel from '$lib/settings/InstancePanel.svelte';
 	import Audit from '$lib/settings/Audit.svelte';
 
@@ -25,7 +26,8 @@
 			},
 			{ value: 'group', label: 'Группа', show: !!group && isAdmin() },
 			{ value: 'instance', label: 'Инстанс', show: isAdmin() },
-			{ value: 'audit', label: 'Журнал', show: !!group && can('view_audit', group.id) }
+			{ value: 'audit', label: 'Журнал', show: !!group && can('view_audit', group.id) },
+			{ value: 'export', label: 'Архив', show: !!group && can('export_group', group.id) }
 		].filter((t) => t.show)
 	);
 	const tab = $derived(
@@ -77,6 +79,7 @@
 	{:else if group && tab === 'group'}<GroupSettings {group} />
 	{:else if tab === 'instance'}<InstancePanel />
 	{:else if group && tab === 'audit'}<Audit groupId={isAdmin() ? null : group.id} />
+	{:else if group && tab === 'export'}<GroupExport groupId={group.id} groupName={group.name} />
 	{/if}
 {/if}
 

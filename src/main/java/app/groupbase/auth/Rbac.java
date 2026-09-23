@@ -44,6 +44,7 @@ public final class Rbac {
             VIEW_AUDIT,
             MANAGE_PERMISSIONS,
             VIEW_USERNAMES,
+            EXPORT_GROUP,
             VIEW_GROUP));
     GROUP_DEFAULTS.put(
         GroupRole.DEPUTY,
