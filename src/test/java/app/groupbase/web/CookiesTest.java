@@ -2,21 +2,16 @@ package app.groupbase.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import app.groupbase.TestProps;
 import app.groupbase.config.GroupbaseProperties;
-import java.nio.file.Path;
-import java.time.ZoneId;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 class CookiesTest {
 
   private static GroupbaseProperties props(boolean insecure) {
-    return new GroupbaseProperties(
-        Path.of("."),
-        "",
-        ZoneId.of("UTC"),
-        new GroupbaseProperties.Http(8080, "127.0.0.1", insecure),
-        new GroupbaseProperties.Auth(30, true, 7, 5, 15));
+    return TestProps.of(Map.of("groupbase.http.insecure", String.valueOf(insecure)));
   }
 
   @Test

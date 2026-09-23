@@ -3,25 +3,15 @@ package app.groupbase.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import app.groupbase.TestClock;
-import app.groupbase.config.GroupbaseProperties;
-import java.nio.file.Path;
+import app.groupbase.TestProps;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 
 class LoginThrottleTest {
 
   private final TestClock clock = new TestClock(Instant.parse("2026-01-01T00:00:00Z"));
-  private final LoginThrottle throttle =
-      new LoginThrottle(
-          clock,
-          new GroupbaseProperties(
-              Path.of("."),
-              "",
-              ZoneId.of("UTC"),
-              new GroupbaseProperties.Http(8080, "127.0.0.1", false),
-              new GroupbaseProperties.Auth(30, true, 7, 5, 15)));
+  private final LoginThrottle throttle = new LoginThrottle(clock, TestProps.defaults());
 
   @Test
   void fiveFailuresPerIpBlockUntilWindowPasses() {

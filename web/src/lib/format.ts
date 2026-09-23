@@ -91,3 +91,16 @@ export function hueFor(id: number): number {
 	x ^= x >>> 15;
 	return x % 360;
 }
+
+/** «1,2 МБ», «340 КБ», «12 Б». */
+export function fmtSize(bytes: number): string {
+	if (bytes < 1024) return `${bytes} Б`;
+	const units = ['КБ', 'МБ', 'ГБ'];
+	let v = bytes / 1024;
+	let i = 0;
+	while (v >= 1024 && i < units.length - 1) {
+		v /= 1024;
+		i++;
+	}
+	return `${v.toLocaleString('ru-RU', { maximumFractionDigits: v < 10 ? 1 : 0 })} ${units[i]}`;
+}

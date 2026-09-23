@@ -89,7 +89,11 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest req, HttpServletResponse res, FilterChain chain)
       throws ServletException, IOException {
-    res.setHeader("Content-Security-Policy", csp);
+    // Для выдачи файлов политику задаёт FileController: песочница для всего, кроме PDF
+    // (встроенный просмотрщик Chrome не работает под object-src 'none' и sandbox).
+    if (!req.getRequestURI().startsWith("/api/files/")) {
+      res.setHeader("Content-Security-Policy", csp);
+    }
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader("Referrer-Policy", "no-referrer");

@@ -122,7 +122,7 @@ export interface Homework {
 	subject: SubjectRef;
 	groups: GroupRef[];
 	comments: number;
-	attachments: number[];
+	attachments: FileInfo[];
 	can: ItemCan;
 }
 
@@ -204,4 +204,45 @@ export interface AuditEntry {
 	targetId: number | null;
 	details: string | null;
 	ip: string | null;
+}
+
+export interface FileInfo {
+	id: number;
+	name: string;
+	mime: string;
+	size: number;
+}
+
+export interface Material {
+	id: number;
+	subjectId: number;
+	subjectName: string;
+	subjectColor: string;
+	folderId: number | null;
+	kind: 'file' | 'link';
+	title: string;
+	description: string;
+	url: string | null;
+	file: FileInfo | null;
+	author: Person;
+	status: 'published' | 'pending' | 'rejected';
+	hidden: boolean;
+	createdAt: number;
+	comments: number;
+	can: { edit: boolean; delete: boolean; moderate: boolean };
+}
+
+export interface Folder {
+	id: number;
+	parentId: number | null;
+	name: string;
+	count: number;
+}
+
+export interface MaterialListing {
+	path: { id: number; name: string }[];
+	folders: Folder[];
+	materials: Material[];
+	canUpload: boolean;
+	canSuggest: boolean;
 }

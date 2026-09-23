@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { ArrowLeft, EyeOff } from '@lucide/svelte';
 	import { del, get, put } from '$lib/api';
-	import { fmtAgo, fmtDue, relativeDay } from '$lib/format';
+	import { fmtAgo, fmtDue, fmtSize, relativeDay } from '$lib/format';
 	import { can, isMulti } from '$lib/session.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import type { Homework } from '$lib/types';
@@ -17,6 +17,7 @@
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 	import Prose from '$lib/ui/Prose.svelte';
+	import FileIcon from '$lib/content/FileIcon.svelte';
 
 	let item = $state<Homework | null>(null);
 	let missing = $state(false);
@@ -121,6 +122,17 @@
 			</div>
 		</div>
 		{#if item.bodyHtml}<Prose html={item.bodyHtml} />{/if}
+		{#if item.attachments.length}
+			<div class="files">
+				{#each item.attachments as f (f.id)}
+					<a class="file" href="/api/files/{f.id}" target="_blank" rel="noopener">
+						<FileIcon mime={f.mime} size={18} />
+						<span class="fname">{f.name}</span>
+						<span class="faint small num">{fmtSize(f.size)}</span>
+					</a>
+				{/each}
+			</div>
+		{/if}
 		<footer class="row faint small">
 			<Author person={item.author} size={22} />
 			<span class="num">· {fmtAgo(item.createdAt)}</span>
@@ -184,5 +196,31 @@
 	}
 	footer {
 		gap: 6px;
+	}
+	.files {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+		gap: 8px;
+	}
+	.file {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 8px 10px;
+		border-radius: var(--r);
+		background: var(--surface-2);
+		color: var(--text);
+	}
+	.file:hover {
+		text-decoration: none;
+		background: var(--surface-3);
+	}
+	.fname {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 14px;
 	}
 </style>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fmtDue, hueFor, initials, plural, relativeDay } from './format';
+import { fmtDue, fmtSize, hueFor, initials, plural, relativeDay } from './format';
 
 describe('plural', () => {
 	const forms: [string, string, string] = ['файл', 'файла', 'файлов'];
@@ -49,5 +49,13 @@ describe('fmtDue', () => {
 	it('для близких дат пишет относительный день', () => {
 		const now = new Date(2026, 8, 23, 12, 0).getTime();
 		expect(fmtDue(new Date(2026, 8, 24, 23, 59).getTime(), now)).toBe('завтра, 23:59');
+	});
+});
+
+describe('fmtSize', () => {
+	it('подбирает единицы', () => {
+		expect(fmtSize(12)).toBe('12 Б');
+		expect(fmtSize(1536)).toBe('1,5 КБ');
+		expect(fmtSize(5 * 1024 * 1024)).toBe('5 МБ');
 	});
 });

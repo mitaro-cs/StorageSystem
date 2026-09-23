@@ -34,7 +34,13 @@ public class HomeworkService {
     ALL
   }
 
-  public record Input(Long subjectId, String title, String body, Long dueAt, List<Long> groupIds) {}
+  public record Input(
+      Long subjectId,
+      String title,
+      String body,
+      Long dueAt,
+      List<Long> groupIds,
+      List<Long> attachments) {}
 
   public record Can(boolean edit, boolean delete, boolean hide) {}
 
@@ -52,7 +58,7 @@ public class HomeworkService {
       NewsService.SubjectRef subject,
       List<SubjectStore.GroupRef> groups,
       int comments,
-      List<Long> attachments,
+      List<MaterialService.FileInfo> attachments,
       Can can) {}
 
   public record Published(
@@ -239,6 +245,7 @@ public class HomeworkService {
             .query(Long.class)
             .single();
     targets.set(Targets.Kind.HOMEWORK, id, to);
+    setAttachments(actor, id, in.attachments());
     audit.log(actor, to.iterator().next(), "homework.create", "homework", id);
     Item item = get(actor, id);
     events.publishEvent(new Published(id, to, actor.id(), title, due, item.subject().name()));
@@ -265,6 +272,9 @@ public class HomeworkService {
       Set<Long> to =
           audience.resolve(actor, r.subjectId(), in.groupIds(), Permission.PUBLISH_HOMEWORK);
       targets.set(Targets.Kind.HOMEWORK, id, to);
+    }
+    if (in.attachments() != null) {
+      setAttachments(actor, id, in.attachments());
     }
     return get(actor, id);
   }
@@ -348,7 +358,7 @@ public class HomeworkService {
     }
     List<Long> ids = rows.stream().map(Row::id).toList();
     Map<Long, List<Long>> t = targets.of(Targets.Kind.HOMEWORK, ids);
-    Map<Long, List<Long>> files = attachments(ids);
+    Map<Long, List<MaterialService.FileInfo>> files = attachments(ids);
     Set<Long> authorIds = new HashSet<>();
     Set<Long> groupIds = new HashSet<>();
     for (Row r : rows) {
@@ -387,8 +397,68 @@ public class HomeworkService {
     return out;
   }
 
-  /** Вложения появятся вместе с файлами (этап 4); пока всегда пусто. */
-  protected Map<Long, List<Long>> attachments(List<Long> homeworkIds) {
-    return Map.of();
+  /**
+   * Прикрепляет файлы к заданию. Новые файлы должен был загрузить сам автор; уже прикреплённые к
+   * этому заданию остаются. Открепленные файлы удаляет фоновая уборка сирот.
+   */
+  private void setAttachments(Actor actor, long id, List<Long> fileIds) {
+    List<Long> wanted = fileIds == null ? List.of() : fileIds.stream().distinct().toList();
+    if (wanted.size() > 10) {
+      throw ApiException.invalid("attachments", "Не больше 10 вложений");
+    }
+    List<Long> current =
+        attachments(List.of(id)).getOrDefault(id, List.of()).stream()
+            .map(MaterialService.FileInfo::id)
+            .toList();
+    for (Long f : wanted) {
+      if (current.contains(f)) {
+        continue;
+      }
+      Long uploader =
+          db.sql("SELECT uploaded_by FROM files WHERE id = ?")
+              .param(f)
+              .query(Long.class)
+              .optional()
+              .orElseThrow(ApiException::notFound);
+      boolean used =
+          db.sql(
+                      "SELECT (SELECT count(*) FROM materials WHERE file_id = ?)"
+                          + " + (SELECT count(*) FROM homework_attachments WHERE file_id = ?)")
+                  .params(f, f)
+                  .query(Integer.class)
+                  .single()
+              > 0;
+      if (uploader == null || uploader != actor.id() || used) {
+        throw ApiException.forbidden("Этот файл нельзя прикрепить");
+      }
+    }
+    db.sql("DELETE FROM homework_attachments WHERE homework_id = ?").param(id).update();
+    for (int i = 0; i < wanted.size(); i++) {
+      db.sql("INSERT INTO homework_attachments (homework_id, file_id, position) VALUES (?, ?, ?)")
+          .params(id, wanted.get(i), i)
+          .update();
+    }
+  }
+
+  private Map<Long, List<MaterialService.FileInfo>> attachments(List<Long> homeworkIds) {
+    Map<Long, List<MaterialService.FileInfo>> out = new HashMap<>();
+    if (homeworkIds.isEmpty()) {
+      return out;
+    }
+    db.sql(
+            """
+            SELECT a.homework_id, f.id, f.name, f.mime, f.size FROM homework_attachments a
+            JOIN files f ON f.id = a.file_id
+            WHERE a.homework_id IN (:ids) ORDER BY a.position
+            """)
+        .param("ids", homeworkIds)
+        .query(
+            rs -> {
+              out.computeIfAbsent(rs.getLong(1), k -> new ArrayList<>())
+                  .add(
+                      new MaterialService.FileInfo(
+                          rs.getLong(2), rs.getString(3), rs.getString(4), rs.getLong(5)));
+            });
+    return out;
   }
 }

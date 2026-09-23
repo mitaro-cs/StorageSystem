@@ -14,6 +14,7 @@
 	import NewsFeed from '$lib/content/NewsFeed.svelte';
 	import HomeworkBoard from '$lib/content/HomeworkBoard.svelte';
 	import MemberList from '$lib/content/MemberList.svelte';
+	import MaterialBrowser from '$lib/content/MaterialBrowser.svelte';
 	import SubjectEditor from '$lib/content/SubjectEditor.svelte';
 
 	let subject = $state<Subject | null>(null);
@@ -165,7 +166,7 @@
 	{#if tab === 'homework'}
 		<HomeworkBoard subjectId={subject.id} title={false} />
 	{:else if tab === 'materials'}
-		<div class="card"><Empty title="Материалы появятся на следующем этапе" /></div>
+		<MaterialBrowser subjectId={subject.id} subjectName={subject.name} />
 	{:else if tab === 'members'}
 		<MemberList groupIds={subject.groups.map((g) => g.id)} />
 	{:else}

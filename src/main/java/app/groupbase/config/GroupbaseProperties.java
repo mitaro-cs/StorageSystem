@@ -15,7 +15,8 @@ public record GroupbaseProperties(
     @DefaultValue("") String baseUrl,
     @DefaultValue("Europe/Moscow") ZoneId timezone,
     @DefaultValue Http http,
-    @DefaultValue Auth auth) {
+    @DefaultValue Auth auth,
+    @DefaultValue Uploads uploads) {
 
   /**
    * @param insecure разрешить работу по HTTP (режим «только локальная сеть»): cookie без Secure.
@@ -36,6 +37,19 @@ public record GroupbaseProperties(
       @DefaultValue("7") int activationDays,
       @DefaultValue("5") int maxLoginAttempts,
       @DefaultValue("15") int loginWindowMinutes) {}
+
+  /**
+   * @param maxFileMb лимит на один загружаемый файл
+   */
+  public record Uploads(@DefaultValue("50") int maxFileMb) {
+    public long maxBytes() {
+      return maxFileMb * 1024L * 1024L;
+    }
+  }
+
+  public Path filesDir() {
+    return dataDir.resolve("files");
+  }
 
   public Path secretsDir() {
     return dataDir.resolve("secrets");

@@ -28,7 +28,11 @@ import org.springframework.test.context.DynamicPropertySource;
 @SpringBootTest(
     classes = GroupbaseApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = {"groupbase.http.insecure=true", "groupbase.auth.require-staff-totp=false"})
+    properties = {
+      "groupbase.http.insecure=true",
+      "groupbase.auth.require-staff-totp=false",
+      "groupbase.uploads.max-file-mb=1"
+    })
 @Import(IntegrationTest.ClockOverride.class)
 public abstract class IntegrationTest {
 
@@ -47,6 +51,7 @@ public abstract class IntegrationTest {
   }
 
   @LocalServerPort protected int port;
+  @Autowired protected app.groupbase.config.GroupbaseProperties props;
   @Autowired protected TestClock clock;
   @Autowired protected SetupService setup;
   @Autowired protected Clock springClock;

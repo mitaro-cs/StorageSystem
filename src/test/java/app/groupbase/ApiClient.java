@@ -57,6 +57,40 @@ public class ApiClient {
     return send("DELETE", path, body);
   }
 
+  /** Загрузка файла сырым телом, как это делает фронт. */
+  public Response upload(String name, byte[] data) {
+    try {
+      if (csrfToken() == null) {
+        get("/api/health");
+      }
+      HttpRequest req =
+          HttpRequest.newBuilder(URI.create(base.apply(port) + "/api/files"))
+              .POST(HttpRequest.BodyPublishers.ofByteArray(data))
+              .header("Content-Type", "application/octet-stream")
+              .header(
+                  "X-File-Name",
+                  java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8))
+              .header("X-CSRF-Token", csrfToken())
+              .build();
+      HttpResponse<String> r = http.send(req, HttpResponse.BodyHandlers.ofString());
+      JsonNode json = r.body().isEmpty() ? null : JSON.readTree(r.body());
+      return new Response(r.statusCode(), json, r.body(), r);
+    } catch (IOException | InterruptedException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /** Скачивание как байты. */
+  public HttpResponse<byte[]> download(String path) {
+    try {
+      return http.send(
+          HttpRequest.newBuilder(URI.create(base.apply(port) + path)).build(),
+          HttpResponse.BodyHandlers.ofByteArray());
+    } catch (IOException | InterruptedException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   /** Запрос без CSRF-заголовка (проверка защиты). */
   public Response postWithoutCsrf(String path, Object body) {
     return send("POST", path, body, false);

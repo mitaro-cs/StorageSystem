@@ -4,7 +4,8 @@
 	import { subjects } from '$lib/data.svelte';
 	import { fromLocalInput, toLocalInput } from '$lib/format';
 	import { toast } from '$lib/toasts.svelte';
-	import type { Homework } from '$lib/types';
+	import type { FileInfo, Homework } from '$lib/types';
+	import DropZone from './DropZone.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import MarkdownEditor from '$lib/ui/MarkdownEditor.svelte';
@@ -24,6 +25,7 @@
 	let body = $state('');
 	let due = $state('');
 	let groupIds = $state<number[]>([]);
+	let files = $state<FileInfo[]>([]);
 	let error = $state('');
 	let busy = $state(false);
 
@@ -52,6 +54,7 @@
 		body = edit?.bodyMd ?? '';
 		due = edit ? toLocalInput(edit.dueAt) : defaultDue();
 		groupIds = edit?.groups.map((g) => g.id) ?? [];
+		files = edit ? [...edit.attachments] : [];
 		error = '';
 	});
 
@@ -69,7 +72,14 @@
 		busy = true;
 		error = '';
 		try {
-			const payload = { subjectId: subject, title, body, dueAt: fromLocalInput(due), groupIds };
+			const payload = {
+				subjectId: subject,
+				title,
+				body,
+				dueAt: fromLocalInput(due),
+				groupIds,
+				attachments: files.map((f) => f.id)
+			};
 			const item = edit
 				? await patch<Homework>(`/api/homework/${edit.id}`, payload)
 				: await post<Homework>('/api/homework', payload);
@@ -113,6 +123,7 @@
 			/>
 		</div>
 		<MarkdownEditor bind:value={body} label="Подробности" />
+		<DropZone bind:files label="Вложения" />
 		<GroupPicker options={targetOptions} bind:selected={groupIds} />
 		{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 	</form>

@@ -4,6 +4,7 @@ import app.groupbase.audit.AuditService;
 import app.groupbase.auth.LoginService;
 import app.groupbase.auth.LoginThrottle;
 import app.groupbase.auth.SessionService;
+import app.groupbase.files.FileStore;
 import app.groupbase.store.UserTokenStore;
 import java.time.Clock;
 import org.slf4j.Logger;
@@ -26,6 +27,7 @@ class Maintenance {
   private final LoginThrottle throttle;
   private final LoginService login;
   private final AuditService audit;
+  private final FileStore files;
   private final Clock clock;
 
   Maintenance(
@@ -34,7 +36,9 @@ class Maintenance {
       LoginThrottle throttle,
       LoginService login,
       AuditService audit,
+      FileStore files,
       Clock clock) {
+    this.files = files;
     this.sessions = sessions;
     this.tokens = tokens;
     this.throttle = throttle;
@@ -54,6 +58,7 @@ class Maintenance {
     int s = sessions.purgeExpired();
     int t = tokens.deleteExpired(clock.millis());
     int ips = audit.forgetOldIps();
-    log.info("Уборка: сессий {}, ссылок {}, IP в аудите {}", s, t, ips);
+    int orphans = files.deleteOrphans(clock.millis() - java.time.Duration.ofDays(1).toMillis());
+    log.info("Уборка: сессий {}, ссылок {}, IP в аудите {}, файлов {}", s, t, ips, orphans);
   }
 }
