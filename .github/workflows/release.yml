@@ -117,6 +117,10 @@ jobs:
         run: |
           npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} \
             --config "{\"version\":\"${{ needs.jar.outputs.version }}\"}"
+      # Собранное приложение должно запуститься (сборку для Intel на Apple Silicon не запустить).
+      - name: Проверка запуска
+        if: ${{ !matrix.cross-jdk }}
+        run: scripts/desktop-smoke.sh desktop/src-tauri/target/${{ matrix.target }}/release/groupbase-desktop
       - name: Имя файла для выпуска
         run: |
           dir="desktop/src-tauri/target/${{ matrix.target }}/release/bundle"

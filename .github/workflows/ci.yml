@@ -119,6 +119,39 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --locked -- -D warnings
 
+  desktop-run:
+    name: Приложение для компьютера — запуск (${{ matrix.os }})
+    needs: java
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: groupbase-jar
+          path: target
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: scripts/desktop-resources.sh
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - run: cargo build --locked
+        working-directory: desktop/src-tauri
+      - run: cargo test --locked
+        working-directory: desktop/src-tauri
+      - name: Запуск приложения
+        run: scripts/desktop-smoke.sh desktop/src-tauri/target/debug/groupbase-desktop
+
   vulns:
     name: Уязвимости зависимостей
     runs-on: ubuntu-latest

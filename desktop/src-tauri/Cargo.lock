@@ -1561,6 +1561,7 @@ dependencies = [
 name = "groupbase-desktop"
 version = "0.1.0"
 dependencies = [
+ "dunce",
  "keepawake",
  "serde",
  "serde_json",

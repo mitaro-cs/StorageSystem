@@ -41,12 +41,25 @@ public class DesktopCommand implements Callable<Integer> {
 
   public static final int RESTART = 3;
 
-  @Option(names = "--data", required = true, description = "Каталог данных.")
+  /** Оболочка передаёт каталог так: переменные окружения на Windows всегда в Юникоде. */
+  static final String ENV_DATA = "GROUPBASE_DESKTOP_DATA";
+
+  @Option(
+      names = "--data",
+      description = "Каталог данных (по умолчанию — из переменной " + ENV_DATA + ").")
   Path data;
 
   @Override
   public Integer call() throws Exception {
     DesktopBridge.Out out = DesktopBridge.Out.stdout();
+    if (data == null) {
+      String env = System.getenv(ENV_DATA);
+      if (env == null || env.isBlank()) {
+        out.event("error", Map.of("message", "Не задан каталог данных"));
+        return 2;
+      }
+      data = Path.of(env);
+    }
     ConfigurableApplicationContext ctx;
     int port;
     try {

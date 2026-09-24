@@ -76,10 +76,10 @@ fn main() {
         ])
         .setup(move |app| {
             // GROUPBASE_DATA — другой каталог данных (разработка, тесты, несколько групп).
-            let data = match std::env::var_os("GROUPBASE_DATA") {
+            let data = plain(&match std::env::var_os("GROUPBASE_DATA") {
                 Some(dir) => PathBuf::from(dir),
                 None => app.path().app_data_dir()?,
-            };
+            });
             fs::create_dir_all(data.join("logs"))?;
             app.manage(App {
                 server: Mutex::new(Server::default()),
@@ -314,7 +314,7 @@ fn runtime(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
     ) {
         return Ok((java.into(), jar.into()));
     }
-    let res = app.path().resource_dir().map_err(|e| e.to_string())?;
+    let res = plain(&app.path().resource_dir().map_err(|e| e.to_string())?);
     let java =
         res.join("runtime")
             .join("bin")
@@ -338,6 +338,12 @@ fn runtime(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
     Ok((java, jar))
 }
 
+/// Путь без префикса `\\?\` Windows: Tauri отдаёт каталог ресурсов через canonicalize(), а Java с
+/// таким путём в classpath не находит классы в jar.
+fn plain(path: &Path) -> PathBuf {
+    dunce::simplified(path).to_path_buf()
+}
+
 fn start_server(app: &AppHandle) {
     set_status(app, "Запускаем сервер группы…", false);
     let st = app.state::<App>();
@@ -352,6 +358,16 @@ fn start_server(app: &AppHandle) {
         .open(data.join("logs").join("java.log"))
         .ok();
     let mut cmd = Command::new(&java);
+    // Java на Windows читает аргументы в кодировке системы: путь с кириллицей в имени пользователя
+    // может не дойти. Поэтому jar — относительно рабочего каталога, а каталог данных — через
+    // переменную окружения (она всегда в Юникоде).
+    if let Some(dir) = jar.parent() {
+        cmd.current_dir(dir);
+    }
+    let jar_name = jar
+        .file_name()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| jar.clone());
     cmd.args([
         "-Xmx512m",
         "-XX:+UseSerialGC",
@@ -361,10 +377,9 @@ fn start_server(app: &AppHandle) {
         "--enable-native-access=ALL-UNNAMED",
         "-jar",
     ])
-    .arg(&jar)
+    .arg(&jar_name)
     .arg("desktop")
-    .arg("--data")
-    .arg(&data)
+    .env("GROUPBASE_DESKTOP_DATA", &data)
     .stdin(Stdio::piped())
     .stdout(Stdio::piped())
     .stderr(java_log.map(Stdio::from).unwrap_or_else(Stdio::null));
@@ -721,4 +736,24 @@ fn write_pref(app: &AppHandle, key: &str, value: bool) {
         .unwrap_or_else(|| serde_json::json!({}));
     v[key] = Value::Bool(value);
     let _ = fs::write(path, v.to_string());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(windows)]
+    fn verbatim_windows_paths_are_simplified() {
+        assert_eq!(
+            plain(Path::new(r"\\?\C:\Users\Омар\AppData\Local\groupbase")),
+            PathBuf::from(r"C:\Users\Омар\AppData\Local\groupbase")
+        );
+    }
+
+    #[test]
+    fn ordinary_paths_stay() {
+        let p = std::env::temp_dir().join("groupbase");
+        assert_eq!(plain(&p), p);
+    }
 }
