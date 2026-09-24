@@ -36,6 +36,47 @@ public record Tool(String name, URI url, String sha256) {
     Files.createDirectories(target.getParent());
     Path part = target.resolveSibling(target.getFileName() + ".part");
     try {
+      download(part);
+      part.toFile().setExecutable(true, true);
+      Files.move(part, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+      return target;
+    } finally {
+      Files.deleteIfExists(part);
+    }
+  }
+
+  /**
+   * Архив (.zip или .tar.gz) с программой внутри: скачивается, проверяется целиком, из него
+   * достаётся один файл {@code entry}.
+   */
+  public Path ensureFromArchive(Path target, String entry) throws IOException {
+    if (Files.isRegularFile(target)) {
+      return target;
+    }
+    Files.createDirectories(target.getParent());
+    Path archive = target.resolveSibling(target.getFileName() + ".archive.part");
+    Path part = target.resolveSibling(target.getFileName() + ".part");
+    try {
+      download(archive);
+      try (InputStream in = Files.newInputStream(archive)) {
+        if (url.getPath().endsWith(".zip")) {
+          Archives.extractZip(in, entry, part);
+        } else {
+          Archives.extractTarGz(in, entry, part);
+        }
+      }
+      part.toFile().setExecutable(true, true);
+      Files.move(part, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+      return target;
+    } finally {
+      Files.deleteIfExists(archive);
+      Files.deleteIfExists(part);
+    }
+  }
+
+  /** Скачать в файл и сверить SHA-256; при несовпадении файл не остаётся. */
+  private void download(Path part) throws IOException {
+    try {
       HttpRequest req =
           HttpRequest.newBuilder(url)
               .timeout(Duration.ofMinutes(5))
@@ -53,18 +94,14 @@ public record Tool(String name, URI url, String sha256) {
       }
       String got = HexFormat.of().formatHex(sha.digest());
       if (!got.equalsIgnoreCase(sha256)) {
+        Files.deleteIfExists(part);
         throw new IOException("Скачанный " + name + " не совпал с ожидаемым — файл не запущен");
       }
-      part.toFile().setExecutable(true, true);
-      Files.move(part, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-      return target;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Скачивание прервано", e);
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException(e);
-    } finally {
-      Files.deleteIfExists(part);
     }
   }
 }

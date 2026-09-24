@@ -63,6 +63,7 @@ public class AccessService {
   public enum Mode {
     OFF,
     FXTUNNEL,
+    CLOUDPUB,
     LAN,
     MANUAL;
 
@@ -99,6 +100,9 @@ public class AccessService {
 
   public record Lan(boolean available, List<String> urls) {}
 
+  /** CloudPub: вход выполнен, адрес (появляется после первого подключения). */
+  public record Cp(boolean loggedIn, String url) {}
+
   public record View(
       String mode,
       String state,
@@ -107,6 +111,7 @@ public class AccessService {
       boolean fixed,
       boolean desktop,
       Fx fxtunnel,
+      Cp cloudpub,
       Lan lan,
       String manualUrl) {}
 
@@ -125,6 +130,8 @@ public class AccessService {
   static final String FX_SUBDOMAIN = "access.fxtunnel.subdomain";
   static final String FX_SUGGESTED = "access.fxtunnel.suggested";
   static final String MANUAL_URL = "access.manual.url";
+  static final String CP_URL = "access.cloudpub.url";
+  static final String CP_PORT = "access.cloudpub.port";
   private static final String TOKEN_CONTEXT = "fxtunnel-token";
 
   public static final String FX_DOMAIN = "fxtun.ru";
@@ -155,6 +162,7 @@ public class AccessService {
   private final Clock clock;
   private final FxTunnelApi api;
   private final Path fxBinaryOverride;
+  private final CloudPub cloudpub;
   private final ScheduledExecutorService timer =
       Executors.newSingleThreadScheduledExecutor(
           r -> Thread.ofPlatform().daemon().name("access-timer").unstarted(r));
@@ -193,6 +201,8 @@ public class AccessService {
             URI.create(env.getProperty("groupbase.access.fxtunnel-api", "https://fxtun.ru")));
     String bin = env.getProperty("groupbase.access.fxtunnel-bin", "");
     this.fxBinaryOverride = bin.isBlank() ? null : Path.of(bin);
+    String clo = env.getProperty("groupbase.access.cloudpub-bin", "");
+    this.cloudpub = new CloudPub(props.toolsDir(), clo.isBlank() ? null : Path.of(clo));
   }
 
   // ---------- состояние ----------
@@ -208,12 +218,15 @@ public class AccessService {
           case OFF -> State.OFF;
           case LAN, MANUAL -> State.ONLINE;
           case FXTUNNEL -> token() == null ? State.NEEDS_LOGIN : state;
+          case CLOUDPUB -> cloudpub.loggedIn() ? state : State.NEEDS_LOGIN;
         };
     return new View(
         mode.id(),
         shown.id(),
         shown == State.NEEDS_LOGIN && message == null
-            ? "Войдите в fxTunnel, чтобы открыть доступ"
+            ? (mode == Mode.CLOUDPUB
+                ? "Войдите в CloudPub, чтобы открыть доступ"
+                : "Войдите в fxTunnel, чтобы открыть доступ")
             : message,
         publicUrl.get().orElse(null),
         publicUrl.fixed(),
@@ -224,6 +237,7 @@ public class AccessService {
             settings.get(FX_SUBDOMAIN).filter(s -> !s.isBlank()).orElse(null),
             suggested(),
             FX_DOMAIN),
+        new Cp(cloudpub.loggedIn(), settings.get(CP_URL).filter(s -> !s.isBlank()).orElse(null)),
         new Lan(bridge.enabled(), lanUrls()),
         settings.get(MANUAL_URL).filter(s -> !s.isBlank()).orElse(null));
   }
@@ -243,6 +257,14 @@ public class AccessService {
           setState(State.NEEDS_LOGIN, null);
         } else {
           start();
+        }
+      }
+      case CLOUDPUB -> {
+        publicUrl.set(settings.get(CP_URL).orElse(""));
+        if (cloudpub.loggedIn()) {
+          start();
+        } else {
+          setState(State.NEEDS_LOGIN, null);
         }
       }
       case LAN -> {
@@ -278,6 +300,89 @@ public class AccessService {
     }
     announce();
     return view();
+  }
+
+  /** CloudPub: адрес выдаёт сервис (постоянный), выбирать ничего не нужно. */
+  public synchronized View enableCloudPub() {
+    requireManaged();
+    if (!cloudpub.loggedIn()) {
+      throw new Problem("login", "Сначала войдите в CloudPub");
+    }
+    boolean wasLan = lanOn();
+    settings.set(MODE, Mode.CLOUDPUB.id());
+    publicUrl.set(settings.get(CP_URL).orElse(""));
+    if (wasLan) {
+      switchLan(false);
+    } else {
+      start();
+    }
+    announce();
+    return view();
+  }
+
+  // ---------- CloudPub: вход ----------
+
+  /** Вход почтой и паролем от cloudpub.ru. Пароль не сохраняется — клиент хранит свой токен. */
+  public View cloudpubLogin(String email, String password) {
+    requireManaged();
+    String e = email == null ? "" : email.strip();
+    if (!e.contains("@") || password == null || password.isEmpty()) {
+      throw new Problem("login", "Введите почту и пароль от аккаунта CloudPub");
+    }
+    CloudPub.Result r;
+    try {
+      r = cloudpub.login(e, password);
+    } catch (IOException ex) {
+      throw new Problem("login", "Не удалось связаться с CloudPub: " + ex.getMessage());
+    }
+    return afterCloudpubLogin(r);
+  }
+
+  /** Вход ключом API из личного кабинета CloudPub (если вход туда — через Яндекс или VK). */
+  public View cloudpubToken(String token) {
+    requireManaged();
+    String t = token == null ? "" : token.strip();
+    if (t.length() < 10 || t.chars().anyMatch(Character::isWhitespace)) {
+      throw new Problem("token", "Вставьте ключ API из личного кабинета CloudPub целиком");
+    }
+    try {
+      return afterCloudpubLogin(cloudpub.setToken(t));
+    } catch (IOException ex) {
+      throw new Problem("token", "Не удалось сохранить ключ: " + ex.getMessage());
+    }
+  }
+
+  private synchronized View afterCloudpubLogin(CloudPub.Result r) {
+    if (!r.ok() || !cloudpub.loggedIn()) {
+      String why = r.lastLine();
+      throw new Problem(
+          "login", why.isEmpty() ? "CloudPub не принял вход — проверьте почту и пароль" : why);
+    }
+    message = null;
+    if (mode() == Mode.CLOUDPUB) {
+      start();
+    }
+    announce();
+    return view();
+  }
+
+  public View cloudpubLogout() {
+    requireManaged();
+    synchronized (this) {
+      if (mode() == Mode.CLOUDPUB) {
+        stopTunnel();
+      }
+    }
+    try {
+      cloudpub.logout();
+    } catch (IOException e) {
+      // клиента нет — значит, и входа не было
+    }
+    synchronized (this) {
+      setState(mode() == Mode.CLOUDPUB ? State.NEEDS_LOGIN : state, null);
+      announce();
+      return view();
+    }
   }
 
   public synchronized View enableManual(String url) {
@@ -412,7 +517,7 @@ public class AccessService {
     stopTunnel();
     settings.set(FX_TOKEN, "");
     login = null;
-    setState(mode() == Mode.FXTUNNEL ? State.NEEDS_LOGIN : State.OFF, null);
+    setState(mode() == Mode.FXTUNNEL ? State.NEEDS_LOGIN : state, null);
     announce();
     return view();
   }
@@ -477,62 +582,142 @@ public class AccessService {
             .encodeToString(secrets.seal(token.getBytes(StandardCharsets.UTF_8), TOKEN_CONTEXT)));
   }
 
-  // ---------- fxTunnel: процесс ----------
+  // ---------- клиент туннеля: процесс ----------
+
+  /** Что запускать: команда, переменные окружения, файл PID и строка «туннель открыт». */
+  private record Spec(
+      String name, List<String> cmd, Map<String, String> env, Path pidFile, Pattern online) {}
+
+  @FunctionalInterface
+  private interface SpecSource {
+    Spec get() throws IOException;
+  }
+
+  private static boolean tunnel(Mode m) {
+    return m == Mode.FXTUNNEL || m == Mode.CLOUDPUB;
+  }
+
+  private static String providerName(Mode m) {
+    return m == Mode.CLOUDPUB ? "CloudPub" : "fxTunnel";
+  }
 
   private synchronized void start() {
     stopTunnel();
-    String token = token();
-    String sub = settings.get(FX_SUBDOMAIN).orElse("");
-    if (token == null || sub.isBlank()) {
-      setState(State.NEEDS_LOGIN, null);
+    SpecSource source = source();
+    if (source == null) {
       return;
     }
-    setState(State.STARTING, "Подключаемся к fxTunnel…");
-    Thread.ofVirtual().name("fxtunnel-start").start(() -> launch(token, sub));
+    setState(State.STARTING, "Подключаемся к " + providerName(mode()) + "…");
+    Thread.ofVirtual().name("tunnel-start").start(() -> launch(source));
   }
 
-  private void launch(String token, String sub) {
+  /** Что запускать в текущем режиме; null — нечего (нет входа — состояние «нужен вход»). */
+  private SpecSource source() {
+    switch (mode()) {
+      case FXTUNNEL -> {
+        String token = token();
+        String sub = settings.get(FX_SUBDOMAIN).orElse("");
+        if (token == null || sub.isBlank()) {
+          setState(State.NEEDS_LOGIN, null);
+          return null;
+        }
+        return () -> fxSpec(token, sub);
+      }
+      case CLOUDPUB -> {
+        if (!cloudpub.loggedIn()) {
+          setState(State.NEEDS_LOGIN, null);
+          return null;
+        }
+        return this::cloudpubSpec;
+      }
+      default -> {
+        return null;
+      }
+    }
+  }
+
+  private void launch(SpecSource source) {
     long myGen;
     synchronized (this) {
       myGen = gen;
     }
-    Path bin;
+    Spec spec;
     try {
-      bin = binary();
+      spec = source.get();
     } catch (IOException e) {
       synchronized (this) {
-        scheduleRetry("Не удалось скачать клиент fxTunnel: " + e.getMessage());
+        if (myGen == gen && tunnel(mode())) {
+          scheduleRetry(providerName(mode()) + ": " + e.getMessage());
+        }
       }
       return;
     }
     synchronized (this) {
-      if (myGen != gen
-          || mode() != Mode.FXTUNNEL
-          || state != State.STARTING && state != State.RETRYING) {
+      if (myGen != gen || !tunnel(mode()) || state != State.STARTING && state != State.RETRYING) {
         return;
       }
       lastError = null;
-      List<String> cmd =
-          List.of(
-              bin.toString(),
-              "http",
-              String.valueOf(props.http().port()),
-              "--domain",
-              sub,
-              "--no-inspect");
       try {
         process =
             TunnelProcess.start(
-                cmd,
-                Map.of("FXTUNNEL_TOKEN", token),
-                props.toolsDir().resolve("fxtunnel").resolve("run.pid"),
-                line -> onLine(myGen, line),
+                spec.cmd(),
+                spec.env(),
+                spec.pidFile(),
+                line -> onLine(myGen, spec, line),
                 code -> onExit(myGen, code));
         timer.schedule(() -> slowStart(myGen), 45, TimeUnit.SECONDS);
       } catch (IOException e) {
-        scheduleRetry("Не удалось запустить клиент fxTunnel: " + e.getMessage());
+        scheduleRetry("Не удалось запустить клиент " + spec.name() + ": " + e.getMessage());
       }
     }
+  }
+
+  private Spec fxSpec(String token, String sub) throws IOException {
+    Path bin = binary();
+    return new Spec(
+        "fxTunnel",
+        List.of(
+            bin.toString(),
+            "http",
+            String.valueOf(props.http().port()),
+            "--domain",
+            sub,
+            "--no-inspect"),
+        Map.of("FXTUNNEL_TOKEN", token),
+        props.toolsDir().resolve("fxtunnel").resolve("run.pid"),
+        HTTPS_URL);
+  }
+
+  /**
+   * CloudPub: сервис регистрируется один раз (постоянный адрес), дальше только запускается. Если
+   * сменился порт или аккаунт — регистрируем заново.
+   */
+  private Spec cloudpubSpec() throws IOException {
+    if (!java.nio.file.Files.isRegularFile(props.toolsDir().resolve("cloudpub").resolve("clo"))
+        && !java.nio.file.Files.isRegularFile(
+            props.toolsDir().resolve("cloudpub").resolve("clo.exe"))) {
+      setMessage("Скачиваем клиент CloudPub…");
+    }
+    Path bin = cloudpub.binary();
+    int port = props.http().port();
+    // Сервис для этого порта уже есть у этого клиента — берём его адрес; иначе регистрируем.
+    // Так адрес не меняется при перезапусках и повторном входе, а после переезда на другой
+    // компьютер сервис заводится заново.
+    String url = cloudpub.registered(port);
+    if (url == null) {
+      setMessage("Получаем постоянный адрес в CloudPub…");
+      url = cloudpub.register(port);
+    }
+    settings.set(CP_URL, url);
+    settings.set(CP_PORT, String.valueOf(port));
+    String u = url;
+    synchronized (this) {
+      if (mode() == Mode.CLOUDPUB) {
+        publicUrl.set(u);
+      }
+    }
+    return new Spec(
+        "CloudPub", cloudpub.runCommand(bin), Map.of(), cloudpub.pidFile(), CloudPub.URL);
   }
 
   private Path binary() throws IOException {
@@ -564,16 +749,17 @@ public class AccessService {
 
   private synchronized void slowStart(long myGen) {
     if (myGen == gen && state == State.STARTING) {
-      message = "fxTunnel долго не отвечает — проверьте интернет. Продолжаем пытаться…";
+      message =
+          providerName(mode()) + " долго не отвечает — проверьте интернет. Продолжаем пытаться…";
     }
   }
 
-  private synchronized void onLine(long myGen, String line) {
+  private synchronized void onLine(long myGen, Spec spec, String line) {
     if (myGen != gen || line.isEmpty()) {
       return;
     }
-    log.debug("fxtunnel: {}", line);
-    Matcher url = HTTPS_URL.matcher(line);
+    log.debug("{}: {}", spec.name(), line);
+    Matcher url = spec.online().matcher(line);
     if (url.find()) {
       failures = 0;
       String got = url.group(1).replaceAll("/+$", "");
@@ -585,9 +771,10 @@ public class AccessService {
       return;
     }
     Matcher failed = FAILED.matcher(line);
+    String lower = line.toLowerCase(Locale.ROOT);
     if (failed.find()) {
       lastError = failed.group(1);
-    } else if (line.toLowerCase(Locale.ROOT).contains("error")) {
+    } else if (lower.contains("error") || lower.contains("ошибк") || lower.contains("токен")) {
       lastError = line;
     }
   }
@@ -597,12 +784,22 @@ public class AccessService {
       return;
     }
     process = null;
-    log.info("Клиент fxTunnel завершился (код {})", code);
-    if (mode() != Mode.FXTUNNEL) {
+    Mode m = mode();
+    log.info("Клиент туннеля {} завершился (код {})", providerName(m), code);
+    if (!tunnel(m)) {
       return;
     }
     String err = lastError == null ? "" : lastError;
-    if (AUTH_ERROR.matcher(err).find()) {
+    if (m == Mode.CLOUDPUB) {
+      if (CloudPub.AUTH_ERROR.matcher(err).find()) {
+        setState(State.NEEDS_LOGIN, "CloudPub просит войти заново");
+      } else {
+        scheduleRetry(
+            err.isBlank()
+                ? "Связь с CloudPub прервалась — переподключаемся"
+                : "CloudPub: " + err + " — переподключаемся");
+      }
+    } else if (AUTH_ERROR.matcher(err).find()) {
       settings.set(FX_TOKEN, "");
       setState(State.NEEDS_LOGIN, "Вход в fxTunnel устарел — войдите заново");
     } else if (TAKEN_ERROR.matcher(err).find()) {
@@ -633,14 +830,12 @@ public class AccessService {
         timer.schedule(
             () -> {
               synchronized (this) {
-                if (mode() == Mode.FXTUNNEL && state == State.RETRYING) {
-                  String token = token();
-                  String sub = settings.get(FX_SUBDOMAIN).orElse("");
-                  if (token == null) {
-                    setState(State.NEEDS_LOGIN, null);
-                    return;
+                if (tunnel(mode()) && state == State.RETRYING) {
+                  // Без stopTunnel(): счётчик неудач растёт, паузы между попытками — тоже.
+                  SpecSource source = source();
+                  if (source != null) {
+                    Thread.ofVirtual().name("tunnel-start").start(() -> launch(source));
                   }
-                  Thread.ofVirtual().name("fxtunnel-start").start(() -> launch(token, sub));
                 }
               }
             },

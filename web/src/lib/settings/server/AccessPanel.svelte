@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {
+		Cloud,
 		Copy,
 		ExternalLink,
 		Globe,
@@ -27,6 +28,11 @@
 	let busy = $state(false);
 	let restarting = $state(false);
 	let qr = $state(false);
+	// CloudPub: вход почтой и паролем или ключом API (если вход в CloudPub — через Яндекс или VK).
+	let cpEmail = $state('');
+	let cpPassword = $state('');
+	let cpToken = $state('');
+	let cpWithToken = $state(false);
 
 	async function load() {
 		try {
@@ -35,7 +41,7 @@
 			toastError(e);
 			return;
 		}
-		pick ??= a.mode === 'off' ? 'fxtunnel' : a.mode;
+		pick ??= a.mode === 'off' ? 'cloudpub' : a.mode;
 		if (!sub) sub = a.fxtunnel.subdomain ?? a.fxtunnel.suggested;
 		if (!manual) manual = a.manualUrl ?? '';
 	}
@@ -65,6 +71,19 @@
 
 	const login = () => run(() => post<Access>('/api/admin/access/fxtunnel/login', {}));
 
+	async function cloudpubLogin(e: SubmitEvent) {
+		e.preventDefault();
+		const body = cpWithToken ? { token: cpToken } : { email: cpEmail, password: cpPassword };
+		if (await run(() => post<Access>('/api/admin/access/cloudpub/login', body))) {
+			cpPassword = cpToken = '';
+			toast('Вход в CloudPub выполнен', 'ok');
+		}
+	}
+
+	async function cloudpubLogout() {
+		if (await run(() => post<Access>('/api/admin/access/cloudpub/logout', {}))) await loadMe();
+	}
+
 	async function logout() {
 		if (await run(() => post<Access>('/api/admin/access/fxtunnel/logout', {}))) await loadMe();
 	}
@@ -77,6 +96,7 @@
 				: mode === 'manual'
 					? { mode, url: manual }
 					: { mode };
+		// fxTunnel и CloudPub подключаются несколько секунд — состояние обновится само.
 		if (!(await run(() => put<Access>('/api/admin/access', body)))) return;
 		await loadMe();
 		if (mode === 'lan' || wasLan) {
@@ -124,7 +144,7 @@
 					starting: 'Открываем доступ…',
 					retrying: 'Нет связи с туннелем',
 					error: 'Доступ не открыт',
-					needs_login: 'Нужно войти в fxTunnel'
+					needs_login: a.mode === 'cloudpub' ? 'Нужно войти в CloudPub' : 'Нужно войти в fxTunnel'
 				}[a.state]
 	);
 	const hint = $derived(
@@ -143,11 +163,19 @@
 	const modes = $derived(
 		[
 			{
+				value: 'cloudpub' as const,
+				icon: Cloud,
+				label: 'Интернет — CloudPub',
+				badge: 'бесплатно',
+				hint: 'Работает с VPN и без, в любой Wi‑Fi: только обычный HTTPS',
+				show: true
+			},
+			{
 				value: 'fxtunnel' as const,
 				icon: Globe,
-				label: 'Интернет',
+				label: 'Интернет — fxTunnel',
 				badge: 'бесплатно',
-				hint: 'Постоянная ссылка — откроется с любого телефона',
+				hint: 'Свой адрес вида имя.fxtun.ru',
 				show: true
 			},
 			{
@@ -234,7 +262,93 @@
 		</div>
 
 		<section class="card detail">
-			{#if pick === 'fxtunnel'}
+			{#if pick === 'cloudpub'}
+				{#if !a.cloudpub.loggedIn}
+					<p>
+						CloudPub — российский сервис: даёт сайту с этого компьютера постоянную ссылку вида
+						<code>слово-слово-слово.cloudpub.ru</code>. Связь идёт через обычный HTTPS, поэтому
+						ссылка открывается и с включённым VPN, и без него, и в Wi‑Fi вуза или общежития.
+					</p>
+					<p class="small">
+						Нет аккаунта?
+						<a href="https://cloudpub.ru/auth/sign-up/" target="_blank" rel="noreferrer"
+							>Зарегистрируйтесь на cloudpub.ru</a
+						> — это бесплатно, затем войдите здесь.
+					</p>
+					<form class="stack" onsubmit={cloudpubLogin}>
+						{#if cpWithToken}
+							<div>
+								<label class="label" for="cp-token">Ключ API</label>
+								<input
+									id="cp-token"
+									class="input"
+									bind:value={cpToken}
+									autocomplete="off"
+									spellcheck="false"
+									required
+								/>
+								<p class="small muted">Личный кабинет CloudPub → «Ключ API» → скопировать.</p>
+							</div>
+						{:else}
+							<div>
+								<label class="label" for="cp-email">Почта от CloudPub</label>
+								<input
+									id="cp-email"
+									class="input"
+									type="email"
+									bind:value={cpEmail}
+									autocomplete="username"
+									required
+								/>
+							</div>
+							<div>
+								<label class="label" for="cp-password">Пароль от CloudPub</label>
+								<input
+									id="cp-password"
+									class="input"
+									type="password"
+									bind:value={cpPassword}
+									autocomplete="current-password"
+									required
+								/>
+								<p class="small muted">Пароль передаётся клиенту CloudPub и не сохраняется.</p>
+							</div>
+						{/if}
+						<div class="row wrap">
+							<Button type="submit" variant="primary" loading={busy}
+								><LogIn size={16} /> Войти в CloudPub</Button
+							>
+							<Button variant="ghost" onclick={() => (cpWithToken = !cpWithToken)}
+								>{cpWithToken
+									? 'Войти почтой и паролем'
+									: 'Вход через Яндекс или VK? Ключ API'}</Button
+							>
+						</div>
+					</form>
+				{:else}
+					{#if a.cloudpub.url}
+						<p>Постоянный адрес: <code>{a.cloudpub.url}</code></p>
+					{:else}
+						<p>Адрес выдаст CloudPub при первом подключении — он больше не изменится.</p>
+					{/if}
+					<div class="row wrap">
+						{#if a.mode !== 'cloudpub'}
+							<Button variant="primary" loading={busy} onclick={() => enable('cloudpub')}
+								><Cloud size={16} /> Открыть доступ через CloudPub</Button
+							>
+						{/if}
+						<Button variant="ghost" onclick={cloudpubLogout}>Выйти из CloudPub</Button>
+					</div>
+				{/if}
+				<p class="faint small">
+					CloudPub — российский сервис (<a
+						href="https://github.com/ermak-dev/cloudpub"
+						target="_blank"
+						rel="noreferrer">открытый клиент</a
+					>, серверы в Москве). Через него идёт трафик, как через любого провайдера; данные группы
+					хранятся только на этом компьютере.
+				</p>
+			{:else if pick === 'fxtunnel'}
 				{#if !a.fxtunnel.loggedIn}
 					{#if a.fxtunnel.login}
 						<ol class="steps">

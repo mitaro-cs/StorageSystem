@@ -25,6 +25,8 @@ class AccessController {
 
   record CheckBody(String subdomain) {}
 
+  record CloudPubLoginBody(String email, String password, String token) {}
+
   private final AccessService access;
   private final AuditService audit;
 
@@ -48,6 +50,7 @@ class AccessController {
             () ->
                 switch (mode) {
                   case "fxtunnel" -> access.enableFxTunnel(b.subdomain());
+                  case "cloudpub" -> access.enableCloudPub();
                   case "manual" -> access.enableManual(b.url());
                   case "lan" -> access.enableLan();
                   case "off" -> access.disable();
@@ -74,6 +77,27 @@ class AccessController {
   @PostMapping("/fxtunnel/check")
   FxTunnelApi.Check check(@RequestBody CheckBody b) {
     return handle(() -> access.check(b.subdomain()));
+  }
+
+  /** Вход в CloudPub: почта и пароль (пароль не сохраняется) или ключ API. */
+  @Require(Permission.MANAGE_INSTANCE)
+  @PostMapping("/cloudpub/login")
+  AccessService.View cloudpubLogin(Actor actor, @RequestBody CloudPubLoginBody b) {
+    AccessService.View v =
+        handle(
+            () ->
+                b.token() != null && !b.token().isBlank()
+                    ? access.cloudpubToken(b.token())
+                    : access.cloudpubLogin(b.email(), b.password()));
+    audit.log(actor, null, "access.login", "instance", null, Map.of("provider", "cloudpub"));
+    return v;
+  }
+
+  @Require(Permission.MANAGE_INSTANCE)
+  @PostMapping("/cloudpub/logout")
+  AccessService.View cloudpubLogout(Actor actor) {
+    audit.log(actor, null, "access.logout", "instance", null);
+    return handle(access::cloudpubLogout);
   }
 
   private static <T> T handle(Supplier<T> action) {

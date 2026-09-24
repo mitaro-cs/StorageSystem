@@ -84,6 +84,38 @@ class AccessIT extends IntegrationTest {
       r.add(
           "groupbase.access.fxtunnel-api", () -> "http://127.0.0.1:" + fake.getAddress().getPort());
       r.add("groupbase.access.fxtunnel-bin", bin::toString);
+
+      // Клиент CloudPub: вход паролем из CLO_PASSWORD, токен — в файле настроек, регистрация
+      // выдаёт постоянный адрес, run держит туннель. Вывод — как у настоящего clo.
+      Path clo = bin.resolveSibling("clo");
+      Files.writeString(
+          clo,
+          """
+          #!/bin/sh
+          conf="$2"; cmd="$3"
+          case "$cmd" in
+            login)
+              if [ "$CLO_PASSWORD" = "cloud-pass-1" ]; then
+                printf 'token = "cp_test_token"\n' > "$conf"; echo "Клиент успешно авторизован"; exit 0
+              fi
+              echo "Ошибка авторизации: неверный пароль"; exit 1 ;;
+            set) printf 'token = "%s"\n' "$5" > "$conf"; exit 0 ;;
+            logout) : > "$conf"; exit 0 ;;
+            register)
+              grep -q token "$conf" 2>/dev/null || { echo "Отсутствует токен авторизации"; exit 1; }
+              echo "$7" > "$conf.reg"
+              echo "Сервис зарегистрирован: [groupbase] http://$7 -> https://wild-fish-test.cloudpub.ru:443/"
+              exit 0 ;;
+            ls)
+              [ -f "$conf.reg" ] && echo "✔ 9f1c [groupbase] http://$(cat "$conf.reg") -> https://wild-fish-test.cloudpub.ru:443/"
+              exit 0 ;;
+            run)
+              echo "Сервис опубликован: [groupbase] http://127.0.0.1:1 -> https://wild-fish-test.cloudpub.ru:443/"
+              exec sleep 300 ;;
+          esac
+          """);
+      clo.toFile().setExecutable(true);
+      r.add("groupbase.access.cloudpub-bin", clo::toString);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -146,6 +178,38 @@ class AccessIT extends IntegrationTest {
     var off = a.put("/api/admin/access", Map.of("mode", "off")).json();
     assertThat(off.get("state").asString()).isEqualTo("off");
     assertThat(a.get("/api/me").json().get("instance").get("publicUrl").isNull()).isTrue();
+  }
+
+  @Test
+  void cloudpubLoginAndPermanentAddress() throws InterruptedException {
+    ApiClient a = admin();
+    assertThat(a.put("/api/admin/access", Map.of("mode", "cloudpub")).status()).isEqualTo(400);
+
+    var wrong =
+        a.post(
+            "/api/admin/access/cloudpub/login",
+            Map.of("email", "host@example.ru", "password", "nope"));
+    assertThat(wrong.status()).isEqualTo(400);
+    assertThat(wrong.json().get("message").asString()).contains("неверный пароль");
+
+    var ok =
+        a.post(
+            "/api/admin/access/cloudpub/login",
+            Map.of("email", "host@example.ru", "password", "cloud-pass-1"));
+    assertThat(ok.status()).as(ok.body()).isEqualTo(200);
+    assertThat(ok.json().get("cloudpub").get("loggedIn").asBoolean()).isTrue();
+
+    assertThat(a.put("/api/admin/access", Map.of("mode", "cloudpub")).status()).isEqualTo(200);
+    JsonNode online = waitFor(a, j -> j.get("state").asString().equals("online"));
+    assertThat(online.get("url").asString()).isEqualTo("https://wild-fish-test.cloudpub.ru");
+    assertThat(online.get("cloudpub").get("url").asString())
+        .isEqualTo("https://wild-fish-test.cloudpub.ru");
+    assertThat(a.get("/api/me").json().get("instance").get("publicUrl").asString())
+        .isEqualTo("https://wild-fish-test.cloudpub.ru");
+
+    a.put("/api/admin/access", Map.of("mode", "off"));
+    var out = a.post("/api/admin/access/cloudpub/logout", Map.of()).json();
+    assertThat(out.get("cloudpub").get("loggedIn").asBoolean()).isFalse();
   }
 
   @Test

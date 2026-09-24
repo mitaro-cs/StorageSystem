@@ -38,7 +38,7 @@ test('режим управления прячет кнопки админист
 	await login(page, ADMIN);
 	await page.goto('/settings?tab=server');
 	await expect(page.getByRole('heading', { name: 'Доступ для группы' })).toBeVisible();
-	await expect(page.getByRole('radio', { name: /Интернет/ })).toBeVisible();
+	await expect(page.getByRole('radio', { name: /CloudPub/ })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Резервные копии' })).toBeVisible();
 	await page.screenshot({ path: 'test-results/shots/settings-server.png', fullPage: true });
 
