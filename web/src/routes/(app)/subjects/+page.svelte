@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Plus, Users, Archive, ArrowRight } from '@lucide/svelte';
+	import { Plus, Users, Archive, ArrowRight, Send } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { get, post } from '$lib/api';
 	import { can, currentGroup, groups, session } from '$lib/session.svelte';
@@ -82,31 +82,39 @@
 {:else}
 	<div class="grid">
 		{#each visible as s, i (s.id)}
-			<a
-				class="subject card"
-				href="/subjects/{s.id}"
-				in:fly={{ y: 10, delay: stagger(i) }}
-				class:archived={s.archived}
-			>
-				<span class="cover">
-					<SubjectArt id={s.id} name={s.name} color={s.color} avatar={s.avatar} class="fill" />
-					{#if s.groups.length > 1 || s.archived}
-						<span class="tags">
-							{#if s.groups.length > 1}<span class="chip glass"
-									><Users size={12} /> общий · {s.groups.length}</span
-								>{/if}
-							{#if s.archived}<span class="chip glass"><Archive size={12} /> архив</span>{/if}
-						</span>
-					{/if}
-				</span>
-				<span class="foot">
-					<span class="text">
-						<strong class="name">{s.name}</strong>
-						<span class="muted small teacher">{s.teacher || 'Преподаватель не указан'}</span>
+			<div class="cell" in:fly={{ y: 10, delay: stagger(i) }}>
+				<a class="subject card" href="/subjects/{s.id}" class:archived={s.archived}>
+					<span class="cover">
+						<SubjectArt id={s.id} name={s.name} color={s.color} avatar={s.avatar} class="fill" />
+						{#if s.groups.length > 1 || s.archived}
+							<span class="tags">
+								{#if s.groups.length > 1}<span class="chip glass"
+										><Users size={12} /> общий · {s.groups.length}</span
+									>{/if}
+								{#if s.archived}<span class="chip glass"><Archive size={12} /> архив</span>{/if}
+							</span>
+						{/if}
 					</span>
-					<span class="circle ink" aria-hidden="true"><ArrowRight size={18} /></span>
-				</span>
-			</a>
+					<span class="foot">
+						<span class="text">
+							<strong class="name">{s.name}</strong>
+							<span class="muted small teacher">{s.teacher || 'Преподаватель не указан'}</span>
+						</span>
+						<span class="circle ink" aria-hidden="true"><ArrowRight size={18} /></span>
+					</span>
+				</a>
+				{#if s.chatUrl}
+					<!-- Рядом с карточкой, а не внутри: ссылка в ссылке недопустима. -->
+					<a
+						class="chat"
+						href={s.chatUrl}
+						target="_blank"
+						rel="noreferrer"
+						aria-label="Чат предмета «{s.name}» в Telegram"
+						title="Чат предмета в Telegram"><Send size={16} /></a
+					>
+				{/if}
+			</div>
 		{/each}
 	</div>
 {/if}
@@ -137,6 +145,28 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 		gap: var(--s4);
+	}
+	.cell {
+		position: relative;
+	}
+	.chat {
+		position: absolute;
+		top: 18px;
+		right: 18px;
+		z-index: 2;
+		display: grid;
+		place-items: center;
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--surface) 82%, transparent);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+		box-shadow: var(--shadow-1);
+		color: var(--tg);
+	}
+	.chat:hover {
+		background: var(--surface);
 	}
 	.subject {
 		position: relative;

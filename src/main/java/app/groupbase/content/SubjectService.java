@@ -22,7 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SubjectService {
 
-  public record Input(String name, String teacher, String color) {}
+  /**
+   * @param chatUrl чат предмета в Telegram: null — не менять, пустая строка — убрать
+   */
+  public record Input(String name, String teacher, String color, String chatUrl) {}
 
   public record SubjectView(
       long id,
@@ -30,6 +33,7 @@ public class SubjectService {
       String teacher,
       String color,
       String avatar,
+      String chatUrl,
       boolean archived,
       boolean pinned,
       List<SubjectStore.GroupRef> groups,
@@ -90,6 +94,7 @@ public class SubjectService {
         r.teacher(),
         r.color(),
         r.avatar(),
+        r.chatUrl(),
         r.archivedAt() != null,
         pins.contains(r.id()),
         gs,
@@ -104,6 +109,9 @@ public class SubjectService {
     Input c = clean(in);
     long now = clock.millis();
     long id = subjects.insert(c.name(), c.teacher(), c.color(), actor.id(), now);
+    if (c.chatUrl() != null && !c.chatUrl().isEmpty()) {
+      subjects.setChat(id, c.chatUrl());
+    }
     subjects.link(id, groupId, now);
     audit.log(actor, groupId, "subject.create", "subject", id, Map.of("name", c.name()));
     return get(actor, id);
@@ -114,6 +122,9 @@ public class SubjectService {
     requireManage(actor, id);
     Input c = clean(in);
     subjects.update(id, c.name(), c.teacher(), c.color());
+    if (c.chatUrl() != null) {
+      subjects.setChat(id, c.chatUrl().isEmpty() ? null : c.chatUrl());
+    }
     return get(actor, id);
   }
 
@@ -232,6 +243,7 @@ public class SubjectService {
     if (!COLOR.matcher(color).matches()) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "invalid", "Цвет в формате #rrggbb");
     }
-    return new Input(name, teacher, color.toLowerCase(java.util.Locale.ROOT));
+    String chat = in.chatUrl() == null ? null : Telegram.normalize(in.chatUrl(), "chatUrl");
+    return new Input(name, teacher, color.toLowerCase(java.util.Locale.ROOT), chat);
   }
 }

@@ -34,6 +34,15 @@ export interface MeGroup {
 	archived: boolean;
 	role: GroupRole | null;
 	permissions: Permission[];
+	/** Закреплённые чаты группы в Telegram. */
+	chats: GroupChat[];
+}
+
+export interface GroupChat {
+	id: number;
+	title: string;
+	/** Всегда https://t.me/… */
+	url: string;
 }
 
 export interface Me {
@@ -88,6 +97,8 @@ export interface Subject {
 	teacher: string;
 	color: string;
 	avatar: string | null;
+	/** Чат предмета в Telegram (https://t.me/…). */
+	chatUrl: string | null;
 	archived: boolean;
 	pinned: boolean;
 	groups: GroupRef[];

@@ -24,7 +24,8 @@ public class SubjectStore {
       String avatar,
       Long createdBy,
       long createdAt,
-      Long archivedAt) {}
+      Long archivedAt,
+      String chatUrl) {}
 
   public record GroupRef(long id, String name) {}
 
@@ -50,7 +51,8 @@ public class SubjectStore {
               rs.getString("avatar"),
               Rows.longOrNull(rs, "created_by"),
               rs.getLong("created_at"),
-              Rows.longOrNull(rs, "archived_at"));
+              Rows.longOrNull(rs, "archived_at"),
+              rs.getString("chat_url"));
 
   private final JdbcClient db;
 
@@ -90,6 +92,11 @@ public class SubjectStore {
     db.sql("UPDATE subjects SET name = ?, teacher = ?, color = ? WHERE id = ?")
         .params(name, teacher, color, id)
         .update();
+  }
+
+  /** Чат предмета в Telegram (null — нет). */
+  public void setChat(long id, String url) {
+    db.sql("UPDATE subjects SET chat_url = ? WHERE id = ?").params(url, id).update();
   }
 
   public void setArchived(long id, Long at) {

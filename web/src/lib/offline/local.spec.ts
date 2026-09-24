@@ -78,6 +78,7 @@ const subject: Subject = {
 	teacher: 'Сидоров П. П.',
 	color: '#f00',
 	avatar: null,
+	chatUrl: null,
 	archived: false,
 	pinned: false,
 	groups: [g1],

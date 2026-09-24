@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Pin, PinOff, Users } from '@lucide/svelte';
+	import { Pin, PinOff, Send, Users } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { get, post, put } from '$lib/api';
 	import { loadSubjects, sortedSubjects } from '$lib/data.svelte';
@@ -189,6 +189,11 @@
 				>
 				{#if subject.pinned}<span><Pin size={15} /> закреплён</span>{/if}
 			</span>
+			{#if subject.chatUrl}
+				<a class="chat" href={subject.chatUrl} target="_blank" rel="noreferrer"
+					><Send size={16} /> Чат предмета</a
+				>
+			{/if}
 		</div>
 	</header>
 
@@ -349,6 +354,27 @@
 		background: var(--inverse-2);
 		color: var(--inverse-muted);
 		font-size: 13.5px;
+	}
+	.chat {
+		display: inline-flex;
+		align-self: flex-start;
+		align-items: center;
+		gap: 8px;
+		margin-top: 6px;
+		padding: 8px 16px;
+		border-radius: var(--r-full);
+		background: var(--inverse-2);
+		color: var(--inverse-text);
+		font-weight: 600;
+		font-size: 14px;
+		text-decoration: none;
+	}
+	.chat :global(svg) {
+		color: var(--tg);
+	}
+	.chat:hover {
+		text-decoration: none;
+		filter: brightness(1.15);
 	}
 	.facts > span {
 		display: inline-flex;

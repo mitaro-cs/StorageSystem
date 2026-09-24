@@ -30,6 +30,7 @@
 
 	let name = $state('');
 	let teacher = $state('');
+	let chatUrl = $state('');
 	let color = $state(palette[0]);
 	let error = $state('');
 	let busy = $state(false);
@@ -39,6 +40,7 @@
 		if (!open) return;
 		name = edit?.name ?? '';
 		teacher = edit?.teacher ?? '';
+		chatUrl = edit?.chatUrl ?? '';
 		color = edit?.color ?? palette[Math.floor(Math.random() * 8)];
 		error = '';
 	});
@@ -49,8 +51,13 @@
 		error = '';
 		try {
 			const s = edit
-				? await patch<Subject>(`/api/subjects/${edit.id}`, { name, teacher, color })
-				: await post<Subject>(`/api/groups/${groupId}/subjects`, { name, teacher, color });
+				? await patch<Subject>(`/api/subjects/${edit.id}`, { name, teacher, color, chatUrl })
+				: await post<Subject>(`/api/groups/${groupId}/subjects`, {
+						name,
+						teacher,
+						color,
+						chatUrl
+					});
 			toast(edit ? 'Предмет обновлён' : 'Предмет создан', 'ok');
 			open = false;
 			onsaved(s);
@@ -80,6 +87,19 @@
 				>Преподаватель <span class="faint">(необязательно)</span></label
 			>
 			<input id="s-teacher" class="input" bind:value={teacher} maxlength="80" />
+		</div>
+		<div>
+			<label class="label" for="s-chat"
+				>Чат предмета в Telegram <span class="faint">(необязательно)</span></label
+			>
+			<input
+				id="s-chat"
+				class="input"
+				bind:value={chatUrl}
+				placeholder="t.me/… или @имя"
+				autocomplete="off"
+				spellcheck="false"
+			/>
 		</div>
 		{#if edit}
 			<div class="row">

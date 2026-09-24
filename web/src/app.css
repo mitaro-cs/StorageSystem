@@ -68,6 +68,8 @@
 	--inverse-muted: #a3a6ae;
 	--amber: #b86a00;
 	--amber-soft: #fcf0da;
+	/* Значок Telegram на ссылках на чаты */
+	--tg: #2aabee;
 	/* Плашка «Срочно»: яркий янтарь с тёмным текстом в обеих темах */
 	--urgent: #f5a524;
 	--urgent-text: #1f1400;

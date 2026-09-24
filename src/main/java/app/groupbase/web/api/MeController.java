@@ -12,6 +12,7 @@ import app.groupbase.auth.TotpService;
 import app.groupbase.cli.Main;
 import app.groupbase.config.GroupbaseProperties;
 import app.groupbase.store.Group;
+import app.groupbase.store.GroupChatStore;
 import app.groupbase.store.GroupStore;
 import app.groupbase.store.User;
 import app.groupbase.store.UserStore;
@@ -53,7 +54,8 @@ class MeController {
       String avatar,
       boolean archived,
       GroupRole role,
-      Set<Permission> permissions) {}
+      Set<Permission> permissions,
+      List<GroupChatController.ChatView> chats) {}
 
   /**
    * @param publicUrl адрес сайта для участников (для ссылок и QR), null — адрес из браузера
@@ -95,6 +97,7 @@ class MeController {
   private final boolean requireStaffTotp;
   private final boolean desktop;
   private final PublicUrl publicUrl;
+  private final GroupChatStore chats;
 
   MeController(
       UserStore users,
@@ -105,7 +108,8 @@ class MeController {
       TotpService totp,
       Cookies cookies,
       GroupbaseProperties props,
-      PublicUrl publicUrl) {
+      PublicUrl publicUrl,
+      GroupChatStore chats) {
     this.users = users;
     this.groups = groups;
     this.authz = authz;
@@ -116,6 +120,7 @@ class MeController {
     this.requireStaffTotp = props.auth().requireStaffTotp();
     this.desktop = props.desktop().enabled();
     this.publicUrl = publicUrl;
+    this.chats = chats;
   }
 
   @AllowRestricted
@@ -123,12 +128,20 @@ class MeController {
   MeView me(Actor actor) {
     User u = users.find(actor.id()).orElseThrow(ApiException::unauthorized);
     Map<Long, GroupRole> roles = groups.rolesOf(actor.id());
+    List<Group> visible =
+        actor.restriction() != null ? List.of() : groups.listByIds(authz.visibleGroupIds(actor));
+    Map<Long, List<GroupChatStore.Chat>> pinned =
+        chats.byGroup(visible.stream().map(Group::id).toList());
     List<GroupView> gs =
-        actor.restriction() != null
-            ? List.of()
-            : groups.listByIds(authz.visibleGroupIds(actor)).stream()
-                .map(g -> view(g, roles.get(g.id()), actor))
-                .toList();
+        visible.stream()
+            .map(
+                g ->
+                    view(
+                        g,
+                        roles.get(g.id()),
+                        actor,
+                        GroupChatController.views(pinned.getOrDefault(g.id(), List.of()))))
+            .toList();
     String name = settings.name();
     return new MeView(
         new UserView(
@@ -161,7 +174,8 @@ class MeController {
     return Map.of("manageMode", users.manageMode(actor.id()));
   }
 
-  private GroupView view(Group g, GroupRole role, Actor actor) {
+  private GroupView view(
+      Group g, GroupRole role, Actor actor, List<GroupChatController.ChatView> chats) {
     return new GroupView(
         g.id(),
         g.slug(),
@@ -171,7 +185,8 @@ class MeController {
         g.avatar(),
         g.archivedAt() != null,
         role,
-        authz.permissions(actor, g.id()));
+        authz.permissions(actor, g.id()),
+        chats);
   }
 
   @PatchMapping

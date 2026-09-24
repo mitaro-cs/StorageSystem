@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { offline } from '$lib/offline/engine';
 	import { firstName } from '$lib/names';
-	import { Plus, Search, ArrowRight, CalendarCheck, TriangleAlert } from '@lucide/svelte';
+	import { Plus, Search, ArrowRight, CalendarCheck, TriangleAlert, Send } from '@lucide/svelte';
 	import { get } from '$lib/api';
 	import { peek, put } from '$lib/cache';
 	import { untrack } from 'svelte';
-	import { can, currentGroup, session } from '$lib/session.svelte';
+	import { can, currentGroup, groups, isMulti, session } from '$lib/session.svelte';
 	import { fmtDate, fmtWeekday, fmtWeekdayShort, plural, relativeDay } from '$lib/format';
 	import { flip, fly, slide, stagger } from '$lib/motion';
 	import { toggleDone, byDay } from '$lib/content/homework';
@@ -23,6 +23,7 @@
 
 	let data = $state<Today | null>(untrack(() => peek<Today>(`today:${session.groupId}`) ?? null));
 	let newsOpen = $state(false);
+	let chatsOpen = $state(false);
 	let hwOpen = $state(false);
 	const now = Date.now();
 
@@ -50,6 +51,14 @@
 		);
 		return [...all.filter((n) => n.urgent), ...all.filter((n) => !n.urgent)].slice(0, 3);
 	});
+	// Чаты в Telegram: выбранной группы, а в режиме «все группы» — всех (с названием группы).
+	const chatGroup = $derived(currentGroup() ?? (isMulti() ? null : groups()[0]));
+	const chats = $derived(
+		(chatGroup ? [chatGroup] : groups()).flatMap((g) =>
+			g.chats.map((c) => ({ ...c, label: chatGroup ? c.title : `${c.title} · ${g.name}` }))
+		)
+	);
+	const canPinChats = $derived(!!chatGroup && can('publish_news', chatGroup.id));
 	const sortDone = (list: Today['upcoming']) =>
 		[...list].sort((a, b) => Number(a.done) - Number(b.done) || a.dueAt - b.dueAt);
 	const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -83,6 +92,15 @@
 	{/if}
 	{#if can('publish_news')}
 		<button class="pill" onclick={() => (newsOpen = true)}><Plus size={16} /> Новость</button>
+	{/if}
+	{#each chats as c (c.id)}
+		<a class="pill tg" href={c.url} target="_blank" rel="noreferrer"><Send size={15} /> {c.label}</a
+		>
+	{/each}
+	{#if canPinChats}
+		<button class="pill ghost" onclick={() => (chatsOpen = true)}
+			>{#if chats.length}Чаты…{:else}<Send size={15} /> Закрепить чат{/if}</button
+		>
 	{/if}
 	<a class="pill" href="/homework">Все задания</a>
 	<a class="pill" href="/subjects">Предметы</a>
@@ -180,6 +198,12 @@
 {/if}
 
 <NewsComposer bind:open={newsOpen} onsaved={() => load(session.groupId)} />
+{#if chatGroup && canPinChats && chatsOpen}
+	<!-- Окно закрепления чатов нужно только старосте — код грузится по нажатию. -->
+	{#await import('$lib/content/GroupChats.svelte') then m}
+		<m.default bind:open={chatsOpen} groupId={chatGroup.id} />
+	{/await}
+{/if}
 <HomeworkComposer bind:open={hwOpen} onsaved={() => load(session.groupId)} />
 
 <style>
@@ -268,6 +292,13 @@
 	}
 	.pill.ink:hover {
 		background: var(--accent-hover);
+	}
+	.pill.tg :global(svg) {
+		color: var(--tg);
+	}
+	.pill.ghost {
+		border-style: dashed;
+		color: var(--text-2);
 	}
 	.block {
 		margin-bottom: var(--s6);
