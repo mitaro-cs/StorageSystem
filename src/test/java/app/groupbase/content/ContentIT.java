@@ -318,4 +318,93 @@ class ContentIT extends IntegrationTest {
     assertThat(author.get("deleted").asBoolean()).isTrue();
     assertThat(author.get("displayName").asString()).isEmpty();
   }
+
+  @Test
+  void subjectIconIsChosenChangedAndCleared() {
+    long g = newGroup("Иконки");
+    TestUser headman = newUser(g, "headman");
+    var created =
+        headman
+            .api()
+            .post("/api/groups/" + g + "/subjects", Map.of("name", "Физика", "icon", "atom"));
+    assertThat(created.status()).as(created.body()).isEqualTo(200);
+    long s = created.json().get("id").asLong();
+    assertThat(created.json().get("icon").asString()).isEqualTo("atom");
+    // Без поля icon иконка не меняется.
+    assertThat(
+            headman
+                .api()
+                .patch("/api/subjects/" + s, Map.of("name", "Физика 2"))
+                .json()
+                .get("icon")
+                .asString())
+        .isEqualTo("atom");
+    assertThat(
+            headman
+                .api()
+                .patch("/api/subjects/" + s, Map.of("name", "Физика", "icon", "Sigma"))
+                .json()
+                .get("icon")
+                .asString())
+        .isEqualTo("sigma");
+    assertThat(
+            headman
+                .api()
+                .patch("/api/subjects/" + s, Map.of("name", "Физика", "icon", "../x"))
+                .status())
+        .isEqualTo(400);
+    assertThat(
+            headman
+                .api()
+                .patch("/api/subjects/" + s, Map.of("name", "Физика", "icon", ""))
+                .json()
+                .get("icon")
+                .isNull())
+        .isTrue();
+  }
+
+  @Test
+  void homeworkDifficultyIsOptionalAndValidated() {
+    long g = newGroup("Сложность");
+    TestUser headman = newUser(g, "headman");
+    long s = subject(headman.api(), g, "Алгоритмы");
+    long due = clock.millis() + 3 * 86_400_000L;
+    var hw =
+        headman
+            .api()
+            .post(
+                "/api/homework",
+                Map.of("subjectId", s, "title", "Сортировки", "dueAt", due, "difficulty", 3));
+    assertThat(hw.status()).as(hw.body()).isEqualTo(200);
+    long id = hw.json().get("id").asLong();
+    assertThat(hw.json().get("difficulty").asInt()).isEqualTo(3);
+    // Правка без поля сложности её не трогает, 0 — убирает.
+    assertThat(
+            headman
+                .api()
+                .patch("/api/homework/" + id, Map.of("title", "Сортировки и поиск"))
+                .json()
+                .get("difficulty")
+                .asInt())
+        .isEqualTo(3);
+    assertThat(
+            headman
+                .api()
+                .patch("/api/homework/" + id, Map.of("difficulty", 0))
+                .json()
+                .get("difficulty")
+                .isNull())
+        .isTrue();
+    assertThat(
+            headman
+                .api()
+                .post(
+                    "/api/homework",
+                    Map.of("subjectId", s, "title", "x", "dueAt", due, "difficulty", 5))
+                .status())
+        .isEqualTo(400);
+    var plain =
+        headman.api().post("/api/homework", Map.of("subjectId", s, "title", "Без", "dueAt", due));
+    assertThat(plain.json().get("difficulty").isNull()).isTrue();
+  }
 }

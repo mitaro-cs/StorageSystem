@@ -184,7 +184,25 @@ class AccountsIT extends IntegrationTest {
     String t = token(inv.json().get("path").asString());
     assertThat(u.api().post("/api/invites/" + t + "/join", null).status()).isEqualTo(200);
     assertThat(u.api().get("/api/me").json().get("groups").size()).isEqualTo(2);
-    assertThat(u.api().post("/api/invites/" + t + "/join", null).status()).isEqualTo(409);
+    // Та же ссылка со второго устройства: не ошибка, а «вы уже в группе».
+    var again = u.api().post("/api/invites/" + t + "/join", null);
+    assertThat(again.status()).isEqualTo(200);
+    assertThat(again.json().get("status").asString()).isEqualTo("already");
+    assertThat(again.json().get("groupId").asLong()).isEqualTo(g2);
+    assertThat(u.api().get("/api/me").json().get("groups").size()).isEqualTo(2);
+  }
+
+  @Test
+  void singleUseInviteIsNotSpentByMemberOpeningItAgain() {
+    long g = newGroup("Одноразовая");
+    TestUser u = newUser(g, "student");
+    var inv = admin().post("/api/groups/" + g + "/invites", Map.of("ttlHours", 24, "maxUses", 1));
+    String t = token(inv.json().get("path").asString());
+    assertThat(u.api().post("/api/invites/" + t + "/join", null).json().get("status").asString())
+        .isEqualTo("already");
+    var info = client().get("/api/invites/" + t);
+    assertThat(info.json().get("valid").asBoolean()).isTrue();
+    assertThat(info.json().get("groupId").asLong()).isEqualTo(g);
   }
 
   @Test
@@ -262,6 +280,57 @@ class AccountsIT extends IntegrationTest {
     }
     assertThat(admin().get("/api/groups/" + g + "/members").json().size()).isZero();
     clock.advance(Duration.ofMinutes(16));
+  }
+
+  @Test
+  void adminChangesOwnRolesWithoutLosingSession() {
+    long g = newGroup("Свои роли");
+    TestUser x = newUser(g, "student");
+    ApiClient a = admin();
+    assertThat(
+            a.put("/api/admin/users/" + x.id() + "/instance-role", Map.of("role", "admin"))
+                .status())
+        .isEqualTo(200);
+    // Повышение закрывает старые сессии — входим заново уже администратором.
+    assertThat(x.api().get("/api/me").status()).isEqualTo(401);
+    ApiClient xa = login(x.username(), PASSWORD);
+    // Администратор ставит роль и себе: в группе…
+    assertThat(
+            xa.put("/api/groups/" + g + "/members/" + x.id() + "/role", Map.of("role", "headman"))
+                .status())
+        .isEqualTo(200);
+    // Администратору видны все группы — ищем свою.
+    String role = "";
+    for (JsonNode grp : xa.get("/api/me").json().get("groups")) {
+      if (grp.get("id").asLong() == g) {
+        role = grp.get("role").asString();
+      }
+    }
+    assertThat(role).isEqualTo("headman");
+    // …и на сайте, не выходя из текущего окна.
+    assertThat(
+            xa.put("/api/admin/users/" + x.id() + "/instance-role", Map.of("role", "moderator"))
+                .status())
+        .isEqualTo(200);
+    var me = xa.get("/api/me");
+    assertThat(me.status()).isEqualTo(200);
+    assertThat(me.json().get("user").get("instanceRole").asString()).isEqualTo("moderator");
+    // Роли администраторов и модераторов видны в списке группы.
+    JsonNode members = a.get("/api/groups/" + g + "/members").json();
+    assertThat(members.get(0).get("instanceRole").asString()).isEqualTo("moderator");
+    var back = new java.util.HashMap<String, Object>();
+    back.put("role", null);
+    assertThat(a.put("/api/admin/users/" + x.id() + "/instance-role", back).status())
+        .isEqualTo(200);
+  }
+
+  @Test
+  void lastAdminCannotDropOwnRole() {
+    ApiClient a = admin();
+    long me = a.get("/api/me").json().get("user").get("id").asLong();
+    var r = a.put("/api/admin/users/" + me + "/instance-role", Map.of("role", "moderator"));
+    assertThat(r.status()).isEqualTo(409);
+    assertThat(r.error()).isEqualTo("last_admin");
   }
 
   @Test

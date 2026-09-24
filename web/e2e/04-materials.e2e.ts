@@ -43,7 +43,7 @@ test('староста загружает материал, студент ег�
 	await login(student, STUDENT);
 	await student
 		.getByRole('navigation', { name: 'Основные разделы' })
-		.getByRole('link', { name: 'Материалы' })
+		.getByRole('link', { name: 'Файлы' })
 		.click();
 	await student.getByRole('link', { name: 'Лекция 1.pdf' }).first().click();
 	await expect(student.getByRole('heading', { name: 'Лекция 1.pdf' })).toBeVisible();
