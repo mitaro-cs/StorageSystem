@@ -16,14 +16,19 @@ test('староста загружает материал, студент ег�
 		.getByRole('link', { name: 'Материалы' })
 		.click();
 	await page.getByRole('button', { name: 'Добавить' }).click();
+	// Медленная загрузка (как на слабом компьютере хоста): «Добавить» должна дождаться файла.
+	await page.route('**/api/files', async (route) => {
+		await new Promise((r) => setTimeout(r, 2000));
+		await route.continue();
+	});
 	await page.locator('input[type=file]').setInputFiles({
 		name: 'Лекция 1.pdf',
 		mimeType: 'application/pdf',
 		buffer: pdf
 	});
-	// Имя файла — в окне загрузки (в списке оно может остаться от прошлой попытки теста).
+	// Нажимаем сразу, пока файл ещё грузится: кнопка ждёт загрузку, а не ругается «нет файлов».
 	const dialog = page.getByRole('dialog');
-	await expect(dialog.getByText('Лекция 1.pdf')).toBeVisible();
+	await expect(dialog.getByRole('progressbar')).toBeVisible();
 	await dialog.getByRole('button', { name: 'Добавить' }).click();
 	await expect(dialog).toBeHidden({ timeout: 20_000 });
 	// Первая загрузка на только что запущенном сервере в CI бывает дольше 5 секунд.

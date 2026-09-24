@@ -18,6 +18,7 @@
 
 	let mode = $state<'file' | 'link'>('file');
 	let files = $state<FileInfo[]>([]);
+	let uploading = $state(0);
 	let url = $state('');
 	let title = $state('');
 	let description = $state('');
@@ -96,7 +97,7 @@
 			>
 		</div>
 		{#if mode === 'file'}
-			<DropZone bind:files />
+			<DropZone bind:files bind:uploading />
 		{:else}
 			<div>
 				<label class="label" for="m-url">Адрес</label>
@@ -127,7 +128,7 @@
 	</form>
 	{#snippet footer()}
 		<Button onclick={() => (open = false)}>Отмена</Button>
-		<Button variant="primary" type="submit" form="material-form" loading={busy}
+		<Button variant="primary" type="submit" form="material-form" loading={busy || uploading > 0}
 			>{suggest ? 'Отправить' : 'Добавить'}</Button
 		>
 	{/snippet}

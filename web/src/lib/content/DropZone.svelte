@@ -7,12 +7,20 @@
 
 	interface Props {
 		files: FileInfo[];
+		/** Сколько файлов ещё загружается: форма не отправляется, пока они не дойдут. */
+		uploading?: number;
 		multiple?: boolean;
 		max?: number;
 		label?: string;
 	}
 
-	let { files = $bindable(), multiple = true, max = 10, label = 'Файлы' }: Props = $props();
+	let {
+		files = $bindable(),
+		uploading = $bindable(0),
+		multiple = true,
+		max = 10,
+		label = 'Файлы'
+	}: Props = $props();
 
 	interface Pending {
 		key: number;
@@ -22,6 +30,11 @@
 	}
 
 	let pending = $state<Pending[]>([]);
+	// Счётчик для формы: загрузки без ошибки, которые ещё идут.
+	const busy = $derived(pending.filter((p) => !p.error).length);
+	$effect(() => {
+		if (uploading !== busy) uploading = busy;
+	});
 	let over = $state(false);
 	let input: HTMLInputElement | undefined = $state();
 	let seq = 0;

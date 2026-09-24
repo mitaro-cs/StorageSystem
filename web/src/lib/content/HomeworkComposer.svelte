@@ -26,6 +26,8 @@
 	let due = $state('');
 	let groupIds = $state<number[]>([]);
 	let files = $state<FileInfo[]>([]);
+	// Вложение ещё грузится — «Опубликовать» ждёт, иначе задание ушло бы без файла.
+	let uploading = $state(0);
 	let error = $state('');
 	let busy = $state(false);
 
@@ -123,13 +125,13 @@
 			/>
 		</div>
 		<MarkdownEditor bind:value={body} label="Подробности" />
-		<DropZone bind:files label="Вложения" />
+		<DropZone bind:files bind:uploading label="Вложения" />
 		<GroupPicker options={targetOptions} bind:selected={groupIds} />
 		{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 	</form>
 	{#snippet footer()}
 		<Button onclick={() => (open = false)}>Отмена</Button>
-		<Button variant="primary" type="submit" form="hw-form" loading={busy}>
+		<Button variant="primary" type="submit" form="hw-form" loading={busy || uploading > 0}>
 			{edit ? 'Сохранить' : 'Опубликовать'}
 		</Button>
 	{/snippet}
