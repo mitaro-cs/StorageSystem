@@ -56,16 +56,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # app — не лишнее: архив автообновления (.app.tar.gz) tauri делает только из цели app, не из dmg.
         include:
           - name: macOS (Apple Silicon)
             os: macos-14
             target: aarch64-apple-darwin
-            bundles: dmg
+            bundles: app,dmg
             file: macos-apple-silicon.dmg
           - name: macOS (Intel)
             os: macos-14
             target: x86_64-apple-darwin
-            bundles: dmg
+            bundles: app,dmg
             file: macos-intel.dmg
             # Java для Intel собирается на Apple Silicon из модулей x64-сборки того же JDK.
             cross-jdk: mac/x64

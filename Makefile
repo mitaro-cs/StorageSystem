@@ -64,9 +64,11 @@ UPDATER_KEY ?= $(HOME)/.tauri/groupbase-updater.key
 
 desktop: build ## Приложение хоста для этой ОС (нужен Rust): .dmg / установщик .exe
 	scripts/desktop-resources.sh
-	@# Без ключа подписи обновлений — сборка без файлов автообновления.
+	@# Без ключа подписи обновлений — сборка без файлов автообновления. У ключа пустой пароль:
+	@# без переменной tauri спросит его с клавиатуры, а вне терминала упадёт.
 	cd desktop && npm ci && if [ -f "$(UPDATER_KEY)" ]; then \
-		TAURI_SIGNING_PRIVATE_KEY="$$(cat "$(UPDATER_KEY)")" npx tauri build; \
+		TAURI_SIGNING_PRIVATE_KEY="$$(cat "$(UPDATER_KEY)")" \
+		TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" npx tauri build; \
 	else \
 		npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'; \
 	fi
