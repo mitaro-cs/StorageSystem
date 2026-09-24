@@ -22,6 +22,13 @@ test('без интернета: читать, отмечать, коммент�
 			await new Promise((r) => setTimeout(r, 100));
 	});
 
+	// Файлы материалов скачиваются на устройство фоном после синхронизации — дождёмся.
+	await expect
+		.poll(() => page.evaluate(async () => (await (await caches.open('files-v1')).keys()).length), {
+			timeout: 20_000
+		})
+		.toBeGreaterThan(0);
+
 	await ctx.setOffline(true);
 	await page.getByRole('link', { name: 'Домашние задания' }).click();
 	await expect(page.getByText(/Нет сети — показаны сохранённые данные/)).toBeVisible();

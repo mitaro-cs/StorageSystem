@@ -21,9 +21,15 @@ test('староста загружает материал, студент ег�
 		mimeType: 'application/pdf',
 		buffer: pdf
 	});
-	await expect(page.getByText('Лекция 1.pdf')).toBeVisible();
-	await page.getByRole('dialog').getByRole('button', { name: 'Добавить' }).click();
-	await expect(page.getByRole('link', { name: 'Лекция 1.pdf' })).toBeVisible();
+	// Имя файла — в окне загрузки (в списке оно может остаться от прошлой попытки теста).
+	const dialog = page.getByRole('dialog');
+	await expect(dialog.getByText('Лекция 1.pdf')).toBeVisible();
+	await dialog.getByRole('button', { name: 'Добавить' }).click();
+	await expect(dialog).toBeHidden({ timeout: 20_000 });
+	// Первая загрузка на только что запущенном сервере в CI бывает дольше 5 секунд.
+	await expect(page.getByRole('link', { name: 'Лекция 1.pdf' }).first()).toBeVisible({
+		timeout: 20_000
+	});
 	await page.screenshot({ path: 'test-results/shots/materials-desktop.png', fullPage: true });
 	expect(errors).toEqual([]);
 
@@ -34,7 +40,7 @@ test('староста загружает материал, студент ег�
 		.getByRole('navigation', { name: 'Основные разделы' })
 		.getByRole('link', { name: 'Материалы' })
 		.click();
-	await student.getByRole('link', { name: 'Лекция 1.pdf' }).click();
+	await student.getByRole('link', { name: 'Лекция 1.pdf' }).first().click();
 	await expect(student.getByRole('heading', { name: 'Лекция 1.pdf' })).toBeVisible();
 	const href = await student.getByRole('link', { name: 'Скачать' }).getAttribute('href');
 	const res = await student.request.get(href!);
