@@ -6,7 +6,8 @@
 	import Button from '$lib/ui/Button.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import QrLogin from '$lib/auth/QrLogin.svelte';
-	import { X } from '@lucide/svelte';
+	import { Fingerprint, X } from '@lucide/svelte';
+	import { loginWithPasskey, passkeyError, passkeysSupported } from '$lib/auth/passkey';
 	import { firstName } from '$lib/names';
 	import {
 		forgetAccount,
@@ -31,6 +32,8 @@
 	let passwordEl: HTMLInputElement | undefined = $state();
 	let error = $state('');
 	let busy = $state(false);
+	let canPasskey = $state(false);
+	let keyBusy = $state(false);
 
 	const next = $derived.by(() => {
 		const n = page.url.searchParams.get('next');
@@ -40,6 +43,7 @@
 	onMount(async () => {
 		accounts = knownAccounts();
 		remember = rememberDevice();
+		canPasskey = passkeysSupported();
 		const s = await get<{ needed: boolean }>('/api/setup', { anonymous: true });
 		if (s.needed) goto('/setup', { replaceState: true });
 	});
@@ -59,6 +63,19 @@
 	async function entered() {
 		setRememberDevice(remember);
 		await goto(next, { replaceState: true, invalidateAll: true });
+	}
+
+	async function passkey() {
+		error = '';
+		keyBusy = true;
+		try {
+			await loginWithPasskey();
+			await entered();
+		} catch (err) {
+			error = passkeyError(err);
+		} finally {
+			keyBusy = false;
+		}
 	}
 
 	async function submit(e: SubmitEvent) {
@@ -248,6 +265,12 @@
 				>{ticket ? 'Подтвердить' : 'Войти'}</Button
 			>
 		{/if}
+		{#if !ticket && canPasskey}
+			<p class="or" aria-hidden="true"><span>или</span></p>
+			<Button onclick={passkey} loading={keyBusy}
+				><Fingerprint size={18} /> Войти по отпечатку или лицу</Button
+			>
+		{/if}
 		{#if !ticket}
 			<button
 				type="button"
@@ -269,6 +292,21 @@
 {/if}
 
 <style>
+	.or {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin: 2px 0;
+		color: var(--text-3);
+		font-size: 13px;
+	}
+	.or::before,
+	.or::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: var(--border);
+	}
 	.modes {
 		display: grid;
 		grid-template-columns: 1fr 1fr;

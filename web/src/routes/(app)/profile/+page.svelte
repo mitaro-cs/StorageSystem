@@ -6,6 +6,7 @@
 		BookOpen,
 		Database,
 		Download,
+		Fingerprint,
 		KeyRound,
 		LogOut,
 		MonitorSmartphone,
@@ -369,6 +370,18 @@
 		{/if}
 	</div>
 </section>
+
+{#if !me.hostWindow}
+	<section class="card block">
+		<SectionHead
+			icon={Fingerprint}
+			tone="violet"
+			title="Вход по отпечатку или лицу"
+			text="Ключ на телефоне или ноутбуке вместо пароля и кода: приложили палец — и вы вошли. Подделать или выманить его нельзя."
+		/>
+		{#await import('$lib/auth/PasskeysPanel.svelte') then m}<m.default />{/await}
+	</section>
+{/if}
 
 <p class="chapter">Уведомления и офлайн</p>
 <NotificationSettings />

@@ -174,7 +174,8 @@ public class UserStore {
           "notifications",
           "push_subscriptions",
           "notification_prefs",
-          "homework_reminders"
+          "homework_reminders",
+          "passkeys"
         }) {
       db.sql("DELETE FROM " + table + " WHERE user_id = ?").param(id).update();
     }
