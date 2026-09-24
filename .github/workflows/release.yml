@@ -120,7 +120,9 @@ jobs:
       - name: Имя файла для выпуска
         run: |
           dir="desktop/src-tauri/target/${{ matrix.target }}/release/bundle"
-          src=$(ls "$dir"/dmg/*.dmg "$dir"/nsis/*.exe 2>/dev/null | head -1)
+          # Без ls с несуществующим каталогом и без пайпа: в GitHub bash включён pipefail.
+          src=$(find "$dir" -maxdepth 2 -type f \( -name '*.dmg' -o -name '*-setup.exe' \) -print -quit)
+          [ -n "$src" ] || { echo "Установщик не найден в $dir" >&2; exit 1; }
           mkdir -p dist
           cp "$src" "dist/groupbase-${{ needs.jar.outputs.version }}-${{ matrix.file }}"
           ls -la dist
