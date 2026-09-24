@@ -11,7 +11,9 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Signature;
 import java.security.spec.ECGenParameterSpec;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -217,6 +219,38 @@ class PasskeysIT extends IntegrationTest {
                 .post("/api/auth/passkey/options", Map.of())
                 .status())
         .isEqualTo(400);
+  }
+
+  @Test
+  void oneAddressCannotHoardChallenges() throws Exception {
+    long g = newGroup("Ключи 3");
+    TestUser u = newUser(g, "student");
+    SoftKey key = new SoftKey();
+    assertThat(register(browser(u.api()), key, PASSWORD).status()).isEqualTo(200);
+
+    // С одного адреса живут только последние Passkeys.PER_IP вызовов: самый первый уже вытеснен.
+    ApiClient flood = browser(client());
+    List<String> challenges = new ArrayList<>();
+    for (int i = 0; i < Passkeys.PER_IP + 2; i++) {
+      challenges.add(
+          flood.post("/api/auth/passkey/options", Map.of()).json().get("challenge").asString());
+    }
+    key.count = 1;
+    assertThat(signIn(flood, key, challenges.getFirst()).status()).isEqualTo(401);
+    key.count = 2;
+    assertThat(signIn(flood, key, challenges.getLast()).status()).isEqualTo(200);
+  }
+
+  private ApiClient.Response signIn(ApiClient c, SoftKey key, String challenge) throws Exception {
+    byte[] cd = clientData("webauthn.get", challenge, site());
+    byte[] ad = key.authData("localhost", 0x05, false);
+    return c.post(
+        "/api/auth/passkey",
+        Map.of(
+            "credentialId", WebAuthn.b64u(key.id),
+            "clientDataJSON", WebAuthn.b64u(cd),
+            "authenticatorData", WebAuthn.b64u(ad),
+            "signature", WebAuthn.b64u(key.sign(ad, cd))));
   }
 
   @Test

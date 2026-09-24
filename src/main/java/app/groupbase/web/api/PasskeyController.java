@@ -65,7 +65,7 @@ class PasskeyController {
   @Public
   @PostMapping("/api/auth/passkey/options")
   Map<String, Object> loginOptions(HttpServletRequest req) {
-    return passkeys.loginOptions(origin(req));
+    return passkeys.loginOptions(origin(req), req.getRemoteAddr());
   }
 
   @Public

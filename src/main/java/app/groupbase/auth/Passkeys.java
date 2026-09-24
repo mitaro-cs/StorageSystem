@@ -12,10 +12,12 @@ import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.http.HttpStatus;
@@ -57,7 +59,11 @@ public class Passkeys {
       String signature,
       String userHandle) {}
 
-  private record Pending(Long userId, boolean register, String origin, long expiresAt) {}
+  /**
+   * @param seq порядок выдачи: по нему вытесняются старые вызовы одного адреса
+   */
+  private record Pending(
+      Long userId, boolean register, String origin, String ip, long expiresAt, long seq) {}
 
   private record Stored(
       long id, long userId, byte[] publicKey, int algorithm, long signCount, String rpId) {}
@@ -66,7 +72,14 @@ public class Passkeys {
   static final int MAX_KEYS = 10;
   private static final int MAX_PENDING = 5_000;
 
+  /**
+   * Сколько неиспользованных вызовов держим на один адрес: иначе кто-то один заполнил бы все {@link
+   * #MAX_PENDING} и на 5 минут закрыл вход по ключу остальным. Новый вытесняет старый.
+   */
+  static final int PER_IP = 5;
+
   private final Map<String, Pending> pending = new ConcurrentHashMap<>();
+  private final AtomicLong seq = new AtomicLong();
   private final JdbcClient db;
   private final UserStore users;
   private final LoginThrottle throttle;
@@ -120,7 +133,8 @@ public class Passkeys {
     if (count(u.id()) >= MAX_KEYS) {
       throw ApiException.conflict("too_many", "Ключей уже " + MAX_KEYS + " — удалите старый");
     }
-    String challenge = challenge(new Pending(u.id(), true, origin, expiry()));
+    String challenge =
+        challenge(new Pending(u.id(), true, origin, ip, expiry(), seq.incrementAndGet()));
     Map<String, Object> o = new LinkedHashMap<>();
     o.put("challenge", challenge);
     o.put("rp", Map.of("id", rpId(origin), "name", siteName.isBlank() ? "groupbase" : siteName));
@@ -234,9 +248,11 @@ public class Passkeys {
   // ---------- вход ----------
 
   /** Параметры для {@code navigator.credentials.get}: ключ выбирает сам человек. */
-  public Map<String, Object> loginOptions(String origin) {
+  public Map<String, Object> loginOptions(String origin, String ip) {
     Map<String, Object> o = new LinkedHashMap<>();
-    o.put("challenge", challenge(new Pending(null, false, origin, expiry())));
+    o.put(
+        "challenge",
+        challenge(new Pending(null, false, origin, ip, expiry(), seq.incrementAndGet())));
     o.put("rpId", rpId(origin));
     o.put("timeout", TTL.toMillis());
     o.put("userVerification", "required");
@@ -334,8 +350,17 @@ public class Passkeys {
     return clock.millis() + TTL.toMillis();
   }
 
-  private String challenge(Pending p) {
+  private synchronized String challenge(Pending p) {
     long now = clock.millis();
+    // Свои старые вызовы с этого адреса вытесняются новыми (из ≤ MAX_PENDING — перебор дешёвый).
+    List<Map.Entry<String, Pending>> mine =
+        pending.entrySet().stream()
+            .filter(e -> e.getValue().ip().equals(p.ip()))
+            .sorted(Comparator.comparingLong(e -> e.getValue().seq()))
+            .toList();
+    for (int i = 0; i <= mine.size() - PER_IP; i++) {
+      pending.remove(mine.get(i).getKey());
+    }
     if (pending.size() >= MAX_PENDING) {
       pending.values().removeIf(x -> x.expiresAt() <= now);
       if (pending.size() >= MAX_PENDING) {
