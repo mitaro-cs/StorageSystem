@@ -1,3 +1,4 @@
+import type { HomeworkKind } from './content/kinds';
 export type Permission =
 	| 'manage_instance'
 	| 'assign_moderator'
@@ -36,6 +37,8 @@ export interface MeGroup {
 	permissions: Permission[];
 	/** Закреплённые чаты группы в Telegram. */
 	chats: GroupChat[];
+	/** Сессия: первый и последний день (полночь, мс); null — даты не заданы. */
+	session: { from: number; to: number } | null;
 }
 
 export interface GroupChat {
@@ -146,6 +149,10 @@ export interface Homework {
 	dueAt: number;
 	/** Сложность: 1 — легко, 2 — средне, 3 — сложно; null — не указана. */
 	difficulty: number | null;
+	/** Тип: домашнее, лабораторная, контрольная, зачёт, экзамен. */
+	kind: HomeworkKind;
+	/** Аудитория или ссылка — для зачёта и экзамена; '' — не указано. */
+	place: string;
 	done: boolean;
 	hidden: boolean;
 	createdAt: number;
@@ -165,6 +172,8 @@ export interface Today {
 	overdue: Homework[];
 	pinned: NewsItem[];
 	news: NewsItem[];
+	/** Зачёты и экзамены: недавние и будущие — для карточки сессии. */
+	exams: Homework[];
 }
 
 export interface Comment {

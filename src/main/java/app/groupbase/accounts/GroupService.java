@@ -4,11 +4,13 @@ import app.groupbase.audit.AuditService;
 import app.groupbase.auth.Actor;
 import app.groupbase.auth.Authz;
 import app.groupbase.auth.Permission;
+import app.groupbase.config.GroupbaseProperties;
 import app.groupbase.store.Group;
 import app.groupbase.store.GroupStore;
 import app.groupbase.store.Member;
 import app.groupbase.web.ApiException;
 import java.time.Clock;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -25,14 +27,21 @@ public class GroupService {
   private final InstanceSettings settings;
   private final AuditService audit;
   private final Clock clock;
+  private final ZoneId zone;
 
   public GroupService(
-      GroupStore groups, Authz authz, InstanceSettings settings, AuditService audit, Clock clock) {
+      GroupStore groups,
+      Authz authz,
+      InstanceSettings settings,
+      AuditService audit,
+      Clock clock,
+      GroupbaseProperties props) {
     this.groups = groups;
     this.authz = authz;
     this.settings = settings;
     this.audit = audit;
     this.clock = clock;
+    this.zone = props.timezone();
   }
 
   /** Участники группы; логины видят только те, у кого есть право VIEW_USERNAMES. */
@@ -87,6 +96,49 @@ public class GroupService {
     groups.find(groupId).orElseThrow(ApiException::notFound);
     groups.setArchived(groupId, archived ? clock.millis() : null);
     audit.log(actor, groupId, archived ? "group.archive" : "group.unarchive", "group", groupId);
+  }
+
+  /**
+   * Даты сессии: первый и последний день включительно. Оба null — сессии нет. Дни приводятся к
+   * полуночи по часовому поясу сайта.
+   */
+  @Transactional
+  public Group setSession(Actor actor, long groupId, Long from, Long to) {
+    groups.find(groupId).orElseThrow(ApiException::notFound);
+    if (from == null && to == null) {
+      groups.setSession(groupId, null, null);
+    } else {
+      if (from == null || to == null) {
+        throw ApiException.invalid("to", "Укажите и начало, и конец сессии");
+      }
+      long f = midnight(from);
+      long t = midnight(to);
+      if (t < f) {
+        throw ApiException.invalid("to", "Конец сессии раньше начала");
+      }
+      if (t - f > SESSION_MAX_DAYS * DAY) {
+        throw ApiException.invalid("to", "Сессия — не дольше двух месяцев");
+      }
+      long now = clock.millis();
+      if (f < now - 365 * DAY || f > now + 365 * DAY) {
+        throw ApiException.invalid("from", "Сессия — в пределах года от сегодняшнего дня");
+      }
+      groups.setSession(groupId, f, t);
+    }
+    audit.log(actor, groupId, "group.session", "group", groupId);
+    return groups.find(groupId).orElseThrow();
+  }
+
+  private static final long DAY = 24L * 60 * 60 * 1000;
+  static final int SESSION_MAX_DAYS = 62;
+
+  private long midnight(long ms) {
+    return java.time.Instant.ofEpochMilli(ms)
+        .atZone(zone)
+        .toLocalDate()
+        .atStartOfDay(zone)
+        .toInstant()
+        .toEpochMilli();
   }
 
   private record Clean(String name, String university, Integer course) {}

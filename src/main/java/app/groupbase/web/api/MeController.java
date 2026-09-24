@@ -55,7 +55,17 @@ class MeController {
       boolean archived,
       GroupRole role,
       Set<Permission> permissions,
-      List<GroupChatController.ChatView> chats) {}
+      List<GroupChatController.ChatView> chats,
+      Session session) {}
+
+  /** Сессия группы: первый и последний день (полночь по часовому поясу сайта). */
+  record Session(long from, long to) {
+    static Session of(Group g) {
+      return g.sessionFrom() == null || g.sessionTo() == null
+          ? null
+          : new Session(g.sessionFrom(), g.sessionTo());
+    }
+  }
 
   /**
    * @param publicUrl адрес сайта для участников (для ссылок и QR), null — адрес из браузера
@@ -186,7 +196,8 @@ class MeController {
         g.archivedAt() != null,
         role,
         authz.permissions(actor, g.id()),
-        chats);
+        chats,
+        Session.of(g));
   }
 
   @PatchMapping

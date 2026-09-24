@@ -15,6 +15,7 @@
 	import NewsCard from '$lib/content/NewsCard.svelte';
 	import NextDeadline from '$lib/content/NextDeadline.svelte';
 	import FirstSteps from '$lib/content/FirstSteps.svelte';
+	import { datesFor, sessionExams, sessionVisible } from '$lib/content/session';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
@@ -60,6 +61,10 @@
 	const sortDone = (list: Today['upcoming']) =>
 		[...list].sort((a, b) => Number(a.done) - Number(b.done) || a.dueAt - b.dueAt);
 	const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+	// Сессия: карточка за три недели до начала и до конца (или если экзамен скоро, а дат нет).
+	const sessionDates = $derived(datesFor(groups(), session.groupId));
+	const exams = $derived(data?.exams ? sessionExams(data.exams, sessionDates) : []);
+	const showSession = $derived(sessionVisible(sessionDates, exams, now));
 </script>
 
 <svelte:head><title>Сегодня · groupbase</title></svelte:head>
@@ -110,6 +115,14 @@
 {#if !data}
 	<div class="stack"><Skeleton /><Skeleton /></div>
 {:else}
+	{#if showSession}
+		<!-- Карточка сессии нужна пару недель в семестр — её код грузится, только когда она видна. -->
+		{#await import('$lib/content/SessionCard.svelte') then m}
+			<div class="block" in:fly={{ y: 10 }}>
+				<m.default {exams} dates={sessionDates} {now} />
+			</div>
+		{/await}
+	{/if}
 	{#if next}
 		<div class="block" in:fly={{ y: 10 }}><NextDeadline item={next} {now} /></div>
 	{/if}
@@ -281,30 +294,6 @@
 	}
 	.pill {
 		flex: none;
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		height: 40px;
-		padding: 0 18px;
-		border: 1px solid var(--border);
-		border-radius: var(--r-full);
-		background: var(--surface);
-		color: var(--text);
-		font-size: 15px;
-		font-weight: 550;
-		white-space: nowrap;
-	}
-	.pill:hover {
-		text-decoration: none;
-		background: var(--surface-2);
-	}
-	.pill.ink {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: var(--accent-text);
-	}
-	.pill.ink:hover {
-		background: var(--accent-hover);
 	}
 	.pill.tg :global(svg) {
 		color: var(--tg);

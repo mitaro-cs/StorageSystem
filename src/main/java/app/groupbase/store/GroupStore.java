@@ -23,7 +23,9 @@ public class GroupStore {
               Rows.intOrNull(rs, "course"),
               rs.getString("avatar"),
               rs.getLong("created_at"),
-              Rows.longOrNull(rs, "archived_at"));
+              Rows.longOrNull(rs, "archived_at"),
+              Rows.longOrNull(rs, "session_from"),
+              Rows.longOrNull(rs, "session_to"));
 
   static final RowMapper<Member> MEMBER =
       (rs, i) ->
@@ -90,6 +92,12 @@ public class GroupStore {
   public void update(long id, String name, String university, Integer course) {
     db.sql("UPDATE study_groups SET name = ?, university = ?, course = ? WHERE id = ?")
         .params(name, university, course, id)
+        .update();
+  }
+
+  public void setSession(long id, Long from, Long to) {
+    db.sql("UPDATE study_groups SET session_from = ?, session_to = ? WHERE id = ?")
+        .params(from, to, id)
         .update();
   }
 

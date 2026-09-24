@@ -31,6 +31,14 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 public class ExportService {
 
+  private static final Map<Object, String> KINDS =
+      Map.of(
+          "homework", "Домашнее задание",
+          "lab", "Лабораторная",
+          "test", "Контрольная",
+          "credit", "Зачёт",
+          "exam", "Экзамен");
+
   static final Locale RU = Locale.forLanguageTag("ru");
   private static final DateTimeFormatter HUMAN =
       DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm", RU);
@@ -424,8 +432,8 @@ public class ExportService {
     for (Map<String, Object> h :
         db.sql(
                 """
-                SELECT h.id, h.title, h.body_md, h.due_at, h.hidden, h.created_at,
-                  a.display_name AS author, a.status AS author_status
+                SELECT h.id, h.title, h.body_md, h.due_at, h.kind, h.place, h.difficulty,
+                  h.hidden, h.created_at, a.display_name AS author, a.status AS author_status
                 FROM homework h JOIN homework_targets t ON t.homework_id = h.id AND t.group_id = ?
                 LEFT JOIN users a ON a.id = h.author_id
                 WHERE h.subject_id = ? ORDER BY h.due_at
@@ -437,7 +445,21 @@ public class ExportService {
       String base = ZipWriter.safe(day(due) + " " + h.get("title"));
       StringBuilder b = new StringBuilder("# ").append(h.get("title")).append("\n\n");
       b.append("- Предмет: ").append(s.get("name")).append('\n');
+      b.append("- Тип: ").append(KINDS.getOrDefault(h.get("kind"), "Задание")).append('\n');
       b.append("- Срок: ").append(human(due)).append('\n');
+      if (h.get("place") instanceof String place && !place.isBlank()) {
+        b.append("- Место: ").append(place).append('\n');
+      }
+      if (h.get("difficulty") instanceof Number d) {
+        b.append("- Сложность: ")
+            .append(
+                switch (d.intValue()) {
+                  case 1 -> "легко";
+                  case 2 -> "средне";
+                  default -> "сложно";
+                })
+            .append('\n');
+      }
       b.append("- Автор: ")
           .append(person((String) h.get("author"), (String) h.get("author_status")))
           .append(", ")

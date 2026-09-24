@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import { Plus } from '@lucide/svelte';
+	import { Plus, GraduationCap } from '@lucide/svelte';
 	import { get, qs } from '$lib/api';
 	import { peek, put } from '$lib/cache';
 	import { can, session } from '$lib/session.svelte';
@@ -12,6 +12,7 @@
 	import type { Homework } from '$lib/types';
 	import { byDay, toggleDone } from './homework';
 	import HomeworkRow from './HomeworkRow.svelte';
+	import { KINDS, isExam, type HomeworkKind } from './kinds';
 	import Calendar from './Calendar.svelte';
 	import Tabs from '$lib/ui/Tabs.svelte';
 	import Button from '$lib/ui/Button.svelte';
@@ -27,6 +28,25 @@
 	let overdueCount = $state(0);
 	let composer = $state(false);
 	const now = Date.now();
+	// Фильтр по типу: зачёты и экзамены — одной кнопкой.
+	type KindFilter = 'all' | Exclude<HomeworkKind, 'credit' | 'exam'> | 'exams';
+	let kind = $state<KindFilter>('all');
+	const kindKey = (k: string): KindFilter => (isExam(k) ? 'exams' : (k as KindFilter));
+	const kindChips = $derived.by(() => {
+		const present = new Set((items ?? []).map((h) => kindKey(h.kind)));
+		const chips = KINDS.filter((k) => k.value !== 'credit' && k.value !== 'exam')
+			.map((k) => ({ value: k.value as KindFilter, label: k.many }))
+			.concat([{ value: 'exams', label: 'Зачёты и экзамены' }])
+			.filter((c) => present.has(c.value));
+		return chips.length > 1 ? chips : [];
+	});
+	const shown = $derived(
+		items && kind !== 'all' ? items.filter((h) => kindKey(h.kind) === kind) : items
+	);
+	$effect(() => {
+		// Выбранного типа больше нет в списке (другая вкладка) — показываем всё.
+		if (kind !== 'all' && !kindChips.some((c) => c.value === kind)) kind = 'all';
+	});
 
 	async function load() {
 		if (view === 'calendar') return;
@@ -85,10 +105,14 @@
 {#if title}
 	<div class="page-head">
 		<h1>Домашние задания</h1>
-		{#if can('publish_homework')}
-			<Button variant="primary" onclick={() => (composer = true)}><Plus size={17} /> Задание</Button
-			>
-		{/if}
+		<div class="row head-actions">
+			<a class="pill" href="/session"><GraduationCap size={16} /> Сессия</a>
+			{#if can('publish_homework')}
+				<Button variant="primary" onclick={() => (composer = true)}
+					><Plus size={17} /> Задание</Button
+				>
+			{/if}
+		</div>
 	</div>
 {:else if can('publish_homework')}
 	<div class="row sub-actions">
@@ -100,11 +124,22 @@
 
 <Tabs {tabs} value={view} onchange={(v) => (view = v as View)} label="Представление" />
 
+{#if view !== 'calendar' && kindChips.length}
+	<div class="kinds" role="group" aria-label="Тип задания">
+		<button class="pill" class:ink={kind === 'all'} onclick={() => (kind = 'all')}>Все</button>
+		{#each kindChips as c (c.value)}
+			<button class="pill" class:ink={kind === c.value} onclick={() => (kind = c.value)}
+				>{c.label}</button
+			>
+		{/each}
+	</div>
+{/if}
+
 {#if view === 'calendar'}
 	<Calendar {subjectId} />
-{:else if items === null}
+{:else if items === null || shown === null}
 	<div class="stack"><Skeleton /><Skeleton /></div>
-{:else if items.length === 0}
+{:else if shown.length === 0}
 	<div class="card">
 		<Empty
 			title={view === 'overdue' ? 'Просроченных нет' : 'Заданий нет'}
@@ -114,7 +149,7 @@
 		/>
 	</div>
 {:else if view === 'week'}
-	{#each byDay(items) as d, di (d.day)}
+	{#each byDay(shown) as d, di (d.day)}
 		<p class="day">
 			<span class="rel">{relativeDay(d.day, now)}</span><span class="faint num"
 				>{fmtWeekday(d.day)}, {fmtDate(d.day)}</span
@@ -130,7 +165,7 @@
 	{/each}
 {:else}
 	<div class="list">
-		{#each items as h, i (h.id)}
+		{#each shown as h, i (h.id)}
 			<div in:fly={{ y: 8, delay: stagger(i) }}>
 				<HomeworkRow item={h} {now} ontoggle={toggle} />
 			</div>
@@ -163,5 +198,25 @@
 	}
 	.sub-actions {
 		margin-bottom: var(--s3);
+	}
+	.head-actions {
+		gap: var(--s2);
+	}
+	.kinds {
+		display: flex;
+		gap: 6px;
+		margin: calc(-1 * var(--s2)) 0 var(--s4);
+		overflow-x: auto;
+		scrollbar-width: none;
+		-webkit-overflow-scrolling: touch;
+	}
+	.kinds::-webkit-scrollbar {
+		display: none;
+	}
+	.kinds .pill {
+		flex: none;
+		height: 34px;
+		padding: 0 14px;
+		font-size: 14px;
 	}
 </style>

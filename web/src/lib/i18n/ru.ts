@@ -6,6 +6,7 @@ export const ru = {
 		news: 'Новости',
 		homework: 'ДЗ',
 		homeworkLong: 'Домашние задания',
+		session: 'Сессия',
 		materials: 'Файлы',
 		subjects: 'Предметы',
 		members: 'Участники',

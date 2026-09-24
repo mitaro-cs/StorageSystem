@@ -111,6 +111,15 @@ class GroupController {
     return Map.of("status", "ok");
   }
 
+  record SessionBody(Long from, Long to) {}
+
+  /** Даты сессии группы; оба null — убрать. Их задаёт тот, кто ведёт предметы. */
+  @Require(Permission.MANAGE_SUBJECTS)
+  @PutMapping("/{groupId}/session")
+  Group session(Actor actor, @PathVariable long groupId, @RequestBody SessionBody b) {
+    return groupService.setSession(actor, groupId, b.from(), b.to());
+  }
+
   // --- участники ---
 
   /** Прогресс для чек-листа старосты на главной. */

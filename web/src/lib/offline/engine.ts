@@ -16,6 +16,7 @@ import { all, dropDb, getMeta, one, openDb, setMeta, supported, write, lastUser 
 import type { StoreName } from './idb';
 import { NotFound, resolve, type FolderRef, type Snapshot } from './local';
 import { forgetFiles, prefetchFiles, requestPersistence } from './files';
+import { KINDS, type HomeworkKind } from '$lib/content/kinds';
 import { offline } from './state.svelte';
 
 /**
@@ -336,6 +337,8 @@ export async function enqueue(method: string, path: string, body?: unknown): Pro
 			bodyHtml: `<p>${escapeHtml(String(b.body ?? ''))}</p>`,
 			dueAt: Number(b.dueAt),
 			difficulty: [1, 2, 3].includes(Number(b.difficulty)) ? Number(b.difficulty) : null,
+			kind: KINDS.some((k) => k.value === b.kind) ? (b.kind as HomeworkKind) : 'homework',
+			place: String(b.place ?? ''),
 			done: false,
 			hidden: false,
 			createdAt: now,

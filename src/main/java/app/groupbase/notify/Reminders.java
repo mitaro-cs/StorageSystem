@@ -48,7 +48,8 @@ public class Reminders {
     this.zone = props.timezone();
   }
 
-  private record Due(long homeworkId, String title, long dueAt, String subject, long userId) {}
+  private record Due(
+      long homeworkId, String title, long dueAt, String subject, String kind, long userId) {}
 
   /**
    * Напоминание за сутки до срока тем, кто ещё не отметил задание выполненным. Задания, выложенные
@@ -58,7 +59,7 @@ public class Reminders {
     List<Due> rows =
         db.sql(
                 """
-                SELECT h.id, h.title, h.due_at, s.name AS subject, m.user_id
+                SELECT h.id, h.title, h.due_at, h.kind, s.name AS subject, m.user_id
                 FROM homework h
                 JOIN subjects s ON s.id = h.subject_id
                 JOIN homework_targets t ON t.homework_id = h.id
@@ -83,6 +84,7 @@ public class Reminders {
                         rs.getString("title"),
                         rs.getLong("due_at"),
                         rs.getString("subject"),
+                        rs.getString("kind"),
                         rs.getLong("user_id")))
             .list();
     Map<Long, List<Due>> byHomework = new LinkedHashMap<>();
@@ -108,14 +110,30 @@ public class Reminders {
           users,
           new Message(
               "reminder",
-              "Скоро срок · " + first.subject(),
-              first.title() + " — сдать " + when(first.dueAt(), now),
+              soon(first.kind()) + " · " + first.subject(),
+              first.title()
+                  + (isExam(first.kind()) ? " — " : " — сдать ")
+                  + when(first.dueAt(), now),
               "/homework/" + first.homeworkId(),
               true),
           p -> true);
       sent += users.size();
     }
     return sent;
+  }
+
+  static boolean isExam(String kind) {
+    return "credit".equals(kind) || "exam".equals(kind);
+  }
+
+  /** Заголовок напоминания: у зачёта и экзамена — своё. */
+  static String soon(String kind) {
+    return switch (kind) {
+      case "credit" -> "Скоро зачёт";
+      case "exam" -> "Скоро экзамен";
+      case "test" -> "Скоро контрольная";
+      default -> "Скоро срок";
+    };
   }
 
   /** «сегодня в 23:59», «завтра в 10:00». */

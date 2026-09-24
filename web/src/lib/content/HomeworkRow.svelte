@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { Paperclip, MessageCircle, EyeOff, CloudOff } from '@lucide/svelte';
+	import { Paperclip, MessageCircle, EyeOff, CloudOff, MapPin } from '@lucide/svelte';
 	import type { Homework } from '$lib/types';
 	import { fmtDue } from '$lib/format';
 	import SubjectTag from '$lib/ui/SubjectTag.svelte';
 	import DoneToggle from '$lib/ui/DoneToggle.svelte';
 	import DifficultyBadge from './DifficultyBadge.svelte';
+	import KindBadge from './KindBadge.svelte';
 
 	let {
 		item,
@@ -21,7 +22,11 @@
 	<div class="main">
 		<a href="/homework/{item.id}" class="title">{item.title}</a>
 		<div class="meta">
+			<KindBadge kind={item.kind} compact />
 			<SubjectTag {...item.subject} />
+			{#if item.place}<span class="faint small row place"
+					><MapPin size={13} /><span class="ellipsis">{item.place}</span></span
+				>{/if}
 			{#if item.difficulty}<DifficultyBadge value={item.difficulty} compact />{/if}
 			{#if item.attachments.length}<span class="faint"><Paperclip size={13} /></span>{/if}
 			{#if item.comments}<span class="faint small row"
@@ -74,8 +79,19 @@
 	}
 	.meta {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		gap: 10px;
+		gap: 4px 10px;
+		min-width: 0;
+	}
+	.place {
+		min-width: 0;
+		max-width: 180px;
+	}
+	.ellipsis {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.row {
 		gap: 3px;

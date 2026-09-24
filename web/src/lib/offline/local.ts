@@ -93,6 +93,16 @@ export function homeworkList(s: Snapshot, q: URLSearchParams, now: number): Home
 			const limit = Math.min(num(q, 'limit') ?? 100, 200);
 			return list.sort((a, b) => b.dueAt - a.dueAt).slice(0, limit);
 		}
+		case 'exams':
+			return list
+				.filter(
+					(h) =>
+						(h.kind === 'credit' || h.kind === 'exam') &&
+						h.dueAt >= sod - 45 * DAY &&
+						h.dueAt < sod + 180 * DAY
+				)
+				.sort(byDue)
+				.slice(0, 100);
 		default:
 			return list.filter((h) => h.dueAt >= sod && h.dueAt < sod + 8 * DAY).sort(byDue);
 	}
@@ -123,7 +133,8 @@ export function today(s: Snapshot, q: URLSearchParams, now: number) {
 			now
 		),
 		pinned: feed.pinned,
-		news: feed.items
+		news: feed.items,
+		exams: homeworkList(s, new URLSearchParams({ ...Object.fromEntries(q), view: 'exams' }), now)
 	};
 }
 

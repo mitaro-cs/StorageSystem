@@ -8,7 +8,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Экран «Сегодня» одним запросом: ближайшие дедлайны, просрочка и свежие новости. */
+/**
+ * Экран «Сегодня» одним запросом: ближайшие дедлайны, просрочка, свежие новости и зачёты с
+ * экзаменами (для карточки сессии).
+ */
 @RestController
 class TodayController {
 
@@ -16,7 +19,8 @@ class TodayController {
       List<HomeworkService.Item> upcoming,
       List<HomeworkService.Item> overdue,
       List<NewsService.Item> pinned,
-      List<NewsService.Item> news) {}
+      List<NewsService.Item> news,
+      List<HomeworkService.Item> exams) {}
 
   private final HomeworkService homework;
   private final NewsService news;
@@ -33,6 +37,7 @@ class TodayController {
         homework.list(actor, HomeworkService.View.WEEK, group, null, null, null, null),
         homework.list(actor, HomeworkService.View.OVERDUE, group, null, null, null, null),
         feed.pinned(),
-        feed.items());
+        feed.items(),
+        homework.list(actor, HomeworkService.View.EXAMS, group, null, null, null, null));
   }
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Plus, Users, Archive, ArrowRight, Send } from '@lucide/svelte';
+	import { Plus, Users, Archive, ArrowRight, Send, Sparkles } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { get, post } from '$lib/api';
 	import { can, currentGroup, groups, session } from '$lib/session.svelte';
@@ -12,6 +12,7 @@
 	import SubjectArt from '$lib/ui/SubjectArt.svelte';
 
 	let editor = $state(false);
+	let wizard = $state(false);
 	let showArchived = $state(false);
 	let requests = $state<LinkRequest[]>([]);
 
@@ -46,7 +47,10 @@
 <div class="page-head">
 	<h1>Предметы</h1>
 	{#if target && can('manage_subjects', target.id)}
-		<Button variant="primary" onclick={() => (editor = true)}><Plus size={17} /> Предмет</Button>
+		<div class="row wrap head-actions">
+			<Button onclick={() => (wizard = true)}><Sparkles size={17} /> Новый семестр</Button>
+			<Button variant="primary" onclick={() => (editor = true)}><Plus size={17} /> Предмет</Button>
+		</div>
 	{/if}
 </div>
 
@@ -134,6 +138,12 @@
 {#if editor}
 	{#await import('$lib/content/SubjectEditor.svelte') then m}
 		<m.default bind:open={editor} groupId={target?.id ?? null} onsaved={() => loadSubjects()} />
+	{/await}
+{/if}
+
+{#if wizard && target}
+	{#await import('$lib/content/NewSemester.svelte') then m}
+		<m.default bind:open={wizard} group={target} />
 	{/await}
 {/if}
 
@@ -250,5 +260,8 @@
 		background: none;
 		color: var(--text-2);
 		font-weight: 550;
+	}
+	.head-actions {
+		gap: var(--s2);
 	}
 </style>

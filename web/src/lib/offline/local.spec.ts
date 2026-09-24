@@ -17,6 +17,8 @@ function hw(id: number, dueIn: number, extra: Partial<Homework> = {}): Homework 
 		bodyHtml: '',
 		dueAt: NOW + dueIn,
 		difficulty: null,
+		kind: 'homework',
+		place: '',
 		done: false,
 		hidden: false,
 		createdAt: NOW - DAY,

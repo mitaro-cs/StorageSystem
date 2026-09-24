@@ -134,13 +134,29 @@ public class Notifier implements DisposableBean {
         });
   }
 
+  /** Начатые рассылки дописываются до закрытия базы: иначе при остановке они падают. */
   @Override
-  public void destroy() {
+  public void destroy() throws InterruptedException {
     async.shutdown();
+    if (!async.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+      async.shutdownNow();
+    }
   }
 
   String due(long ms) {
     return DUE.format(Instant.ofEpochMilli(ms).atZone(props.timezone()));
+  }
+
+  /** «Задача — сдать до 3 октября, 23:59»; у зачёта и экзамена — когда и где. */
+  String homeworkText(HomeworkService.Published e) {
+    boolean exam = e.kind() == HomeworkService.Kind.CREDIT || e.kind() == HomeworkService.Kind.EXAM;
+    if (!exam) {
+      return e.title() + " — сдать до " + due(e.dueAt());
+    }
+    return e.title()
+        + " — "
+        + due(e.dueAt())
+        + (e.place() == null || e.place().isBlank() ? "" : ", " + e.place());
   }
 
   @TransactionalEventListener(fallbackExecution = true)
@@ -151,8 +167,8 @@ public class Notifier implements DisposableBean {
                 members(e.groups(), e.authorId()),
                 new Message(
                     "homework",
-                    "Новое задание · " + e.subjectName(),
-                    e.title() + " — сдать до " + due(e.dueAt()),
+                    e.kind().announce() + " · " + e.subjectName(),
+                    homeworkText(e),
                     "/homework/" + e.id(),
                     false),
                 Prefs::homework));

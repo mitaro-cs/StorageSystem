@@ -4,6 +4,7 @@
 	import type { Component } from 'svelte';
 	import {
 		Archive,
+		CalendarRange,
 		ChevronLeft,
 		ChevronRight,
 		Globe,
@@ -80,6 +81,15 @@
 					tone: 'green',
 					part: 'group',
 					show: !!group && can('manage_permissions', group.id)
+				},
+				{
+					value: 'semester',
+					label: 'Семестр',
+					desc: 'Даты сессии, мастер нового семестра',
+					icon: CalendarRange,
+					tone: 'violet',
+					part: 'group',
+					show: !!group && can('manage_subjects', group.id)
 				},
 				{
 					value: 'group',
@@ -253,6 +263,10 @@
 						{:else if group && tab === 'permissions'}
 							{#await import('$lib/settings/Permissions.svelte') then m}<m.default
 									groupId={group.id}
+								/>{/await}
+						{:else if group && tab === 'semester'}
+							{#await import('$lib/settings/SemesterPanel.svelte') then m}<m.default
+									{group}
 								/>{/await}
 						{:else if group && tab === 'group'}
 							{#await import('$lib/settings/GroupSettings.svelte') then m}<m.default

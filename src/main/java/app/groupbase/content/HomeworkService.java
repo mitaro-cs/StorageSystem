@@ -31,11 +31,50 @@ public class HomeworkService {
     WEEK,
     OVERDUE,
     RANGE,
-    ALL
+    ALL,
+    /** Зачёты и экзамены: недавние и будущие — для режима «Сессия». */
+    EXAMS
+  }
+
+  /** Тип задания; в базе — {@link #id()}. */
+  public enum Kind {
+    HOMEWORK,
+    LAB,
+    TEST,
+    CREDIT,
+    EXAM;
+
+    @com.fasterxml.jackson.annotation.JsonValue
+    public String id() {
+      return name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /** Как назвать в уведомлении: «Новое задание», «Экзамен»… */
+    public String announce() {
+      return switch (this) {
+        case HOMEWORK -> "Новое задание";
+        case LAB -> "Лабораторная";
+        case TEST -> "Контрольная";
+        case CREDIT -> "Зачёт";
+        case EXAM -> "Экзамен";
+      };
+    }
+
+    public static Kind of(String id) {
+      for (Kind k : values()) {
+        if (k.id().equals(id)) {
+          return k;
+        }
+      }
+      throw ApiException.invalid(
+          "kind", "Тип: домашнее, лабораторная, контрольная, зачёт или экзамен");
+    }
   }
 
   /**
    * @param difficulty сложность 1–3; при изменении null — не менять, 0 — убрать
+   * @param kind homework, lab, test, credit, exam; null — домашнее (при изменении — не менять)
+   * @param place аудитория или ссылка; при изменении null — не менять
    */
   public record Input(
       Long subjectId,
@@ -44,7 +83,9 @@ public class HomeworkService {
       Long dueAt,
       List<Long> groupIds,
       List<Long> attachments,
-      Integer difficulty) {}
+      Integer difficulty,
+      String kind,
+      String place) {}
 
   public record Can(boolean edit, boolean delete, boolean hide) {}
 
@@ -55,6 +96,8 @@ public class HomeworkService {
       String bodyHtml,
       long dueAt,
       Integer difficulty,
+      Kind kind,
+      String place,
       boolean done,
       boolean hidden,
       long createdAt,
@@ -67,7 +110,14 @@ public class HomeworkService {
       Can can) {}
 
   public record Published(
-      long id, Set<Long> groups, long authorId, String title, long dueAt, String subjectName) {}
+      long id,
+      Set<Long> groups,
+      long authorId,
+      String title,
+      long dueAt,
+      String subjectName,
+      Kind kind,
+      String place) {}
 
   private record Row(
       long id,
@@ -80,6 +130,8 @@ public class HomeworkService {
       String bodyHtml,
       long dueAt,
       Integer difficulty,
+      Kind kind,
+      String place,
       boolean hidden,
       long createdAt,
       long updatedAt,
@@ -87,6 +139,8 @@ public class HomeworkService {
       int comments) {}
 
   private static final long DAY = 24L * 60 * 60 * 1000;
+  static final long EXAMS_BEFORE = 45 * DAY;
+  static final long EXAMS_AHEAD = 180 * DAY;
 
   private final JdbcClient db;
   private final Targets targets;
@@ -150,6 +204,8 @@ public class HomeworkService {
                     rs.getString("body_html"),
                     rs.getLong("due_at"),
                     Rows.intOrNull(rs, "difficulty"),
+                    Kind.of(rs.getString("kind")),
+                    rs.getString("place"),
                     Rows.bool(rs, "hidden"),
                     rs.getLong("created_at"),
                     rs.getLong("updated_at"),
@@ -207,6 +263,14 @@ public class HomeworkService {
       case ALL -> {
         p.put("limit", limit == null ? 100 : Math.min(limit, 200));
         where.append(" ORDER BY h.due_at DESC LIMIT :limit");
+      }
+      case EXAMS -> {
+        // Сессия — это и сданное недавно (прогресс «сдано 3 из 7»), и всё впереди.
+        p.put("since", startOfToday() - EXAMS_BEFORE);
+        p.put("until", startOfToday() + EXAMS_AHEAD);
+        where.append(
+            " AND h.kind IN ('credit', 'exam') AND h.due_at >= :since AND h.due_at < :until"
+                + " ORDER BY h.due_at LIMIT 100");
       }
     }
     return views(actor, query(where.toString(), p));
@@ -268,6 +332,8 @@ public class HomeworkService {
     String md = NewsService.body(in.body());
     long due = due(in.dueAt());
     Integer difficulty = difficulty(in.difficulty());
+    Kind kind = in.kind() == null || in.kind().isBlank() ? Kind.HOMEWORK : Kind.of(in.kind());
+    String place = place(in.place());
     Set<Long> to =
         audience.resolve(actor, in.subjectId(), in.groupIds(), Permission.PUBLISH_HOMEWORK);
     long now = clock.millis();
@@ -275,8 +341,8 @@ public class HomeworkService {
         db.sql(
                 """
                 INSERT INTO homework (subject_id, author_id, title, body_md, body_html, due_at,
-                                      difficulty, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                                      difficulty, kind, place, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """)
             .params(
                 in.subjectId(),
@@ -286,6 +352,8 @@ public class HomeworkService {
                 Markdown.render(md),
                 due,
                 difficulty,
+                kind.id(),
+                place,
                 now,
                 now)
             .query(Long.class)
@@ -294,7 +362,8 @@ public class HomeworkService {
     setAttachments(actor, id, in.attachments());
     audit.log(actor, to.iterator().next(), "homework.create", "homework", id);
     Item item = get(actor, id);
-    events.publishEvent(new Published(id, to, actor.id(), title, due, item.subject().name()));
+    events.publishEvent(
+        new Published(id, to, actor.id(), title, due, item.subject().name(), kind, place));
     return item;
   }
 
@@ -310,10 +379,13 @@ public class HomeworkService {
     String md = in.body() == null ? r.bodyMd() : NewsService.body(in.body());
     long due = in.dueAt() == null ? r.dueAt() : due(in.dueAt());
     Integer difficulty = in.difficulty() == null ? r.difficulty() : difficulty(in.difficulty());
+    Kind kind = in.kind() == null || in.kind().isBlank() ? r.kind() : Kind.of(in.kind());
+    String place = in.place() == null ? r.place() : place(in.place());
     db.sql(
             "UPDATE homework SET title = ?, body_md = ?, body_html = ?, due_at = ?,"
-                + " difficulty = ?, updated_at = ? WHERE id = ?")
-        .params(title, md, Markdown.render(md), due, difficulty, clock.millis(), id)
+                + " difficulty = ?, kind = ?, place = ?, updated_at = ? WHERE id = ?")
+        .params(
+            title, md, Markdown.render(md), due, difficulty, kind.id(), place, clock.millis(), id)
         .update();
     if (in.groupIds() != null && !in.groupIds().isEmpty()) {
       Set<Long> to =
@@ -399,6 +471,15 @@ public class HomeworkService {
     return raw;
   }
 
+  /** Аудитория или ссылка на встречу: одна строка до 80 символов. */
+  static String place(String raw) {
+    String p = raw == null ? "" : raw.strip().replaceAll("\\s+", " ");
+    if (p.length() > 80) {
+      throw ApiException.invalid("place", "Место — до 80 символов");
+    }
+    return p;
+  }
+
   private long due(Long dueAt) {
     if (dueAt == null) {
       throw ApiException.invalid("dueAt", "Укажите дедлайн");
@@ -440,6 +521,8 @@ public class HomeworkService {
               r.bodyHtml(),
               r.dueAt(),
               r.difficulty(),
+              r.kind(),
+              r.place(),
               r.done(),
               r.hidden(),
               r.createdAt(),

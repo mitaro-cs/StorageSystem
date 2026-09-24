@@ -20,6 +20,8 @@
 	import Prose from '$lib/ui/Prose.svelte';
 	import FileIcon from '$lib/content/FileIcon.svelte';
 	import DifficultyBadge from '$lib/content/DifficultyBadge.svelte';
+	import KindBadge from '$lib/content/KindBadge.svelte';
+	import { isExam, kindOf } from '$lib/content/kinds';
 	import Crumbs from '$lib/ui/Crumbs.svelte';
 	import { openFiles } from '$lib/files/viewer.svelte';
 	import { canPreview } from '$lib/fileKinds';
@@ -110,7 +112,10 @@
 			</span>
 			<div class="hero-info">
 				<h1>{item.title}</h1>
-				<span class="sub">{item.subject.name}</span>
+				<span class="sub"
+					>{item.kind !== 'homework' ? `${kindOf(item.kind).label} · ` : ''}{item.subject
+						.name}</span
+				>
 				<span class="facts">
 					<span><Clock size={15} /> <span class="num">{fmtDue(item.dueAt, now)}</span></span>
 					{#if item.attachments.length}<span
@@ -129,13 +134,29 @@
 			<div>
 				<dt>Статус</dt>
 				<dd class:ok={item.done} class:bad={overdue}>
-					{item.done ? 'Выполнено' : overdue ? 'Срок прошёл' : 'Не выполнено'}
+					{#if isExam(item.kind)}
+						{item.done ? 'Сдано' : overdue ? 'Прошёл' : 'Впереди'}
+					{:else}
+						{item.done ? 'Выполнено' : overdue ? 'Срок прошёл' : 'Не выполнено'}
+					{/if}
 				</dd>
 			</div>
+			{#if item.kind !== 'homework'}
+				<div>
+					<dt>Тип</dt>
+					<dd><KindBadge kind={item.kind} /></dd>
+				</div>
+			{/if}
 			<div>
-				<dt>Срок</dt>
+				<dt>{isExam(item.kind) ? 'Когда' : 'Срок'}</dt>
 				<dd class="num">{fmtDue(item.dueAt, now)}</dd>
 			</div>
+			{#if item.place}
+				<div>
+					<dt>Где</dt>
+					<dd>{item.place}</dd>
+				</div>
+			{/if}
 			<div>
 				<dt>Предмет</dt>
 				<dd><SubjectTag {...item.subject} /></dd>
