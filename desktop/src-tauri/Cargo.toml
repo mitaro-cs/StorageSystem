@@ -3,7 +3,7 @@ name = "groupbase-desktop"
 version = "0.1.0"
 description = "groupbase — сервер студенческой группы на своём компьютере"
 authors = ["groupbase"]
-license = "MIT"
+license = "AGPL-3.0-only"
 edition = "2021"
 rust-version = "1.80"
 
@@ -16,6 +16,8 @@ tauri-plugin-single-instance = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-clipboard-manager = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 keepawake = "0.6"

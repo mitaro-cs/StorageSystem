@@ -9,6 +9,18 @@
 	import type { Status } from './types';
 
 	let s = $state<Status | null>(null);
+	let updating = $state(false);
+
+	async function updateNow() {
+		updating = true;
+		try {
+			// Дальше всё делает приложение: скачает, остановит сервер, установит и откроется заново.
+			await post('/api/desktop/update', {});
+		} catch (e) {
+			updating = false;
+			toastError(e);
+		}
+	}
 
 	onMount(async () => {
 		try {
@@ -31,7 +43,20 @@
 </script>
 
 {#if s}
-	{#if s.update}
+	{#if s.update && s.canUpdate}
+		<div class="card update">
+			<ArrowUpCircle size={22} />
+			<span>
+				<strong>Доступна новая версия {s.update.version}</strong>
+				<span class="small muted"
+					>Обновится само: сайт будет недоступен около минуты, данные сохранятся.</span
+				>
+			</span>
+			<Button variant="primary" size="s" loading={updating} onclick={updateNow}
+				>Обновить сейчас</Button
+			>
+		</div>
+	{:else if s.update}
 		<a class="card update" href={s.update.url} target="_blank" rel="noreferrer">
 			<ArrowUpCircle size={22} />
 			<span>
@@ -98,7 +123,8 @@
 		text-decoration: none;
 		box-shadow: 0 0 0 2px var(--ok);
 	}
-	.update span {
+	.update > span {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
 	}

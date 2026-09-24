@@ -31,16 +31,23 @@ class StatusController {
       String dataDir,
       Sizes sizes,
       BackupService.Status backup,
-      UpdateCheck.Update update) {}
+      UpdateCheck.Update update,
+      boolean canUpdate) {}
 
   private final GroupbaseProperties props;
   private final BackupService backups;
   private final UpdateCheck updates;
+  private final app.groupbase.desktop.DesktopBridge bridge;
 
-  StatusController(GroupbaseProperties props, BackupService backups, UpdateCheck updates) {
+  StatusController(
+      GroupbaseProperties props,
+      BackupService backups,
+      UpdateCheck updates,
+      app.groupbase.desktop.DesktopBridge bridge) {
     this.props = props;
     this.backups = backups;
     this.updates = updates;
+    this.bridge = bridge;
   }
 
   @Require(Permission.MANAGE_INSTANCE)
@@ -57,7 +64,18 @@ class StatusController {
         actor.local() ? data.toAbsolutePath().toString() : null,
         new Sizes(db, files, free),
         backups.status(),
-        updates.available());
+        update(),
+        bridge.enabled() && actor.local() && bridge.availableUpdate() != null);
+  }
+
+  /** Новая версия: в приложении хоста её находит оболочка, на своём сервере — запрос к GitHub. */
+  private UpdateCheck.Update update() {
+    String v = bridge.availableUpdate();
+    if (v != null) {
+      return new UpdateCheck.Update(
+          v, "https://github.com/mitaro-cs/StorageSystem/releases/tag/v" + v);
+    }
+    return updates.available();
   }
 
   private static long size(Path p) throws IOException {

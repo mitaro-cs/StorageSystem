@@ -61,6 +61,10 @@ public class DesktopBridge {
   private final Out out = Out.stdout();
   private final Map<String, Long> enterTokens = new ConcurrentHashMap<>();
   private final AtomicBoolean restart = new AtomicBoolean();
+
+  /** Новая версия приложения, найденная оболочкой (её механизм обновлений). */
+  private volatile String availableUpdate;
+
   private volatile Runnable onRestart = () -> {};
 
   public DesktopBridge(GroupbaseProperties props, Clock clock) {
@@ -112,6 +116,19 @@ public class DesktopBridge {
     restart.set(true);
     event("restart", Map.of());
     onRestart.run();
+  }
+
+  public String availableUpdate() {
+    return availableUpdate;
+  }
+
+  public void setAvailableUpdate(String version) {
+    this.availableUpdate = version == null || version.isBlank() ? null : version.strip();
+  }
+
+  /** Попросить оболочку скачать и установить обновление (она остановит сервер сама). */
+  public void requestUpdate() {
+    event("update", Map.of());
   }
 
   public boolean restartRequested() {

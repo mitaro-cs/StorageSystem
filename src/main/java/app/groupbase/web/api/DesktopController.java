@@ -81,6 +81,17 @@ class DesktopController {
         .orElseGet(() -> redirect("/login"));
   }
 
+  /** «Обновить сейчас»: оболочка скачает новую версию, остановит сервер и перезапустится. */
+  @Require(Permission.MANAGE_INSTANCE)
+  @PostMapping("/update")
+  Map<String, String> update(Actor actor) {
+    if (!bridge.enabled() || !actor.local() || bridge.availableUpdate() == null) {
+      throw ApiException.forbidden("Обновление запускается в приложении на компьютере хоста");
+    }
+    bridge.requestUpdate();
+    return Map.of("status", "updating");
+  }
+
   /** Открыть на компьютере хоста папку с данными, копиями или журналами. */
   @Require(Permission.MANAGE_INSTANCE)
   @PostMapping("/open")

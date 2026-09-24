@@ -60,9 +60,16 @@ e2e: build ## Playwright против собранного jar
 run: build ## Запустить собранный jar
 	GROUPBASE_DATA_DIR=$(DEV_DATA) GROUPBASE_HTTP_INSECURE=true java -jar $(JAR) serve
 
+UPDATER_KEY ?= $(HOME)/.tauri/groupbase-updater.key
+
 desktop: build ## Приложение хоста для этой ОС (нужен Rust): .dmg / установщик .exe
 	scripts/desktop-resources.sh
-	cd desktop && npm ci && npx tauri build
+	@# Без ключа подписи обновлений — сборка без файлов автообновления.
+	cd desktop && npm ci && if [ -f "$(UPDATER_KEY)" ]; then \
+		TAURI_SIGNING_PRIVATE_KEY="$$(cat "$(UPDATER_KEY)")" npx tauri build; \
+	else \
+		npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'; \
+	fi
 
 desktop-run: build ## Запустить приложение хоста из исходников (данные — в ./data-desktop)
 	scripts/desktop-resources.sh

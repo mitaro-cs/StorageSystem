@@ -22,7 +22,9 @@ use tauri::{
 };
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_updater::UpdaterExt;
 
 const MAIN: &str = "main";
 const RESTART_CODE: i32 = 3;
@@ -53,6 +55,10 @@ struct App {
     server: Mutex<Server>,
     awake: Mutex<Option<keepawake::KeepAwake>>,
     copy_item: Mutex<Option<MenuItem<Wry>>>,
+    update_item: Mutex<Option<MenuItem<Wry>>>,
+    /// Найденная новая версия (для пункта меню и кнопки в «Состоянии»).
+    update: Mutex<Option<String>>,
+    updating: Mutex<bool>,
     data: PathBuf,
 }
 
@@ -69,6 +75,8 @@ fn main() {
         ))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             restart_server,
             open_logs,
@@ -85,6 +93,9 @@ fn main() {
                 server: Mutex::new(Server::default()),
                 awake: Mutex::new(None),
                 copy_item: Mutex::new(None),
+                update_item: Mutex::new(None),
+                update: Mutex::new(None),
+                updating: Mutex::new(false),
                 data,
             });
             create_window(app.handle(), !hidden)?;
@@ -93,6 +104,7 @@ fn main() {
                 set_awake(app.handle(), true);
             }
             start_server(app.handle());
+            schedule_update_checks(app.handle().clone());
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -501,6 +513,8 @@ fn on_event(app: &AppHandle, v: &Value) {
         "restart" => show_splash(app, "Перезапускаем сервер…", false),
         "status" => set_status(app, &text("message"), false),
         "error" => set_status(app, &text("message"), true),
+        // «Обновить» в «Настройки → Сервер → Состояние».
+        "update" => install_update(app),
         _ => {}
     }
 }
@@ -616,6 +630,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         read_pref(app, "keepAwake"),
         None::<&str>,
     )?;
+    let update_item = MenuItem::with_id(app, "update", "Проверить обновления", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(
         app,
         "quit",
@@ -632,10 +647,12 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             &autostart,
             &awake,
             &PredefinedMenuItem::separator(app)?,
+            &update_item,
             &quit_item,
         ],
     )?;
     *app.state::<App>().copy_item.lock().unwrap() = Some(copy);
+    *app.state::<App>().update_item.lock().unwrap() = Some(update_item);
 
     #[cfg(target_os = "macos")]
     let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray-template.png"))?;
@@ -677,6 +694,13 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 write_pref(app, "keepAwake", on);
                 let _ = aw.set_checked(on);
             }
+            "update" => {
+                let found = app.state::<App>().update.lock().unwrap().clone();
+                match found {
+                    Some(version) => ask_update(app, &version),
+                    None => check_update(app, true),
+                }
+            }
             "quit" => quit(app),
             _ => {}
         })
@@ -695,6 +719,208 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         })
         .build(app)?;
     Ok(())
+}
+
+// ---------- обновления ----------
+
+/// Проверка обновлений: через 20 секунд после запуска и дальше раз в 6 часов.
+fn schedule_update_checks(app: AppHandle) {
+    thread::spawn(move || {
+        thread::sleep(Duration::from_secs(20));
+        loop {
+            check_update(&app, false);
+            thread::sleep(Duration::from_secs(6 * 3600));
+        }
+    });
+}
+
+/// interactive — пользователь сам нажал «Проверить»: ему ответят и «обновлений нет».
+fn check_update(app: &AppHandle, interactive: bool) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let result = match app.updater() {
+            Ok(updater) => updater.check().await,
+            Err(e) => Err(e),
+        };
+        match result {
+            Ok(Some(update)) => {
+                let version = update.version.clone();
+                remember_update(&app, Some(&version));
+                if interactive {
+                    ask_update(&app, &version);
+                }
+            }
+            Ok(None) => {
+                remember_update(&app, None);
+                if interactive {
+                    info(&app, "У вас последняя версия groupbase.");
+                }
+            }
+            Err(e) => {
+                log(&app, &format!("проверка обновлений: {e}"));
+                if interactive {
+                    info(
+                        &app,
+                        "Не удалось проверить обновления. Проверьте интернет и попробуйте позже.",
+                    );
+                }
+            }
+        }
+    });
+}
+
+/// Запомнить найденную версию: пункт меню и сервер (кнопка «Обновить» в «Состоянии»).
+fn remember_update(app: &AppHandle, version: Option<&str>) {
+    let st = app.state::<App>();
+    *st.update.lock().unwrap() = version.map(str::to_string);
+    if let Some(item) = st.update_item.lock().unwrap().as_ref() {
+        let _ = item.set_text(match version {
+            Some(v) => format!("Обновить до версии {v}"),
+            None => "Проверить обновления".to_string(),
+        });
+    }
+    let mut server = st.server.lock().unwrap();
+    send(
+        &mut server,
+        &format!("update-available {}", version.unwrap_or("")),
+    );
+}
+
+fn info(app: &AppHandle, text: &str) {
+    app.dialog().message(text).title("groupbase").show(|_| {});
+}
+
+fn ask_update(app: &AppHandle, version: &str) {
+    let app2 = app.clone();
+    app.dialog()
+        .message(format!(
+            "Вышла новая версия groupbase {version}. Обновить сейчас?\n\nСайт группы будет недоступен \
+             около минуты, данные сохранятся."
+        ))
+        .title("Обновление groupbase")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Обновить".to_string(),
+            "Позже".to_string(),
+        ))
+        .show(move |yes| {
+            if yes {
+                install_update(&app2);
+            }
+        });
+}
+
+/// Скачать новую версию, пока сайт работает, остановить сервер, установить и перезапуститься.
+fn install_update(app: &AppHandle) {
+    {
+        let st = app.state::<App>();
+        let mut updating = st.updating.lock().unwrap();
+        if *updating {
+            return;
+        }
+        *updating = true;
+    }
+    show_main(app);
+    show_splash(app, "Скачиваем обновление…", false);
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let fail = |app: &AppHandle, why: String| {
+            log(app, &format!("обновление: {why}"));
+            *app.state::<App>().updating.lock().unwrap() = false;
+            show_splash(app, &format!("Не удалось обновить: {why}"), true);
+        };
+        let update = match app.updater() {
+            Ok(updater) => updater.check().await,
+            Err(e) => Err(e),
+        };
+        let update = match update {
+            Ok(Some(u)) => u,
+            Ok(None) => {
+                *app.state::<App>().updating.lock().unwrap() = false;
+                remember_update(&app, None);
+                send_enter(&app);
+                return;
+            }
+            Err(e) => return fail(&app, e.to_string()),
+        };
+        let mut done: u64 = 0;
+        let mut shown = 0;
+        let progress_app = app.clone();
+        let bytes = match update
+            .download(
+                move |chunk, total| {
+                    done += chunk as u64;
+                    if let Some(total) = total.filter(|t| *t > 0) {
+                        let pct = (done * 100 / total) as i32;
+                        if pct >= shown + 5 {
+                            shown = pct;
+                            set_status(
+                                &progress_app,
+                                &format!("Скачиваем обновление… {pct}%"),
+                                false,
+                            );
+                        }
+                    }
+                },
+                || {},
+            )
+            .await
+        {
+            Ok(b) => b,
+            Err(e) => {
+                send_enter(&app);
+                return fail(&app, e.to_string());
+            }
+        };
+        set_status(&app, "Устанавливаем обновление…", false);
+        // Файлы Java и сервера будут заменены — сервер должен остановиться до установки.
+        stop_server(&app);
+        match update.install(bytes) {
+            Ok(()) => {
+                log(&app, &format!("обновлено до {}", update.version));
+                app.restart();
+            }
+            Err(e) => {
+                app.state::<App>().server.lock().unwrap().quitting = false;
+                start_server(&app);
+                fail(&app, e.to_string());
+            }
+        }
+    });
+}
+
+/// Вернуть окно на сайт (новая ссылка входа), если обновление не понадобилось.
+fn send_enter(app: &AppHandle) {
+    let st = app.state::<App>();
+    let mut server = st.server.lock().unwrap();
+    send(&mut server, "enter");
+}
+
+/// Остановить сервер и дождаться (до 15 секунд), не закрывая приложение.
+fn stop_server(app: &AppHandle) {
+    let child = {
+        let st = app.state::<App>();
+        let mut server = st.server.lock().unwrap();
+        server.quitting = true;
+        send(&mut server, "quit");
+        server.stdin = None;
+        server.child.clone()
+    };
+    if let Some(child) = child {
+        let start = Instant::now();
+        loop {
+            let mut c = child.lock().unwrap();
+            if matches!(c.try_wait(), Ok(Some(_))) {
+                break;
+            }
+            if start.elapsed() > Duration::from_secs(15) {
+                let _ = c.kill();
+                let _ = c.wait();
+                break;
+            }
+            drop(c);
+            thread::sleep(Duration::from_millis(200));
+        }
+    }
 }
 
 /// Пока включено, компьютер не уходит в сон — сайт остаётся доступным группе.

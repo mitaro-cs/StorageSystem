@@ -114,6 +114,10 @@ jobs:
         working-directory: desktop
       - name: Сборка установщика
         working-directory: desktop
+        # Подпись файлов обновления: приложение ставит только то, что подписано этим ключом.
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} \
             --config "{\"version\":\"${{ needs.jar.outputs.version }}\"}"
@@ -127,8 +131,16 @@ jobs:
           # Без ls с несуществующим каталогом и без пайпа: в GitHub bash включён pipefail.
           src=$(find "$dir" -maxdepth 2 -type f \( -name '*.dmg' -o -name '*-setup.exe' \) -print -quit)
           [ -n "$src" ] || { echo "Установщик не найден в $dir" >&2; exit 1; }
+          name="groupbase-${{ needs.jar.outputs.version }}-${{ matrix.file }}"
           mkdir -p dist
-          cp "$src" "dist/groupbase-${{ needs.jar.outputs.version }}-${{ matrix.file }}"
+          cp "$src" "dist/$name"
+          # Для автообновления: подпись установщика Windows, архив приложения macOS с подписью.
+          if [ -f "$src.sig" ]; then cp "$src.sig" "dist/$name.sig"; fi
+          app=$(find "$dir" -maxdepth 2 -type f -name '*.app.tar.gz' -print -quit)
+          if [ -n "$app" ]; then
+            cp "$app" "dist/${name%.dmg}.app.tar.gz"
+            cp "$app.sig" "dist/${name%.dmg}.app.tar.gz.sig"
+          fi
           ls -la dist
       - uses: actions/upload-artifact@v5
         with:
@@ -148,6 +160,25 @@ jobs:
           path: dist
           merge-multiple: true
       - run: ls -la dist
+      - name: Файл обновлений latest.json
+        run: |
+          v="${{ needs.jar.outputs.version }}"
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          sig() { cat "dist/groupbase-$v-$1.sig"; }
+          notes=$(awk -v h="## $v" '$0==h{f=1;next} /^## /{f=0} f' CHANGELOG.md 2>/dev/null)
+          jq -n --arg v "$v" --arg notes "$notes" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg a "$base/groupbase-$v-macos-apple-silicon.app.tar.gz" \
+            --arg as "$(sig macos-apple-silicon.app.tar.gz)" \
+            --arg i "$base/groupbase-$v-macos-intel.app.tar.gz" \
+            --arg is "$(sig macos-intel.app.tar.gz)" \
+            --arg w "$base/groupbase-$v-windows-setup.exe" \
+            --arg ws "$(sig windows-setup.exe)" \
+            '{version: $v, notes: $notes, pub_date: $date, platforms: {
+              "darwin-aarch64": {signature: $as, url: $a},
+              "darwin-x86_64": {signature: $is, url: $i},
+              "windows-x86_64": {signature: $ws, url: $w}}}' > dist/latest.json
+          rm dist/*.sig
+          cat dist/latest.json | head -c 400
       - name: Выпуск
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,5 +1,5 @@
 export type AccessState = 'off' | 'starting' | 'online' | 'retrying' | 'error' | 'needs_login';
-export type AccessMode = 'off' | 'fxtunnel' | 'lan' | 'manual';
+export type AccessMode = 'off' | 'fxtunnel' | 'cloudpub' | 'lan' | 'manual';
 
 export interface Access {
 	mode: AccessMode;
@@ -15,6 +15,7 @@ export interface Access {
 		suggested: string;
 		domain: string;
 	};
+	cloudpub: { loggedIn: boolean; url: string | null };
 	lan: { available: boolean; urls: string[] };
 	manualUrl: string | null;
 }
@@ -43,4 +44,6 @@ export interface Status {
 	sizes: { database: number; files: number; free: number };
 	backup: Backups['status'];
 	update: { version: string; url: string } | null;
+	/** Окно приложения хоста: обновление ставится кнопкой, без скачивания вручную. */
+	canUpdate: boolean;
 }

@@ -125,7 +125,12 @@ public class DesktopCommand implements Callable<Integer> {
     try (BufferedReader in =
         new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
       for (String line; (line = in.readLine()) != null; ) {
-        switch (line.strip()) {
+        String cmd = line.strip();
+        if (cmd.startsWith("update-available")) {
+          bridge.setAvailableUpdate(cmd.substring("update-available".length()));
+          continue;
+        }
+        switch (cmd) {
           case "enter" -> bridge.event("enter", Map.of("url", bridge.enterUrl()));
           case "quit" -> {
             done.countDown();

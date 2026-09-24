@@ -158,6 +158,30 @@ class DesktopIT extends IntegrationTest {
   }
 
   @Test
+  void updateButtonOnlyInHostWindowWhenShellFoundAVersion() {
+    ApiClient host = client();
+    admin();
+    host.get(enterPath());
+    // Оболочка ещё ничего не нашла — обновлять нечего.
+    assertThat(host.get("/api/admin/status").json().get("canUpdate").asBoolean()).isFalse();
+    assertThat(host.post("/api/desktop/update", Map.of()).status()).isEqualTo(403);
+
+    bridge.setAvailableUpdate("9.9.9");
+    try {
+      var s = host.get("/api/admin/status").json();
+      assertThat(s.get("canUpdate").asBoolean()).isTrue();
+      assertThat(s.get("update").get("version").asString()).isEqualTo("9.9.9");
+      assertThat(host.post("/api/desktop/update", Map.of()).status()).isEqualTo(200);
+
+      // С телефона (через туннель) обновить нельзя — только в окне на компьютере хоста.
+      ApiClient phone = client().header("X-Forwarded-For", "198.51.100.30");
+      assertThat(phone.post("/api/desktop/update", Map.of()).status()).isIn(401, 403);
+    } finally {
+      bridge.setAvailableUpdate(null);
+    }
+  }
+
+  @Test
   void manageModeCanBeTurnedOff() {
     ApiClient host = client();
     admin();
