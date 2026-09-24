@@ -164,6 +164,13 @@ jobs:
         run: |
           v="${{ needs.jar.outputs.version }}"
           base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          # Без файла или подписи обновление на этой системе сломается — такой выпуск не публикуем.
+          for f in macos-apple-silicon.app.tar.gz macos-intel.app.tar.gz windows-setup.exe; do
+            if [ ! -s "dist/groupbase-$v-$f" ] || [ ! -s "dist/groupbase-$v-$f.sig" ]; then
+              echo "Нет файла обновления или его подписи: groupbase-$v-$f" >&2
+              exit 1
+            fi
+          done
           sig() { cat "dist/groupbase-$v-$1.sig"; }
           notes=$(awk -v h="## $v" '$0==h{f=1;next} /^## /{f=0} f' CHANGELOG.md 2>/dev/null)
           jq -n --arg v "$v" --arg notes "$notes" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
