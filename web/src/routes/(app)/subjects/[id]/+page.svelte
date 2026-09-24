@@ -18,7 +18,6 @@
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 	import NewsFeed from '$lib/content/NewsFeed.svelte';
-	import SubjectEditor from '$lib/content/SubjectEditor.svelte';
 
 	let subject = $state<Subject | null>(null);
 	let missing = $state(false);
@@ -251,11 +250,15 @@
 		<NewsFeed subjectId={subject.id} />
 	{/if}
 
-	<SubjectEditor
-		bind:open={editor}
-		edit={subject}
-		onsaved={(s) => ((subject = s), loadSubjects())}
-	/>
+	{#if editor}
+		{#await import('$lib/content/SubjectEditor.svelte') then m}
+			<m.default
+				bind:open={editor}
+				edit={subject}
+				onsaved={(s) => ((subject = s), loadSubjects())}
+			/>
+		{/await}
+	{/if}
 	<Modal bind:open={share} title="Общий предмет">
 		<p class="muted">
 			Предмет и его материалы увидит выбранная группа. Если вы не староста этой группы, её староста

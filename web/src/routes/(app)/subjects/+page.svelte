@@ -7,7 +7,6 @@
 	import { fly, stagger } from '$lib/motion';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import type { LinkRequest } from '$lib/types';
-	import SubjectEditor from '$lib/content/SubjectEditor.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 	import SubjectArt from '$lib/ui/SubjectArt.svelte';
@@ -132,7 +131,11 @@
 	</button>
 {/if}
 
-<SubjectEditor bind:open={editor} groupId={target?.id ?? null} onsaved={() => loadSubjects()} />
+{#if editor}
+	{#await import('$lib/content/SubjectEditor.svelte') then m}
+		<m.default bind:open={editor} groupId={target?.id ?? null} onsaved={() => loadSubjects()} />
+	{/await}
+{/if}
 
 <style>
 	.requests {

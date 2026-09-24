@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { subjectById } from '$lib/data.svelte';
 	import { subjectIcon } from '$lib/subjectIcons';
+	import { icons, loadIcons } from '$lib/iconLoader.svelte';
 
 	// Обложка предмета: загруженная картинка или градиент цвета предмета с крупной иконкой.
 	let {
@@ -21,13 +22,19 @@
 
 	const img = $derived(avatar === undefined ? (subjectById(id)?.avatar ?? null) : avatar);
 	const glyph = $derived(subjectIcon(icon === undefined ? subjectById(id)?.icon : icon, name));
+	const Icon = $derived(icons.map?.[glyph.key]);
+	$effect(() => {
+		if (!img) loadIcons();
+	});
 </script>
 
 <span class="art {cls}" style:--c={color} aria-hidden="true">
 	{#if img}
 		<img src="/api/avatars/{img}-256.webp" alt="" loading="lazy" decoding="async" />
 	{:else}
-		<span class="glyph"><glyph.icon size="100%" strokeWidth={1.6} /></span>
+		<span class="glyph"
+			>{#if Icon}<Icon size="100%" strokeWidth={1.6} />{/if}</span
+		>
 	{/if}
 </span>
 

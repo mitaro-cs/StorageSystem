@@ -8,6 +8,7 @@
 	import AvatarCropper from '$lib/ui/AvatarCropper.svelte';
 	import SubjectGlyph from '$lib/ui/SubjectGlyph.svelte';
 	import { ICON_GROUPS, subjectIcon } from '$lib/subjectIcons';
+	import { icons } from '$lib/iconLoader.svelte';
 
 	interface Props {
 		open: boolean;
@@ -177,7 +178,10 @@
 									title={x.label}
 									onclick={() => (icon = x.key)}
 								>
-									<x.icon size={22} strokeWidth={2} />
+									{#if icons.map?.[x.key]}
+										{@const Tile = icons.map[x.key]}
+										<Tile size={22} strokeWidth={2} />
+									{/if}
 								</button>
 							{/each}
 						</div>

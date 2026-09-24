@@ -12,7 +12,6 @@
 	import type { Homework } from '$lib/types';
 	import { byDay, toggleDone } from './homework';
 	import HomeworkRow from './HomeworkRow.svelte';
-	import HomeworkComposer from './HomeworkComposer.svelte';
 	import Calendar from './Calendar.svelte';
 	import Tabs from '$lib/ui/Tabs.svelte';
 	import Button from '$lib/ui/Button.svelte';
@@ -139,7 +138,11 @@
 	</div>
 {/if}
 
-<HomeworkComposer bind:open={composer} {subjectId} onsaved={load} />
+{#if composer}
+	{#await import('./HomeworkComposer.svelte') then m}
+		<m.default bind:open={composer} {subjectId} onsaved={load} />
+	{/await}
+{/if}
 
 <style>
 	.day {

@@ -1,92 +1,10 @@
-import type { Component } from 'svelte';
-import {
-	Antenna,
-	Atom,
-	Banknote,
-	Binary,
-	Bot,
-	Brain,
-	BrainCircuit,
-	Braces,
-	BriefcaseBusiness,
-	Brush,
-	Bug,
-	Cable,
-	Calculator,
-	Camera,
-	ChartColumn,
-	ChartPie,
-	ChartSpline,
-	CircuitBoard,
-	Code,
-	Coins,
-	Cpu,
-	Database,
-	Dna,
-	DraftingCompass,
-	Drama,
-	Dumbbell,
-	Earth,
-	Factory,
-	Feather,
-	FlaskConical,
-	Gamepad2,
-	Gavel,
-	Globe,
-	GraduationCap,
-	Handshake,
-	HeartPulse,
-	Infinity as InfinityIcon,
-	Languages,
-	Leaf,
-	Library,
-	Lightbulb,
-	Lock,
-	Magnet,
-	Megaphone,
-	MessageSquareText,
-	Microchip,
-	Microscope,
-	Monitor,
-	Music,
-	Network,
-	NotebookPen,
-	Orbit,
-	Palette,
-	PenTool,
-	Percent,
-	Pi,
-	Puzzle,
-	Radio,
-	ReceiptText,
-	Rocket,
-	Router,
-	Satellite,
-	Scale,
-	ScrollText,
-	Server,
-	ShieldCheck,
-	Sigma,
-	Signal,
-	Smartphone,
-	SquareFunction,
-	Target,
-	Telescope,
-	Terminal,
-	TestTubeDiagonal,
-	Trophy,
-	Users,
-	Volleyball,
-	Wifi,
-	Zap,
-	BookOpen
-} from '@lucide/svelte';
-
-/** Иконка предмета: ключ хранится на сервере (subjects.icon), картинка — здесь. */
+/**
+ * Иконка предмета: ключ хранится на сервере (subjects.icon), подпись — здесь, а сама картинка — в
+ * subjectIconSet.ts (грузится отдельно, см. iconLoader).
+ */
 export interface SubjectIcon {
 	key: string;
 	label: string;
-	icon: Component<{ size?: number | string; strokeWidth?: number | string }>;
 }
 
 export interface IconGroup {
@@ -94,122 +12,118 @@ export interface IconGroup {
 	icons: SubjectIcon[];
 }
 
-const i = (key: string, label: string, icon: SubjectIcon['icon']): SubjectIcon => ({
-	key,
-	label,
-	icon
-});
+const i = (key: string, label: string): SubjectIcon => ({ key, label });
 
 /** Набор на выбор в редакторе предмета: сначала то, что бывает в расписании, потом прочее. */
 export const ICON_GROUPS: IconGroup[] = [
 	{
 		title: 'Точные науки',
 		icons: [
-			i('sigma', 'Математика', Sigma),
-			i('function', 'Функции', SquareFunction),
-			i('pi', 'Пи', Pi),
-			i('infinity', 'Анализ', InfinityIcon),
-			i('calculator', 'Вычисления', Calculator),
-			i('percent', 'Проценты', Percent),
-			i('chart-spline', 'Статистика', ChartSpline),
-			i('compass', 'Геометрия', DraftingCompass)
+			i('sigma', 'Математика'),
+			i('function', 'Функции'),
+			i('pi', 'Пи'),
+			i('infinity', 'Анализ'),
+			i('calculator', 'Вычисления'),
+			i('percent', 'Проценты'),
+			i('chart-spline', 'Статистика'),
+			i('compass', 'Геометрия')
 		]
 	},
 	{
 		title: 'Естественные науки',
 		icons: [
-			i('atom', 'Физика', Atom),
-			i('magnet', 'Магнетизм', Magnet),
-			i('zap', 'Электротехника', Zap),
-			i('flask', 'Химия', FlaskConical),
-			i('test-tube', 'Лаборатория', TestTubeDiagonal),
-			i('dna', 'Биология', Dna),
-			i('microscope', 'Микроскоп', Microscope),
-			i('leaf', 'Экология', Leaf),
-			i('earth', 'География', Earth),
-			i('telescope', 'Астрономия', Telescope),
-			i('orbit', 'Орбита', Orbit)
+			i('atom', 'Физика'),
+			i('magnet', 'Магнетизм'),
+			i('zap', 'Электротехника'),
+			i('flask', 'Химия'),
+			i('test-tube', 'Лаборатория'),
+			i('dna', 'Биология'),
+			i('microscope', 'Микроскоп'),
+			i('leaf', 'Экология'),
+			i('earth', 'География'),
+			i('telescope', 'Астрономия'),
+			i('orbit', 'Орбита')
 		]
 	},
 	{
 		title: 'ИТ и связь',
 		icons: [
-			i('code', 'Программирование', Code),
-			i('braces', 'Код', Braces),
-			i('terminal', 'Терминал', Terminal),
-			i('binary', 'Двоичный код', Binary),
-			i('database', 'Базы данных', Database),
-			i('server', 'Серверы', Server),
-			i('cpu', 'Архитектура ЭВМ', Cpu),
-			i('microchip', 'Микросхемы', Microchip),
-			i('circuit', 'Электроника', CircuitBoard),
-			i('network', 'Сети', Network),
-			i('router', 'Маршрутизация', Router),
-			i('wifi', 'Беспроводная связь', Wifi),
-			i('antenna', 'Антенны', Antenna),
-			i('radio', 'Радио', Radio),
-			i('signal', 'Мобильная связь', Signal),
-			i('satellite', 'Спутниковая связь', Satellite),
-			i('cable', 'Линии связи', Cable),
-			i('shield', 'Безопасность', ShieldCheck),
-			i('lock', 'Криптография', Lock),
-			i('bot', 'Искусственный интеллект', Bot),
-			i('brain-circuit', 'Машинное обучение', BrainCircuit),
-			i('globe', 'Веб', Globe),
-			i('monitor', 'Компьютер', Monitor),
-			i('smartphone', 'Мобильная разработка', Smartphone),
-			i('bug', 'Тестирование', Bug)
+			i('code', 'Программирование'),
+			i('braces', 'Код'),
+			i('terminal', 'Терминал'),
+			i('binary', 'Двоичный код'),
+			i('database', 'Базы данных'),
+			i('server', 'Серверы'),
+			i('cpu', 'Архитектура ЭВМ'),
+			i('microchip', 'Микросхемы'),
+			i('circuit', 'Электроника'),
+			i('network', 'Сети'),
+			i('router', 'Маршрутизация'),
+			i('wifi', 'Беспроводная связь'),
+			i('antenna', 'Антенны'),
+			i('radio', 'Радио'),
+			i('signal', 'Мобильная связь'),
+			i('satellite', 'Спутниковая связь'),
+			i('cable', 'Линии связи'),
+			i('shield', 'Безопасность'),
+			i('lock', 'Криптография'),
+			i('bot', 'Искусственный интеллект'),
+			i('brain-circuit', 'Машинное обучение'),
+			i('globe', 'Веб'),
+			i('monitor', 'Компьютер'),
+			i('smartphone', 'Мобильная разработка'),
+			i('bug', 'Тестирование')
 		]
 	},
 	{
 		title: 'Гуманитарные',
 		icons: [
-			i('languages', 'Иностранный язык', Languages),
-			i('feather', 'Русский язык', Feather),
-			i('book', 'Литература', BookOpen),
-			i('scroll', 'История', ScrollText),
-			i('scale', 'Право', Scale),
-			i('gavel', 'Суд', Gavel),
-			i('brain', 'Психология', Brain),
-			i('users', 'Социология', Users),
-			i('handshake', 'Деловое общение', Handshake),
-			i('message', 'Культура речи', MessageSquareText),
-			i('lightbulb', 'Философия', Lightbulb),
-			i('drama', 'Культурология', Drama),
-			i('library', 'Библиотека', Library)
+			i('languages', 'Иностранный язык'),
+			i('feather', 'Русский язык'),
+			i('book', 'Литература'),
+			i('scroll', 'История'),
+			i('scale', 'Право'),
+			i('gavel', 'Суд'),
+			i('brain', 'Психология'),
+			i('users', 'Социология'),
+			i('handshake', 'Деловое общение'),
+			i('message', 'Культура речи'),
+			i('lightbulb', 'Философия'),
+			i('drama', 'Культурология'),
+			i('library', 'Библиотека')
 		]
 	},
 	{
 		title: 'Экономика и управление',
 		icons: [
-			i('coins', 'Экономика', Coins),
-			i('banknote', 'Финансы', Banknote),
-			i('receipt', 'Бухучёт', ReceiptText),
-			i('briefcase', 'Менеджмент', BriefcaseBusiness),
-			i('megaphone', 'Маркетинг', Megaphone),
-			i('chart-column', 'Аналитика', ChartColumn),
-			i('chart-pie', 'Доли', ChartPie),
-			i('factory', 'Производство', Factory)
+			i('coins', 'Экономика'),
+			i('banknote', 'Финансы'),
+			i('receipt', 'Бухучёт'),
+			i('briefcase', 'Менеджмент'),
+			i('megaphone', 'Маркетинг'),
+			i('chart-column', 'Аналитика'),
+			i('chart-pie', 'Доли'),
+			i('factory', 'Производство')
 		]
 	},
 	{
 		title: 'Ещё',
 		icons: [
-			i('dumbbell', 'Физкультура', Dumbbell),
-			i('volleyball', 'Спорт', Volleyball),
-			i('heart-pulse', 'БЖД и здоровье', HeartPulse),
-			i('pen-tool', 'Черчение', PenTool),
-			i('palette', 'Искусство', Palette),
-			i('brush', 'Дизайн', Brush),
-			i('music', 'Музыка', Music),
-			i('camera', 'Фото и видео', Camera),
-			i('graduation-cap', 'Учёба', GraduationCap),
-			i('notebook', 'Практика', NotebookPen),
-			i('rocket', 'Проект', Rocket),
-			i('target', 'Цель', Target),
-			i('puzzle', 'Задачи', Puzzle),
-			i('trophy', 'Олимпиада', Trophy),
-			i('gamepad', 'Игры', Gamepad2)
+			i('dumbbell', 'Физкультура'),
+			i('volleyball', 'Спорт'),
+			i('heart-pulse', 'БЖД и здоровье'),
+			i('pen-tool', 'Черчение'),
+			i('palette', 'Искусство'),
+			i('brush', 'Дизайн'),
+			i('music', 'Музыка'),
+			i('camera', 'Фото и видео'),
+			i('graduation-cap', 'Учёба'),
+			i('notebook', 'Практика'),
+			i('rocket', 'Проект'),
+			i('target', 'Цель'),
+			i('puzzle', 'Задачи'),
+			i('trophy', 'Олимпиада'),
+			i('gamepad', 'Игры')
 		]
 	}
 ];

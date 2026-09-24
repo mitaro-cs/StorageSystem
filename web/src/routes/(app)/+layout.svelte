@@ -7,7 +7,7 @@
 	import { palette } from '$lib/shell/palette.svelte';
 	import Hotkeys from '$lib/shell/Hotkeys.svelte';
 	import SwipeBack from '$lib/shell/SwipeBack.svelte';
-	import FileViewer from '$lib/files/FileViewer.svelte';
+	import { viewer } from '$lib/files/viewer.svelte';
 	import { initPwa, pwa } from '$lib/pwa.svelte';
 	import { startBell } from '$lib/notify.svelte';
 	import { ApiError, request } from '$lib/api';
@@ -113,7 +113,10 @@
 {/if}
 <Hotkeys />
 <SwipeBack />
-<FileViewer />
+<!-- Просмотр файлов: код грузится при первом открытии файла. -->
+{#if viewer.open}
+	{#await import('$lib/files/FileViewer.svelte') then m}<m.default />{/await}
+{/if}
 
 <style>
 	.shell {

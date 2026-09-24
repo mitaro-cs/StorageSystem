@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { subjectById } from '$lib/data.svelte';
 	import { subjectIcon } from '$lib/subjectIcons';
+	import { icons, loadIcons } from '$lib/iconLoader.svelte';
 
 	// Значок предмета: иконка цвета предмета на лёгкой подложке того же цвета.
 	interface Props {
@@ -18,6 +19,10 @@
 
 	const key = $derived(icon === undefined && id !== undefined ? subjectById(id)?.icon : icon);
 	const glyph = $derived(subjectIcon(key, name));
+	const Icon = $derived(icons.map?.[glyph.key]);
+	$effect(() => {
+		loadIcons();
+	});
 </script>
 
 <span
@@ -30,7 +35,7 @@
 	title={glyph.label}
 	aria-hidden="true"
 >
-	<glyph.icon size={bare ? size : Math.round(size * 0.58)} strokeWidth={2.1} />
+	{#if Icon}<Icon size={bare ? size : Math.round(size * 0.58)} strokeWidth={2.1} />{/if}
 </span>
 
 <style>

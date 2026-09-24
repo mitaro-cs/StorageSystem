@@ -1,6 +1,4 @@
 <script lang="ts">
-	import RecoveryCodes from '$lib/auth/RecoveryCodes.svelte';
-	import QrCode from '$lib/ui/QrCode.svelte';
 	import NotificationSettings from '$lib/settings/NotificationSettings.svelte';
 	import { fioError } from '$lib/names';
 	import { goto } from '$app/navigation';
@@ -41,7 +39,6 @@
 	import Modal from '$lib/ui/Modal.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
 	import ThemeToggle from '$lib/shell/ThemeToggle.svelte';
-	import AvatarCropper from '$lib/ui/AvatarCropper.svelte';
 	import { forgetOfflineData, install, pwa } from '$lib/pwa.svelte';
 	import { clearCache } from '$lib/cache';
 	import { clearRecent } from '$lib/recent';
@@ -413,23 +410,35 @@
 	<p class="faint small">groupbase {me.instance.version}</p>
 </section>
 
-<AvatarCropper
-	bind:open={avatarOpen}
-	endpoint="/api/me/avatar"
-	title="Ваш аватар"
-	ondone={() => loadMe()}
-/>
+<!-- Редкие окна (аватар, 2FA, резервные коды) грузят свой код только при открытии. -->
+{#if avatarOpen}
+	{#await import('$lib/ui/AvatarCropper.svelte') then m}
+		<m.default
+			bind:open={avatarOpen}
+			endpoint="/api/me/avatar"
+			title="Ваш аватар"
+			ondone={() => loadMe()}
+		/>
+	{/await}
+{/if}
 
 <Modal bind:open={totpOpen} title={recoveryCodes ? 'Резервные коды' : 'Включить 2FA'}>
 	{#if recoveryCodes}
-		<RecoveryCodes
-			codes={recoveryCodes}
-			ondone={() => ((totpOpen = false), (recoveryCodes = null), (recoveryLeft = null))}
-		/>
+		{@const codes = recoveryCodes}
+		{#await import('$lib/auth/RecoveryCodes.svelte') then m}
+			<m.default
+				{codes}
+				ondone={() => ((totpOpen = false), (recoveryCodes = null), (recoveryLeft = null))}
+			/>
+		{/await}
 	{:else}
 		<div class="stack">
 			<p class="muted">Отсканируйте код приложением-аутентификатором и введите 6 цифр.</p>
-			{#if totpUri}<div class="qr"><QrCode value={totpUri} label="QR-код" /></div>{/if}
+			{#if totpUri}
+				{#await import('$lib/ui/QrCode.svelte') then m}
+					<div class="qr"><m.default value={totpUri} label="QR-код" /></div>
+				{/await}
+			{/if}
 			<p class="hint">Ключ вручную: <code>{totpSecret}</code></p>
 			<input
 				class="input num"
@@ -450,10 +459,10 @@
 
 <Modal bind:open={regenOpen} title="Новые резервные коды">
 	{#if recoveryCodes}
-		<RecoveryCodes
-			codes={recoveryCodes}
-			ondone={() => ((regenOpen = false), (recoveryCodes = null))}
-		/>
+		{@const codes = recoveryCodes}
+		{#await import('$lib/auth/RecoveryCodes.svelte') then m}
+			<m.default {codes} ondone={() => ((regenOpen = false), (recoveryCodes = null))} />
+		{/await}
 	{:else}
 		<div class="stack">
 			<p class="muted">

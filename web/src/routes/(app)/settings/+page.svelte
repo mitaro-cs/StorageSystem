@@ -30,12 +30,6 @@
 	import Button from '$lib/ui/Button.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 	import SectionHead from '$lib/ui/SectionHead.svelte';
-	import Invites from '$lib/settings/Invites.svelte';
-	import Permissions from '$lib/settings/Permissions.svelte';
-	import GroupSettings from '$lib/settings/GroupSettings.svelte';
-	import GroupExport from '$lib/settings/GroupExport.svelte';
-	import InstancePanel from '$lib/settings/InstancePanel.svelte';
-	import Audit from '$lib/settings/Audit.svelte';
 
 	type Tone = 'blue' | 'green' | 'amber' | 'violet' | 'red' | 'teal' | 'gray';
 	interface Section {
@@ -249,22 +243,36 @@
 				</div>
 				{#key tab + (group?.id ?? '')}
 					<div class="panel">
-						{#if group && tab === 'invites'}<Invites groupId={group.id} />
+						<!-- Каждый раздел грузит свой код при открытии: меню настроек открывается быстро. -->
+						{#if group && tab === 'invites'}
+							{#await import('$lib/settings/Invites.svelte') then m}<m.default
+									groupId={group.id}
+								/>{/await}
 						{:else if tab === 'accounts'}
 							{#await import('$lib/content/People.svelte') then m}<m.default />{/await}
-						{:else if group && tab === 'permissions'}<Permissions groupId={group.id} />
-						{:else if group && tab === 'group'}<GroupSettings {group} />
-						{:else if tab === 'instance'}<InstancePanel />
+						{:else if group && tab === 'permissions'}
+							{#await import('$lib/settings/Permissions.svelte') then m}<m.default
+									groupId={group.id}
+								/>{/await}
+						{:else if group && tab === 'group'}
+							{#await import('$lib/settings/GroupSettings.svelte') then m}<m.default
+									{group}
+								/>{/await}
+						{:else if tab === 'instance'}
+							{#await import('$lib/settings/InstancePanel.svelte') then m}<m.default />{/await}
 						{:else if tab === 'appearance'}
 							{#await import('$lib/settings/AppearancePanel.svelte') then m}<m.default />{/await}
 						{:else if tab === 'server'}
-							<!-- Вкладка «Сервер» нужна только хосту — её код грузится при открытии. -->
 							{#await import('$lib/settings/server/ServerPanel.svelte') then m}<m.default />{/await}
-						{:else if group && tab === 'audit'}<Audit groupId={isAdmin() ? null : group.id} />
-						{:else if group && tab === 'export'}<GroupExport
-								groupId={group.id}
-								groupName={group.name}
-							/>
+						{:else if group && tab === 'audit'}
+							{#await import('$lib/settings/Audit.svelte') then m}<m.default
+									groupId={isAdmin() ? null : group.id}
+								/>{/await}
+						{:else if group && tab === 'export'}
+							{#await import('$lib/settings/GroupExport.svelte') then m}<m.default
+									groupId={group.id}
+									groupName={group.name}
+								/>{/await}
 						{/if}
 					</div>
 				{/key}

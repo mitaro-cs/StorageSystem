@@ -11,7 +11,6 @@
 	import type { NewsItem, NewsPage } from '$lib/types';
 	import { newsActions } from '$lib/content/newsActions';
 	import NewsCard from '$lib/content/NewsCard.svelte';
-	import NewsComposer from '$lib/content/NewsComposer.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
@@ -131,7 +130,11 @@
 	</div>
 {/if}
 
-<NewsComposer bind:open={composer} edit={editing} {subjectId} onsaved={load} />
+{#if composer}
+	{#await import('$lib/content/NewsComposer.svelte') then m}
+		<m.default bind:open={composer} edit={editing} {subjectId} onsaved={load} />
+	{/await}
+{/if}
 
 <style>
 	.feed {

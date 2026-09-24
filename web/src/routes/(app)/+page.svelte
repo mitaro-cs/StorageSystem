@@ -15,8 +15,6 @@
 	import NewsCard from '$lib/content/NewsCard.svelte';
 	import NextDeadline from '$lib/content/NextDeadline.svelte';
 	import FirstSteps from '$lib/content/FirstSteps.svelte';
-	import NewsComposer from '$lib/content/NewsComposer.svelte';
-	import HomeworkComposer from '$lib/content/HomeworkComposer.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
@@ -197,14 +195,23 @@
 	</section>
 {/if}
 
-<NewsComposer bind:open={newsOpen} onsaved={() => load(session.groupId)} />
+<!-- Формы публикации грузятся по кнопке: главная открывается быстрее. -->
+{#if newsOpen}
+	{#await import('$lib/content/NewsComposer.svelte') then m}
+		<m.default bind:open={newsOpen} onsaved={() => load(session.groupId)} />
+	{/await}
+{/if}
 {#if chatGroup && canPinChats && chatsOpen}
 	<!-- Окно закрепления чатов нужно только старосте — код грузится по нажатию. -->
 	{#await import('$lib/content/GroupChats.svelte') then m}
 		<m.default bind:open={chatsOpen} groupId={chatGroup.id} />
 	{/await}
 {/if}
-<HomeworkComposer bind:open={hwOpen} onsaved={() => load(session.groupId)} />
+{#if hwOpen}
+	{#await import('$lib/content/HomeworkComposer.svelte') then m}
+		<m.default bind:open={hwOpen} onsaved={() => load(session.groupId)} />
+	{/await}
+{/if}
 
 <style>
 	.hello {

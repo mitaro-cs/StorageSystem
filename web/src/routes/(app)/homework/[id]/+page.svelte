@@ -11,7 +11,6 @@
 	import { toggleDone } from '$lib/content/homework';
 	import Author from '$lib/content/Author.svelte';
 	import Comments from '$lib/content/Comments.svelte';
-	import HomeworkComposer from '$lib/content/HomeworkComposer.svelte';
 	import SubjectTag from '$lib/ui/SubjectTag.svelte';
 	import BackBar from '$lib/ui/BackBar.svelte';
 	import SubjectArt from '$lib/ui/SubjectArt.svelte';
@@ -210,7 +209,11 @@
 	>
 		{#if item.done}<RotateCcw size={18} /> Вернуть в работу{:else}<Check size={19} /> Отметить выполненным{/if}
 	</button>
-	<HomeworkComposer bind:open={composer} edit={item} onsaved={(h) => (item = h)} />
+	{#if composer}
+		{#await import('$lib/content/HomeworkComposer.svelte') then m}
+			<m.default bind:open={composer} edit={item} onsaved={(h) => (item = h)} />
+		{/await}
+	{/if}
 {/if}
 
 <style>
