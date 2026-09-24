@@ -139,7 +139,9 @@ final class CloudPub {
     }
     Pattern ours =
         Pattern.compile(
-            "http://127\\.0\\.0\\.1:" + port + "\\S*\\s*->\\s*(https://[a-z0-9.-]+\\.cloudpub\\.ru)");
+            "http://127\\.0\\.0\\.1:"
+                + port
+                + "\\S*\\s*->\\s*(https://[a-z0-9.-]+\\.cloudpub\\.ru)");
     Matcher m = ours.matcher(r.output());
     return m.find() ? m.group(1) : null;
   }
