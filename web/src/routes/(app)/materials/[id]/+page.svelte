@@ -2,7 +2,7 @@
 	import { offline } from '$lib/offline/engine';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { ChevronRight, Download, ExternalLink } from '@lucide/svelte';
+	import { Download, ExternalLink, Eye } from '@lucide/svelte';
 	import { get } from '$lib/api';
 	import { track } from '$lib/recent';
 	import { fmtAgo, fmtSize } from '$lib/format';
@@ -17,6 +17,9 @@
 	import Menu from '$lib/ui/Menu.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
+	import Crumbs from '$lib/ui/Crumbs.svelte';
+	import { openFiles } from '$lib/files/viewer.svelte';
+	import { canPreview, fileKind } from '$lib/fileKinds';
 
 	let m = $state<Material | null>(null);
 	let path = $state<{ id: number; name: string }[]>([]);
@@ -45,7 +48,26 @@
 
 	const mime = $derived(m?.file?.mime ?? '');
 	const src = $derived(m?.file ? `/api/files/${m.file.id}` : '');
+	const kind = $derived(m?.file ? fileKind(m.file.mime, m.file.name) : 'other');
 	const group = $derived(currentGroup());
+	const crumbs = $derived(
+		m
+			? [
+					...(isMulti() && group ? [{ label: group.name }] : []),
+					{ label: 'Предметы', href: '/subjects' },
+					{ label: m.subjectName, href: `/subjects/${m.subjectId}` },
+					{ label: 'Материалы', href: `/subjects/${m.subjectId}?tab=materials` },
+					...path.map((c) => ({
+						label: c.name,
+						href: `/subjects/${m?.subjectId}?tab=materials&folder=${c.id}`
+					})),
+					{ label: m.title }
+				]
+			: []
+	);
+	function view() {
+		if (m?.file) openFiles([m.file], 0, m.title);
+	}
 </script>
 
 <svelte:head><title>{m?.title ?? 'Материал'} · groupbase</title></svelte:head>
@@ -62,16 +84,7 @@
 {:else if !m}
 	<Skeleton lines={5} />
 {:else}
-	<nav class="crumbs small" aria-label="Путь">
-		{#if isMulti() && group}<span>{group.name}</span><ChevronRight size={13} />{/if}
-		<a href="/subjects/{m.subjectId}?tab=materials">{m.subjectName}</a>
-		{#each path as c (c.id)}
-			<ChevronRight size={13} /><a href="/subjects/{m.subjectId}?tab=materials&folder={c.id}"
-				>{c.name}</a
-			>
-		{/each}
-		<ChevronRight size={13} /><span aria-current="page">{m.title}</span>
-	</nav>
+	<Crumbs items={crumbs} />
 
 	<article class="card head">
 		<FileIcon mime={m.file?.mime} link={m.kind === 'link'} size={24} />
@@ -83,7 +96,12 @@
 			</p>
 		</div>
 		{#if m.file}
-			<Button variant="primary" href="{src}?download=true"><Download size={16} /> Скачать</Button>
+			{#if canPreview(m.file.mime, m.file.name, m.file.size)}
+				<Button variant="primary" onclick={view}><Eye size={16} /> Открыть</Button>
+				<Button href="{src}?download=true"><Download size={16} /> Скачать</Button>
+			{:else}
+				<Button variant="primary" href="{src}?download=true"><Download size={16} /> Скачать</Button>
+			{/if}
 		{:else if m.url}
 			<a class="btn-link" href={m.url} target="_blank" rel="noopener noreferrer nofollow"
 				><ExternalLink size={16} /> Открыть</a
@@ -101,24 +119,23 @@
 
 	{#if m.file}
 		<div class="preview">
-			{#if mime === 'application/pdf'}
-				<iframe {src} title="Предпросмотр: {m.title}" class="pdf"></iframe>
-				<a class="open-pdf" href={src} target="_blank" rel="noopener">
-					<FileIcon {mime} size={22} />
-					<span
-						><strong>Открыть PDF</strong><span class="faint small">в просмотрщике телефона</span
-						></span
-					>
-				</a>
-			{:else if mime.startsWith('image/') && !mime.includes('svg')}
-				<img {src} alt={m.title} />
+			{#if kind === 'pdf'}
+				<div class="pdf-inline">
+					{#await import('$lib/files/PdfView.svelte') then v}<v.default {src} />{/await}
+				</div>
+			{:else if kind === 'image'}
+				<button class="img-btn" onclick={view} aria-label="Открыть на весь экран"
+					><img {src} alt={m.title} /></button
+				>
 			{:else if mime.startsWith('video/')}
 				<!-- svelte-ignore a11y_media_has_caption -->
 				<video {src} controls preload="metadata"></video>
 			{:else if mime.startsWith('audio/')}
 				<audio {src} controls preload="metadata"></audio>
-			{:else if mime === 'text/plain'}
-				<iframe {src} title="Предпросмотр: {m.title}" class="text"></iframe>
+			{:else if kind === 'text'}
+				<button class="no-preview open-text" onclick={view}
+					><FileIcon {mime} size={22} /> Открыть текст</button
+				>
 			{:else}
 				<p class="faint no-preview">Предпросмотр для этого типа файла недоступен — скачайте его.</p>
 			{/if}
@@ -129,17 +146,6 @@
 {/if}
 
 <style>
-	.crumbs {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		flex-wrap: wrap;
-		color: var(--text-3);
-		margin-bottom: var(--s3);
-	}
-	.crumbs a {
-		color: var(--text-2);
-	}
 	.head {
 		display: flex;
 		align-items: center;
@@ -192,38 +198,31 @@
 		background: var(--surface);
 		box-shadow: var(--shadow-1);
 	}
-	iframe {
+	.pdf-inline {
+		padding: var(--s3);
+		background: var(--surface-2);
+		max-height: 85dvh;
+		overflow-y: auto;
+	}
+	.img-btn {
 		display: block;
 		width: 100%;
-		height: min(80dvh, 1000px);
+		padding: 0;
 		border: 0;
-		background: #fff;
+		background: none;
+		cursor: zoom-in;
 	}
-	iframe.text {
-		height: 60dvh;
-	}
-	.open-pdf {
-		display: none;
-		align-items: center;
-		gap: 12px;
-		padding: var(--s4);
-		color: var(--text);
-	}
-	.open-pdf span {
+	.open-text {
 		display: flex;
-		flex-direction: column;
-	}
-	.open-pdf:hover {
-		text-decoration: none;
-	}
-	/* На телефонах PDF в iframe обычно не показывается — открываем системным просмотрщиком. */
-	@media (max-width: 700px), (pointer: coarse) {
-		iframe.pdf {
-			display: none;
-		}
-		.open-pdf {
-			display: flex;
-		}
+		align-items: center;
+		justify-content: center;
+		gap: 10px;
+		width: 100%;
+		border: 0;
+		background: none;
+		font: inherit;
+		color: var(--text);
+		cursor: pointer;
 	}
 	img,
 	video {

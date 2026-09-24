@@ -1,4 +1,6 @@
 <script lang="ts">
+	import SectionHead from '$lib/ui/SectionHead.svelte';
+	import { WifiOff } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { CloudOff, RefreshCw } from '@lucide/svelte';
 	import { fmtAgo, fmtSize } from '$lib/format';
@@ -65,7 +67,12 @@
 </script>
 
 <section class="card block" id="offline">
-	<h2>Без интернета</h2>
+	<SectionHead
+		icon={WifiOff}
+		tone="teal"
+		title="Без интернета"
+		text="Что хранится на этом устройстве и открывается, когда нет сети или сервер выключен."
+	/>
 	<p class="muted">
 		Задания, новости, материалы и участники хранятся на этом устройстве и открываются без сети.
 		Отметки, комментарии и публикации без сети сохраняются здесь и уходят на сервер, когда интернет

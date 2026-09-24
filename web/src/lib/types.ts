@@ -97,6 +97,8 @@ export interface Subject {
 	teacher: string;
 	color: string;
 	avatar: string | null;
+	/** Иконка из набора ($lib/subjectIcons); null — подбирается по названию. */
+	icon: string | null;
 	/** Чат предмета в Telegram (https://t.me/…). */
 	chatUrl: string | null;
 	archived: boolean;
@@ -142,6 +144,8 @@ export interface Homework {
 	bodyMd: string;
 	bodyHtml: string;
 	dueAt: number;
+	/** Сложность: 1 — легко, 2 — средне, 3 — сложно; null — не указана. */
+	difficulty: number | null;
 	done: boolean;
 	hidden: boolean;
 	createdAt: number;
@@ -182,6 +186,8 @@ export interface Member {
 	avatar: string | null;
 	status: 'pending' | 'active' | 'blocked' | 'deleted';
 	role: GroupRole;
+	/** Роль на всём сайте: администратор или модератор. */
+	instanceRole: InstanceRole | null;
 	joinedAt: number;
 }
 

@@ -73,6 +73,7 @@ class InviteController {
 
   @PostMapping("/api/invites/{token}/join")
   Map<String, Object> join(Actor actor, @PathVariable String token) {
-    return Map.of("status", "ok", "groupId", invites.join(actor, token));
+    InviteService.Joined j = invites.join(actor, token);
+    return Map.of("status", j.already() ? "already" : "ok", "groupId", j.groupId());
   }
 }

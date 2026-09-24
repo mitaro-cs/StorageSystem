@@ -335,6 +335,7 @@ export async function enqueue(method: string, path: string, body?: unknown): Pro
 			bodyMd: String(b.body ?? ''),
 			bodyHtml: `<p>${escapeHtml(String(b.body ?? ''))}</p>`,
 			dueAt: Number(b.dueAt),
+			difficulty: [1, 2, 3].includes(Number(b.difficulty)) ? Number(b.difficulty) : null,
 			done: false,
 			hidden: false,
 			createdAt: now,

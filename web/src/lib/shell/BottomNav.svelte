@@ -1,11 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { bottomNav, isActive } from './nav';
+
+	// Белый круг активного раздела не прыгает, а перетекает к нажатой иконке.
+	const index = $derived(bottomNav.findIndex((i) => isActive(page.url.pathname, i.href)));
 </script>
 
 <!-- Плавающая матовая панель: иконки, активный раздел — белый круг. Подписи — для скринридеров. -->
 <div class="fade" aria-hidden="true"></div>
-<nav class="bottom-nav" aria-label="Основные разделы">
+<nav class="bottom-nav" aria-label="Основные разделы" style:--i={Math.max(index, 0)}>
+	<span class="pill" class:hidden={index < 0} aria-hidden="true"></span>
 	{#each bottomNav as item (item.href)}
 		{@const Icon = item.icon}
 		{@const on = isActive(page.url.pathname, item.href)}
@@ -55,7 +59,25 @@
 			0 18px 40px -12px rgb(0 0 0 / 0.4),
 			inset 0 1px 0 rgb(255 255 255 / 0.06);
 	}
+	.pill {
+		position: absolute;
+		top: 50%;
+		left: calc(8px + (100% - 16px) / 5 * var(--i) + ((100% - 16px) / 5 - 48px) / 2);
+		width: 48px;
+		height: 48px;
+		margin-top: -24px;
+		border-radius: 50%;
+		background: #fff;
+		box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
+		transition:
+			left 380ms cubic-bezier(0.3, 1.35, 0.5, 1),
+			opacity 200ms var(--ease);
+	}
+	.pill.hidden {
+		opacity: 0;
+	}
 	a {
+		position: relative;
 		display: grid;
 		place-items: center;
 		height: 100%;
@@ -81,8 +103,11 @@
 		transform: scale(0.9);
 	}
 	a.on .icon {
-		background: #fff;
 		color: #0d0d0f;
-		box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.pill {
+			transition: none;
+		}
 	}
 </style>

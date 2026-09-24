@@ -2,7 +2,10 @@
 <html lang="ru">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
+		/>
 		<meta name="robots" content="noindex, nofollow" />
 		<meta name="referrer" content="no-referrer" />
 		<meta name="color-scheme" content="light dark" />
@@ -30,6 +33,157 @@
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
+		<!-- Заставка, пока грузится приложение: слои логотипа складываются по очереди. Убирает её
+		     корневой макет (routes/+layout.svelte), когда интерфейс готов. -->
+		<div id="splash" aria-hidden="true">
+			<style>
+				#splash {
+					position: fixed;
+					inset: 0;
+					z-index: 9999;
+					display: grid;
+					place-items: center;
+					background: #f1f2f4;
+					color: #0d0d0f;
+					transition:
+						opacity 320ms ease,
+						visibility 0s 320ms;
+				}
+				:root[data-theme='dark'] #splash {
+					background: #000;
+					color: #f5f5f7;
+				}
+				@media (prefers-color-scheme: dark) {
+					:root:not([data-theme='light']) #splash {
+						background: #000;
+						color: #f5f5f7;
+					}
+				}
+				#splash.gone {
+					opacity: 0;
+					visibility: hidden;
+					pointer-events: none;
+				}
+				#splash .box {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					gap: 18px;
+				}
+				#splash svg {
+					width: 84px;
+					height: 84px;
+					overflow: visible;
+				}
+				#splash .tile {
+					fill: currentColor;
+					transform-origin: 50% 50%;
+					animation: sp-pop 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+				}
+				#splash .layer {
+					fill: none;
+					stroke: #f1f2f4;
+					stroke-width: 2.2;
+					stroke-linecap: round;
+					stroke-linejoin: round;
+					stroke-dasharray: 40;
+					stroke-dashoffset: 40;
+					animation: sp-draw 520ms ease-out forwards;
+				}
+				:root[data-theme='dark'] #splash .layer {
+					stroke: #000;
+				}
+				@media (prefers-color-scheme: dark) {
+					:root:not([data-theme='light']) #splash .layer {
+						stroke: #000;
+					}
+				}
+				#splash .l1 {
+					animation-delay: 260ms;
+				}
+				#splash .l2 {
+					animation-delay: 420ms;
+				}
+				#splash .l3 {
+					animation-delay: 580ms;
+				}
+				#splash .word {
+					font:
+						650 20px/1 -apple-system,
+						'Segoe UI',
+						Roboto,
+						sans-serif;
+					letter-spacing: -0.02em;
+					opacity: 0;
+					animation: sp-rise 420ms ease-out 520ms forwards;
+				}
+				#splash .bar {
+					width: 120px;
+					height: 3px;
+					border-radius: 3px;
+					background: currentColor;
+					opacity: 0.12;
+					overflow: hidden;
+					position: relative;
+				}
+				#splash .bar::after {
+					content: '';
+					position: absolute;
+					inset: 0;
+					width: 40%;
+					border-radius: 3px;
+					background: currentColor;
+					animation: sp-run 1s ease-in-out 700ms infinite;
+				}
+				@keyframes sp-pop {
+					from {
+						transform: scale(0.6) rotate(-8deg);
+						opacity: 0;
+					}
+				}
+				@keyframes sp-draw {
+					to {
+						stroke-dashoffset: 0;
+					}
+				}
+				@keyframes sp-rise {
+					from {
+						opacity: 0;
+						transform: translateY(6px);
+					}
+					to {
+						opacity: 1;
+						transform: none;
+					}
+				}
+				@keyframes sp-run {
+					from {
+						transform: translateX(-100%);
+					}
+					to {
+						transform: translateX(250%);
+					}
+				}
+				@media (prefers-reduced-motion: reduce) {
+					#splash *,
+					#splash *::after {
+						animation: none !important;
+						opacity: 1 !important;
+						stroke-dashoffset: 0 !important;
+					}
+				}
+			</style>
+			<div class="box">
+				<svg viewBox="0 0 32 32">
+					<rect class="tile" width="32" height="32" rx="9" />
+					<path class="layer l1" d="M9 11.5 16 8l7 3.5-7 3.5-7-3.5Z" />
+					<path class="layer l2" d="M9 16l7 3.5 7-3.5" />
+					<path class="layer l3" d="M9 20.5 16 24l7-3.5" />
+				</svg>
+				<span class="word">groupbase</span>
+				<span class="bar"></span>
+			</div>
+		</div>
 		<div class="app-root">%sveltekit.body%</div>
 	</body>
 </html>

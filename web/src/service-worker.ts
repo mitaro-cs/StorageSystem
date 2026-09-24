@@ -14,9 +14,15 @@ const INDEX = '/index.html';
 
 /** Оболочка приложения: код, стили, шрифты, иконки. Предсжатые копии не нужны. */
 const ASSETS = [...build, ...files.filter((f) => !/\.(br|gz)$/.test(f)), INDEX];
+/**
+ * Просмотр PDF (pdf.js, ~2 МБ) нужен не всем и не каждый день: его не качаем при каждом обновлении
+ * приложения, а сохраняем при первом открытии PDF — дальше он работает и без сети.
+ */
+const LAZY = /pdf/i;
+const PRECACHE = ASSETS.filter((a) => !LAZY.test(a));
 
 sw.addEventListener('install', (event) => {
-	event.waitUntil(caches.open(SHELL).then((c) => c.addAll(ASSETS)));
+	event.waitUntil(caches.open(SHELL).then((c) => c.addAll(PRECACHE)));
 	sw.skipWaiting();
 });
 
@@ -76,7 +82,19 @@ sw.addEventListener('fetch', (event) => {
 		return;
 	}
 	if (ASSETS.includes(url.pathname)) {
-		event.respondWith(caches.match(url.pathname).then((hit) => hit ?? fetch(req)));
+		event.respondWith(
+			caches.match(url.pathname).then(
+				(hit) =>
+					hit ??
+					fetch(req).then((res) => {
+						if (res.ok && LAZY.test(url.pathname)) {
+							const copy = res.clone();
+							caches.open(SHELL).then((c) => c.put(url.pathname, copy));
+						}
+						return res;
+					})
+			)
+		);
 		return;
 	}
 	if (url.pathname.startsWith('/api/avatars/')) {

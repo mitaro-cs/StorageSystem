@@ -50,7 +50,7 @@ class SetupController {
       throws IOException {
     setup.checkCode(code);
     if (!setup.needed()) {
-      throw ApiException.conflict("already_setup", "Инстанс уже настроен");
+      throw ApiException.conflict("already_setup", "Сайт уже настроен");
     }
     try {
       return restore.fromUpload(req.getInputStream());

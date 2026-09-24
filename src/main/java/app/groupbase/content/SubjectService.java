@@ -24,8 +24,14 @@ public class SubjectService {
 
   /**
    * @param chatUrl чат предмета в Telegram: null — не менять, пустая строка — убрать
+   * @param icon иконка из встроенного набора: null — не менять, пустая строка — подобрать по
+   *     названию
    */
-  public record Input(String name, String teacher, String color, String chatUrl) {}
+  public record Input(String name, String teacher, String color, String chatUrl, String icon) {
+    public Input(String name, String teacher, String color, String chatUrl) {
+      this(name, teacher, color, chatUrl, null);
+    }
+  }
 
   public record SubjectView(
       long id,
@@ -33,6 +39,7 @@ public class SubjectService {
       String teacher,
       String color,
       String avatar,
+      String icon,
       String chatUrl,
       boolean archived,
       boolean pinned,
@@ -44,6 +51,9 @@ public class SubjectService {
   public record LinkResult(String status, Long requestId) {}
 
   private static final Pattern COLOR = Pattern.compile("#[0-9a-fA-F]{6}");
+
+  /** Ключ иконки из набора интерфейса: латиница, цифры и дефис. */
+  static final Pattern ICON = Pattern.compile("[a-z0-9-]{1,32}");
 
   private final SubjectStore subjects;
   private final GroupStore groups;
@@ -94,6 +104,7 @@ public class SubjectService {
         r.teacher(),
         r.color(),
         r.avatar(),
+        r.icon(),
         r.chatUrl(),
         r.archivedAt() != null,
         pins.contains(r.id()),
@@ -112,6 +123,9 @@ public class SubjectService {
     if (c.chatUrl() != null && !c.chatUrl().isEmpty()) {
       subjects.setChat(id, c.chatUrl());
     }
+    if (c.icon() != null && !c.icon().isEmpty()) {
+      subjects.setIcon(id, c.icon());
+    }
     subjects.link(id, groupId, now);
     audit.log(actor, groupId, "subject.create", "subject", id, Map.of("name", c.name()));
     return get(actor, id);
@@ -124,6 +138,9 @@ public class SubjectService {
     subjects.update(id, c.name(), c.teacher(), c.color());
     if (c.chatUrl() != null) {
       subjects.setChat(id, c.chatUrl().isEmpty() ? null : c.chatUrl());
+    }
+    if (c.icon() != null) {
+      subjects.setIcon(id, c.icon().isEmpty() ? null : c.icon());
     }
     return get(actor, id);
   }
@@ -244,6 +261,19 @@ public class SubjectService {
       throw new ApiException(HttpStatus.BAD_REQUEST, "invalid", "Цвет в формате #rrggbb");
     }
     String chat = in.chatUrl() == null ? null : Telegram.normalize(in.chatUrl(), "chatUrl");
-    return new Input(name, teacher, color.toLowerCase(java.util.Locale.ROOT), chat);
+    return new Input(
+        name, teacher, color.toLowerCase(java.util.Locale.ROOT), chat, icon(in.icon()));
+  }
+
+  /** null — не менять, пустая строка — убрать, иначе ключ из набора. */
+  static String icon(String raw) {
+    if (raw == null) {
+      return null;
+    }
+    String icon = raw.strip().toLowerCase(java.util.Locale.ROOT);
+    if (!icon.isEmpty() && !ICON.matcher(icon).matches()) {
+      throw ApiException.invalid("icon", "Неизвестная иконка");
+    }
+    return icon;
   }
 }

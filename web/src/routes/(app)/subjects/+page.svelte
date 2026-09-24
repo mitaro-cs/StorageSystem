@@ -85,7 +85,14 @@
 			<div class="cell" in:fly={{ y: 10, delay: stagger(i) }}>
 				<a class="subject card" href="/subjects/{s.id}" class:archived={s.archived}>
 					<span class="cover">
-						<SubjectArt id={s.id} name={s.name} color={s.color} avatar={s.avatar} class="fill" />
+						<SubjectArt
+							id={s.id}
+							name={s.name}
+							color={s.color}
+							avatar={s.avatar}
+							icon={s.icon}
+							class="fill"
+						/>
 						{#if s.groups.length > 1 || s.archived}
 							<span class="tags">
 								{#if s.groups.length > 1}<span class="chip glass"

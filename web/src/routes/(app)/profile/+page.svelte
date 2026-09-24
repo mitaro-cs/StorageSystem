@@ -4,13 +4,36 @@
 	import NotificationSettings from '$lib/settings/NotificationSettings.svelte';
 	import { fioError } from '$lib/names';
 	import { goto } from '$app/navigation';
-	import { Download, LogOut, ScanLine, Settings, Users, Newspaper, BookOpen } from '@lucide/svelte';
+	import {
+		BookOpen,
+		Database,
+		Download,
+		KeyRound,
+		LogOut,
+		MonitorSmartphone,
+		Newspaper,
+		ScanLine,
+		Settings,
+		ShieldCheck,
+		Smartphone,
+		SlidersHorizontal,
+		UserRound,
+		Users
+	} from '@lucide/svelte';
+	import SectionHead from '$lib/ui/SectionHead.svelte';
 	import { ApiError, del, get, patch, post, request } from '$lib/api';
 	import { offline, wipeOffline } from '$lib/offline/engine';
 	import OfflineSettings from '$lib/settings/OfflineSettings.svelte';
 	import { forgetAccount } from '$lib/accounts';
 	import { t } from '$lib/i18n/ru';
-	import { canManage, loadMe, session, setManageMode } from '$lib/session.svelte';
+	import {
+		canManage,
+		groups,
+		loadMe,
+		manageMode,
+		session,
+		setManageMode
+	} from '$lib/session.svelte';
 	import Switch from '$lib/ui/Switch.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
@@ -24,6 +47,11 @@
 	import { clearRecent } from '$lib/recent';
 
 	const me = $derived(session.me!);
+	// Кабинет администратора и старосты: здесь же видны все люди группы с их ролями.
+	const seesPeople = $derived(
+		manageMode() &&
+			(!!me.user.instanceRole || groups().some((g) => g.role === 'headman' || g.role === 'deputy'))
+	);
 	let displayName = $derived(me.user.displayName);
 
 	let current = $state('');
@@ -197,7 +225,7 @@
 		aria-label="Сменить аватар"
 		title="Сменить аватар"
 	>
-		<Avatar id={me.user.id} name={me.user.displayName} avatar={me.user.avatar} size={72} />
+		<Avatar id={me.user.id} name={me.user.displayName} avatar={me.user.avatar} size={72} ring />
 		<span class="edit" aria-hidden="true">Изменить</span>
 	</button>
 	<div>
@@ -224,22 +252,35 @@
 </nav>
 
 {#if canManage()}
+	<p class="chapter">Управление</p>
 	<section class="card block">
-		<div class="row manage">
-			<div class="grow">
-				<h2>Режим управления</h2>
-				<p class="small muted">
-					Кнопки администратора и старосты: приглашения, права, сервер, модерация. Выключите, чтобы
-					пользоваться сайтом как участник, — публиковать новости и задания можно и так.
-				</p>
-			</div>
+		<SectionHead
+			icon={SlidersHorizontal}
+			tone="violet"
+			title="Режим управления"
+			text="Кнопки администратора и старосты: приглашения, права, сервер, модерация. Выключите, чтобы пользоваться сайтом как участник — публиковать новости и задания можно и так."
+		>
 			<Switch checked={me.user.manageMode} label="Режим управления" onchange={setManage} />
-		</div>
+		</SectionHead>
 	</section>
+	{#if seesPeople}
+		<section class="card block" id="people">
+			<SectionHead
+				icon={Users}
+				tone="blue"
+				title="Люди"
+				text="Все участники группы и их роли. Меню «…» у человека — сменить роль, сбросить пароль, заблокировать."
+			/>
+			{#await import('$lib/content/People.svelte')}<p class="faint small">
+					Загружаем…
+				</p>{:then m}<m.default />{/await}
+		</section>
+	{/if}
 {/if}
 
+<p class="chapter">Аккаунт и безопасность</p>
 <section class="card block">
-	<h2>ФИО</h2>
+	<SectionHead icon={UserRound} tone="gray" title="ФИО и оформление" />
 	<form class="row" onsubmit={saveName}>
 		<input
 			class="input"
@@ -257,11 +298,12 @@
 </section>
 
 <section class="card block">
-	<h2>Вход на другом устройстве</h2>
-	<p class="muted">
-		На компьютере откройте groupbase, выберите «По QR-коду» и отсканируйте код отсюда — логин и
-		пароль вводить не придётся.
-	</p>
+	<SectionHead
+		icon={MonitorSmartphone}
+		tone="teal"
+		title="Вход на другом устройстве"
+		text="На ноутбуке или втором телефоне откройте groupbase, выберите «По QR-коду» и отсканируйте код отсюда — логин и пароль вводить не придётся."
+	/>
 	<div>
 		<Button onclick={() => (scanOpen = true)}><ScanLine size={17} /> Сканировать QR-код</Button>
 	</div>
@@ -270,12 +312,8 @@
 	{#await import('$lib/auth/QrScanner.svelte') then m}<m.default bind:open={scanOpen} />{/await}
 {/if}
 
-<NotificationSettings />
-
-<OfflineSettings />
-
 <section class="card block">
-	<h2>Пароль</h2>
+	<SectionHead icon={KeyRound} tone="amber" title="Пароль" />
 	<form class="stack" onsubmit={changePassword}>
 		<input type="text" autocomplete="username" value={me.user.username} hidden readonly />
 		{#if me.hostWindow}
@@ -303,12 +341,14 @@
 </section>
 
 <section class="card block">
-	<h2>Двухфакторная защита</h2>
-	<p class="muted">
-		Код из приложения на телефоне при каждом входе. {me.user.totpEnabled
+	<SectionHead
+		icon={ShieldCheck}
+		tone="green"
+		title="Двухфакторная защита"
+		text="Код из приложения на телефоне при каждом входе. {me.user.totpEnabled
 			? 'Включена.'
-			: 'Выключена.'}
-	</p>
+			: 'Выключена.'}"
+	/>
 	{#if me.user.totpEnabled && recoveryLeft !== null}
 		<dl class="kv">
 			<div>
@@ -333,12 +373,19 @@
 	</div>
 </section>
 
+<p class="chapter">Уведомления и офлайн</p>
+<NotificationSettings />
+
+<OfflineSettings />
+
+<p class="chapter">Прочее</p>
 <section class="card block">
-	<h2>Приложение</h2>
-	<p class="muted">
-		groupbase можно установить на телефон как приложение: он откроется без браузерной строки, а
-		лента и ДЗ будут доступны без сети.
-	</p>
+	<SectionHead
+		icon={Smartphone}
+		tone="blue"
+		title="Приложение на телефон"
+		text="groupbase можно установить как приложение: откроется без браузерной строки, а лента и ДЗ будут доступны без сети."
+	/>
 	<div class="row wrap">
 		{#if pwa.canInstall}<Button variant="primary" onclick={install}>Установить</Button>{/if}
 		<a class="download" href="/install">Как установить — по шагам</a>
@@ -346,18 +393,19 @@
 </section>
 
 <section class="card block">
-	<h2>Мои данные</h2>
-	<p class="muted">
-		ZIP-файл со всем, что связано с вами: профиль, отметки «сделано», комментарии, ваши публикации и
-		загруженные файлы.
-	</p>
+	<SectionHead
+		icon={Database}
+		tone="gray"
+		title="Мои данные"
+		text="ZIP-файл со всем, что связано с вами: профиль, отметки «сделано», комментарии, ваши публикации и загруженные файлы."
+	/>
 	<div>
 		<a class="download" href="/api/me/export" download><Download size={17} /> Скачать мои данные</a>
 	</div>
 </section>
 
 <section class="card block">
-	<h2>Выход и удаление</h2>
+	<SectionHead icon={LogOut} tone="red" title="Выход и удаление" />
 	<div class="row wrap">
 		<Button onclick={logout}><LogOut size={16} /> Выйти</Button>
 		<Button variant="danger" onclick={() => (deleteOpen = true)}>Удалить аккаунт</Button>
@@ -452,17 +500,6 @@
 </Modal>
 
 <style>
-	.manage {
-		align-items: flex-start;
-		gap: var(--s4);
-	}
-	.manage .grow {
-		flex: 1;
-		min-width: 0;
-	}
-	.manage h2 {
-		margin-bottom: 4px;
-	}
 	.me-head {
 		display: flex;
 		align-items: center;
@@ -471,6 +508,10 @@
 	}
 	.avatar-btn {
 		position: relative;
+		flex: none;
+		display: block;
+		line-height: 0;
+		margin: 4px;
 		padding: 0;
 		border: 0;
 		background: none;
@@ -537,12 +578,17 @@
 	.block {
 		display: flex;
 		flex-direction: column;
-		gap: var(--s3);
+		gap: var(--s4);
 		padding: var(--s5);
-		margin-bottom: var(--s3);
+		margin-bottom: var(--s4);
 	}
-	.block h2 {
-		font-size: 17px;
+	.chapter {
+		margin: var(--s6) 4px var(--s3);
+		font-size: 12.5px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--text-3);
 	}
 	.theme {
 		padding-top: var(--s2);

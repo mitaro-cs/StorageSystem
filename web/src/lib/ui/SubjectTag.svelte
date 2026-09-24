@@ -1,4 +1,6 @@
 <script lang="ts">
+	import SubjectGlyph from './SubjectGlyph.svelte';
+
 	let {
 		id,
 		name,
@@ -8,9 +10,13 @@
 </script>
 
 {#if link}
-	<a class="tag" href="/subjects/{id}"><span class="dot" style:background={color}></span>{name}</a>
+	<a class="tag" href="/subjects/{id}"
+		><SubjectGlyph {id} {name} {color} size={14} bare /><span class="n">{name}</span></a
+	>
 {:else}
-	<span class="tag"><span class="dot" style:background={color}></span>{name}</span>
+	<span class="tag"
+		><SubjectGlyph {id} {name} {color} size={14} bare /><span class="n">{name}</span></span
+	>
 {/if}
 
 <style>
@@ -27,10 +33,9 @@
 		color: var(--text);
 		text-decoration: none;
 	}
-	.dot {
-		flex: none;
-		width: 8px;
-		height: 8px;
-		border-radius: 3px;
+	.n {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 </style>

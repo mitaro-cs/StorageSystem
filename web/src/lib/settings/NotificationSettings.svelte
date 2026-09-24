@@ -14,6 +14,8 @@
 	import type { NotificationPrefs, NotificationSettings } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
 	import Switch from '$lib/ui/Switch.svelte';
+	import SectionHead from '$lib/ui/SectionHead.svelte';
+	import { Bell } from '@lucide/svelte';
 
 	let s = $state<NotificationSettings | null>(null);
 	let subscribed = $state(false);
@@ -88,7 +90,12 @@
 </script>
 
 <section class="card block" id="notifications">
-	<h2>Уведомления</h2>
+	<SectionHead
+		icon={Bell}
+		tone="amber"
+		title="Уведомления"
+		text="Что присылать на телефон: новые задания, напоминания о сроках, новости."
+	/>
 	{#if offlineOnly}<p class="faint small">
 			Настройки уведомлений откроются, когда появится интернет.
 		</p>{/if}

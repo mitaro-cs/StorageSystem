@@ -112,7 +112,7 @@ class AdminController {
       }
       if (mode == InstanceSettings.Mode.SINGLE && groups.count() > 1) {
         throw ApiException.conflict(
-            "many_groups", "В инстансе несколько групп: режим одной группы недоступен");
+            "many_groups", "На сайте несколько групп: режим одной группы недоступен");
       }
       settings.set(InstanceSettings.MODE, mode.id());
     }

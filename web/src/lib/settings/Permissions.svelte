@@ -36,7 +36,7 @@
 				<strong>{t.permissions[c.permission] ?? c.permission}</strong>
 				<span class="faint small"
 					>{t.roles[c.role]}{c.overridden === false && groupId !== null
-						? ' · как в инстансе'
+						? ' · как на всём сайте'
 						: ''}</span
 				>
 			</div>

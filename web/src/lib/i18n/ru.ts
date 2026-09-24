@@ -6,7 +6,7 @@ export const ru = {
 		news: 'Новости',
 		homework: 'ДЗ',
 		homeworkLong: 'Домашние задания',
-		materials: 'Материалы',
+		materials: 'Файлы',
 		subjects: 'Предметы',
 		members: 'Участники',
 		search: 'Поиск',
@@ -19,8 +19,8 @@ export const ru = {
 		expand: 'Развернуть панель'
 	},
 	roles: {
-		admin: 'Администратор',
-		moderator: 'Модератор',
+		admin: 'Администратор сайта',
+		moderator: 'Модератор сайта',
 		headman: 'Староста',
 		deputy: 'Зам старосты',
 		student: 'Студент'

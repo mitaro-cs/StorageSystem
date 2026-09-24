@@ -6,6 +6,8 @@
 	import type { InstanceRole } from '$lib/types';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import Permissions from './Permissions.svelte';
+	import SectionHead from '$lib/ui/SectionHead.svelte';
+	import { Crown, Info, KeyRound, ShieldCheck, SlidersHorizontal } from '@lucide/svelte';
 
 	interface Settings {
 		name: string;
@@ -44,12 +46,19 @@
 	}
 
 	async function setRole(u: UserRow, role: string) {
+		const self = u.id === session.me?.user.id;
+		if (self && role !== 'admin' && !confirm('Снять с себя роль администратора сайта?')) {
+			users = [...users];
+			return;
+		}
 		try {
 			await put(`/api/admin/users/${u.id}/instance-role`, { role: role || null });
 			u.instanceRole = (role || null) as InstanceRole | null;
-			toast('Роль изменена. Пользователю нужно войти заново', 'ok');
+			if (self) await loadMe();
+			toast(self ? 'Ваша роль изменена' : 'Роль изменена. Человеку нужно войти заново', 'ok');
 		} catch (e) {
 			toastError(e);
+			users = await get<UserRow[]>('/api/admin/users');
 		}
 	}
 
@@ -65,9 +74,27 @@
 	);
 </script>
 
+<section class="card explain">
+	<SectionHead icon={Info} tone="blue" title="Что такое «сайт»" />
+	<p>
+		<strong>Сайт</strong> (в технических текстах — <em>инстанс</em>) — это весь ваш groupbase
+		целиком: одна группа или несколько групп потока, их общие настройки и администраторы. У каждой
+		группы свой староста, предметы и задания, а у сайта — <strong>администратор</strong>, который
+		отвечает за всё сразу: группы, роли, доступ из интернета и резервные копии.
+	</p>
+	<ul class="facts">
+		<li><strong>Администратор сайта</strong> — всё: группы, роли, сервер. Обычно это хост.</li>
+		<li>
+			<strong>Модератор сайта</strong> — помогает: может скрывать лишнее и блокировать нарушителей во
+			всех группах, но не трогает настройки.
+		</li>
+		<li><strong>Староста, зам, студент</strong> — роли внутри одной группы.</li>
+	</ul>
+</section>
+
 {#if s}
 	<section class="card form">
-		<h2>Инстанс</h2>
+		<SectionHead icon={SlidersHorizontal} tone="violet" title="Основное" />
 		<div>
 			<label class="label" for="i-name">Название</label>
 			<input
@@ -77,6 +104,7 @@
 				onchange={(e) => update({ name: e.currentTarget.value })}
 				maxlength="60"
 			/>
+			<p class="hint">Видно в заголовке и при входе. Например, «Поток БИН-25» или «БИН2509».</p>
 		</div>
 		<fieldset>
 			<legend class="label">Режим</legend>
@@ -97,60 +125,80 @@
 				/> Несколько групп (поток)</label
 			>
 		</fieldset>
+	</section>
+	<section class="card form">
+		<SectionHead
+			icon={KeyRound}
+			tone="teal"
+			title="Как люди попадают на сайт"
+			text="Можно оставить оба способа: старосте удобнее добавить всех списком, а новенький сам зайдёт по ссылке."
+		/>
 		<fieldset>
-			<legend class="label">Способы создания аккаунтов</legend>
 			<label class="check"
 				><input
 					type="checkbox"
 					checked={s.directAccounts}
 					onchange={(e) => update({ directAccounts: e.currentTarget.checked })}
-				/> Прямое создание старостой</label
+				/> Староста создаёт аккаунты сам — списком или по одному, с QR-кодом</label
 			>
 			<label class="check"
 				><input
 					type="checkbox"
 					checked={s.invites}
 					onchange={(e) => update({ invites: e.currentTarget.checked })}
-				/> Инвайт-ссылки</label
+				/> Ссылки-приглашения: человек сам вписывает ФИО и пароль</label
 			>
 		</fieldset>
 	</section>
 {/if}
 
-<h2 class="sub">Права по умолчанию</h2>
-<Permissions groupId={null} />
+<section class="card form">
+	<SectionHead
+		icon={ShieldCheck}
+		tone="green"
+		title="Права по умолчанию для всех групп"
+		text="Староста может поменять их в своей группе."
+	/>
+	<Permissions groupId={null} />
+</section>
 
-<h2 class="sub">Администраторы и модераторы</h2>
-<input
-	class="input filter"
-	type="search"
-	placeholder="Найти пользователя"
-	bind:value={query}
-	aria-label="Поиск пользователя"
-/>
-<div class="list">
-	{#each shown as u (u.id)}
-		<div class="list-row">
-			<Avatar id={u.id} name={u.displayName} avatar={u.avatar} size={32} />
-			<div class="info">
-				<strong>{u.displayName}</strong><span class="faint small"
-					>@{u.username}{u.instanceRole && !u.totpEnabled ? ' · 2FA не включена' : ''}</span
+<section class="card form">
+	<SectionHead
+		icon={Crown}
+		tone="amber"
+		title="Администраторы и модераторы сайта"
+		text="Выберите роль у человека. Себе тоже можно — но последнего администратора снять нельзя."
+	/>
+	<input
+		class="input filter"
+		type="search"
+		placeholder="Найти пользователя"
+		bind:value={query}
+		aria-label="Поиск пользователя"
+	/>
+	<div class="list">
+		{#each shown as u (u.id)}
+			<div class="list-row">
+				<Avatar id={u.id} name={u.displayName} avatar={u.avatar} size={32} />
+				<div class="info">
+					<strong>{u.displayName}</strong><span class="faint small"
+						>@{u.username}{u.instanceRole && !u.totpEnabled ? ' · 2FA не включена' : ''}</span
+					>
+				</div>
+				<select
+					class="select role"
+					value={u.instanceRole ?? ''}
+					onchange={(e) => setRole(u, e.currentTarget.value)}
+					aria-label="Роль на сайте: {u.displayName}"
 				>
+					<option value="">Без роли на сайте</option>
+					<option value="moderator">{t.roles.moderator}</option>
+					<option value="admin">{t.roles.admin}</option>
+				</select>
 			</div>
-			<select
-				class="select role"
-				value={u.instanceRole ?? ''}
-				onchange={(e) => setRole(u, e.currentTarget.value)}
-				disabled={u.id === session.me?.user.id}
-				aria-label="Роль инстанса"
-			>
-				<option value="">—</option>
-				<option value="moderator">{t.roles.moderator}</option>
-				<option value="admin">{t.roles.admin}</option>
-			</select>
-		</div>
-	{/each}
-</div>
+		{/each}
+	</div>
+</section>
 
 <style>
 	.form {
@@ -167,9 +215,31 @@
 		flex-direction: column;
 		gap: 8px;
 	}
-	.sub {
-		font-size: 17px;
-		margin: var(--s5) 0 var(--s3);
+	.form + .form,
+	.explain + .form {
+		margin-top: var(--s4);
+	}
+	.explain {
+		display: flex;
+		flex-direction: column;
+		gap: var(--s3);
+		padding: var(--s5);
+		margin-bottom: var(--s4);
+		border: 1px dashed var(--border-strong);
+		box-shadow: none;
+	}
+	.explain p {
+		margin: 0;
+		line-height: 1.55;
+	}
+	.facts {
+		margin: 0;
+		padding-left: 20px;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		color: var(--text-2);
+		font-size: 14.5px;
 	}
 	.filter {
 		margin-bottom: var(--s3);

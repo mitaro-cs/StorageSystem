@@ -52,13 +52,13 @@ export function uploadFile(
 	});
 }
 
-/** Файл целиком сырым телом PUT — для архивов резервных копий (без multipart и без очереди). */
-export async function putFile<T>(path: string, file: Blob): Promise<T> {
+/** Файл целиком сырым телом PUT — архивы резервных копий, фон входа (без multipart и очереди). */
+export async function putFile<T>(path: string, file: Blob, type = 'application/zip'): Promise<T> {
 	let res: Response;
 	try {
 		res = await fetch(path, {
 			method: 'PUT',
-			headers: { 'X-CSRF-Token': csrf(), 'Content-Type': 'application/zip' },
+			headers: { 'X-CSRF-Token': csrf(), 'Content-Type': type },
 			body: file
 		});
 	} catch {

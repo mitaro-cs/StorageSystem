@@ -20,6 +20,10 @@
 	import Empty from '$lib/ui/Empty.svelte';
 	import Prose from '$lib/ui/Prose.svelte';
 	import FileIcon from '$lib/content/FileIcon.svelte';
+	import DifficultyBadge from '$lib/content/DifficultyBadge.svelte';
+	import Crumbs from '$lib/ui/Crumbs.svelte';
+	import { openFiles } from '$lib/files/viewer.svelte';
+	import { canPreview } from '$lib/fileKinds';
 
 	let item = $state<Homework | null>(null);
 	let missing = $state(false);
@@ -90,6 +94,14 @@
 {:else if !item}
 	<Skeleton lines={6} />
 {:else}
+	<Crumbs
+		items={[
+			{ label: 'Предметы', href: '/subjects' },
+			{ label: item.subject.name, href: `/subjects/${item.subject.id}` },
+			{ label: 'Задания', href: `/subjects/${item.subject.id}?tab=homework` },
+			{ label: item.title }
+		]}
+	/>
 	<article class="hw">
 		<!-- Карточка-обложка: инверсная, как главная карточка на макете -->
 		<header class="hero">
@@ -129,6 +141,12 @@
 				<dt>Предмет</dt>
 				<dd><SubjectTag {...item.subject} /></dd>
 			</div>
+			{#if item.difficulty}
+				<div>
+					<dt>Сложность</dt>
+					<dd><DifficultyBadge value={item.difficulty} /></dd>
+				</div>
+			{/if}
 			{#if isMulti()}
 				<div>
 					<dt>Группы</dt>
@@ -161,12 +179,20 @@
 					<span class="aside num">{item.attachments.length}</span>
 				</div>
 				<div class="list">
-					{#each item.attachments as f (f.id)}
-						<a class="list-row" href="/api/files/{f.id}" target="_blank" rel="noopener">
+					{#each item.attachments as f, i (f.id)}
+						{@const files = item.attachments}
+						<button
+							class="list-row file-row"
+							onclick={() => openFiles(files, i, item?.title ?? '')}
+							aria-label="Открыть {f.name}"
+						>
 							<FileIcon mime={f.mime} size={20} />
 							<span class="fname">{f.name}</span>
 							<span class="faint small num">{fmtSize(f.size)}</span>
-						</a>
+							<span class="open-hint small"
+								>{canPreview(f.mime, f.name, f.size) ? 'Открыть' : 'Скачать'}</span
+							>
+						</button>
 					{/each}
 				</div>
 			</section>
@@ -288,5 +314,21 @@
 		.facts > span + span {
 			border-left: 0;
 		}
+	}
+	.file-row {
+		width: 100%;
+		border: 0;
+		font: inherit;
+		text-align: left;
+		color: inherit;
+		cursor: pointer;
+	}
+	.open-hint {
+		flex: none;
+		padding: 4px 10px;
+		border-radius: var(--r-full);
+		background: var(--surface-2);
+		color: var(--text-2);
+		font-weight: 600;
 	}
 </style>

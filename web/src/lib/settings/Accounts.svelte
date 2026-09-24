@@ -7,9 +7,18 @@
 	import { toastError } from '$lib/toasts.svelte';
 	import type { CreatedAccount, GroupRole } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
+	import QrCode from '$lib/ui/QrCode.svelte';
 	import { parseNames } from './parseNames';
 
-	let { groupId, groupName }: { groupId: number; groupName: string } = $props();
+	interface Props {
+		groupId: number;
+		groupName: string;
+		/** Внутри окна «Добавить людей»: без своей карточки и заголовка. */
+		embedded?: boolean;
+		oncreated?: () => void;
+	}
+
+	let { groupId, groupName, embedded = false, oncreated }: Props = $props();
 
 	let text = $state('');
 	let role = $state<GroupRole>('student');
@@ -30,6 +39,7 @@
 				delivery
 			});
 			text = '';
+			oncreated?.();
 		} catch (err) {
 			toastError(err);
 		} finally {
@@ -58,7 +68,7 @@
 </script>
 
 {#if result}
-	<section class="card sheet" id="print-sheet">
+	<section class="sheet" class:card={!embedded} id="print-sheet">
 		<div class="row no-print">
 			<h2>Готово: {result.length}</h2>
 			<span class="spacer"></span>
@@ -76,20 +86,28 @@
 		</p>
 		<p class="print-only"><strong>{groupName}</strong> — доступ к сайту группы</p>
 		<table>
-			<thead
-				><tr
-					><th>ФИО</th><th>Логин</th><th
-						>{delivery === 'LINK' ? 'Ссылка активации' : 'Временный пароль'}</th
-					></tr
-				></thead
-			>
+			<thead>
+				<tr>
+					<th>ФИО</th>
+					<th>Логин</th>
+					<th>{delivery === 'LINK' ? 'Ссылка активации' : 'Временный пароль'}</th>
+					{#if delivery === 'LINK'}<th class="qr-col">QR</th>{/if}
+				</tr>
+			</thead>
 			<tbody>
 				{#each result as a (a.userId)}
-					<tr
-						><td>{a.displayName}</td><td><code>{a.username}</code></td><td class="secret"
-							><code>{secret(a)}</code></td
-						></tr
-					>
+					<tr>
+						<td>{a.displayName}</td>
+						<td><code>{a.username}</code></td>
+						<td class="secret"><code>{secret(a)}</code></td>
+						{#if a.activationPath}
+							<td class="qr-col"
+								><span class="mini-qr"
+									><QrCode value={secret(a)} label="QR: {a.displayName}" /></span
+								></td
+							>
+						{/if}
+					</tr>
 				{/each}
 			</tbody>
 		</table>
@@ -98,8 +116,8 @@
 		</div>
 	</section>
 {:else}
-	<form class="card form" onsubmit={create}>
-		<h2>Создать аккаунты</h2>
+	<form class="form" class:card={!embedded} class:bare={embedded} onsubmit={create}>
+		{#if !embedded}<h2>Создать аккаунты</h2>{/if}
 		<p class="muted small">
 			Вставьте список: по одному ФИО на строку или CSV <code>username,ФИО</code>. Отчество — если
 			есть. Логины без указания придумаются сами (Петров Иван → petrov.ivan).
@@ -159,6 +177,17 @@
 		.grid {
 			grid-template-columns: 1fr;
 		}
+	}
+	.bare,
+	.sheet:not(.card) {
+		padding: 0;
+	}
+	.qr-col {
+		width: 84px;
+	}
+	.mini-qr {
+		display: block;
+		width: 72px;
 	}
 	table {
 		width: 100%;

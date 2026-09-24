@@ -85,7 +85,7 @@ public class SetupService {
   void announce() {
     if (env.matchesProfiles("serve") && needed()) {
       log.warn(
-          "Инстанс ещё не настроен. Откройте ссылку — код уже в ней: {}"
+          "Сайт группы ещё не настроен. Откройте ссылку — код уже в ней: {}"
               + " (код отдельно: {}; или выполните groupbase init)",
           setupLink(),
           setupCode);
@@ -112,7 +112,7 @@ public class SetupService {
   @Transactional
   public User setup(Request req) {
     if (!needed()) {
-      throw ApiException.conflict("already_setup", "Инстанс уже настроен");
+      throw ApiException.conflict("already_setup", "Сайт уже настроен");
     }
     InstanceSettings.Mode mode;
     try {

@@ -148,6 +148,9 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
         .inner_size(1180.0, 800.0)
         .min_inner_size(380.0, 560.0)
         .visible(visible)
+        // Файлы, перетащенные в окно, должна получить страница (зона «Выберите файл или
+        // перетащите сюда»), а не оболочка: иначе вложение к заданию так не прикрепить.
+        .disable_drag_drop_handler()
         // Внутри окна — только сайт группы и заставка; остальные ссылки — в браузере.
         .on_navigation(move |url| {
             let inside = is_local_page(url) || is_server_page(&nav, url);

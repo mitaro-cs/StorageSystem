@@ -7,8 +7,15 @@
 		open = $bindable(false),
 		value,
 		title,
-		hint = 'Наведите камеру телефона на код'
-	}: { open?: boolean; value: string; title: string; hint?: string } = $props();
+		hint = 'Наведите камеру телефона на код',
+		onclose
+	}: {
+		open?: boolean;
+		value: string;
+		title: string;
+		hint?: string;
+		onclose?: () => void;
+	} = $props();
 
 	let dialog: HTMLDialogElement | undefined = $state();
 
@@ -19,7 +26,12 @@
 	});
 </script>
 
-<dialog bind:this={dialog} class="screen" onclose={() => (open = false)} aria-label={title}>
+<dialog
+	bind:this={dialog}
+	class="screen"
+	onclose={() => ((open = false), onclose?.())}
+	aria-label={title}
+>
 	{#if open}
 		<button class="close" onclick={() => (open = false)} aria-label="Закрыть"
 			><X size={24} /></button

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Upload, X } from '@lucide/svelte';
+	import { Camera, RotateCw, Upload, X } from '@lucide/svelte';
 	import { uploadFile } from '$lib/upload';
 	import { fmtSize } from '$lib/format';
 	import { slide } from '$lib/motion';
@@ -25,6 +25,7 @@
 	interface Pending {
 		key: number;
 		name: string;
+		file: File;
 		progress: number;
 		error?: string;
 	}
@@ -37,25 +38,54 @@
 	});
 	let over = $state(false);
 	let input: HTMLInputElement | undefined = $state();
+	let camera: HTMLInputElement | undefined = $state();
 	let seq = 0;
+	// Кнопка «Сфотографировать» — только там, где есть камера и палец, а не мышь.
+	const touch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
-	async function add(list: FileList | null) {
+	async function send(item: Pending) {
+		item.error = undefined;
+		item.progress = 0;
+		try {
+			const info = await uploadFile(item.file, (f) => (item.progress = f));
+			files = [...files, info];
+			pending = pending.filter((x) => x.key !== item.key);
+		} catch (e) {
+			item.error = e instanceof Error ? e.message : 'Ошибка загрузки';
+		}
+	}
+
+	async function add(list: FileList | File[] | null) {
 		if (!list) return;
 		for (const file of Array.from(list).slice(0, Math.max(0, max - files.length))) {
-			const p: Pending = { key: ++seq, name: file.name, progress: 0 };
-			pending.push(p);
-			const item = pending[pending.length - 1];
-			try {
-				const info = await uploadFile(file, (f) => (item.progress = f));
-				files = [...files, info];
-				pending = pending.filter((x) => x.key !== p.key);
-			} catch (e) {
-				item.error = e instanceof Error ? e.message : 'Ошибка загрузки';
-			}
+			pending.push({ key: ++seq, name: file.name || 'файл', file, progress: 0 });
+			await send(pending[pending.length - 1]);
 			if (!multiple) break;
 		}
 	}
+
+	// Файл или скриншот из буфера обмена (Ctrl+V / ⌘V) — сразу во вложения.
+	function onpaste(e: ClipboardEvent) {
+		const list = Array.from(e.clipboardData?.files ?? []);
+		if (!list.length) return;
+		e.preventDefault();
+		add(
+			list.map((f) =>
+				f.name && f.name !== 'image.png'
+					? f
+					: new File(
+							[f],
+							`Скриншот ${new Date().toLocaleString('ru-RU').replace(/[/:]/g, '.')}.png`,
+							{
+								type: f.type
+							}
+						)
+			)
+		);
+	}
 </script>
+
+<svelte:window {onpaste} />
 
 <div class="dz">
 	<span class="label">{label}</span>
@@ -77,8 +107,23 @@
 	>
 		<Upload size={20} />
 		<span><strong>Выберите файл</strong> или перетащите сюда</span>
-		<span class="faint small">PDF, документы, презентации, картинки, архивы</span>
+		<span class="faint small"
+			>PDF, документы, презентации, картинки, архивы{touch ? '' : ' · можно вставить Ctrl+V'}</span
+		>
 	</button>
+	{#if touch}
+		<button type="button" class="shoot" onclick={() => camera?.click()}
+			><Camera size={18} /> Сфотографировать</button
+		>
+		<input
+			bind:this={camera}
+			type="file"
+			accept="image/*"
+			capture="environment"
+			hidden
+			onchange={(e) => add(e.currentTarget.files)}
+		/>
+	{/if}
 	<input
 		bind:this={input}
 		type="file"
@@ -104,6 +149,13 @@
 			<span class="name">{p.name}</span>
 			{#if p.error}
 				<span class="error-text small">{p.error}</span>
+				<button
+					type="button"
+					class="x"
+					aria-label="Повторить"
+					title="Повторить"
+					onclick={() => send(p)}><RotateCw size={15} /></button
+				>
 				<button
 					type="button"
 					class="x"
@@ -153,6 +205,22 @@
 		border-color: var(--accent);
 		background: var(--accent-soft);
 		color: var(--accent);
+	}
+	.shoot {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		height: 44px;
+		border: 1px solid var(--border);
+		border-radius: var(--r);
+		background: var(--surface);
+		color: var(--text);
+		font: inherit;
+		font-weight: 600;
+	}
+	.shoot:active {
+		transform: scale(0.98);
 	}
 	.item {
 		display: flex;

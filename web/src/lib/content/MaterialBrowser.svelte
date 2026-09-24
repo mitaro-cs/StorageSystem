@@ -15,7 +15,15 @@
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 
-	let { subjectId, subjectName }: { subjectId: number; subjectName: string } = $props();
+	interface Props {
+		subjectId: number;
+		subjectName: string;
+		/** false — путь рисует страница (раздел «Файлы»), а сюда только сообщаем его. */
+		showPath?: boolean;
+		onpath?: (path: { id: number; name: string }[]) => void;
+	}
+
+	let { subjectId, subjectName, showPath = true, onpath }: Props = $props();
 
 	let data = $state<MaterialListing | null>(null);
 	let adding = $state(false);
@@ -28,6 +36,7 @@
 			data = await get<MaterialListing>(
 				`/api/subjects/${subjectId}/materials${folder ? `?folder=${folder}` : ''}`
 			);
+			onpath?.(data.path);
 		} catch (e) {
 			toastError(e);
 		}
@@ -42,7 +51,7 @@
 
 	function open(id: number | null) {
 		const url = new URL(page.url);
-		url.searchParams.set('tab', 'materials');
+		if (url.pathname.startsWith('/subjects')) url.searchParams.set('tab', 'materials');
 		if (id === null) url.searchParams.delete('folder');
 		else url.searchParams.set('folder', String(id));
 		goto(url.pathname + url.search, { noScroll: true, keepFocus: true });
@@ -85,17 +94,19 @@
 	<Skeleton lines={5} />
 {:else}
 	<div class="bar">
-		<nav class="crumbs" aria-label="Путь">
-			<button class:current={data.path.length === 0} onclick={() => open(null)}
-				>{subjectName}</button
-			>
-			{#each data.path as c, i (c.id)}
-				<ChevronRight size={14} />
-				<button class:current={i === data.path.length - 1} onclick={() => open(c.id)}
-					>{c.name}</button
+		{#if showPath}
+			<nav class="crumbs" aria-label="Путь">
+				<button class:current={data.path.length === 0} onclick={() => open(null)}
+					>{subjectName}</button
 				>
-			{/each}
-		</nav>
+				{#each data.path as c, i (c.id)}
+					<ChevronRight size={14} />
+					<button class:current={i === data.path.length - 1} onclick={() => open(c.id)}
+						>{c.name}</button
+					>
+				{/each}
+			</nav>
+		{/if}
 		<span class="spacer"></span>
 		{#if data.canUpload}
 			<Button size="s" variant="ghost" onclick={newFolder} label="Новая папка"

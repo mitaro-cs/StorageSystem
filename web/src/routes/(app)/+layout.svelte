@@ -7,6 +7,7 @@
 	import { palette } from '$lib/shell/palette.svelte';
 	import Hotkeys from '$lib/shell/Hotkeys.svelte';
 	import SwipeBack from '$lib/shell/SwipeBack.svelte';
+	import FileViewer from '$lib/files/FileViewer.svelte';
 	import { initPwa, pwa } from '$lib/pwa.svelte';
 	import { startBell } from '$lib/notify.svelte';
 	import { ApiError, request } from '$lib/api';
@@ -112,6 +113,7 @@
 {/if}
 <Hotkeys />
 <SwipeBack />
+<FileViewer />
 
 <style>
 	.shell {

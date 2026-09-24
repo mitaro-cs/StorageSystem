@@ -1,24 +1,33 @@
 <script lang="ts">
 	import { subjectById } from '$lib/data.svelte';
-	import { initials } from '$lib/format';
+	import { subjectIcon } from '$lib/subjectIcons';
 
-	// Обложка предмета: загруженная картинка или градиент цвета предмета с крупными инициалами.
+	// Обложка предмета: загруженная картинка или градиент цвета предмета с крупной иконкой.
 	let {
 		id,
 		name,
 		color,
 		avatar = undefined,
+		icon = undefined,
 		class: cls = ''
-	}: { id: number; name: string; color: string; avatar?: string | null; class?: string } = $props();
+	}: {
+		id: number;
+		name: string;
+		color: string;
+		avatar?: string | null;
+		icon?: string | null;
+		class?: string;
+	} = $props();
 
 	const img = $derived(avatar === undefined ? (subjectById(id)?.avatar ?? null) : avatar);
+	const glyph = $derived(subjectIcon(icon === undefined ? subjectById(id)?.icon : icon, name));
 </script>
 
 <span class="art {cls}" style:--c={color} aria-hidden="true">
 	{#if img}
 		<img src="/api/avatars/{img}-256.webp" alt="" loading="lazy" decoding="async" />
 	{:else}
-		<span class="letters">{initials(name)}</span>
+		<span class="glyph"><glyph.icon size="100%" strokeWidth={1.6} /></span>
 	{/if}
 </span>
 
@@ -38,14 +47,17 @@
 		height: 100%;
 		object-fit: cover;
 	}
-	.letters {
+	.glyph {
 		position: absolute;
-		right: 6%;
-		bottom: -4%;
-		font-size: min(56cqh, 44cqw);
-		font-weight: 800;
-		line-height: 1;
-		letter-spacing: -0.06em;
-		color: rgb(255 255 255 / 0.32);
+		right: 8%;
+		bottom: 8%;
+		width: min(58cqh, 58cqw);
+		height: min(58cqh, 58cqw);
+		color: rgb(255 255 255 / 0.9);
+		filter: drop-shadow(0 2px 6px rgb(0 0 0 / 0.18));
+	}
+	.glyph :global(svg) {
+		width: 100%;
+		height: 100%;
 	}
 </style>

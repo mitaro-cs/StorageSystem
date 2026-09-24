@@ -18,7 +18,7 @@
 		'user.activate': 'аккаунт активирован',
 		'user.reset': 'пароль сброшен по ссылке',
 		'user.password_change': 'сменил пароль',
-		'user.instance_role': 'изменил роль инстанса',
+		'user.instance_role': 'изменил роль на сайте',
 		'user.totp_enable': 'включил 2FA',
 		'user.totp_disable': 'выключил 2FA',
 		'member.role': 'изменил роль участника',

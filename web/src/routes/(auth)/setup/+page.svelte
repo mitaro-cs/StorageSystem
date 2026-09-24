@@ -129,8 +129,11 @@
 
 		{#if mode === 'multi'}
 			<div>
-				<label class="label" for="iname">Название инстанса</label>
+				<label class="label" for="iname">Название сайта</label>
 				<input id="iname" class="input" bind:value={instanceName} placeholder="Поток БИН-25" />
+				<p class="hint">
+					Сайт — это весь ваш groupbase: все группы потока, общие настройки и администраторы.
+				</p>
 			</div>
 		{/if}
 

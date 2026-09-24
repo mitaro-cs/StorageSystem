@@ -34,13 +34,17 @@ public class HomeworkService {
     ALL
   }
 
+  /**
+   * @param difficulty сложность 1–3; при изменении null — не менять, 0 — убрать
+   */
   public record Input(
       Long subjectId,
       String title,
       String body,
       Long dueAt,
       List<Long> groupIds,
-      List<Long> attachments) {}
+      List<Long> attachments,
+      Integer difficulty) {}
 
   public record Can(boolean edit, boolean delete, boolean hide) {}
 
@@ -50,6 +54,7 @@ public class HomeworkService {
       String bodyMd,
       String bodyHtml,
       long dueAt,
+      Integer difficulty,
       boolean done,
       boolean hidden,
       long createdAt,
@@ -74,6 +79,7 @@ public class HomeworkService {
       String bodyMd,
       String bodyHtml,
       long dueAt,
+      Integer difficulty,
       boolean hidden,
       long createdAt,
       long updatedAt,
@@ -143,6 +149,7 @@ public class HomeworkService {
                     rs.getString("body_md"),
                     rs.getString("body_html"),
                     rs.getLong("due_at"),
+                    Rows.intOrNull(rs, "difficulty"),
                     Rows.bool(rs, "hidden"),
                     rs.getLong("created_at"),
                     rs.getLong("updated_at"),
@@ -260,6 +267,7 @@ public class HomeworkService {
     String title = NewsService.title(in.title());
     String md = NewsService.body(in.body());
     long due = due(in.dueAt());
+    Integer difficulty = difficulty(in.difficulty());
     Set<Long> to =
         audience.resolve(actor, in.subjectId(), in.groupIds(), Permission.PUBLISH_HOMEWORK);
     long now = clock.millis();
@@ -267,10 +275,19 @@ public class HomeworkService {
         db.sql(
                 """
                 INSERT INTO homework (subject_id, author_id, title, body_md, body_html, due_at,
-                                      created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                                      difficulty, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """)
-            .params(in.subjectId(), actor.id(), title, md, Markdown.render(md), due, now, now)
+            .params(
+                in.subjectId(),
+                actor.id(),
+                title,
+                md,
+                Markdown.render(md),
+                due,
+                difficulty,
+                now,
+                now)
             .query(Long.class)
             .single();
     targets.set(Targets.Kind.HOMEWORK, id, to);
@@ -292,10 +309,11 @@ public class HomeworkService {
     String title = in.title() == null ? r.title() : NewsService.title(in.title());
     String md = in.body() == null ? r.bodyMd() : NewsService.body(in.body());
     long due = in.dueAt() == null ? r.dueAt() : due(in.dueAt());
+    Integer difficulty = in.difficulty() == null ? r.difficulty() : difficulty(in.difficulty());
     db.sql(
-            "UPDATE homework SET title = ?, body_md = ?, body_html = ?, due_at = ?, updated_at = ?"
-                + " WHERE id = ?")
-        .params(title, md, Markdown.render(md), due, clock.millis(), id)
+            "UPDATE homework SET title = ?, body_md = ?, body_html = ?, due_at = ?,"
+                + " difficulty = ?, updated_at = ? WHERE id = ?")
+        .params(title, md, Markdown.render(md), due, difficulty, clock.millis(), id)
         .update();
     if (in.groupIds() != null && !in.groupIds().isEmpty()) {
       Set<Long> to =
@@ -370,6 +388,17 @@ public class HomeworkService {
     return access.can(actor, Permission.MODERATE_CONTENT, t);
   }
 
+  /** 1–3 — сложность, 0 или null — не указана. */
+  static Integer difficulty(Integer raw) {
+    if (raw == null || raw == 0) {
+      return null;
+    }
+    if (raw < 1 || raw > 3) {
+      throw ApiException.invalid("difficulty", "Сложность: 1 — легко, 2 — средне, 3 — сложно");
+    }
+    return raw;
+  }
+
   private long due(Long dueAt) {
     if (dueAt == null) {
       throw ApiException.invalid("dueAt", "Укажите дедлайн");
@@ -410,6 +439,7 @@ public class HomeworkService {
               r.bodyMd(),
               r.bodyHtml(),
               r.dueAt(),
+              r.difficulty(),
               r.done(),
               r.hidden(),
               r.createdAt(),

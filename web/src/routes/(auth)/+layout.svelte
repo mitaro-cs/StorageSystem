@@ -1,10 +1,26 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { fly } from '$lib/motion';
+	import { cachedBackground, loadBackground, parseBackground } from '$lib/appearance';
 
 	let { children } = $props();
+
+	// Фон выбирает администратор; последний известный показываем сразу, пока спрашиваем сервер.
+	let bg = $state(parseBackground(cachedBackground()));
+	onMount(() => {
+		loadBackground()
+			.then((v) => (bg = parseBackground(v)))
+			.catch(() => {});
+	});
+	const dark = $derived(bg.preset === 'night' || !!bg.image);
 </script>
 
-<main class="auth">
+<main
+	class="auth {bg.preset ? `login-bg-${bg.preset}` : ''}"
+	class:photo={!!bg.image}
+	class:on-dark={dark}
+	style:--photo={bg.image ? `url(${bg.image})` : null}
+>
 	<div class="brand" aria-hidden="true">
 		<svg viewBox="0 0 32 32"
 			><rect width="32" height="32" rx="9" class="tile" /><path
@@ -29,8 +45,18 @@
 		justify-content: center;
 		gap: var(--s5);
 		padding: var(--s6) var(--s4);
+		/* Сам фон — глобальные классы .login-bg-* (app.css): здесь его не задаём, иначе перебьём. */
+	}
+	.photo {
 		background:
-			radial-gradient(60rem 30rem at 50% -10%, var(--accent-soft), transparent 70%), var(--bg);
+			linear-gradient(rgb(8 10 16 / 0.28), rgb(8 10 16 / 0.42)),
+			var(--photo) center / cover no-repeat,
+			var(--bg);
+	}
+	.on-dark .brand,
+	.on-dark .foot {
+		color: #fff;
+		text-shadow: 0 1px 12px rgb(0 0 0 / 0.35);
 	}
 	.brand {
 		display: flex;
@@ -55,9 +81,12 @@
 		stroke-linejoin: round;
 	}
 	.panel {
-		width: min(420px, 100%);
+		width: min(440px, 100%);
 		padding: var(--s6) var(--s5);
-		box-shadow: var(--shadow-2);
+		box-shadow: var(--shadow-3);
+		background: color-mix(in srgb, var(--surface) 94%, transparent);
+		backdrop-filter: blur(14px);
+		-webkit-backdrop-filter: blur(14px);
 	}
 	.panel :global(h1) {
 		font-size: 22px;

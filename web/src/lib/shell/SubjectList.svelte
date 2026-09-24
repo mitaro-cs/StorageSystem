@@ -3,6 +3,7 @@
 	import { sortedSubjects } from '$lib/data.svelte';
 	import { session } from '$lib/session.svelte';
 	import { Pin } from '@lucide/svelte';
+	import SubjectGlyph from '$lib/ui/SubjectGlyph.svelte';
 
 	let { onnavigate }: { onnavigate?: () => void } = $props();
 	const list = $derived(sortedSubjects(session.groupId));
@@ -16,7 +17,7 @@
 				class:active={page.url.pathname.startsWith(`/subjects/${s.id}`)}
 				onclick={onnavigate}
 			>
-				<span class="dot" style:background={s.color}></span>
+				<SubjectGlyph name={s.name} color={s.color} icon={s.icon} size={26} />
 				<span class="name">{s.name}</span>
 				{#if s.pinned}<Pin size={12} class="pin" aria-label="закреплён" />{/if}
 				{#if s.groups.length > 1}<span class="shared" title="Общий предмет">⋈</span>{/if}
@@ -40,8 +41,8 @@
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		height: 40px;
-		padding: 0 14px;
+		height: 42px;
+		padding: 0 12px 0 8px;
 		border-radius: var(--r-full);
 		color: var(--text-2);
 		font-size: 14.5px;
@@ -55,12 +56,6 @@
 		background: var(--surface);
 		color: var(--text);
 		font-weight: 600;
-	}
-	.dot {
-		flex: none;
-		width: 10px;
-		height: 10px;
-		border-radius: 50%;
 	}
 	.name {
 		flex: 1;

@@ -52,7 +52,8 @@ public class GroupService {
   public Group create(Actor actor, GroupInput in) {
     if (settings.mode() == InstanceSettings.Mode.SINGLE && groups.count() > 0) {
       throw ApiException.conflict(
-          "single_mode", "Инстанс в режиме одной группы. Включите режим нескольких групп");
+          "single_mode",
+          "Сайт в режиме одной группы. Включите режим нескольких групп в «Настройки → Сайт»");
     }
     Group g = createSystem(in);
     audit.log(actor, g.id(), "group.create", "group", g.id(), Map.of("name", g.name()));

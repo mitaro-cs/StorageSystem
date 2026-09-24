@@ -4,6 +4,7 @@
 	import { fmtDue } from '$lib/format';
 	import SubjectTag from '$lib/ui/SubjectTag.svelte';
 	import DoneToggle from '$lib/ui/DoneToggle.svelte';
+	import DifficultyBadge from './DifficultyBadge.svelte';
 
 	let {
 		item,
@@ -21,6 +22,7 @@
 		<a href="/homework/{item.id}" class="title">{item.title}</a>
 		<div class="meta">
 			<SubjectTag {...item.subject} />
+			{#if item.difficulty}<DifficultyBadge value={item.difficulty} compact />{/if}
 			{#if item.attachments.length}<span class="faint"><Paperclip size={13} /></span>{/if}
 			{#if item.comments}<span class="faint small row"
 					><MessageCircle size={13} />{item.comments}</span

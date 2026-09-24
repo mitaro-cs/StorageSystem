@@ -6,6 +6,8 @@
 	import Button from '$lib/ui/Button.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import AvatarCropper from '$lib/ui/AvatarCropper.svelte';
+	import SubjectGlyph from '$lib/ui/SubjectGlyph.svelte';
+	import { ICON_GROUPS, subjectIcon } from '$lib/subjectIcons';
 
 	interface Props {
 		open: boolean;
@@ -32,6 +34,19 @@
 	let teacher = $state('');
 	let chatUrl = $state('');
 	let color = $state(palette[0]);
+	/** null — подобрать по названию. */
+	let icon = $state<string | null>(null);
+	let iconQuery = $state('');
+	let pickerOpen = $state(false);
+	const current = $derived(subjectIcon(icon, name));
+	const groupsShown = $derived(
+		ICON_GROUPS.map((g) => ({
+			...g,
+			icons: g.icons.filter(
+				(x) => !iconQuery || x.label.toLowerCase().includes(iconQuery.toLowerCase())
+			)
+		})).filter((g) => g.icons.length)
+	);
 	let error = $state('');
 	let busy = $state(false);
 	let cropper = $state(false);
@@ -42,6 +57,9 @@
 		teacher = edit?.teacher ?? '';
 		chatUrl = edit?.chatUrl ?? '';
 		color = edit?.color ?? palette[Math.floor(Math.random() * 8)];
+		icon = edit?.icon ?? null;
+		iconQuery = '';
+		pickerOpen = false;
 		error = '';
 	});
 
@@ -51,12 +69,19 @@
 		error = '';
 		try {
 			const s = edit
-				? await patch<Subject>(`/api/subjects/${edit.id}`, { name, teacher, color, chatUrl })
+				? await patch<Subject>(`/api/subjects/${edit.id}`, {
+						name,
+						teacher,
+						color,
+						chatUrl,
+						icon: icon ?? ''
+					})
 				: await post<Subject>(`/api/groups/${groupId}/subjects`, {
 						name,
 						teacher,
 						color,
-						chatUrl
+						chatUrl,
+						icon: icon ?? ''
 					});
 			toast(edit ? 'Предмет обновлён' : 'Предмет создан', 'ok');
 			open = false;
@@ -101,6 +126,67 @@
 				spellcheck="false"
 			/>
 		</div>
+		<fieldset class="icons">
+			<legend class="label">Иконка</legend>
+			<div class="current">
+				<SubjectGlyph name={name || 'Предмет'} {color} {icon} size={48} />
+				<span class="cur-text">
+					<strong>{icon ? '' : 'По названию: '}{current.label}</strong>
+					<span class="faint small"
+						>{icon
+							? 'Выбрана вручную'
+							: 'Подбирается сама — «Физика» получит атом, «Сети» — схему сети'}</span
+					>
+				</span>
+				<Button size="s" onclick={() => (pickerOpen = !pickerOpen)}
+					>{pickerOpen ? 'Свернуть' : 'Выбрать'}</Button
+				>
+			</div>
+			{#if pickerOpen}
+				<div class="picker">
+					<input
+						class="input"
+						type="search"
+						placeholder="Найти: химия, сети, спорт…"
+						bind:value={iconQuery}
+						aria-label="Поиск иконки"
+					/>
+					{#if !iconQuery}
+						<button
+							type="button"
+							class="auto"
+							class:on={icon === null}
+							aria-pressed={icon === null}
+							onclick={() => (icon = null)}
+						>
+							<SubjectGlyph name={name || 'Предмет'} {color} icon={null} size={30} />
+							<span>Подобрать по названию</span>
+						</button>
+					{/if}
+					{#each groupsShown as g (g.title)}
+						<p class="group-title">{g.title}</p>
+						<div class="grid">
+							{#each g.icons as x (x.key)}
+								<button
+									type="button"
+									class="tile"
+									class:on={icon === x.key}
+									style:--c={color}
+									aria-pressed={icon === x.key}
+									aria-label={x.label}
+									title={x.label}
+									onclick={() => (icon = x.key)}
+								>
+									<x.icon size={22} strokeWidth={2} />
+								</button>
+							{/each}
+						</div>
+					{:else}
+						<p class="faint small">Ничего не нашли — попробуйте другое слово</p>
+					{/each}
+				</div>
+			{/if}
+		</fieldset>
 		{#if edit}
 			<div class="row">
 				<Avatar
@@ -111,7 +197,8 @@
 					kind="subject"
 					square
 				/>
-				<Button size="s" onclick={() => (cropper = true)}>Иконка предмета</Button>
+				<span class="faint small grow">Своя картинка вместо иконки — например, фото учебника</span>
+				<Button size="s" onclick={() => (cropper = true)}>Загрузить</Button>
 			</div>
 		{/if}
 		<fieldset class="colors">
@@ -151,6 +238,96 @@
 <style>
 	.form {
 		gap: var(--s4);
+	}
+	.icons {
+		border: 0;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--s3);
+	}
+	.current {
+		display: flex;
+		align-items: center;
+		gap: var(--s3);
+	}
+	.cur-text {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		line-height: 1.35;
+	}
+	.grow {
+		flex: 1;
+	}
+	.picker {
+		display: flex;
+		flex-direction: column;
+		gap: var(--s2);
+		padding: var(--s3);
+		border-radius: var(--r);
+		background: var(--surface-2);
+		max-height: 340px;
+		overflow-y: auto;
+		animation: picker-in 180ms var(--ease);
+	}
+	@keyframes picker-in {
+		from {
+			opacity: 0;
+			transform: translateY(-4px);
+		}
+	}
+	.group-title {
+		margin: var(--s2) 0 0;
+		font-size: 12px;
+		font-weight: 650;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--text-3);
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+		gap: 6px;
+	}
+	.tile {
+		display: grid;
+		place-items: center;
+		aspect-ratio: 1;
+		border: 0;
+		border-radius: 12px;
+		background: var(--surface);
+		color: var(--text-2);
+		transition:
+			transform 120ms var(--ease),
+			background-color var(--dur) var(--ease),
+			color var(--dur) var(--ease);
+	}
+	.tile:hover {
+		transform: translateY(-1px);
+		color: var(--c);
+	}
+	.tile.on {
+		color: var(--c);
+		background: color-mix(in srgb, var(--c) 16%, var(--surface));
+		box-shadow: inset 0 0 0 2px var(--c);
+	}
+	.auto {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 8px 10px;
+		border: 0;
+		border-radius: 12px;
+		background: var(--surface);
+		color: var(--text);
+		font: inherit;
+		text-align: left;
+	}
+	.auto.on {
+		box-shadow: inset 0 0 0 2px var(--text);
 	}
 	.colors {
 		border: 0;

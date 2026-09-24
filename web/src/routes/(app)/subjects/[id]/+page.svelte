@@ -162,7 +162,14 @@
 					aria-label={o.name}
 					data-sveltekit-replacestate
 				>
-					<SubjectArt id={o.id} name={o.name} color={o.color} avatar={o.avatar} class="fill" />
+					<SubjectArt
+						id={o.id}
+						name={o.name}
+						color={o.color}
+						avatar={o.avatar}
+						icon={o.icon}
+						class="fill"
+					/>
 				</a>
 			{/each}
 		</nav>
@@ -175,6 +182,7 @@
 				name={subject.name}
 				color={subject.color}
 				avatar={subject.avatar}
+				icon={subject.icon}
 				class="fill"
 			/>
 		</span>
@@ -260,7 +268,7 @@
 					<span>{g.name} <span class="faint small">{g.university}</span></span></label
 				>
 			{:else}
-				<p class="faint">Других групп в инстансе нет</p>
+				<p class="faint">Других групп на сайте нет</p>
 			{/each}
 		</div>
 		{#snippet footer()}

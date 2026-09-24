@@ -75,7 +75,7 @@
 	</div>
 	{#if me}
 		<a class="me" href="/profile" aria-label="Профиль">
-			<Avatar id={me.id} name={me.displayName} avatar={me.avatar} size={52} />
+			<Avatar id={me.id} name={me.displayName} avatar={me.avatar} size={52} ring />
 		</a>
 	{/if}
 </header>
@@ -104,7 +104,7 @@
 	{/if}
 	<a class="pill" href="/homework">Все задания</a>
 	<a class="pill" href="/subjects">Предметы</a>
-	<a class="pill" href="/materials">Материалы</a>
+	<a class="pill" href="/materials">Файлы</a>
 </div>
 
 <FirstSteps oncreate={() => (hwOpen = true)} />
@@ -223,8 +223,14 @@
 	}
 	.me {
 		flex: none;
+		display: block;
+		line-height: 0;
+		margin: 4px;
 		border-radius: 50%;
-		box-shadow: 0 0 0 3px var(--surface);
+		transition: transform 160ms var(--ease);
+	}
+	.me:active {
+		transform: scale(0.95);
 	}
 	.search {
 		display: flex;

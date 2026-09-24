@@ -1,9 +1,12 @@
 <script lang="ts">
-	import { CloudOff, ExternalLink } from '@lucide/svelte';
+	import { CloudOff, ExternalLink, Eye } from '@lucide/svelte';
+	import { openFiles } from '$lib/files/viewer.svelte';
+	import { canPreview } from '$lib/fileKinds';
 	import { fmtAgo, fmtSize } from '$lib/format';
 	import { t } from '$lib/i18n/ru';
 	import type { Material } from '$lib/types';
 	import FileIcon from './FileIcon.svelte';
+	import SubjectGlyph from '$lib/ui/SubjectGlyph.svelte';
 	import Menu, { type MenuItem } from '$lib/ui/Menu.svelte';
 
 	let {
@@ -18,7 +21,13 @@
 	<div class="main">
 		<a class="title" href="/materials/{m.id}">{m.title}</a>
 		<span class="faint small meta num">
-			{#if showSubject}<span class="dot" style:background={m.subjectColor}></span>{m.subjectName} ·{/if}
+			{#if showSubject}<SubjectGlyph
+					id={m.subjectId}
+					name={m.subjectName}
+					color={m.subjectColor}
+					size={13}
+					bare
+				/>{m.subjectName} ·{/if}
 			{#if m.file}{fmtSize(m.file.size)} ·{:else if m.url}{new URL(m.url).host} ·{/if}
 			{m.author.deleted ? t.common.deletedUser : m.author.displayName} · {fmtAgo(m.createdAt)}
 		</span>
@@ -30,6 +39,15 @@
 			title="Создано без сети — уйдёт на сервер, когда появится интернет"
 			><CloudOff size={12} /> ждёт отправки</span
 		>{/if}
+	{#if m.file && m.file.id > 0 && canPreview(m.file.mime, m.file.name, m.file.size)}
+		{@const f = m.file}
+		<button
+			class="ext"
+			onclick={() => openFiles([f], 0, m.title)}
+			aria-label="Открыть {m.title}"
+			title="Открыть"><Eye size={17} /></button
+		>
+	{/if}
 	{#if m.kind === 'link' && m.url}
 		<a
 			class="ext"
@@ -72,18 +90,23 @@
 		overflow: hidden;
 		white-space: nowrap;
 	}
-	.dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 3px;
-	}
 	.ext {
 		display: grid;
 		place-items: center;
-		width: 32px;
-		height: 32px;
-		border-radius: 8px;
+		flex: none;
+		width: 36px;
+		height: 36px;
+		border: 0;
+		border-radius: 10px;
+		background: transparent;
 		color: var(--text-3);
+		transition:
+			background-color var(--dur) var(--ease),
+			color var(--dur) var(--ease);
+	}
+	.ext:hover {
+		background: var(--surface-2);
+		color: var(--text);
 	}
 	.ext:hover {
 		background: var(--surface-2);

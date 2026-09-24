@@ -47,6 +47,10 @@ public class InstanceSettings {
     return Boolean.parseBoolean(store.get(ACCOUNTS_INVITES).orElse("true"));
   }
 
+  public java.util.Optional<String> get(String key) {
+    return store.get(key);
+  }
+
   public void set(String key, String value) {
     store.set(key, value);
   }

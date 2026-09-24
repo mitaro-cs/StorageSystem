@@ -10,6 +10,7 @@
 	import Button from '$lib/ui/Button.svelte';
 	import MarkdownEditor from '$lib/ui/MarkdownEditor.svelte';
 	import GroupPicker from './GroupPicker.svelte';
+	import DifficultyPicker from './DifficultyPicker.svelte';
 
 	interface Props {
 		open: boolean;
@@ -26,6 +27,7 @@
 	let due = $state('');
 	let groupIds = $state<number[]>([]);
 	let files = $state<FileInfo[]>([]);
+	let difficulty = $state<number | null>(null);
 	// Вложение ещё грузится — «Опубликовать» ждёт, иначе задание ушло бы без файла.
 	let uploading = $state(0);
 	let error = $state('');
@@ -57,6 +59,7 @@
 		due = edit ? toLocalInput(edit.dueAt) : defaultDue();
 		groupIds = edit?.groups.map((g) => g.id) ?? [];
 		files = edit ? [...edit.attachments] : [];
+		difficulty = edit?.difficulty ?? null;
 		error = '';
 	});
 
@@ -80,7 +83,8 @@
 				body,
 				dueAt: fromLocalInput(due),
 				groupIds,
-				attachments: files.map((f) => f.id)
+				attachments: files.map((f) => f.id),
+				difficulty: difficulty ?? 0
 			};
 			const item = edit
 				? await patch<Homework>(`/api/homework/${edit.id}`, payload)
@@ -124,6 +128,7 @@
 				placeholder="Лабораторная №3"
 			/>
 		</div>
+		<DifficultyPicker bind:value={difficulty} />
 		<MarkdownEditor bind:value={body} label="Подробности" />
 		<DropZone bind:files bind:uploading label="Вложения" />
 		<GroupPicker options={targetOptions} bind:selected={groupIds} />

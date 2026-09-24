@@ -357,7 +357,11 @@ public class AccountService {
       requireAnotherAdmin(targetId);
     }
     users.setInstanceRole(targetId, role);
-    sessions.revokeAll(targetId);
+    // Другим — перелогин: новые права и, для персонала, вход с 2FA. Себе администратор роль
+    // меняет, не выходя из текущего окна (последнего администратора снять нельзя — выше).
+    if (targetId != actor.id()) {
+      sessions.revokeAll(targetId);
+    }
     audit.log(
         actor,
         null,

@@ -26,7 +26,11 @@ public class InviteService {
 
   public record Created(Invite invite, String path) {}
 
-  public record Info(String groupName, String university, GroupRole role, boolean valid) {}
+  public record Info(
+      long groupId, String groupName, String university, GroupRole role, boolean valid) {}
+
+  /** Итог вступления: already — человек уже был в группе (ссылку открыли на втором устройстве). */
+  public record Joined(long groupId, boolean already) {}
 
   private static final Duration MAX_TTL = Duration.ofDays(90);
 
@@ -107,7 +111,7 @@ public class InviteService {
   public Info info(String token) {
     Invite inv = find(token);
     Group g = groups.find(inv.groupId()).orElseThrow(this::invalid);
-    return new Info(g.name(), g.university(), inv.role(), inv.usable(clock.millis()));
+    return new Info(g.id(), g.name(), g.university(), inv.role(), inv.usable(clock.millis()));
   }
 
   /** Регистрация нового пользователя по инвайту. */
@@ -131,12 +135,16 @@ public class InviteService {
     return users.find(c.userId()).orElseThrow();
   }
 
-  /** Уже вошедший пользователь вступает ещё в одну группу. */
+  /**
+   * Уже вошедший пользователь вступает ещё в одну группу. Если он уже в ней — это не ошибка: ту же
+   * ссылку часто открывают со второго устройства, где человек уже вошёл. Приглашение при этом не
+   * расходуется.
+   */
   @Transactional
-  public long join(Actor actor, String token) {
+  public Joined join(Actor actor, String token) {
     Invite inv = usable(token);
     if (groups.role(actor.id(), inv.groupId()).isPresent()) {
-      throw ApiException.conflict("already_member", "Вы уже состоите в этой группе");
+      return new Joined(inv.groupId(), true);
     }
     long now = clock.millis();
     if (!invites.consume(inv.id(), now)) {
@@ -144,7 +152,7 @@ public class InviteService {
     }
     groups.addMember(actor.id(), inv.groupId(), inv.role(), now);
     audit.log(actor, inv.groupId(), "invite.join", "user", actor.id(), Map.of("invite", inv.id()));
-    return inv.groupId();
+    return new Joined(inv.groupId(), false);
   }
 
   private Invite usable(String token) {

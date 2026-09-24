@@ -182,10 +182,17 @@
 html {
 	-webkit-text-size-adjust: 100%;
 	text-size-adjust: 100%;
+	/* Касание и двойное касание не приближают страницу — она ведёт себя как приложение. */
+	touch-action: manipulation;
+	/* Ничто не должно быть шире экрана: иначе телефон «ужимает» страницу, чтобы всё влезло. */
+	overflow-x: hidden;
 }
 
 body {
 	margin: 0;
+	width: 100%;
+	max-width: 100vw;
+	overflow-x: clip;
 	min-height: 100dvh;
 	background: var(--bg);
 	color: var(--text);
@@ -195,6 +202,26 @@ body {
 	font-feature-settings: 'cv11', 'ss01';
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+	-webkit-tap-highlight-color: transparent;
+}
+
+/* iOS приближает страницу, когда фокус попадает в поле с шрифтом меньше 16 px. */
+@media (pointer: coarse) {
+	input,
+	select,
+	textarea,
+	.input,
+	.select,
+	.textarea {
+		font-size: 16px;
+	}
+}
+
+img,
+video,
+canvas,
+iframe {
+	max-width: 100%;
 }
 
 h1,
@@ -284,6 +311,10 @@ button {
 	display: flex;
 	align-items: center;
 	gap: var(--s2);
+}
+/* Ряд кнопок переносится на следующую строку, а не вылезает за край экрана. */
+.row.wrap {
+	flex-wrap: wrap;
 }
 .spacer {
 	flex: 1;
@@ -703,7 +734,142 @@ legend.label {
 	min-height: 60px;
 	color: inherit;
 }
-a.list-row:hover {
+a.list-row:hover,
+button.list-row:hover {
 	text-decoration: none;
 	background: var(--surface-2);
+}
+button.list-row {
+	background: var(--surface);
+}
+
+/* Текст только для экранных читалок. */
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}
+/* Роль на всём сайте (администратор, модератор) — отличается от ролей в группе. */
+.chip.ink {
+	background: color-mix(in srgb, var(--text) 8%, var(--surface));
+	color: var(--text);
+	box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+/* ---------- Фоны страниц входа и регистрации (выбираются в «Настройки → Внешний вид») ---------- */
+main.auth {
+	background: var(--bg);
+}
+main.login-bg-aurora,
+.login-bg-aurora {
+	background:
+		radial-gradient(40rem 28rem at 12% 6%, rgb(99 102 241 / 0.3), transparent 62%),
+		radial-gradient(36rem 26rem at 90% 16%, rgb(20 184 166 / 0.26), transparent 62%),
+		radial-gradient(46rem 30rem at 58% 104%, rgb(236 72 153 / 0.2), transparent 62%), var(--bg);
+	background-size: 140% 140%;
+	animation: aurora-drift 22s ease-in-out infinite alternate;
+}
+@keyframes aurora-drift {
+	from {
+		background-position: 0% 0%;
+	}
+	to {
+		background-position: 100% 60%;
+	}
+}
+main.login-bg-paper,
+.login-bg-paper {
+	background:
+		radial-gradient(rgb(120 96 50 / 0.16) 1px, transparent 1.3px) 0 0 / 22px 22px,
+		radial-gradient(80rem 50rem at 50% -10%, #fffaf1, #f1e9da);
+}
+main.login-bg-notebook,
+.login-bg-notebook {
+	background:
+		linear-gradient(90deg, transparent 56px, rgb(229 72 77 / 0.35) 56px 58px, transparent 58px),
+		linear-gradient(rgb(59 130 246 / 0.15) 1px, transparent 1px) 0 0 / 24px 24px,
+		linear-gradient(90deg, rgb(59 130 246 / 0.15) 1px, transparent 1px) 0 0 / 24px 24px,
+		#fbfdff;
+}
+main.login-bg-night,
+.login-bg-night {
+	background:
+		radial-gradient(1.6px 1.6px at 14% 22%, rgb(255 255 255 / 0.85), transparent),
+		radial-gradient(1.2px 1.2px at 32% 70%, rgb(255 255 255 / 0.6), transparent),
+		radial-gradient(1.4px 1.4px at 58% 14%, rgb(255 255 255 / 0.75), transparent),
+		radial-gradient(1px 1px at 76% 42%, rgb(255 255 255 / 0.6), transparent),
+		radial-gradient(1.6px 1.6px at 88% 78%, rgb(255 255 255 / 0.7), transparent),
+		radial-gradient(1.1px 1.1px at 46% 88%, rgb(255 255 255 / 0.5), transparent),
+		radial-gradient(60rem 40rem at 72% -12%, #3d43a8, transparent 62%),
+		linear-gradient(180deg, #0a0f24, #161b41);
+}
+:root[data-theme='dark'] main.login-bg-paper,
+:root[data-theme='dark'] .login-bg-paper {
+	background:
+		radial-gradient(rgb(255 240 210 / 0.08) 1px, transparent 1.3px) 0 0 / 22px 22px,
+		radial-gradient(80rem 50rem at 50% -10%, #2a2419, #17140f);
+}
+:root[data-theme='dark'] main.login-bg-notebook,
+:root[data-theme='dark'] .login-bg-notebook {
+	background:
+		linear-gradient(90deg, transparent 56px, rgb(229 72 77 / 0.35) 56px 58px, transparent 58px),
+		linear-gradient(rgb(96 165 250 / 0.12) 1px, transparent 1px) 0 0 / 24px 24px,
+		linear-gradient(90deg, rgb(96 165 250 / 0.12) 1px, transparent 1px) 0 0 / 24px 24px,
+		#0f141d;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) main.login-bg-paper,
+	:root:not([data-theme='light']) .login-bg-paper {
+		background:
+			radial-gradient(rgb(255 240 210 / 0.08) 1px, transparent 1.3px) 0 0 / 22px 22px,
+			radial-gradient(80rem 50rem at 50% -10%, #2a2419, #17140f);
+	}
+	:root:not([data-theme='light']) main.login-bg-notebook,
+	:root:not([data-theme='light']) .login-bg-notebook {
+		background:
+			linear-gradient(90deg, transparent 56px, rgb(229 72 77 / 0.35) 56px 58px, transparent 58px),
+			linear-gradient(rgb(96 165 250 / 0.12) 1px, transparent 1px) 0 0 / 24px 24px,
+			linear-gradient(90deg, rgb(96 165 250 / 0.12) 1px, transparent 1px) 0 0 / 24px 24px,
+			#0f141d;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	main.login-bg-aurora,
+	.login-bg-aurora {
+		animation: none;
+	}
+}
+
+/* Карточки-ссылки чуть приподнимаются под курсором и «вдавливаются» при нажатии. */
+a.card,
+button.card {
+	transition:
+		transform 160ms var(--ease),
+		box-shadow var(--dur) var(--ease);
+}
+@media (hover: hover) {
+	a.card:hover,
+	button.card:hover {
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-2);
+		text-decoration: none;
+	}
+}
+a.card:active,
+button.card:active,
+a.list-row:active,
+button.list-row:active {
+	transform: scale(0.99);
+}
+@media (prefers-reduced-motion: reduce) {
+	a.card,
+	button.card {
+		transition: none;
+	}
 }
