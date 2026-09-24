@@ -113,7 +113,9 @@
 		background: var(--surface);
 	}
 	@media (max-width: 640px) {
-		dialog {
+		/* Лист снизу на всю ширину — и для «широких» окон тоже (новое задание, «Добавить людей»). */
+		dialog,
+		dialog.wide {
 			width: 100vw;
 			max-width: 100vw;
 			margin: auto 0 0;
