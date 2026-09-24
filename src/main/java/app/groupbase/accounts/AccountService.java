@@ -301,6 +301,43 @@ public class AccountService {
     return "/activate/" + token;
   }
 
+  /**
+   * Ссылка сброса пароля из командной строки ({@code groupbase user reset-password}): кто может
+   * запустить команду на сервере, тот и так владеет всеми данными — права не проверяются.
+   */
+  @Transactional
+  public String resetLinkSystem(long targetId) {
+    User target = activeUser(targetId);
+    String token = Tokens.newToken();
+    long now = clock.millis();
+    tokens.insert(
+        Tokens.sha256(token),
+        target.id(),
+        UserTokenStore.Purpose.RESET,
+        null,
+        now,
+        now + linkTtl.toMillis());
+    audit.log(null, null, "user.reset_link", "user", target.id());
+    return "/activate/" + token;
+  }
+
+  /** Сброс 2FA из командной строки: код и резервные коды удаляются, все сеансы завершаются. */
+  @Transactional
+  public void resetTwoFactorSystem(long targetId) {
+    User target = activeUser(targetId);
+    users.disableTotp(target.id());
+    sessions.revokeAll(target.id());
+    audit.log(null, null, "user.reset_2fa", "user", target.id());
+  }
+
+  private User activeUser(long id) {
+    User u = users.find(id).orElseThrow(ApiException::notFound);
+    if (u.status() == User.Status.DELETED) {
+      throw ApiException.notFound();
+    }
+    return u;
+  }
+
   /** Смена своего пароля. В ограниченной сессии (временный пароль) текущий не спрашивается. */
   @Transactional
   public void changePassword(Actor actor, String current, String next) {

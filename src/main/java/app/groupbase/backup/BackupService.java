@@ -279,6 +279,11 @@ public class BackupService {
     throw new IOException("Это не бэкап groupbase: нет " + MANIFEST);
   }
 
+  /** Номер последней миграции, которую знает эта версия программы. */
+  public static int latestSchema() throws IOException {
+    return Migrations.latest();
+  }
+
   /** Можно ли восстановить эту копию этой версией программы. */
   public static void check(JsonNode manifest) throws IOException {
     if (manifest.path("format").asInt() > FORMAT

@@ -44,6 +44,11 @@ final class AppContext {
     return builder(env, new String[] {"serve", "desktop"}).logStartupInfo(false).run();
   }
 
+  /** Для команд обслуживания: база и сервисы, без веб-сервера, фоновых задач и блокировки. */
+  static ConfigurableApplicationContext cli(StandardEnvironment env) {
+    return builder(env, new String[] {"cli"}).logStartupInfo(false).run();
+  }
+
   private static SpringApplicationBuilder builder(StandardEnvironment env, String[] profiles) {
     return new SpringApplicationBuilder(GroupbaseApplication.class)
         .environment(env)
