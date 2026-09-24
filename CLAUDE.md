@@ -44,7 +44,7 @@ desktop/       приложение хоста на Tauri 2 (Rust): окно, т
 docs/          документация на русском (desktop.md — для хоста)
 ```
 
-Модель: инстанс → группы → предметы (`subject_groups`, общий предмет связан с несколькими группами).
+Модель: инстанс (в интерфейсе — «сайт») → группы → предметы (`subject_groups`, общий предмет связан с несколькими группами).
 Роли инстанса: `admin`, `moderator` (в `users.instance_role`). Роли группы: `headman`, `deputy`, `student`
 (в `memberships`). Права: `auth.Permission` + матрица по умолчанию `auth.Rbac` + `group_permission_overrides`
 (только ячейки, помеченные ⚙ в промте).
@@ -91,3 +91,15 @@ java -jar target/groupbase.jar serve --config groupbase.toml
 - Ответы сервера помечены `X-Groupbase: 1`: без метки (страница туннеля при выключенном компьютере) фронт
   и service worker считают сервер недоступным и показывают сохранённое.
 - Ссылки и QR строятся от `instance.publicUrl` (`lib/copy.ts → siteUrl()`), а не от `location.origin`.
+- Окно не перехватывает перетаскивание файлов (`disable_drag_drop_handler`) — иначе DropZone их не
+  получит.
+
+## Интерфейс: что где
+
+- Иконки предметов — `web/src/lib/subjectIcons.ts` (ключи = `subjects.icon`, подбор по названию).
+- Просмотр файлов — `lib/files/FileViewer.svelte` (`openFiles()` из `viewer.svelte.ts`), PDF через
+  pdf.js (`PdfView.svelte`, воркер кешируется лениво — см. `LAZY` в service-worker).
+- Фон входа — `lib/appearance.ts` + классы `.login-bg-*` в `app.css`; сервер — `avatars/LoginBackground`.
+- Разделы настроек и профиля оформляются `ui/SectionHead.svelte`; ничего не должно быть шире экрана
+  телефона (e2e `14-files-people` проверяет `scrollWidth`).
+- У каждого пакета сервера — свои тесты (`EveryPackageHasTestsTest`).
