@@ -136,6 +136,34 @@ groupbase сам скачивает клиент fxTunnel с официальн�
 
 В окне приложения «Настройки» → «Сервер» → «Состояние» есть кнопки «Папка с данными» и «Журналы».
 
+## Команды обслуживания
+
+В приложение встроены Java и сервер, поэтому команды `groupbase` можно запустить из терминала без
+установки чего-либо. Это нужно редко — например, если вы потеряли телефон с кодами 2FA.
+
+macOS (Терминал):
+
+```bash
+APP=/Applications/groupbase.app/Contents/Resources
+DATA="$HOME/Library/Application Support/app.groupbase"
+"$APP/runtime/bin/java" -jar "$APP/groupbase.jar" doctor --data "$DATA"
+```
+
+Windows (PowerShell; папка установки — обычно `%LOCALAPPDATA%\groupbase`):
+
+```powershell
+$app = "$env:LOCALAPPDATA\groupbase"
+& "$app\runtime\bin\java.exe" -jar "$app\groupbase.jar" doctor --data "$env:APPDATA\app.groupbase"
+```
+
+Вместо `doctor` (проверка данных без изменений):
+
+- `user list` — все аккаунты;
+- `user reset-2fa ЛОГИН` — выключить 2FA и завершить сеансы человека;
+- `user reset-password ЛОГИН` — одноразовая ссылка для нового пароля;
+- `backup -o ~/Desktop` — копия на рабочий стол, приложение можно не закрывать;
+- `restore КОПИЯ.zip` — восстановить: при работающем приложении копия встанет при его перезапуске.
+
 ## Обновление
 
 Приложение само проверяет новые версии (при запуске и раз в 6 часов). Когда версия вышла, нажмите

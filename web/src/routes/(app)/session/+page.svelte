@@ -110,7 +110,9 @@
 		<div class="countdown">
 			{#if next}
 				{@const left = daysUntil(next.dueAt, now)}
-				<span class="kicker">Ближайший: {next.subject.name}</span>
+				<span class="kicker"
+					>Ближайший {next.kind === 'exam' ? 'экзамен' : 'зачёт'}: {next.subject.name}</span
+				>
 				{#if left <= 1}
 					<strong class="big">{left === 0 ? 'Сегодня' : 'Завтра'}</strong>
 				{:else}
@@ -198,9 +200,7 @@
 		width: 100%;
 		color: var(--inverse-muted);
 		font-size: 14px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		line-height: 1.35;
 	}
 	.big {
 		font-size: clamp(40px, 11vw, 64px);

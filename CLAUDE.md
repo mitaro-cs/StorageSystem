@@ -25,10 +25,11 @@ Self-hosted сервис для студенческих групп: новос�
 
 ```
 src/main/java/app/groupbase/
-├─ cli/        точка входа Main, команды serve и desktop (сервер внутри приложения хоста)
+├─ cli/        точка входа Main: serve, desktop (сервер в приложении хоста) и обслуживание —
+│              init, user, backup, restore, doctor, seed (профиль cli, общий -d/--data — Target)
 ├─ config/     GroupbaseProperties, загрузка groupbase.toml, генерация секретов
 ├─ store/      DataSource, Flyway, репозитории (JdbcClient)
-├─ auth/       Argon2id, сессии, TOTP, RBAC (Permission, матрица, переопределения), rate limit
+├─ auth/       Argon2id, сессии, TOTP, passkeys (WebAuthn без библиотек), RBAC, rate limit
 ├─ web/        фильтры (заголовки, CSRF, сессия), контроллеры /api, SPA-фолбэк
 ├─ files/      AES-256-GCM, хранение по UUID, MIME по magic bytes
 ├─ avatars/    ресайз, WebP, удаление EXIF, SVG с инициалами
@@ -75,7 +76,12 @@ make e2e        # Playwright против собранного jar
 make desktop    # установщик приложения хоста для этой ОС (нужен Rust)
 make desktop-run # приложение из исходников, данные в ./data-desktop
 java -jar target/groupbase.jar serve --config groupbase.toml
+java -jar target/groupbase.jar doctor -d ./data-dev   # проверка данных без изменений
 ```
+
+Порядок перед пушем (CI проверяет то же): `./mvnw spotless:check verify`, в `web/` — `npm run lint`,
+`npm run check`, `npm run build` и `node scripts/bundle-size.mjs 102400` (самая тяжёлая страница
+≤ 100 КБ gzip; редкое — через `{#await import(...)}`), `npx playwright test` против свежего jar.
 
 Бэкенд без фронта собирается и работает (отдаёт заглушку). Требуется JDK 21+ и Node 22+;
 для приложения хоста — Rust (rustup) и `scripts/desktop-resources.sh` (кладёт jlink-Java и jar в
@@ -102,4 +108,14 @@ java -jar target/groupbase.jar serve --config groupbase.toml
 - Фон входа — `lib/appearance.ts` + классы `.login-bg-*` в `app.css`; сервер — `avatars/LoginBackground`.
 - Разделы настроек и профиля оформляются `ui/SectionHead.svelte`; ничего не должно быть шире экрана
   телефона (e2e `14-files-people` проверяет `scrollWidth`).
+- Типы заданий — `lib/content/kinds.ts` (`homework.kind`: homework, lab, test, credit, exam; у зачёта
+  и экзамена есть `place`). Режим «Сессия» — `lib/content/session.ts` (расчёты), страница
+  `routes/(app)/session`, даты — `study_groups.session_from/to` (`MeGroup.session`), зачёты и
+  экзамены — `view=exams` и `Today.exams`. Мастер «Новый семестр» — `lib/content/NewSemester.svelte`.
+- Passkeys — `auth/WebAuthn.java` (разбор и подпись: ES256, Ed25519, RS256), `auth/Passkeys.java`
+  (вызовы в памяти на 5 минут, пароль при добавлении), фронт — `lib/auth/passkey.ts`. Открытый ключ
+  берётся из `getPublicKey()` браузера — CBOR не нужен. Адрес сайта: `instance.publicUrl` или адрес
+  запроса, не IP (WebAuthn требует имени). e2e `16-passkeys` — виртуальный ключ Chromium через CDP.
+- `Permissions-Policy`: камера разрешена своей странице (сканер QR в профиле) — не возвращать
+  `camera=()`.
 - У каждого пакета сервера — свои тесты (`EveryPackageHasTestsTest`).
