@@ -107,7 +107,9 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader(
         "Permissions-Policy",
-        "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()");
+        // Камера — только своей странице: сканер QR-кода для входа на другом устройстве.
+        "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=(),"
+            + " publickey-credentials-create=(self), publickey-credentials-get=(self)");
     res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
     res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
     res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
