@@ -43,7 +43,7 @@ class AccessIT extends IntegrationTest {
               json(
                   ex,
                   "{\"session_id\":\"s1\",\"user_code\":\"ABCD-1234\","
-                      + "\"auth_url\":\"https://fxtun.dev/cli-auth\",\"expires_in\":60}"));
+                      + "\"auth_url\":\"https://fxtun.ru/auth/cli\",\"expires_in\":60}"));
       fake.createContext(
           "/api/auth/device/token",
           ex ->
@@ -77,7 +77,7 @@ class AccessIT extends IntegrationTest {
             exit 1
           fi
           echo "  \033[32mTunnel established!\033[0m"
-          echo "  HTTPS: https://$4.fxtun.dev"
+          echo "  HTTPS: https://$4.fxtun.ru"
           exec sleep 300
           """);
       bin.toFile().setExecutable(true);
@@ -139,9 +139,9 @@ class AccessIT extends IntegrationTest {
     var on = a.put("/api/admin/access", Map.of("mode", "fxtunnel", "subdomain", "bin2509-test"));
     assertThat(on.status()).as(on.body()).isEqualTo(200);
     JsonNode online = waitFor(a, j -> j.get("state").asString().equals("online"));
-    assertThat(online.get("url").asString()).isEqualTo("https://bin2509-test.fxtun.dev");
+    assertThat(online.get("url").asString()).isEqualTo("https://bin2509-test.fxtun.ru");
     assertThat(a.get("/api/me").json().get("instance").get("publicUrl").asString())
-        .isEqualTo("https://bin2509-test.fxtun.dev");
+        .isEqualTo("https://bin2509-test.fxtun.ru");
 
     var off = a.put("/api/admin/access", Map.of("mode", "off")).json();
     assertThat(off.get("state").asString()).isEqualTo("off");

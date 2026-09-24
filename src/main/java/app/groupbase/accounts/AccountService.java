@@ -305,7 +305,10 @@ public class AccountService {
   @Transactional
   public void changePassword(Actor actor, String current, String next) {
     User u = users.find(actor.id()).orElseThrow(ApiException::unauthorized);
-    boolean forced = actor.restriction() == Actor.Restriction.PASSWORD_CHANGE_REQUIRED;
+    // Старый пароль не спрашиваем при обязательной смене и в окне приложения хоста: кто сидит за
+    // компьютером сервера, и так владеет всеми данными — а забытый пароль иначе не вернуть.
+    boolean forced =
+        actor.restriction() == Actor.Restriction.PASSWORD_CHANGE_REQUIRED || actor.local();
     if (!forced && !Passwords.verify(current, u.passwordHash())) {
       throw ApiException.invalid("current", "Текущий пароль неверный");
     }

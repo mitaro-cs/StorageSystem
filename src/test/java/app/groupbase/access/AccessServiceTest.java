@@ -19,7 +19,7 @@ class AccessServiceTest {
 
   @Test
   void fxUrl() {
-    assertThat(AccessService.fxUrl("grp")).isEqualTo("https://grp.fxtun.dev");
+    assertThat(AccessService.fxUrl("grp")).isEqualTo("https://grp.fxtun.ru");
     assertThat(AccessService.fxUrl("")).isEmpty();
   }
 }

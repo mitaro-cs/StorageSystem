@@ -1,0 +1,153 @@
+name: Выпуск
+
+# Тег v1.2.3 → выпуск на GitHub: установщики приложения хоста (macOS, Windows) и groupbase.jar
+# для своего сервера. Вручную (workflow_dispatch) — те же файлы, но только как артефакты сборки.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  JAVA_VERSION: 21
+
+jobs:
+  jar:
+    name: Сервер (jar)
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: version
+        name: Версия из тега
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"; else v="0.0.0-dev.${GITHUB_RUN_NUMBER}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: web
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - run: ./mvnw -B -q versions:set -DnewVersion=${{ steps.version.outputs.version }} -DgenerateBackupPoms=false
+      - run: ./mvnw -B -DskipTests package
+      - uses: actions/upload-artifact@v5
+        with:
+          name: groupbase-jar
+          path: target/groupbase.jar
+          retention-days: 7
+
+  desktop:
+    name: Приложение — ${{ matrix.name }}
+    needs: jar
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Apple Silicon)
+            os: macos-14
+            target: aarch64-apple-darwin
+            bundles: dmg
+            file: macos-apple-silicon.dmg
+          - name: macOS (Intel)
+            os: macos-14
+            target: x86_64-apple-darwin
+            bundles: dmg
+            file: macos-intel.dmg
+            # Java для Intel собирается на Apple Silicon из модулей x64-сборки того же JDK.
+            cross-jdk: mac/x64
+          - name: Windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+            file: windows-setup.exe
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: groupbase-jar
+          path: target
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: JDK целевой системы (для jlink)
+        if: matrix.cross-jdk
+        run: |
+          # jlink и модули целевой системы должны быть одной версии — берём ровно ту, что установлена.
+          ver=$(sed -n 's/^JAVA_RUNTIME_VERSION="\([^"]*\)"/\1/p' "$JAVA_HOME/release" | sed 's/-LTS$//')
+          release=$(printf 'jdk-%s' "$ver" | sed 's/+/%2B/')
+          mkdir -p "$RUNNER_TEMP/target-jdk"
+          curl -fsSL "https://api.adoptium.net/v3/binary/version/$release/${{ matrix.cross-jdk }}/jdk/hotspot/normal/eclipse" \
+            | tar -xz -C "$RUNNER_TEMP/target-jdk" --strip-components=1
+          echo "JMODS=$RUNNER_TEMP/target-jdk/Contents/Home/jmods" >> "$GITHUB_ENV"
+      - name: Java и сервер в ресурсы приложения
+        run: scripts/desktop-resources.sh
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+          key: ${{ matrix.target }}
+      - run: npm ci
+        working-directory: desktop
+      - name: Сборка установщика
+        working-directory: desktop
+        run: |
+          npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} \
+            --config "{\"version\":\"${{ needs.jar.outputs.version }}\"}"
+      - name: Имя файла для выпуска
+        run: |
+          dir="desktop/src-tauri/target/${{ matrix.target }}/release/bundle"
+          src=$(ls "$dir"/dmg/*.dmg "$dir"/nsis/*.exe 2>/dev/null | head -1)
+          mkdir -p dist
+          cp "$src" "dist/groupbase-${{ needs.jar.outputs.version }}-${{ matrix.file }}"
+          ls -la dist
+      - uses: actions/upload-artifact@v5
+        with:
+          name: groupbase-${{ matrix.file }}
+          path: dist/*
+          retention-days: 14
+
+  publish:
+    name: Выпуск на GitHub
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [jar, desktop]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - run: ls -la dist
+      - name: Выпуск
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ needs.jar.outputs.version }}"
+          notes=$(awk -v h="## $v" '$0==h{f=1;next} /^## /{f=0} f' CHANGELOG.md 2>/dev/null)
+          [ -n "$notes" ] || notes="Скачайте установщик для своего компьютера — инструкция в README."
+          gh release create "$GITHUB_REF_NAME" dist/* --title "groupbase $v" --notes "$notes" \
+            || gh release upload "$GITHUB_REF_NAME" dist/* --clobber

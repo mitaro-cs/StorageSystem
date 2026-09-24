@@ -4,7 +4,7 @@ NPM      ?= npm --prefix web
 JAR      := target/groupbase.jar
 DEV_DATA := ./data-dev
 
-.PHONY: help dev dev-backend dev-web web build test test-java test-web lint lint-java lint-web fmt seed e2e run clean package
+.PHONY: help dev dev-backend dev-web web build test test-java test-web lint lint-java lint-web fmt seed e2e run clean package desktop desktop-run
 
 help: ## Список команд
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  %-12s %s\n",$$1,$$2}'
@@ -60,8 +60,13 @@ e2e: build ## Playwright против собранного jar
 run: build ## Запустить собранный jar
 	GROUPBASE_DATA_DIR=$(DEV_DATA) GROUPBASE_HTTP_INSECURE=true java -jar $(JAR) serve
 
-package: build ## Архив с jlink-рантаймом для текущей ОС в dist/
-	scripts/package.sh
+desktop: build ## Приложение хоста для этой ОС (нужен Rust): .dmg / установщик .exe
+	scripts/desktop-resources.sh
+	cd desktop && npm ci && npx tauri build
+
+desktop-run: build ## Запустить приложение хоста из исходников (данные — в ./data-desktop)
+	scripts/desktop-resources.sh
+	cd desktop && npm ci && GROUPBASE_DATA=$(CURDIR)/data-desktop npx tauri dev
 
 clean:
-	rm -rf target web/build web/.svelte-kit dist
+	rm -rf target web/build web/.svelte-kit dist desktop/src-tauri/target desktop/src-tauri/resources

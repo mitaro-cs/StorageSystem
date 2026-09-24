@@ -278,17 +278,25 @@
 	<h2>Пароль</h2>
 	<form class="stack" onsubmit={changePassword}>
 		<input type="text" autocomplete="username" value={me.user.username} hidden readonly />
-		<div>
-			<label class="label" for="cur">Текущий пароль</label>
-			<input
-				id="cur"
-				class="input"
-				type="password"
-				autocomplete="current-password"
-				bind:value={current}
-				required
-			/>
-		</div>
+		{#if me.hostWindow}
+			<!-- Окно приложения на компьютере хоста: забытый пароль можно просто задать заново. -->
+			<p class="small muted">
+				Вы на компьютере, где работает сервер группы, — старый пароль не нужен. Новый пароль
+				понадобится для входа с телефона.
+			</p>
+		{:else}
+			<div>
+				<label class="label" for="cur">Текущий пароль</label>
+				<input
+					id="cur"
+					class="input"
+					type="password"
+					autocomplete="current-password"
+					bind:value={current}
+					required
+				/>
+			</div>
+		{/if}
 		<PasswordFields bind:password bind:confirm />
 		<div><Button type="submit">Сменить пароль</Button></div>
 	</form>

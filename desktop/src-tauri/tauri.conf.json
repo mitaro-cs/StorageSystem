@@ -1,0 +1,47 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "groupbase",
+	"version": "0.1.0",
+	"identifier": "app.groupbase",
+	"build": {
+		"frontendDist": "../ui"
+	},
+	"app": {
+		"withGlobalTauri": true,
+		"windows": [],
+		"security": {
+			"csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		],
+		"resources": {
+			"resources/runtime/": "runtime/",
+			"resources/groupbase.jar": "groupbase.jar"
+		},
+		"category": "Education",
+		"shortDescription": "Сайт студенческой группы на своём компьютере",
+		"longDescription": "groupbase: новости, домашние задания и материалы группы. Сервер работает на компьютере старосты или хоста, одногруппники заходят по ссылке с телефона и видят всё даже без связи.",
+		"copyright": "groupbase, MIT License",
+		"macOS": {
+			"signingIdentity": "-",
+			"minimumSystemVersion": "11.0"
+		},
+		"windows": {
+			"webviewInstallMode": { "type": "downloadBootstrapper" },
+			"nsis": {
+				"installMode": "currentUser",
+				"languages": ["Russian"],
+				"displayLanguageSelector": false
+			}
+		}
+	}
+}

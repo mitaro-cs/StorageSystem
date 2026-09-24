@@ -94,6 +94,31 @@ jobs:
           name: playwright-report
           path: web/playwright-report
 
+  desktop:
+    name: Приложение для компьютера (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop/src-tauri
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      # Настоящие Java и jar кладутся только при выпуске; для проверки кода хватит заглушек.
+      - name: Заглушки ресурсов
+        run: mkdir -p resources/runtime/bin && touch resources/runtime/bin/java resources/groupbase.jar
+      - run: cargo fmt --check
+      - run: cargo clippy --locked -- -D warnings
+
   vulns:
     name: Уязвимости зависимостей
     runs-on: ubuntu-latest

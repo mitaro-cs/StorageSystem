@@ -14,7 +14,6 @@
 	} from '$lib/session.svelte';
 	import { toastError } from '$lib/toasts.svelte';
 	import Button from '$lib/ui/Button.svelte';
-	import ServerPanel from '$lib/settings/server/ServerPanel.svelte';
 	import Tabs from '$lib/ui/Tabs.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 	import Invites from '$lib/settings/Invites.svelte';
@@ -112,7 +111,9 @@
 	{:else if group && tab === 'permissions'}<Permissions groupId={group.id} />
 	{:else if group && tab === 'group'}<GroupSettings {group} />
 	{:else if tab === 'instance'}<InstancePanel />
-	{:else if tab === 'server'}<ServerPanel />
+	{:else if tab === 'server'}
+		<!-- Вкладка «Сервер» нужна только хосту — её код грузится при открытии. -->
+		{#await import('$lib/settings/server/ServerPanel.svelte') then m}<m.default />{/await}
 	{:else if group && tab === 'audit'}<Audit groupId={isAdmin() ? null : group.id} />
 	{:else if group && tab === 'export'}<GroupExport groupId={group.id} groupName={group.name} />
 	{/if}

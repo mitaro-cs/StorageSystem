@@ -19,3 +19,11 @@ secrets/
 .idea/
 .vscode/
 *.iml
+
+# Приложение для компьютера (desktop/)
+desktop/node_modules/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/src-tauri/resources/
+
+data-desktop/

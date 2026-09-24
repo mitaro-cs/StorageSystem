@@ -2,6 +2,7 @@ package app.groupbase.cli;
 
 import app.groupbase.desktop.DesktopBridge;
 import app.groupbase.desktop.DesktopConfig;
+import app.groupbase.store.DataDirLock;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -50,6 +51,13 @@ public class DesktopCommand implements Callable<Integer> {
     int port;
     try {
       Files.createDirectories(data);
+      // Прежний сервер (перезапуск, быстрый повторный запуск) может ещё завершаться — ждём его.
+      for (int i = 0; i < 40 && DataDirLock.held(data); i++) {
+        if (i == 0) {
+          out.event("status", Map.of("message", "Ждём, пока завершится прежний запуск…"));
+        }
+        Thread.sleep(500);
+      }
       DesktopConfig net = DesktopConfig.load(data);
       port = net.choosePort();
       Map<String, Object> props = new LinkedHashMap<>();
@@ -77,11 +85,27 @@ public class DesktopCommand implements Callable<Integer> {
             "version", Main.version(),
             "port", port));
     done.await();
-    boolean restart = bridge.restartRequested();
-    if (ctx.isActive()) {
-      ctx.close();
+    int code = bridge.restartRequested() ? RESTART : 0;
+    // Сервер не должен пережить оболочку: если остановка зависла, через 25 секунд — выход.
+    Thread.ofPlatform()
+        .daemon()
+        .start(
+            () -> {
+              try {
+                Thread.sleep(25_000);
+              } catch (InterruptedException e) {
+                return;
+              }
+              Runtime.getRuntime().halt(code);
+            });
+    try {
+      if (ctx.isActive()) {
+        ctx.close();
+      }
+    } catch (RuntimeException | LinkageError e) {
+      // Остановка не удалась — выходим всё равно.
     }
-    return restart ? RESTART : 0;
+    return code;
   }
 
   private static void readCommands(DesktopBridge bridge, CountDownLatch done) {

@@ -133,6 +133,31 @@ class DesktopIT extends IntegrationTest {
   }
 
   @Test
+  void hostWindowSetsPasswordWithoutTheOldOne() {
+    ApiClient host = client();
+    admin();
+    host.get(enterPath());
+    try {
+      var r =
+          host.post("/api/me/password", Map.of("current", "", "password", "new-host-password-2"));
+      assertThat(r.status()).as(r.body()).isEqualTo(200);
+
+      // Вход с телефона (через туннель) — обычная сессия: там старый пароль обязателен.
+      ApiClient phone = client().header("X-Forwarded-For", "198.51.100.20");
+      var in =
+          phone.post(
+              "/api/auth/login", Map.of("username", ADMIN, "password", "new-host-password-2"));
+      assertThat(in.status()).as(in.body()).isEqualTo(200);
+      var denied =
+          phone.post("/api/me/password", Map.of("current", "", "password", "x-pass-word-3"));
+      assertThat(denied.status()).isEqualTo(400);
+    } finally {
+      // Прежний пароль — для остальных тестов этого класса.
+      host.post("/api/me/password", Map.of("current", "", "password", ADMIN_PASSWORD));
+    }
+  }
+
+  @Test
   void manageModeCanBeTurnedOff() {
     ApiClient host = client();
     admin();

@@ -17,15 +17,15 @@ Self-hosted сервис для студенческих групп: новос�
 | cobra | picocli (`app.groupbase.cli`) |
 | slog JSON | структурные логи Spring Boot (logstash JSON), без персональных данных |
 | bluemonday | OWASP Java HTML Sanitizer + commonmark-java |
-| один статический бинарник | fat-jar + jlink-рантайм: архив `bin/groupbase` для linux/amd64, linux/arm64, windows/amd64, darwin/arm64 |
-| GoReleaser | GitHub Actions matrix + `scripts/package.sh` (jlink) |
+| один статический бинарник | fat-jar + jlink-рантайм (`scripts/jre.sh`) внутри приложения хоста (Tauri) |
+| GoReleaser | GitHub Actions `release.yml`: тег `v*` → .dmg (Apple Silicon, Intel), установщик .exe, jar |
 | distroless/static < 30 МБ | distroless/base + jlink-JRE (~100 МБ; JVM требует glibc) |
 
 ## Архитектура
 
 ```
 src/main/java/app/groupbase/
-├─ cli/        точка входа Main, команды serve/init/deploy/backup/restore/user/doctor
+├─ cli/        точка входа Main, команды serve и desktop (сервер внутри приложения хоста)
 ├─ config/     GroupbaseProperties, загрузка groupbase.toml, генерация секретов
 ├─ store/      DataSource, Flyway, репозитории (JdbcClient)
 ├─ auth/       Argon2id, сессии, TOTP, RBAC (Permission, матрица, переопределения), rate limit
@@ -33,12 +33,15 @@ src/main/java/app/groupbase/
 ├─ files/      AES-256-GCM, хранение по UUID, MIME по magic bytes
 ├─ avatars/    ресайз, WebP, удаление EXIF, SVG с инициалами
 ├─ content/    предметы, новости, ДЗ, материалы, комментарии
-├─ search/ notify/ audit/ export/
-├─ jobs/       бэкапы, очистка сессий и IP в аудите
-└─ deploy/     мастер развёртывания и шаблоны
+├─ search/ notify/ audit/ export/ sync/
+├─ desktop/    связь с оболочкой приложения (события @gb в stdout, команды в stdin), порт и сеть
+├─ access/     доступ для группы: туннель fxTunnel (клиент скачивается с проверкой SHA-256), LAN, свой адрес
+├─ backup/     копии (VACUUM INTO + файлы + ключи), облачные папки, восстановление при старте
+├─ status/     проверка обновлений
+└─ jobs/       очистка сессий, ссылок и IP в аудите
 web/           SvelteKit (adapter-static, SPA) → web/build → classpath:/static в jar
-deploy/        Dockerfile, compose, Caddyfile, systemd
-docs/          документация на русском
+desktop/       приложение хоста на Tauri 2 (Rust): окно, трей, запуск Java из resources/ (jlink + jar)
+docs/          документация на русском (desktop.md — для хоста)
 ```
 
 Модель: инстанс → группы → предметы (`subject_groups`, общий предмет связан с несколькими группами).
@@ -69,7 +72,22 @@ make lint       # spotless:check + javac -Werror + eslint + prettier + svelte-ch
 make fmt        # автоформатирование
 make seed       # демо-данные в ./data-dev
 make e2e        # Playwright против собранного jar
+make desktop    # установщик приложения хоста для этой ОС (нужен Rust)
+make desktop-run # приложение из исходников, данные в ./data-desktop
 java -jar target/groupbase.jar serve --config groupbase.toml
 ```
 
-Бэкенд без фронта собирается и работает (отдаёт заглушку). Требуется JDK 21+ и Node 22+.
+Бэкенд без фронта собирается и работает (отдаёт заглушку). Требуется JDK 21+ и Node 22+;
+для приложения хоста — Rust (rustup) и `scripts/desktop-resources.sh` (кладёт jlink-Java и jar в
+`desktop/src-tauri/resources`).
+
+## Приложение хоста
+
+- Оболочка (`desktop/src-tauri/src/main.rs`) запускает `java -jar groupbase.jar desktop --data <каталог>`
+  и читает события: `ready` (адрес и одноразовая ссылка входа окна), `access` (адрес для группы в трее),
+  `restart`, `status`, `error`. Код выхода 3 — перезапуск (восстановление, смена сети).
+- Окно хоста ходит на `http://127.0.0.1:порт`, сессия «локальная» (`sessions.local`): без 2FA, только с
+  этого компьютера. Участники — через туннель по HTTPS; Secure у cookie и HSTS — по схеме запроса.
+- Ответы сервера помечены `X-Groupbase: 1`: без метки (страница туннеля при выключенном компьютере) фронт
+  и service worker считают сервер недоступным и показывают сохранённое.
+- Ссылки и QR строятся от `instance.publicUrl` (`lib/copy.ts → siteUrl()`), а не от `location.origin`.

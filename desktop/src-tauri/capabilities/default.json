@@ -1,0 +1,7 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "default",
+	"description": "Заставка приложения (локальная страница): статус запуска сервера и кнопки «Перезапустить», «Журналы». Страницам сервера группы доступ к оболочке не даётся.",
+	"windows": ["main"],
+	"permissions": ["core:default"]
+}

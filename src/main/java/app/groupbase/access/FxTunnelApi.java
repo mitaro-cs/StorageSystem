@@ -12,7 +12,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * API сервиса fxTunnel (https://fxtun.dev, клиент — github.com/mephistofox/fxtun.dev): вход через
+ * API сервиса fxTunnel (https://fxtun.ru, клиент — github.com/mephistofox/fxtun.dev): вход через
  * браузер по коду (как {@code fxtunnel login}) и проверка, свободен ли адрес.
  */
 public class FxTunnelApi {
@@ -27,8 +27,12 @@ public class FxTunnelApi {
   private static final JsonMapper JSON = JsonMapper.builder().build();
 
   private final URI base;
+  // Сервис переезжал между доменами (fxtun.dev → fxtun.ru): перенаправления — нормально.
   private final HttpClient http =
-      HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+      HttpClient.newBuilder()
+          .connectTimeout(Duration.ofSeconds(10))
+          .followRedirects(HttpClient.Redirect.NORMAL)
+          .build();
 
   public FxTunnelApi(URI base) {
     this.base = base;

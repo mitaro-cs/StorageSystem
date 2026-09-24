@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>groupbase</title>
+		<link rel="stylesheet" href="splash.css" />
+		<script src="splash.js" defer></script>
+	</head>
+	<body>
+		<main>
+			<svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+				<rect width="32" height="32" rx="9" />
+				<path d="M9 11.5 16 8l7 3.5-7 3.5z M9 16l7 3.5 7-3.5 M9 20.5l7 3.5 7-3.5" />
+			</svg>
+			<h1>groupbase</h1>
+			<p id="status" role="status">Запускаем сервер группы…</p>
+			<div class="spinner" id="spinner" aria-hidden="true"></div>
+			<pre id="details" hidden></pre>
+			<div class="actions" id="actions" hidden>
+				<button id="restart" class="primary">Перезапустить</button>
+				<button id="logs">Открыть журналы</button>
+			</div>
+			<p class="hint">
+				Закрытое окно не выключает сайт: groupbase продолжает работать в строке меню (на Windows —
+				в трее у часов), чтобы группа могла заходить.
+			</p>
+		</main>
+	</body>
+</html>

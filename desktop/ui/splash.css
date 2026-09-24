@@ -1,0 +1,133 @@
+:root {
+	--bg: #f1f2f4;
+	--text: #0d0d0f;
+	--muted: #6b6f78;
+	--surface: #ffffff;
+	--border: #dfe1e6;
+	--danger: #d93a2f;
+	color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #0b0b0d;
+		--text: #f4f4f6;
+		--muted: #9a9ea8;
+		--surface: #18191c;
+		--border: #2b2c31;
+		--danger: #ff6b5f;
+	}
+}
+* {
+	box-sizing: border-box;
+}
+html,
+body {
+	height: 100%;
+	margin: 0;
+}
+body {
+	display: grid;
+	place-items: center;
+	background: var(--bg);
+	color: var(--text);
+	font:
+		15px/1.5 -apple-system,
+		'Segoe UI',
+		system-ui,
+		sans-serif;
+	-webkit-user-select: none;
+	user-select: none;
+}
+main {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 14px;
+	max-width: 520px;
+	padding: 32px;
+	text-align: center;
+}
+.logo {
+	width: 72px;
+	height: 72px;
+}
+.logo rect {
+	fill: var(--text);
+}
+.logo path {
+	fill: none;
+	stroke: var(--bg);
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+h1 {
+	margin: 0;
+	font-size: 28px;
+	letter-spacing: -0.02em;
+}
+#status {
+	margin: 0;
+	font-size: 17px;
+	white-space: pre-line;
+}
+.error #status {
+	color: var(--danger);
+	font-weight: 600;
+}
+.spinner {
+	width: 26px;
+	height: 26px;
+	border: 3px solid var(--border);
+	border-top-color: var(--text);
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+}
+.error .spinner {
+	display: none;
+}
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+pre {
+	max-width: 100%;
+	max-height: 160px;
+	margin: 0;
+	padding: 12px;
+	overflow: auto;
+	border-radius: 12px;
+	background: var(--surface);
+	color: var(--muted);
+	font-size: 12px;
+	text-align: left;
+	white-space: pre-wrap;
+	-webkit-user-select: text;
+	user-select: text;
+}
+.actions {
+	display: flex;
+	gap: 8px;
+}
+button {
+	height: 42px;
+	padding: 0 20px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--surface);
+	color: var(--text);
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+button.primary {
+	border-color: var(--text);
+	background: var(--text);
+	color: var(--bg);
+}
+.hint {
+	margin: 12px 0 0;
+	color: var(--muted);
+	font-size: 13px;
+}

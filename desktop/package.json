@@ -1,0 +1,14 @@
+{
+	"name": "groupbase-desktop",
+	"private": true,
+	"description": "Приложение хоста groupbase для macOS и Windows: сервер группы на своём компьютере",
+	"scripts": {
+		"tauri": "tauri",
+		"dev": "tauri dev",
+		"build": "tauri build",
+		"icons": "tauri icon src-tauri/icons-src/app-1024.png -o src-tauri/icons"
+	},
+	"devDependencies": {
+		"@tauri-apps/cli": "^2.11.5"
+	}
+}

@@ -79,7 +79,8 @@ public final class DesktopConfig {
 
   private boolean free(int p) {
     try (ServerSocket s = new ServerSocket()) {
-      s.setReuseAddress(false);
+      // Как Tomcat: порт, на котором только что работал прежний сервер (TIME_WAIT), свободен.
+      s.setReuseAddress(true);
       s.bind(new InetSocketAddress(InetAddress.getByName(bindAddress()), p));
       return true;
     } catch (IOException e) {

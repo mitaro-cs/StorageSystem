@@ -43,7 +43,7 @@ import org.springframework.stereotype.Service;
  * Доступ к сайту для участников, когда сервер работает на компьютере хоста.
  *
  * <ul>
- *   <li><b>fxtunnel</b> — бесплатный туннель fxTunnel с адресом {@code имя.fxtun.dev}: HTTPS,
+ *   <li><b>fxtunnel</b> — бесплатный туннель fxTunnel с адресом {@code имя.fxtun.ru}: HTTPS,
  *       работает из России, без белого IP. Хост один раз входит в fxTunnel через браузер, сервер
  *       сам скачивает клиент и держит туннель открытым, переподключаясь при обрывах.
  *   <li><b>lan</b> — только локальная сеть (одна Wi-Fi), по HTTP: без установки на телефон и
@@ -127,7 +127,7 @@ public class AccessService {
   static final String MANUAL_URL = "access.manual.url";
   private static final String TOKEN_CONTEXT = "fxtunnel-token";
 
-  public static final String FX_DOMAIN = "fxtun.dev";
+  public static final String FX_DOMAIN = "fxtun.ru";
   static final String FX_VERSION = "v3.12.0";
   private static final Map<String, String> FX_SHA256 =
       Map.of(
@@ -190,7 +190,7 @@ public class AccessService {
     // Для тестов: подставной клиент и API.
     this.api =
         new FxTunnelApi(
-            URI.create(env.getProperty("groupbase.access.fxtunnel-api", "https://fxtun.dev")));
+            URI.create(env.getProperty("groupbase.access.fxtunnel-api", "https://fxtun.ru")));
     String bin = env.getProperty("groupbase.access.fxtunnel-bin", "");
     this.fxBinaryOverride = bin.isBlank() ? null : Path.of(bin);
   }
