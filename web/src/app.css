@@ -589,6 +589,8 @@ button {
 	left: 50%;
 	bottom: calc(var(--bottom-nav) + var(--bottom-gap) * 2 + env(safe-area-inset-bottom));
 	transform: translateX(-50%);
+	/* Поправка на ошибку iOS после клавиатуры — lib/shell/viewport.ts. */
+	translate: 0 var(--vv-shift, 0px);
 	display: inline-flex;
 	align-items: center;
 	gap: 10px;
@@ -604,6 +606,9 @@ button {
 	font-size: 17px;
 	font-weight: 600;
 	white-space: nowrap;
+}
+:root.kb-open .glass-cta {
+	visibility: hidden;
 }
 .glass-cta:active {
 	transform: translateX(-50%) scale(0.97);

@@ -27,6 +27,19 @@
 	let collapsed = $state(false);
 	onMount(initPwa);
 	onMount(startBell);
+	// iPhone: нижняя панель не уезжает вверх после клавиатуры (ошибка iOS 26–27). Код нужен только
+	// установленному приложению на iPhone и iPad — грузится отдельно.
+	onMount(() => {
+		let stop: (() => void) | undefined;
+		let gone = false;
+		import('$lib/shell/viewport').then((m) => {
+			if (!gone) stop = m.watchViewport();
+		});
+		return () => {
+			gone = true;
+			stop?.();
+		};
+	});
 	onMount(() => {
 		let told = false;
 		const onRejection = (e: PromiseRejectionEvent) => {
@@ -48,6 +61,8 @@
 			} else {
 				registerServiceWorker();
 				initOffline(session.me);
+				// Сервер снова узнаёт подписку на уведомления, если удалил её после неудач.
+				import('$lib/push').then((m) => m.resendOnStart());
 			}
 			const u = session.me.user;
 			rememberAccount({
@@ -61,8 +76,6 @@
 
 	// Сервер группы недоступен, а интернет есть (выключен компьютер хоста): раз в 30 секунд
 	// проверяем, не вернулся ли он, — и сразу отправляем сделанное без него.
-				// Сервер снова узнаёт подписку на уведомления, если удалил её после неудач.
-				import('$lib/push').then((m) => m.resendOnStart());
 	$effect(() => {
 		if (!pwa.offline || !pwa.network) return;
 		const id = setInterval(async () => {

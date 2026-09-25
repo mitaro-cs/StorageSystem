@@ -26,6 +26,16 @@
 </nav>
 
 <style>
+	/* --vv-shift — поправка на ошибку iOS после клавиатуры, kb-open — пока печатают
+	   (lib/shell/viewport.ts): клавиатура закрывает низ экрана, панель не нужна. */
+	.fade,
+	.bottom-nav {
+		translate: 0 var(--vv-shift, 0px);
+	}
+	:global(:root.kb-open) .fade,
+	:global(:root.kb-open) .bottom-nav {
+		visibility: hidden;
+	}
 	.fade {
 		position: fixed;
 		z-index: 39;

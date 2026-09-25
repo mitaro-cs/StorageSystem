@@ -28,6 +28,8 @@
 		left: 50%;
 		bottom: calc(var(--bottom-nav) + 16px + env(safe-area-inset-bottom));
 		transform: translateX(-50%);
+		/* Поправка на ошибку iOS после клавиатуры — lib/shell/viewport.ts. */
+		translate: 0 var(--vv-shift, 0px);
 		display: flex;
 		flex-direction: column-reverse;
 		align-items: center;
