@@ -49,19 +49,34 @@ export function deviceName(ua: string = globalThis.navigator?.userAgent ?? ''): 
 	return 'Ключ';
 }
 
-/** Понятная причина, почему не вышло: отмена, уже есть, не поддерживается. */
-export function passkeyError(e: unknown): string {
+/**
+ * Понятная причина, почему не вышло. При входе «отменено» означает и «ключа нет»: браузер не
+ * говорит сайту, есть ли на устройстве ключ, — отказ выглядит одинаково.
+ */
+export function passkeyError(
+	e: unknown,
+	when: 'add' | 'login' = 'add',
+	securityKey = false
+): string {
 	if (e instanceof DOMException) {
 		if (e.name === 'NotAllowedError' || e.name === 'AbortError')
-			return 'Отменено — можно попробовать ещё раз';
+			return when === 'login'
+				? 'Вход отменён или на этом устройстве нет ключа для этого сайта. Попробуйте ещё раз или войдите по паролю'
+				: 'Отменено — можно попробовать ещё раз';
 		if (e.name === 'InvalidStateError') return 'Этот ключ уже добавлен';
-		if (e.name === 'NotSupportedError') return 'Это устройство не умеет входить по ключу';
-		if (e.name === 'SecurityError') return 'Вход по ключу работает только на адресе сайта';
+		if (e.name === 'NotSupportedError')
+			return securityKey
+				? 'Этот ключ не умеет хранить вход без логина — нужен ключ FIDO2 с PIN-кодом (например, YubiKey 5)'
+				: 'Это устройство не умеет входить по ключу';
+		if (e.name === 'SecurityError')
+			return 'Ключи работают только по адресу сайта с https — не по IP-адресу';
 	}
 	return e instanceof Error ? e.message : 'Не получилось';
 }
 
 interface CreateOptions {
+	/** «security-key» — браузер сразу просит приложить ключ безопасности (USB, NFC). */
+	hints?: string[];
 	challenge: string;
 	rp: { id: string; name: string };
 	user: { id: string; name: string; displayName: string };
@@ -84,10 +99,20 @@ export interface PasskeyInfo {
 	name: string;
 	createdAt: number;
 	lastUsedAt: number | null;
+	/** Домен сайта, для которого создан ключ: на другом адресе им не войти. */
+	site: string;
 }
 
-export async function addPasskey(password: string, name: string): Promise<PasskeyInfo> {
-	const o = await post<CreateOptions>('/api/me/passkeys/options', { password });
+/**
+ * @param securityKey ключ безопасности (USB, NFC): браузер сразу попросит его приложить, а не
+ *   предложит сохранить ключ в телефоне
+ */
+export async function addPasskey(
+	password: string,
+	name: string,
+	securityKey = false
+): Promise<PasskeyInfo> {
+	const o = await post<CreateOptions>('/api/me/passkeys/options', { password, securityKey });
 	const cred = (await navigator.credentials.create({
 		publicKey: {
 			...o,
@@ -111,10 +136,27 @@ export async function addPasskey(password: string, name: string): Promise<Passke
 	});
 }
 
-export async function loginWithPasskey(): Promise<void> {
+/** Браузер умеет подсказывать ключ прямо в поле логина (как сохранённый пароль). */
+export async function passkeyAutofill(): Promise<boolean> {
+	try {
+		return (await PublicKeyCredential.isConditionalMediationAvailable?.()) === true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Вход ключом. autofill — ждать, пока человек выберет ключ в подсказке у поля логина
+ * (mediation: conditional); такой запрос отменяют через signal, чтобы нажать «Войти по ключу».
+ */
+export async function loginWithPasskey(
+	opts: { autofill?: boolean; signal?: AbortSignal } = {}
+): Promise<void> {
 	const o = await post<GetOptions>('/api/auth/passkey/options', {}, { anonymous: true });
 	const cred = (await navigator.credentials.get({
-		publicKey: { ...o, challenge: fromB64u(o.challenge), allowCredentials: [] }
+		publicKey: { ...o, challenge: fromB64u(o.challenge), allowCredentials: [] },
+		...(opts.autofill ? { mediation: 'conditional' as CredentialMediationRequirement } : {}),
+		signal: opts.signal
 	})) as PublicKeyCredential | null;
 	if (!cred) throw new DOMException('cancelled', 'NotAllowedError');
 	const r = cred.response as AuthenticatorAssertionResponse;

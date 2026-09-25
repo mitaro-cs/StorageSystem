@@ -21,11 +21,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Вход по отпечатку или лицу: добавить ключ в профиле и войти им. */
+/** Вход по ключу (отпечаток, лицо, PIN-код или ключ безопасности): добавить в профиле и войти. */
 @RestController
 class PasskeyController {
 
-  record PasswordBody(String password) {}
+  /**
+   * @param securityKey добавляют ключ безопасности (USB, NFC), а не ключ в телефоне или ноутбуке
+   */
+  record OptionsBody(String password, Boolean securityKey) {}
 
   private final Passkeys passkeys;
   private final PublicUrl publicUrl;
@@ -41,9 +44,14 @@ class PasskeyController {
 
   @PostMapping("/api/me/passkeys/options")
   Map<String, Object> createOptions(
-      Actor actor, @RequestBody PasswordBody b, HttpServletRequest req) {
+      Actor actor, @RequestBody OptionsBody b, HttpServletRequest req) {
     return passkeys.registrationOptions(
-        actor, b.password(), origin(req), req.getRemoteAddr(), settings.name());
+        actor,
+        b.password(),
+        origin(req),
+        req.getRemoteAddr(),
+        settings.name(),
+        Boolean.TRUE.equals(b.securityKey()));
   }
 
   @PostMapping("/api/me/passkeys")

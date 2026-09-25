@@ -13,15 +13,18 @@
 		passkeysSupported,
 		type PasskeyInfo
 	} from './passkey';
+	import { ask } from '$lib/ui/ask.svelte';
 
 	// Ключи входа: отпечаток, лицо или PIN-код телефона и ноутбука вместо пароля и кода 2FA.
 	let keys = $state<PasskeyInfo[] | null>(null);
 	let open = $state(false);
 	let password = $state('');
 	let name = $state('');
+	let securityKey = $state(false);
 	let error = $state('');
 	let busy = $state(false);
 	const supported = passkeysSupported();
+	const here = typeof location === 'undefined' ? '' : location.hostname;
 
 	onMount(load);
 
@@ -36,8 +39,16 @@
 	function start() {
 		password = '';
 		name = deviceName();
+		securityKey = false;
 		error = '';
 		open = true;
+	}
+
+	// Название по умолчанию следует за выбором: «iPhone» или «Ключ безопасности».
+	function pickSecurityKey(on: boolean) {
+		if (name === deviceName() || name === 'Ключ безопасности')
+			name = on ? 'Ключ безопасности' : deviceName();
+		securityKey = on;
 	}
 
 	async function add(e: SubmitEvent) {
@@ -45,19 +56,25 @@
 		busy = true;
 		error = '';
 		try {
-			await addPasskey(password, name);
+			await addPasskey(password, name, securityKey);
 			open = false;
 			toast('Ключ добавлен — теперь можно входить без пароля', 'ok');
 			await load();
 		} catch (err) {
-			error = passkeyError(err);
+			error = passkeyError(err, 'add', securityKey);
 		} finally {
 			busy = false;
 		}
 	}
 
 	async function remove(k: PasskeyInfo) {
-		if (!confirm(`Удалить ключ «${k.name}»? Войти им больше не получится.`)) return;
+		if (
+			!(await ask(`Удалить ключ «${k.name}»? Войти им больше не получится.`, {
+				ok: 'Удалить',
+				danger: true
+			}))
+		)
+			return;
 		try {
 			await del(`/api/me/passkeys/${k.id}`);
 			await load();
@@ -78,6 +95,10 @@
 							? ` · вход ${fmtAgo(k.lastUsedAt)}`
 							: ''}</span
 					>
+					{#if here && k.site && k.site !== here}
+						<!-- Ключ привязан к адресу сайта: сменился адрес (туннель) — им не войти. -->
+						<span class="warn small">для адреса {k.site} — здесь им не войти</span>
+					{/if}
 				</span>
 				<button class="icon-btn" onclick={() => remove(k)} aria-label="Удалить ключ {k.name}"
 					><Trash2 size={17} /></button
@@ -122,6 +143,18 @@
 			<label class="label" for="pk-name">Название ключа</label>
 			<input id="pk-name" class="input" maxlength="40" bind:value={name} />
 		</div>
+		<label class="check">
+			<input
+				type="checkbox"
+				checked={securityKey}
+				onchange={(e) => pickSecurityKey(e.currentTarget.checked)}
+			/>
+			<span
+				>Это ключ безопасности — USB или NFC (YubiKey и похожие)
+				<span class="faint small block">Браузер сразу попросит вставить или приложить его</span
+				></span
+			>
+		</label>
 		{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 	</form>
 	{#snippet footer()}
@@ -153,6 +186,25 @@
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
+	}
+	.warn {
+		color: var(--danger);
+	}
+	.check {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+		cursor: pointer;
+	}
+	.check input {
+		flex: none;
+		width: 18px;
+		height: 18px;
+		margin: 2px 0 0;
+		accent-color: var(--accent);
+	}
+	.block {
+		display: block;
 	}
 	.icon-btn {
 		flex: none;

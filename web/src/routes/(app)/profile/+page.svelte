@@ -45,6 +45,8 @@
 	import { forgetOfflineData, install, pwa } from '$lib/pwa.svelte';
 	import { clearCache } from '$lib/cache';
 	import { clearRecent } from '$lib/recent';
+	import { ask, askText } from '$lib/ui/ask.svelte';
+	import { copy } from '$lib/copy';
 
 	const me = $derived(session.me!);
 	// Кабинет администратора и старосты: здесь же видны все люди группы с их ролями.
@@ -60,6 +62,8 @@
 	let totpOpen = $state(false);
 	let totpUri = $state('');
 	let totpSecret = $state('');
+	// На телефоне QR-код с того же экрана не отсканировать — даём ссылку в приложение.
+	const onPhone = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 	let code = $state('');
 	// Резервные коды: показываются после включения 2FA или по запросу нового набора.
 	let recoveryCodes = $state<string[] | null>(null);
@@ -158,7 +162,14 @@
 	}
 
 	async function disableTotp() {
-		const c = prompt('Введите код из приложения, чтобы отключить 2FA');
+		const c = await askText('Введите 6 цифр из приложения-аутентификатора', {
+			title: 'Отключить 2FA',
+			ok: 'Отключить',
+			danger: true,
+			inputmode: 'numeric',
+			autocomplete: 'one-time-code',
+			maxlength: 7
+		});
 		if (!c) return;
 		try {
 			await post('/api/me/totp/disable', { code: c });
@@ -186,9 +197,10 @@
 	async function logout() {
 		if (
 			offline.pending > 0 &&
-			!window.confirm(
-				`Без сети сделано действий: ${offline.pending}. Они ещё не отправлены и пропадут. Выйти?`
-			)
+			!(await ask(
+				`Без сети сделано действий: ${offline.pending}. Они ещё не отправлены и пропадут. Выйти?`,
+				{ title: 'Выйти из аккаунта', ok: 'Выйти', danger: true }
+			))
 		)
 			return;
 		try {
@@ -454,27 +466,52 @@
 			/>
 		{/await}
 	{:else}
-		<div class="stack">
-			<p class="muted">Отсканируйте код приложением-аутентификатором и введите 6 цифр.</p>
+		<form
+			id="totp-form"
+			class="stack"
+			onsubmit={(e) => {
+				e.preventDefault();
+				finishTotp();
+			}}
+		>
+			<p class="muted">
+				{onPhone
+					? 'Добавьте ключ в приложение-аутентификатор на этом телефоне или отсканируйте QR-код с другого устройства.'
+					: 'Отсканируйте QR-код приложением-аутентификатором на телефоне.'}
+				Подойдёт любое: «Пароли» на iPhone, Google Authenticator, Яндекс Ключ, Microsoft Authenticator.
+			</p>
+			{#if onPhone && totpUri}
+				<!-- otpauth:// открывает приложение-аутентификатор этого телефона: QR с того же экрана не
+				     отсканировать. -->
+				<Button variant="primary" href={totpUri}>Добавить в приложение на этом телефоне</Button>
+			{/if}
 			{#if totpUri}
 				{#await import('$lib/ui/QrCode.svelte') then m}
 					<div class="qr"><m.default value={totpUri} label="QR-код" /></div>
 				{/await}
 			{/if}
-			<p class="hint">Ключ вручную: <code>{totpSecret}</code></p>
-			<input
-				class="input num"
-				inputmode="numeric"
-				autocomplete="one-time-code"
-				bind:value={code}
-				aria-label="Код"
-			/>
-		</div>
+			<div class="secret">
+				<span class="hint">Или введите ключ вручную:</span>
+				<code class="num">{totpSecret.replace(/(.{4})/g, '$1 ').trim()}</code>
+				<Button size="s" onclick={() => copy(totpSecret, 'Ключ скопирован')}>Скопировать</Button>
+			</div>
+			<div>
+				<label class="label" for="totp-code">Код из приложения — 6 цифр</label>
+				<input
+					id="totp-code"
+					class="input num"
+					inputmode="numeric"
+					autocomplete="one-time-code"
+					maxlength="7"
+					bind:value={code}
+				/>
+			</div>
+		</form>
 	{/if}
 	{#snippet footer()}
 		{#if !recoveryCodes}
 			<Button onclick={() => (totpOpen = false)}>Отмена</Button>
-			<Button variant="primary" onclick={finishTotp}>Включить</Button>
+			<Button variant="primary" type="submit" form="totp-form">Включить</Button>
 		{/if}
 	{/snippet}
 </Modal>
@@ -625,9 +662,28 @@
 		flex-wrap: wrap;
 	}
 	.qr {
-		width: 200px;
+		width: 210px;
 		align-self: center;
 		border-radius: var(--r);
+	}
+	.secret {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px 10px;
+	}
+	.secret .hint {
+		width: 100%;
+	}
+	.secret code {
+		padding: 6px 10px;
+		border-radius: 8px;
+		background: var(--surface-2);
+		font-size: 14px;
+		letter-spacing: 0.04em;
+		/* Переносим между группами по 4 знака, а не посреди группы. */
+		overflow-wrap: anywhere;
+		user-select: all;
 	}
 	.kv dd.low {
 		color: var(--danger);

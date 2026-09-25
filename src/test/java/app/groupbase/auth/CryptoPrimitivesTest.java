@@ -80,6 +80,9 @@ class CryptoPrimitivesTest {
     assertThat(Totp.base32("foobar".getBytes(StandardCharsets.US_ASCII))).isEqualTo("MZXW6YTBOI");
     assertThat(Totp.uri("group base", "ivan", new byte[] {1}))
         .startsWith("otpauth://totp/group%20base:ivan?secret=AE&issuer=group%20base");
+    // Двоеточие в названии сайта — не разделитель «сайт:аккаунт» для приложения.
+    assertThat(Totp.uri("МТУСИ: БИН", "ivan", new byte[] {1}))
+        .startsWith("otpauth://totp/%D0%9C%D0%A2%D0%A3%D0%A1%D0%98%20%20%D0%91%D0%98%D0%9D:ivan?");
   }
 
   @Test

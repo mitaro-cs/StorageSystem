@@ -1,13 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { ApiError, get, post } from '$lib/api';
 	import Button from '$lib/ui/Button.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import QrLogin from '$lib/auth/QrLogin.svelte';
 	import { Fingerprint, X } from '@lucide/svelte';
-	import { loginWithPasskey, passkeyError, passkeysSupported } from '$lib/auth/passkey';
+	import {
+		loginWithPasskey,
+		passkeyAutofill,
+		passkeyError,
+		passkeysSupported
+	} from '$lib/auth/passkey';
 	import { firstName } from '$lib/names';
 	import {
 		forgetAccount,
@@ -46,7 +51,42 @@
 		canPasskey = passkeysSupported();
 		const s = await get<{ needed: boolean }>('/api/setup', { anonymous: true });
 		if (s.needed) goto('/setup', { replaceState: true });
+		else startAutofill();
 	});
+
+	// Ключ в подсказке у поля логина — как сохранённый пароль: выбрали — и вошли. Запрос ждёт,
+	// пока человек выберет ключ; кнопка «Войти по отпечатку» его отменяет и спрашивает сама.
+	let autofill: AbortController | null = null;
+	let gone = false;
+	onDestroy(() => {
+		gone = true;
+		autofill?.abort();
+	});
+
+	async function startAutofill() {
+		if (gone || autofill || !canPasskey || ticket || !(await passkeyAutofill())) return;
+		const ctl = new AbortController();
+		autofill = ctl;
+		const began = Date.now();
+		try {
+			await loginWithPasskey({ autofill: true, signal: ctl.signal });
+			await entered();
+		} catch (err) {
+			if (ctl.signal.aborted) return;
+			// Ключ выбрали, но он не подошёл — объясняем; кнопка ниже попробует ещё раз.
+			if (!(err instanceof DOMException)) error = passkeyError(err, 'login');
+			// Запрос прождал до конца (5 минут) — ждём дальше. Отказ сразу — браузер не хочет
+			// подсказывать: не повторяем, чтобы не спрашивать сервер по кругу.
+			else if (Date.now() - began > 60_000) setTimeout(startAutofill, 1000);
+		} finally {
+			if (autofill === ctl) autofill = null;
+		}
+	}
+
+	function stopAutofill() {
+		autofill?.abort();
+		autofill = null;
+	}
 
 	function choose(a: KnownAccount) {
 		chosen = a;
@@ -68,11 +108,13 @@
 	async function passkey() {
 		error = '';
 		keyBusy = true;
+		stopAutofill();
 		try {
 			await loginWithPasskey();
 			await entered();
 		} catch (err) {
-			error = passkeyError(err);
+			error = passkeyError(err, 'login');
+			startAutofill();
 		} finally {
 			keyBusy = false;
 		}
@@ -105,6 +147,7 @@
 					{ anonymous: true }
 				);
 				if (r.status === 'totp') {
+					stopAutofill();
 					ticket = r.ticket ?? null;
 					busy = false;
 					return;
@@ -180,6 +223,11 @@
 						autocomplete="one-time-code"
 						maxlength="7"
 						bind:value={code}
+						oninput={(e) => {
+							// Шесть цифр (в том числе подставленные iPhone из «Паролей») — сразу проверяем.
+							if (!busy && /^\d{6}$/.test(e.currentTarget.value.replace(/\s/g, '')))
+								e.currentTarget.form?.requestSubmit();
+						}}
 						required
 					/>
 				{/if}
@@ -235,7 +283,7 @@
 					<input
 						id="username"
 						class="input"
-						autocomplete="username"
+						autocomplete="username webauthn"
 						autocapitalize="none"
 						spellcheck="false"
 						bind:value={username}
@@ -249,7 +297,7 @@
 					id="password"
 					class="input"
 					type="password"
-					autocomplete="current-password"
+					autocomplete="current-password webauthn"
 					bind:this={passwordEl}
 					bind:value={password}
 					required

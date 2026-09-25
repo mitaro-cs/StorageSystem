@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { b64u, deviceName, fromB64u, passkeysSupported } from './passkey';
+import { b64u, deviceName, fromB64u, passkeyError, passkeysSupported } from './passkey';
 
 describe('ключи входа', () => {
 	it('base64url туда и обратно, без «=», «+», «/»', () => {
@@ -33,5 +33,25 @@ describe('ключи входа', () => {
 		expect(deviceName('Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0)')).toBe('Mac');
 		expect(deviceName('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')).toBe('Windows');
 		expect(deviceName('curl')).toBe('Ключ');
+	});
+});
+
+describe('passkeyError', () => {
+	const dom = (name: string) => new DOMException('x', name);
+
+	it('при входе «отменено» значит и «на устройстве нет ключа»', () => {
+		expect(passkeyError(dom('NotAllowedError'), 'login')).toMatch(/нет ключа/);
+		expect(passkeyError(dom('NotAllowedError'))).toMatch(/^Отменено/);
+	});
+
+	it('ключ безопасности без хранения входа — подсказываем, какой нужен', () => {
+		expect(passkeyError(dom('NotSupportedError'), 'add', true)).toMatch(/FIDO2/);
+		expect(passkeyError(dom('NotSupportedError'))).toMatch(/не умеет/);
+	});
+
+	it('не по адресу сайта и прочее', () => {
+		expect(passkeyError(dom('SecurityError'))).toMatch(/https/);
+		expect(passkeyError(dom('InvalidStateError'))).toBe('Этот ключ уже добавлен');
+		expect(passkeyError(new Error('Сервер недоступен'))).toBe('Сервер недоступен');
 	});
 });

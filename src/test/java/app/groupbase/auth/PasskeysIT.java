@@ -125,12 +125,23 @@ class PasskeysIT extends IntegrationTest {
     assertThat(opts.json().get("rp").get("id").asString()).isEqualTo("localhost");
     assertThat(opts.json().get("authenticatorSelection").get("userVerification").asString())
         .isEqualTo("required");
+    assertThat(opts.json().get("authenticatorSelection").has("authenticatorAttachment"))
+        .as("обычный ключ — где удобнее: в телефоне, ноутбуке или на USB")
+        .isFalse();
+    var usb =
+        api.post("/api/me/passkeys/options", Map.of("password", PASSWORD, "securityKey", true));
+    assertThat(usb.json().get("authenticatorSelection").get("authenticatorAttachment").asString())
+        .isEqualTo("cross-platform");
+    assertThat(usb.json().get("hints").get(0).asString()).isEqualTo("security-key");
 
     var added = register(api, key, PASSWORD);
     assertThat(added.status()).as(added.body()).isEqualTo(200);
     assertThat(added.json().get("name").asString()).isEqualTo("iPhone");
     JsonNode list = api.get("/api/me/passkeys").json();
     assertThat(list.size()).isEqualTo(1);
+    assertThat(list.get(0).get("site").asString())
+        .as("для какого адреса ключ — на другом им не войти")
+        .isEqualTo("localhost");
 
     // Тот же ключ второй раз не добавить — браузер получит его в excludeCredentials.
     var again = api.post("/api/me/passkeys/options", Map.of("password", PASSWORD));

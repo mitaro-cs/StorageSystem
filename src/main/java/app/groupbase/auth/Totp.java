@@ -112,8 +112,13 @@ public final class Totp {
     return sb.toString();
   }
 
-  /** Ссылка для приложения-аутентификатора (QR-код рисует фронт). */
+  /**
+   * Ссылка для приложения-аутентификатора (QR-код рисует фронт). Двоеточие в названии сайта или
+   * логине приложения приняли бы за разделитель «сайт:аккаунт» — заменяем его.
+   */
   public static String uri(String issuer, String account, byte[] secret) {
+    issuer = issuer.replace(':', ' ').strip();
+    account = account.replace(':', ' ').strip();
     String label = enc(issuer) + ":" + enc(account);
     return "otpauth://totp/"
         + label

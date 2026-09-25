@@ -36,7 +36,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class Passkeys {
 
-  public record Key(long id, String name, long createdAt, Long lastUsedAt) {}
+  /**
+   * @param site домен сайта, для которого создан ключ: на другом адресе (сменился туннель) им не
+   *     войти — интерфейс так и пишет
+   */
+  public record Key(long id, String name, long createdAt, Long lastUsedAt, String site) {}
 
   /**
    * Ответ браузера при создании ключа (всё — base64url).
@@ -113,9 +117,17 @@ public class Passkeys {
    * Параметры для {@code navigator.credentials.create}. Пароль подтверждается заново: иначе
    * украденная сессия могла бы навсегда закрепить чужой ключ. В окне хоста на его компьютере — без
    * пароля.
+   *
+   * @param securityKey ключ безопасности (USB или NFC, например YubiKey): браузер сразу предложит
+   *     приложить его, а не сохранять ключ в телефоне
    */
   public Map<String, Object> registrationOptions(
-      Actor actor, String password, String origin, String ip, String siteName) {
+      Actor actor,
+      String password,
+      String origin,
+      String ip,
+      String siteName,
+      boolean securityKey) {
     User u = users.find(actor.id()).orElseThrow(ApiException::unauthorized);
     if (!actor.local()) {
       long wait = throttle.retryAfter(ip, u.username());
@@ -152,10 +164,15 @@ public class Passkeys {
             Map.of("type", "public-key", "alg", WebAuthn.RS256)));
     o.put("timeout", TTL.toMillis());
     o.put("attestation", "none");
-    o.put(
-        "authenticatorSelection",
-        Map.of(
-            "residentKey", "required", "requireResidentKey", true, "userVerification", "required"));
+    Map<String, Object> selection = new LinkedHashMap<>();
+    selection.put("residentKey", "required");
+    selection.put("requireResidentKey", true);
+    selection.put("userVerification", "required");
+    if (securityKey) {
+      selection.put("authenticatorAttachment", "cross-platform");
+      o.put("hints", List.of("security-key"));
+    }
+    o.put("authenticatorSelection", selection);
     o.put(
         "excludeCredentials",
         credentialIds(u.id()).stream()
@@ -211,7 +228,7 @@ public class Passkeys {
               .query(Long.class)
               .single();
       audit.log(actor, null, "user.passkey_add", "user", actor.id());
-      return new Key(keyId, name(k.name()), now, null);
+      return new Key(keyId, name(k.name()), now, null, rpId);
     } catch (WebAuthn.Invalid e) {
       throw new ApiException(
           HttpStatus.BAD_REQUEST,
@@ -222,7 +239,7 @@ public class Passkeys {
 
   public List<Key> list(Actor actor) {
     return db.sql(
-            "SELECT id, name, created_at, last_used_at FROM passkeys WHERE user_id = ?"
+            "SELECT id, name, created_at, last_used_at, rp_id FROM passkeys WHERE user_id = ?"
                 + " ORDER BY created_at")
         .param(actor.id())
         .query(
@@ -231,7 +248,8 @@ public class Passkeys {
                     rs.getLong(1),
                     rs.getString(2),
                     rs.getLong(3),
-                    rs.getObject(4) == null ? null : rs.getLong(4)))
+                    rs.getObject(4) == null ? null : rs.getLong(4),
+                    rs.getString(5)))
         .list();
   }
 

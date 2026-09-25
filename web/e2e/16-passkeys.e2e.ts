@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { STUDENT, watchConsole } from './helpers';
 
-test('вход по отпечатку: ключ добавляется в профиле, потом вход без пароля', async ({
+test('вход по ключу: добавляется в профиле, потом вход без пароля — подсказкой и кнопкой', async ({
 	page,
 	context
 }) => {
@@ -39,7 +39,20 @@ test('вход по отпечатку: ключ добавляется в пр�
 	await expect(dialog).toBeHidden({ timeout: 20_000 });
 	await expect(page.getByText(/^добавлен /)).toBeVisible();
 
-	// Выходим совсем (без куки) и входим одним ключом.
+	// Выходим совсем (без куки): ключ подсказывается прямо в поле логина, как сохранённый пароль, —
+	// выбрали и вошли. Виртуальный ключ Chromium подтверждает выбор сам.
+	await context.clearCookies();
+	await page.goto(at('/login'));
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('Привет', {
+		timeout: 20_000
+	});
+
+	// Кнопкой — где браузер не умеет подсказывать ключ в поле.
+	await page.addInitScript(() => {
+		Object.defineProperty(PublicKeyCredential, 'isConditionalMediationAvailable', {
+			value: async () => false
+		});
+	});
 	await context.clearCookies();
 	await page.goto(at('/login'));
 	await page.getByRole('button', { name: 'Войти по отпечатку или лицу' }).click();
