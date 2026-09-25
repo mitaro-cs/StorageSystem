@@ -72,4 +72,16 @@ class DesktopBridgeTest {
     b.setAvailableUpdate("");
     assertThat(b.availableUpdate()).isNull();
   }
+
+  @Test
+  void shellIsAskedToCheckForUpdatesAtMostOncePerMinute() {
+    DesktopBridge b = bridge(true);
+    assertThat(b.requestCheck()).isTrue();
+    assertThat(b.requestCheck()).as("сразу ещё раз").isFalse();
+    clock.advance(Duration.ofSeconds(59));
+    assertThat(b.requestCheck()).isFalse();
+    clock.advance(Duration.ofSeconds(2));
+    assertThat(b.requestCheck()).isTrue();
+    assertThat(bridge(false).requestCheck()).as("не в приложении хоста").isFalse();
+  }
 }

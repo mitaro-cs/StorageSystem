@@ -22,12 +22,31 @@
 		}
 	}
 
-	onMount(async () => {
-		try {
-			s = await get<Status>('/api/admin/status');
-		} catch (e) {
-			toastError(e);
-		}
+	onMount(() => {
+		let alive = true;
+		(async () => {
+			try {
+				s = await get<Status>('/api/admin/status');
+			} catch (e) {
+				toastError(e);
+				return;
+			}
+			// В окне хоста сервер просит оболочку проверить обновления сейчас — её ответ приходит
+			// через пару секунд, и тогда появится кнопка «Обновить сейчас».
+			for (const wait of [4000, 12000, 30000]) {
+				if (!alive || !session.me?.hostWindow || s?.canUpdate) break;
+				await new Promise((r) => setTimeout(r, wait));
+				if (!alive) break;
+				try {
+					s = await get<Status>('/api/admin/status');
+				} catch {
+					break;
+				}
+			}
+		})();
+		return () => {
+			alive = false;
+		};
 	});
 
 	async function open(what: 'data' | 'logs') {
@@ -56,12 +75,25 @@
 				>Обновить сейчас</Button
 			>
 		</div>
+	{:else if s.update && s.desktop}
+		<!-- Сайт работает в приложении хоста, а страницу открыли не в его окне (например, с телефона). -->
+		<div class="card update">
+			<ArrowUpCircle size={22} />
+			<span>
+				<strong>Доступна новая версия {s.update.version}</strong>
+				<span class="small muted"
+					>Обновить можно одной кнопкой в окне groupbase на компьютере хоста: «Настройки → Сервер →
+					Состояние» или значок groupbase в строке меню (в трее).</span
+				>
+			</span>
+		</div>
 	{:else if s.update}
 		<a class="card update" href={s.update.url} target="_blank" rel="noreferrer">
 			<ArrowUpCircle size={22} />
 			<span>
 				<strong>Доступна новая версия {s.update.version}</strong>
-				<span class="small muted">Скачайте установщик со страницы выпуска — данные сохранятся.</span
+				<span class="small muted"
+					>Скачайте groupbase.jar со страницы выпуска и перезапустите сервер — данные сохранятся.</span
 				>
 			</span>
 		</a>

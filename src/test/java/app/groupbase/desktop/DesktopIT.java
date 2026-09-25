@@ -158,13 +158,14 @@ class DesktopIT extends IntegrationTest {
   }
 
   @Test
-  void updateButtonOnlyInHostWindowWhenShellFoundAVersion() {
+  void updateButtonInHostWindowWheneverANewVersionIsKnown() {
     ApiClient host = client();
     admin();
     host.get(enterPath());
-    // Оболочка ещё ничего не нашла — обновлять нечего.
+    // Новой версии не знает ни оболочка, ни сервер — кнопки нет. А «Обновить» из меню или старой
+    // страницы всё равно передаётся оболочке: она проверит сама и скажет, что версия последняя.
     assertThat(host.get("/api/admin/status").json().get("canUpdate").asBoolean()).isFalse();
-    assertThat(host.post("/api/desktop/update", Map.of()).status()).isEqualTo(403);
+    assertThat(host.post("/api/desktop/update", Map.of()).status()).isEqualTo(200);
 
     bridge.setAvailableUpdate("9.9.9");
     try {

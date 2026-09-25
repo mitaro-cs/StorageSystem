@@ -126,9 +126,32 @@ public class DesktopBridge {
     this.availableUpdate = version == null || version.isBlank() ? null : version.strip();
   }
 
-  /** Попросить оболочку скачать и установить обновление (она остановит сервер сама). */
+  /**
+   * Попросить оболочку скачать и установить обновление: она сама проверит версию, скачает её, пока
+   * сайт работает, остановит сервер, установит и перезапустится.
+   */
   public void requestUpdate() {
     event("update", Map.of());
+  }
+
+  static final long CHECK_EVERY_MS = 60_000;
+  private volatile long checkAskedAt = Long.MIN_VALUE;
+
+  /**
+   * Попросить оболочку проверить обновления прямо сейчас — не чаще раза в минуту. Нужно, когда
+   * «Состояние» открыли раньше, чем оболочка проверила сама (через 20 секунд после запуска и дальше
+   * раз в 6 часов).
+   *
+   * @return true, если просьба ушла оболочке
+   */
+  public synchronized boolean requestCheck() {
+    long now = clock.millis();
+    if (!enabled || (checkAskedAt != Long.MIN_VALUE && now - checkAskedAt < CHECK_EVERY_MS)) {
+      return false;
+    }
+    checkAskedAt = now;
+    event("check-update", Map.of());
+    return true;
   }
 
   public boolean restartRequested() {

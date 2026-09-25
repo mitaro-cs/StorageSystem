@@ -58,6 +58,8 @@ struct App {
     update_item: Mutex<Option<MenuItem<Wry>>>,
     /// Найденная новая версия (для пункта меню и кнопки в «Состоянии»).
     update: Mutex<Option<String>>,
+    /// Версия, про которую уже спросили «Обновить сейчас?» — второй раз за запуск не спрашиваем.
+    offered: Mutex<Option<String>>,
     updating: Mutex<bool>,
     data: PathBuf,
 }
@@ -95,6 +97,7 @@ fn main() {
                 copy_item: Mutex::new(None),
                 update_item: Mutex::new(None),
                 update: Mutex::new(None),
+                offered: Mutex::new(None),
                 updating: Mutex::new(false),
                 data,
             });
@@ -411,11 +414,17 @@ fn start_server(app: &AppHandle) {
     log(app, &format!("сервер запущен (pid {})", child.id()));
     let stdout = child.stdout.take();
     let child = Arc::new(Mutex::new(child));
+    // Перезапущенный сервер не знает, что новая версия уже найдена, — иначе кнопка «Обновить»
+    // пропала бы до следующей проверки через 6 часов.
+    let known = st.update.lock().unwrap().clone();
     {
         let mut server = st.server.lock().unwrap();
         server.stdin = child.lock().unwrap().stdin.take();
         server.child = Some(child.clone());
         server.quitting = false;
+        if let Some(version) = known {
+            send(&mut server, &format!("update-available {version}"));
+        }
     }
     if let Some(out) = stdout {
         let app = app.clone();
@@ -518,6 +527,8 @@ fn on_event(app: &AppHandle, v: &Value) {
         "error" => set_status(app, &text("message"), true),
         // «Обновить» в «Настройки → Сервер → Состояние».
         "update" => install_update(app),
+        // «Состояние» открыли раньше, чем оболочка проверила обновления сама.
+        "check-update" => check_update(app, false),
         _ => {}
     }
 }
@@ -749,7 +760,16 @@ fn check_update(app: &AppHandle, interactive: bool) {
             Ok(Some(update)) => {
                 let version = update.version.clone();
                 remember_update(&app, Some(&version));
-                if interactive {
+                // Сами спрашиваем один раз за запуск: хосту не нужно искать кнопку в настройках.
+                let first_time = {
+                    let st = app.state::<App>();
+                    let mut offered = st.offered.lock().unwrap();
+                    let new = offered.as_deref() != Some(version.as_str());
+                    *offered = Some(version.clone());
+                    new
+                };
+                let busy = *app.state::<App>().updating.lock().unwrap();
+                if (interactive || first_time) && !busy {
                     ask_update(&app, &version);
                 }
             }
@@ -826,10 +846,20 @@ fn install_update(app: &AppHandle) {
     show_splash(app, "Скачиваем обновление…", false);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
+        // Не вышло — окно возвращается на сайт (он работает на прежней версии), а причина — в окне
+        // сообщения: заставка с ошибкой здесь не нужна, сервер ведь не падал.
         let fail = |app: &AppHandle, why: String| {
             log(app, &format!("обновление: {why}"));
             *app.state::<App>().updating.lock().unwrap() = false;
-            show_splash(app, &format!("Не удалось обновить: {why}"), true);
+            set_status(app, "Готово", false);
+            send_enter(app);
+            info(
+                app,
+                &format!(
+                    "Не удалось обновить groupbase: {why}\n\nСайт работает на прежней версии. \
+                     Проверьте интернет и нажмите «Обновить» ещё раз."
+                ),
+            );
         };
         let update = match app.updater() {
             Ok(updater) => updater.check().await,
@@ -840,7 +870,9 @@ fn install_update(app: &AppHandle) {
             Ok(None) => {
                 *app.state::<App>().updating.lock().unwrap() = false;
                 remember_update(&app, None);
+                set_status(&app, "Готово", false);
                 send_enter(&app);
+                info(&app, "У вас уже последняя версия groupbase.");
                 return;
             }
             Err(e) => return fail(&app, e.to_string()),
@@ -869,10 +901,7 @@ fn install_update(app: &AppHandle) {
             .await
         {
             Ok(b) => b,
-            Err(e) => {
-                send_enter(&app);
-                return fail(&app, e.to_string());
-            }
+            Err(e) => return fail(&app, e.to_string()),
         };
         set_status(&app, "Устанавливаем обновление…", false);
         // Файлы Java и сервера будут заменены — сервер должен остановиться до установки.
@@ -883,9 +912,18 @@ fn install_update(app: &AppHandle) {
                 app.restart();
             }
             Err(e) => {
+                // Сервер уже остановлен: запускаем прежнюю версию, окно вернётся на сайт по «ready».
                 app.state::<App>().server.lock().unwrap().quitting = false;
+                log(&app, &format!("обновление: {e}"));
+                *app.state::<App>().updating.lock().unwrap() = false;
                 start_server(&app);
-                fail(&app, e.to_string());
+                info(
+                    &app,
+                    &format!(
+                        "Не удалось установить обновление: {e}\n\nСайт снова работает на прежней \
+                         версии."
+                    ),
+                );
             }
         }
     });

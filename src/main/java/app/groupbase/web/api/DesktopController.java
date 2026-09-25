@@ -81,11 +81,15 @@ class DesktopController {
         .orElseGet(() -> redirect("/login"));
   }
 
-  /** «Обновить сейчас»: оболочка скачает новую версию, остановит сервер и перезапустится. */
+  /**
+   * «Обновить сейчас»: оболочка сама проверит версию, скачает её, остановит сервер, установит и
+   * перезапустится. Ей не нужно было находить обновление заранее — хватит того, что его нашёл
+   * сервер.
+   */
   @Require(Permission.MANAGE_INSTANCE)
   @PostMapping("/update")
   Map<String, String> update(Actor actor) {
-    if (!bridge.enabled() || !actor.local() || bridge.availableUpdate() == null) {
+    if (!bridge.enabled() || !actor.local()) {
       throw ApiException.forbidden("Обновление запускается в приложении на компьютере хоста");
     }
     bridge.requestUpdate();

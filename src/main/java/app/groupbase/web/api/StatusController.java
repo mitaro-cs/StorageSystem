@@ -57,6 +57,12 @@ class StatusController {
     long db = size(props.databaseFile()) + size(data.resolve("groupbase.db-wal"));
     long files = tree(props.filesDir()) + tree(data.resolve("avatars"));
     long free = Files.exists(data) ? Files.getFileStore(data).getUsableSpace() : 0;
+    // В окне хоста новая версия ставится одной кнопкой — чья бы проверка её ни нашла.
+    boolean host = bridge.enabled() && actor.local();
+    if (host && bridge.availableUpdate() == null) {
+      bridge.requestCheck();
+    }
+    UpdateCheck.Update update = update();
     return new View(
         Main.version(),
         props.desktop().enabled(),
@@ -64,8 +70,8 @@ class StatusController {
         actor.local() ? data.toAbsolutePath().toString() : null,
         new Sizes(db, files, free),
         backups.status(),
-        update(),
-        bridge.enabled() && actor.local() && bridge.availableUpdate() != null);
+        update,
+        host && update != null);
   }
 
   /** Новая версия: в приложении хоста её находит оболочка, на своём сервере — запрос к GitHub. */
