@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -20,6 +21,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -29,7 +32,7 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Отправка Web Push. Запросы уходят только на домены служб push из настроек (сервер не должен
  * ходить по произвольным адресам из подписки). Мёртвые подписки (404/410) удаляются. В логах —
- * только домен службы, без адреса подписки.
+ * только домен службы и её код причины, без адреса подписки.
  */
 @Component
 public class PushSender implements DisposableBean {
@@ -37,7 +40,24 @@ public class PushSender implements DisposableBean {
   /** Содержимое уведомления; url — путь внутри приложения, он же тег для замены дублей. */
   public record Message(String kind, String title, String body, String url, boolean urgent) {}
 
+  /**
+   * Итог пробной отправки: сколько устройств приняли уведомление, а если какое-то нет — ответ
+   * службы (код HTTP или -1, если до неё не достучались, и её причина, например BadJwtToken).
+   */
+  public record Report(int devices, int delivered, int status, String reason) {}
+
+  /** Ответ службы на одну отправку. */
+  record Outcome(int status, String reason) {
+    boolean ok() {
+      return status >= 200 && status < 300;
+    }
+  }
+
   private static final Logger log = LoggerFactory.getLogger(PushSender.class);
+
+  /** Причина отказа в ответе службы: {@code "reason": "…"} (Apple), errno (Mozilla), message. */
+  private static final Pattern REASON =
+      Pattern.compile("\"(?:reason|errno|message)\"\\s*:\\s*\"?([^\",}]*)");
 
   private record Jwt(String token, long exp) {}
 
@@ -95,43 +115,48 @@ public class PushSender implements DisposableBean {
   }
 
   /** Сразу и с результатом — для кнопки «Проверить уведомления»: сколько устройств приняли. */
-  public int sendNow(Collection<Sub> targets, Message m) {
+  public Report sendNow(Collection<Sub> targets, Message m) {
     if (!enabled()) {
-      return 0;
+      return new Report(targets.size(), 0, 0, "");
     }
     byte[] payload = payload(m);
-    List<Future<Integer>> results = new ArrayList<>();
+    List<Future<Outcome>> results = new ArrayList<>();
     for (Sub s : targets) {
       results.add(pool.submit(() -> deliver(s, payload, m.urgent())));
     }
     int ok = 0;
-    for (Future<Integer> f : results) {
+    Outcome failed = null;
+    for (Future<Outcome> f : results) {
       try {
-        int status = f.get();
-        if (status >= 200 && status < 300) {
+        Outcome o = f.get();
+        if (o.ok()) {
           ok++;
+        } else {
+          failed = o;
         }
       } catch (ExecutionException e) {
-        // ошибка уже записана в deliver
+        failed = new Outcome(-1, "");
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         break;
       }
     }
-    return ok;
+    return failed == null
+        ? new Report(targets.size(), ok, 0, "")
+        : new Report(targets.size(), ok, failed.status(), failed.reason());
   }
 
-  int deliver(Sub s, byte[] payload, boolean urgent) {
+  Outcome deliver(Sub s, byte[] payload, boolean urgent) {
     URI uri;
     try {
       uri = URI.create(s.endpoint());
     } catch (IllegalArgumentException e) {
       subs.deleteById(s.id());
-      return -1;
+      return new Outcome(410, "");
     }
     if (!allowed(uri)) {
       subs.deleteById(s.id());
-      return -1;
+      return new Outcome(410, "");
     }
     try {
       byte[] body =
@@ -146,41 +171,70 @@ public class PushSender implements DisposableBean {
               .header("Authorization", "vapid t=" + jwt(uri) + ", k=" + keys.publicKey())
               .POST(HttpRequest.BodyPublishers.ofByteArray(body))
               .build();
-      int status = http.send(req, HttpResponse.BodyHandlers.discarding()).statusCode();
+      HttpResponse<byte[]> res = http.send(req, HttpResponse.BodyHandlers.ofByteArray());
+      int status = res.statusCode();
       if (status >= 200 && status < 300) {
         subs.ok(s.id(), clock.millis());
-      } else if (status == 404 || status == 410) {
+        return new Outcome(status, "");
+      }
+      String reason = reason(res.body());
+      if (status == 404 || status == 410) {
         subs.deleteById(s.id());
       } else {
         subs.failed(s.id());
-        log.warn("Служба push {} ответила {}", uri.getHost(), status);
+        log.warn(
+            "Служба push {} ответила {}{}",
+            uri.getHost(),
+            status,
+            reason.isEmpty() ? "" : " (" + reason + ")");
       }
-      return status;
+      return new Outcome(status, reason);
     } catch (IOException | IllegalArgumentException e) {
       subs.failed(s.id());
       log.warn("Не удалось отправить push в {}: {}", uri.getHost(), e.getClass().getSimpleName());
-      return -1;
+      return new Outcome(-1, "");
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      return -1;
+      return new Outcome(-1, "");
     }
   }
 
-  /** JWT на 12 часов для службы; переиспользуется, пока до истечения больше часа. */
+  /**
+   * Код причины из ответа службы: у Apple — {@code {"reason":"BadJwtToken"}}, у Mozilla — {@code
+   * errno}, у Google — первая строка текста. Только латиница и цифры, не длиннее 60 символов: в лог
+   * и в интерфейс не должно попасть ничего лишнего.
+   */
+  static String reason(byte[] body) {
+    if (body == null || body.length == 0) {
+      return "";
+    }
+    String text = new String(body, 0, Math.min(body.length, 2000), StandardCharsets.UTF_8);
+    Matcher m = REASON.matcher(text);
+    String r = m.find() ? m.group(1) : text.lines().findFirst().orElse("");
+    r = r.replaceAll("[^A-Za-z0-9 _.:-]", "").strip();
+    return r.length() > 60 ? r.substring(0, 60) : r;
+  }
+
+  /**
+   * JWT на 12 часов для службы; переиспользуется, пока до истечения больше часа и не сменился
+   * контакт (адрес сайта).
+   */
   String jwt(URI endpoint) {
     String aud =
         endpoint.getScheme()
             + "://"
             + endpoint.getHost()
             + (endpoint.getPort() == -1 ? "" : ":" + endpoint.getPort());
+    String sub = keys.subject();
+    String key = aud + " " + sub;
     long now = clock.millis() / 1000;
-    Jwt cached = jwts.get(aud);
+    Jwt cached = jwts.get(key);
     if (cached != null && cached.exp() - now > 3600) {
       return cached.token();
     }
     long exp = now + 12 * 3600;
-    String token = PushCrypto.vapidJwt(aud, keys.subject(), exp, keys.privateKey());
-    jwts.put(aud, new Jwt(token, exp));
+    String token = PushCrypto.vapidJwt(aud, sub, exp, keys.privateKey());
+    jwts.put(key, new Jwt(token, exp));
     return token;
   }
 

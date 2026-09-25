@@ -48,7 +48,14 @@ class NotificationsIT extends IntegrationTest {
           byte[] body = ex.getRequestBody().readAllBytes();
           String path = ex.getRequestURI().getPath();
           inbox.add(new Received(path, ex.getRequestHeaders(), body));
-          ex.sendResponseHeaders(path.endsWith("/gone") ? 410 : 201, -1);
+          if (path.endsWith("/reject")) {
+            // Так отвечает служба Apple на подпись с неподходящим контактом (sub).
+            byte[] reason = "{\"reason\":\"BadJwtToken\"}".getBytes(StandardCharsets.UTF_8);
+            ex.sendResponseHeaders(403, reason.length);
+            ex.getResponseBody().write(reason);
+          } else {
+            ex.sendResponseHeaders(path.endsWith("/gone") ? 410 : 201, -1);
+          }
           ex.close();
         });
     server.start();
@@ -171,6 +178,9 @@ class NotificationsIT extends IntegrationTest {
     JsonNode claims = JSON.readTree(PushCrypto.unb64(jwt[1]));
     assertThat(claims.get("aud").asString())
         .isEqualTo("http://127.0.0.1:" + server.getAddress().getPort());
+    assertThat(claims.get("sub").asString())
+        .as("у сайта нет адреса https — контакт не mailto:admin@localhost (Apple отвечает 403)")
+        .isEqualTo(VapidKeys.PROJECT);
     Signature v = Signature.getInstance("SHA256withECDSAinP1363Format");
     v.initVerify(PushCrypto.publicKey(PushCrypto.unb64(publicKey)));
     v.update((jwt[0] + "." + jwt[1]).getBytes(StandardCharsets.US_ASCII));
@@ -265,8 +275,22 @@ class NotificationsIT extends IntegrationTest {
         .as("служба ответила 410 — подписка удалена")
         .isZero();
 
+    Device rejected = subscribe(u.api(), "x-" + uniq() + "/reject");
+    var refused = u.api().post("/api/push/test", null).json();
+    assertThat(refused.get("delivered").asInt()).isZero();
+    assertThat(refused.get("status").asInt()).isEqualTo(403);
+    assertThat(refused.get("reason").asString()).isEqualTo("BadJwtToken");
+    awaitPush(rejected);
+    assertThat(u.api().get("/api/me/notifications").json().get("devices").size())
+        .as("отказ службы — не повод удалять подписку сразу")
+        .isEqualTo(1);
+    long rid = u.api().get("/api/me/notifications").json().get("devices").get(0).get("id").asLong();
+    u.api().delete("/api/push/devices/" + rid);
+
     Device d = subscribe(u.api(), "ok-" + uniq());
-    assertThat(u.api().post("/api/push/test", null).json().get("delivered").asInt()).isEqualTo(1);
+    var fine = u.api().post("/api/push/test", null).json();
+    assertThat(fine.get("delivered").asInt()).isEqualTo(1);
+    assertThat(fine.get("status").asInt()).isZero();
     assertThat(open(awaitPush(d), d).get("title").asString()).isEqualTo("Уведомления работают");
     long id = u.api().get("/api/me/notifications").json().get("devices").get(0).get("id").asLong();
     assertThat(u.api().delete("/api/push/devices/" + id).status()).isEqualTo(200);

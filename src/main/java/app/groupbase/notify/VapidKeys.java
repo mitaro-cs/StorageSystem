@@ -1,5 +1,6 @@
 package app.groupbase.notify;
 
+import app.groupbase.accounts.PublicUrl;
 import app.groupbase.config.GroupbaseProperties;
 import app.groupbase.config.Secrets;
 import java.io.IOException;
@@ -8,6 +9,10 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.interfaces.ECPrivateKey;
+import java.util.Locale;
+import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -22,15 +27,33 @@ public class VapidKeys {
 
   static final String FILE = "vapid.key";
 
+  /** Контакт по умолчанию, когда у сайта нет своего адреса https: страница проекта. */
+  static final String PROJECT = "https://github.com/mitaro-cs/StorageSystem";
+
+  private static final Logger log = LoggerFactory.getLogger(VapidKeys.class);
+
+  /** Домен, которого нет в интернете: localhost, IP-адрес, .local и подобные, без точки. */
+  private static final Pattern LOCAL_DOMAIN =
+      Pattern.compile(
+          "^(localhost|[\\d.]+|\\[.*]|[^.]+|.*\\.(local|localhost|lan|home|internal|test|invalid))$");
+
   private final ECPrivateKey privateKey;
   private final String publicKey;
-  private final String subject;
+  private final String configured;
+  private final PublicUrl site;
 
-  public VapidKeys(GroupbaseProperties props, Environment env) {
+  public VapidKeys(GroupbaseProperties props, Environment env, PublicUrl site) {
     byte[] d = load(env.getProperty("GROUPBASE_VAPID_KEY"), props.secretsDir().resolve(FILE));
     this.privateKey = PushCrypto.privateKey(d);
     this.publicKey = PushCrypto.b64(PushCrypto.publicFromPrivate(d));
-    this.subject = subject(props);
+    this.site = site;
+    String s = props.push().subject();
+    this.configured = s == null ? "" : s.strip();
+    if (!configured.isEmpty() && !usable(configured)) {
+      log.warn(
+          "Контакт для служб push (push.subject) не подходит: нужен mailto: с настоящим доменом"
+              + " или https:// — используется адрес сайта");
+    }
   }
 
   /** Открытый ключ для браузера (applicationServerKey), base64url. */
@@ -42,29 +65,54 @@ public class VapidKeys {
     return privateKey;
   }
 
+  /** Контакт для служб push сейчас: адрес сайта может смениться (туннель), поэтому не кешируем. */
   String subject() {
-    return subject;
+    return subject(configured, site.get().orElse(""));
   }
 
-  /** Контакт для служб push: из настроек, иначе адрес сайта, иначе заглушка. */
-  static String subject(GroupbaseProperties props) {
-    String s = props.push().subject();
-    if (s != null && !s.isBlank()) {
-      return s.strip();
+  /**
+   * Контакт для служб push (claim {@code sub} в VAPID): из настроек, иначе адрес сайта https, иначе
+   * страница проекта. Служба Apple отвечает 403 BadJwtToken на {@code mailto:} с адресом без
+   * настоящего домена (admin@localhost, admin@127.0.0.1) — такие не отправляем никогда.
+   */
+  static String subject(String configured, String siteUrl) {
+    if (usable(configured)) {
+      return configured.strip();
     }
-    String base = props.baseUrl();
-    if (base != null && base.startsWith("https://")) {
-      return base;
+    String url = siteUrl == null ? "" : siteUrl.strip().replaceAll("/+$", "");
+    if (url.startsWith("https://") && host(url) != null) {
+      return url;
     }
-    String host = "localhost";
+    return PROJECT;
+  }
+
+  /** {@code mailto:} с доменом из интернета или {@code https://} с адресом. */
+  static boolean usable(String subject) {
+    if (subject == null || subject.isBlank()) {
+      return false;
+    }
+    String s = subject.strip();
+    if (s.startsWith("https://")) {
+      return host(s) != null;
+    }
+    if (!s.toLowerCase(Locale.ROOT).startsWith("mailto:")) {
+      return false;
+    }
+    String address = s.substring("mailto:".length());
+    int at = address.lastIndexOf('@');
+    if (at <= 0 || address.contains(" ")) {
+      return false;
+    }
+    String domain = address.substring(at + 1).toLowerCase(Locale.ROOT);
+    return !domain.isEmpty() && !LOCAL_DOMAIN.matcher(domain).matches();
+  }
+
+  private static String host(String url) {
     try {
-      if (base != null && !base.isBlank() && URI.create(base).getHost() != null) {
-        host = URI.create(base).getHost();
-      }
+      return URI.create(url).getHost();
     } catch (IllegalArgumentException e) {
-      // адрес сайта задан с ошибкой — остаётся заглушка
+      return null;
     }
-    return "mailto:admin@" + host;
   }
 
   private static byte[] load(String fromEnv, Path file) {

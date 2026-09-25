@@ -181,19 +181,20 @@ class NotificationController {
     return Map.of("status", "ok");
   }
 
-  /** Пробное уведомление на все устройства пользователя. */
+  /**
+   * Пробное уведомление на все устройства пользователя. Если служба push не приняла его — её код и
+   * причина: по ним интерфейс объясняет, что делать.
+   */
   @PostMapping("/api/push/test")
-  Map<String, Integer> test(Actor actor) {
+  PushSender.Report test(Actor actor) {
     var mine = subs.forUsers(List.of(actor.id()));
-    int delivered =
-        push.sendNow(
-            mine,
-            new PushSender.Message(
-                "test",
-                "Уведомления работают",
-                "Так будут приходить новые задания и напоминания о сроках",
-                "/notifications",
-                false));
-    return Map.of("devices", mine.size(), "delivered", delivered);
+    return push.sendNow(
+        mine,
+        new PushSender.Message(
+            "test",
+            "Уведомления работают",
+            "Так будут приходить новые задания и напоминания о сроках",
+            "/notifications",
+            false));
   }
 }

@@ -55,8 +55,8 @@ public record GroupbaseProperties(
    * Web Push. Уведомления уходят только в службы браузеров из списка — защита от запросов сервера
    * на произвольные адреса. Содержимое зашифровано для устройства (RFC 8291), службы его не видят.
    *
-   * @param subject контакт администратора для служб push (mailto: или https://); по умолчанию —
-   *     base-url
+   * @param subject контакт администратора для служб push (mailto: с настоящим доменом или
+   *     https://); по умолчанию — адрес сайта https, иначе страница проекта
    * @param allowedHosts домены служб push (совпадение домена или его поддомена)
    */
   public record Push(
@@ -65,6 +65,7 @@ public record GroupbaseProperties(
       @DefaultValue({
             "fcm.googleapis.com",
             "android.googleapis.com",
+            "jmt17.google.com",
             "push.services.mozilla.com",
             "notify.windows.com",
             "push.apple.com"

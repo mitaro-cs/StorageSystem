@@ -1,15 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Smartphone, X } from '@lucide/svelte';
+	import { Monitor, Smartphone, X } from '@lucide/svelte';
 	import { del, get, post, put } from '$lib/api';
+	import { siteUrl } from '$lib/copy';
 	import { fmtDate } from '$lib/format';
 	import {
 		currentSubscription,
 		disablePush,
 		enablePush,
+		explainPushTest,
 		needsInstallForPush,
-		pushSupported
+		pushSupported,
+		resendSubscription,
+		type PushReport
 	} from '$lib/push';
+	import { session } from '$lib/session.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import type { NotificationPrefs, NotificationSettings } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
@@ -20,8 +25,15 @@
 	let s = $state<NotificationSettings | null>(null);
 	let subscribed = $state(false);
 	let busy = $state(false);
-	const supported = pushSupported();
+	let testing = $state(false);
+	// Окно приложения на компьютере хоста уведомления системы не показывает (нет service worker и
+	// Web Push) — их включают в браузере, открыв там тот же сайт.
+	const hostWindow = session.me?.hostWindow ?? false;
+	const supported = !hostWindow && pushSupported();
 	const needsInstall = supported && needsInstallForPush();
+	const inBrowser = $derived(
+		(siteUrl().startsWith('https://') ? siteUrl() : location.origin) + '/profile#notifications'
+	);
 
 	let offlineOnly = $state(false);
 
@@ -33,6 +45,12 @@
 			offlineOnly = true;
 		}
 		subscribed = (await currentSubscription()) !== null;
+		// Сервер мог удалить подписку после неудачных отправок, а устройство считает, что всё
+		// включено: напоминаем её. Со старым ключом сервера — только включить заново.
+		if (subscribed && s?.pushEnabled) {
+			const r = await resendSubscription(s.publicKey).catch(() => 'ok' as const);
+			if (r === 'stale') subscribed = false;
+		}
 	}
 	onMount(load);
 
@@ -72,9 +90,24 @@
 	}
 
 	async function test() {
-		const r = await post<{ devices: number; delivered: number }>('/api/push/test');
-		if (r.delivered > 0) toast('Отправили — уведомление появится через несколько секунд', 'ok');
-		else toast('Не удалось доставить. Выключите и снова включите уведомления', 'error');
+		testing = true;
+		try {
+			let r = await post<PushReport>('/api/push/test');
+			// Сервер не знает это устройство — напоминаем подписку и пробуем ещё раз.
+			if (r.devices === 0 && (await resendSubscription(s?.publicKey)) === 'ok')
+				r = await post<PushReport>('/api/push/test');
+			const result = explainPushTest(r);
+			toast(result.text, result.ok ? 'ok' : 'error');
+			if (result.again) {
+				await disablePush();
+				subscribed = false;
+			}
+			await load();
+		} catch (e) {
+			toastError(e);
+		} finally {
+			testing = false;
+		}
 	}
 
 	async function removeDevice(id: number) {
@@ -101,9 +134,17 @@
 		</p>{/if}
 
 	<div class="device">
-		<span class="circle"><Smartphone size={19} /></span>
+		<span class="circle">
+			{#if hostWindow}<Monitor size={19} />{:else}<Smartphone size={19} />{/if}
+		</span>
 		<div class="grow">
-			{#if !supported}
+			{#if hostWindow}
+				<strong>На этом компьютере — через браузер</strong>
+				<span class="muted small"
+					>Окно приложения не показывает уведомления системы. Откройте сайт в Safari, Chrome или
+					Яндекс Браузере и включите их там — будут приходить, даже когда окно закрыто.</span
+				>
+			{:else if !supported}
 				<strong>Этот браузер не показывает уведомления</strong>
 				<span class="muted small">Откройте сайт в Chrome, Safari, Firefox или Яндекс Браузере</span>
 			{:else if needsInstall}
@@ -127,10 +168,14 @@
 			{/if}
 		</div>
 	</div>
-	{#if supported && !needsInstall && s?.pushEnabled}
+	{#if hostWindow}
+		<div class="row wrap">
+			<Button href={inBrowser} target="_blank">Открыть в браузере</Button>
+		</div>
+	{:else if supported && !needsInstall && s?.pushEnabled}
 		<div class="row wrap">
 			{#if subscribed}
-				<Button onclick={test}>Проверить</Button>
+				<Button onclick={test} loading={testing}>Проверить</Button>
 				<Button variant="ghost" onclick={turnOff} loading={busy}>Выключить</Button>
 			{:else}
 				<Button variant="primary" onclick={turnOn} loading={busy}>Включить уведомления</Button>
