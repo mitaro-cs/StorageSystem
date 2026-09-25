@@ -77,3 +77,44 @@ document.getElementById('logs').addEventListener('click', () => invoke('open_log
 
 listen('status', (e) => show(e.payload));
 invoke('current_status').then(show);
+
+// Вращение глобуса — как на заставке сайта (web/src/app.html): меридианы через 30° плывут слева
+// направо и гаснут у краёв. При ошибке и при отключённом в системе движении — неподвижная сетка.
+(function spin() {
+	const mark = document.querySelector('.mark');
+	const still = mark && mark.querySelector('.mer');
+	if (!still || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+	const ball = mark.querySelector('.ball');
+	const [cx, cy, r] = ['cx', 'cy', 'r'].map((a) => Number(ball.getAttribute(a)));
+	const lines = Array.from({ length: 6 }, () => {
+		const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+		p.setAttribute('class', 'spin');
+		still.parentNode.appendChild(p);
+		return p;
+	});
+	let start = 0;
+	function frame(now) {
+		requestAnimationFrame(frame);
+		const failed = document.body.classList.contains('error');
+		mark.classList.toggle('spinning', !failed);
+		if (failed) {
+			start = 0;
+			return;
+		}
+		if (!start) start = now;
+		const t = (now - start) / 1000;
+		const appear = Math.min(1, t / 0.5);
+		lines.forEach((line, k) => {
+			const lon = ((k * 30 + t * 24 + 90) % 180) - 90;
+			const s = Math.sin((lon * Math.PI) / 180);
+			line.setAttribute(
+				'd',
+				`M${cx} ${cy - r}A${Math.abs(r * s).toFixed(2)} ${r} 0 0 ${s > 0 ? 1 : 0} ${cx} ${cy + r}`
+			);
+			const edge = Math.max(0, Math.min(1, (75 - Math.abs(lon)) / 25));
+			line.style.opacity = String(Math.abs(lon) <= 30 ? 1 : edge * appear);
+		});
+	}
+	// Сначала плитка появляется с неподвижной сеткой, затем глобус начинает вращаться.
+	setTimeout(() => requestAnimationFrame(frame), 900);
+})();

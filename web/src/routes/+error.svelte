@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 
 	// Страница открылась с ошибкой: понятная причина, код (его удобно прислать старосте) и что делать.
-	// Иконка — та же стопка, что на заставке, только рассыпавшаяся.
+	// Иконка — логотип, как на заставке, только глобус покраснел и соскользнул с плеч.
 	const status = $derived(page.status);
 	const message = $derived(page.error?.message ?? '');
 	const info = $derived.by(() => {
@@ -50,12 +50,18 @@
 <svelte:head><title>{info.title} · groupbase</title></svelte:head>
 
 <main class="err" role="alert">
+	<!-- Логотип из static/logo.svg: глобус краснеет и соскальзывает с плеч, в углу «!». -->
 	<svg viewBox="-12 -12 56 56" aria-hidden="true">
 		<g class="tile">
-			<rect width="32" height="32" rx="9" />
-			<path class="l l1" d="M9 11.5 16 8l7 3.5-7 3.5-7-3.5Z" />
-			<path class="l l2" d="M9 16l7 3.5 7-3.5" />
-			<path class="l l3" d="M9 20.5 16 24l7-3.5" />
+			<rect class="bg" width="32" height="32" rx="9" />
+			<g transform="scale(0.0434783)">
+				<g class="globe">
+					<circle class="ball" cx="347.8" cy="273.1" r="165" />
+					<use href="/logo.svg#grid" />
+				</g>
+				<use href="/logo.svg#figure" />
+				<use href="/logo.svg#eye" />
+			</g>
 		</g>
 		<g class="badge">
 			<circle cx="30" cy="2" r="6" />
@@ -96,24 +102,19 @@
 		transform-box: fill-box;
 		transform-origin: center;
 	}
-	rect {
-		fill: var(--text);
+	.bg {
+		fill: #fff;
+		stroke: rgb(0 0 0 / 0.08);
+		stroke-width: 0.3;
 	}
-	.l {
-		fill: none;
-		stroke: var(--bg);
-		stroke-width: 2.2;
-		stroke-linecap: round;
-		stroke-linejoin: round;
+	.ball {
+		fill: var(--danger);
+		animation: redden 500ms ease 200ms both;
 	}
-	.l1 {
-		animation: s1 700ms cubic-bezier(0.3, 1.4, 0.5, 1) 200ms forwards;
-	}
-	.l2 {
-		animation: s2 700ms cubic-bezier(0.3, 1.4, 0.5, 1) 260ms forwards;
-	}
-	.l3 {
-		animation: s3 700ms cubic-bezier(0.3, 1.4, 0.5, 1) 320ms forwards;
+	.globe {
+		transform-box: fill-box;
+		transform-origin: 18% 92%;
+		animation: slip 700ms cubic-bezier(0.3, 1.4, 0.5, 1) 250ms both;
 	}
 	.badge {
 		transform-box: fill-box;
@@ -194,26 +195,25 @@
 			transform: none;
 		}
 	}
-	@keyframes s1 {
-		to {
-			transform: translate(-2.5px, -2.5px) rotate(-14deg);
+	@keyframes redden {
+		from {
+			fill: #1b0102;
 		}
 	}
-	@keyframes s2 {
+	@keyframes slip {
 		to {
-			transform: translate(2.5px, 0.5px) rotate(9deg);
-		}
-	}
-	@keyframes s3 {
-		to {
-			transform: translate(-1px, 2.5px) rotate(-5deg);
+			transform: translate(-10px, 14px) rotate(-11deg);
 		}
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.tile,
-		.l,
+		.ball,
 		.badge {
 			animation: none;
+		}
+		.globe {
+			animation: none;
+			transform: translate(-10px, 14px) rotate(-11deg);
 		}
 	}
 </style>

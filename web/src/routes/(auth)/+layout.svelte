@@ -22,12 +22,8 @@
 	style:--photo={bg.image ? `url(${bg.image})` : null}
 >
 	<div class="brand" aria-hidden="true">
-		<svg viewBox="0 0 32 32"
-			><rect width="32" height="32" rx="9" class="tile" /><path
-				d="M9 11.5 16 8l7 3.5-7 3.5-7-3.5Z M9 16l7 3.5 7-3.5 M9 20.5 16 24l7-3.5"
-				class="mark"
-			/></svg
-		>
+		<!-- Логотип: та же картинка, что значок во вкладке. -->
+		<img src="/favicon.svg" alt="" width="36" height="36" />
 		<span>groupbase</span>
 	</div>
 	<div class="card panel" in:fly={{ y: 12 }}>
@@ -66,19 +62,12 @@
 		font-size: 18px;
 		letter-spacing: -0.02em;
 	}
-	.brand svg {
-		width: 32px;
-		height: 32px;
-	}
-	.tile {
-		fill: var(--accent);
-	}
-	.mark {
-		fill: none;
-		stroke: var(--accent-text);
-		stroke-width: 2;
-		stroke-linecap: round;
-		stroke-linejoin: round;
+	.brand img {
+		display: block;
+		width: 36px;
+		height: 36px;
+		border-radius: 9px;
+		box-shadow: 0 1px 3px rgb(0 0 0 / 0.14);
 	}
 	.panel {
 		width: min(440px, 100%);
