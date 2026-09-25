@@ -140,7 +140,17 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   токены берут `var(--pal-…)` (светлый) и `var(--pald-…)` (тёмный) с запасным значением «Классики»,
   палитра задаёт только их. Применяется до отрисовки скриптом в app.html, выбор — `shell/ThemePicker`.
 - «Настройки» в навигации — только если `hasSettings()` (session.svelte.ts); навигацию фильтрует
-  `visibleNav()`.
+  `visibleNav()`. В боковой панели нет «Файлов» и «Уведомлений» (колокольчик — на «Сегодня»),
+  «Сессия» — по `sessionNavVisible()` (lib/content/session.ts, `study_groups.session_nav`: auto —
+  около сессии по датам, show, hide; выбирает староста в «Настройки → Семестр»). Палитра ⌘K и
+  горячие клавиши знают все разделы.
+- Стиль оформления — `data-style` на `<html>` (lib/theme.ts `STYLES`: depth, glass, tint; «Обычный»
+  — без атрибута), правила — в app.css и в NewsCard/HomeworkRow (цвет предмета — `--subject`).
+  Каждый выбирает себе; по умолчанию вид не меняется.
+- Блокировать, исключать и удалять людей (`block_users`) могут только администратор и староста —
+  у модератора сайта этого права нет (Rbac.MODERATOR).
+- Иконки (`/icons/*`, favicon) кешируются на месяц: при смене картинки — новый `?v=` в app.html,
+  manifest.webmanifest и service-worker.ts.
 - Логотип — `web/static/logo.svg` (элементы по id: globe, grid, figure, eye; белые линии рассчитаны
   на белый фон). Из него: `favicon.svg` (тот же, кадр крупнее), PNG-иконки — `java scripts/Icons.java`
   (и `desktop` — исходники для `npm run icons` в desktop/), копии в заставках `app.html` и
