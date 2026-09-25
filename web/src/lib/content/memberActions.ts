@@ -3,6 +3,7 @@ import { can, isAdmin, session } from '$lib/session.svelte';
 import { toast, toastError } from '$lib/toasts.svelte';
 import type { GroupRole, InstanceRole, Member } from '$lib/types';
 import type { MenuItem } from '$lib/ui/Menu.svelte';
+import { ask } from '$lib/ui/ask.svelte';
 
 export interface MemberHooks {
 	/** Список изменился — перечитать. */
@@ -47,8 +48,8 @@ export function memberActions(m: Member, groupId: number, hooks: MemberHooks): M
 	}
 
 	if (admin) {
-		const setSite = (role: InstanceRole | null, message: string, ask?: string) => () => {
-			if (ask && !confirm(ask)) return;
+		const setSite = (role: InstanceRole | null, message: string, question?: string) => async () => {
+			if (question && !(await ask(question))) return;
 			return act(() => put(`/api/admin/users/${m.userId}/instance-role`, { role }), message);
 		};
 		if (m.instanceRole !== 'admin')
@@ -107,16 +108,24 @@ export function memberActions(m: Member, groupId: number, hooks: MemberHooks): M
 				: {
 						label: 'Заблокировать',
 						danger: true,
-						onclick: () =>
-							confirm(`Заблокировать ${m.displayName}? Все сессии будут закрыты.`) &&
-							act(() => post(`${base}/block`), 'Заблокирован')
+						onclick: async () => {
+							if (
+								await ask(`Заблокировать ${m.displayName}? Все сессии будут закрыты.`, {
+									ok: 'Заблокировать',
+									danger: true
+								})
+							)
+								await act(() => post(`${base}/block`), 'Заблокирован');
+						}
 					}
 		);
 		out.push({
 			label: 'Исключить из группы',
 			danger: true,
-			onclick: () =>
-				confirm(`Исключить ${m.displayName} из группы?`) && act(() => del(base), 'Исключён')
+			onclick: async () => {
+				if (await ask(`Исключить ${m.displayName} из группы?`, { ok: 'Исключить', danger: true }))
+					await act(() => del(base), 'Исключён');
+			}
 		});
 	}
 	return out;

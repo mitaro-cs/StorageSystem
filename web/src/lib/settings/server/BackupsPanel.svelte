@@ -9,6 +9,7 @@
 	import Button from '$lib/ui/Button.svelte';
 	import { waitForRestart } from './restart';
 	import type { BackupInfo, Backups } from './types';
+	import { ask } from '$lib/ui/ask.svelte';
 
 	let b = $state<Backups | null>(null);
 	let busy = $state(false);
@@ -69,9 +70,10 @@
 	async function restore(item: BackupInfo) {
 		const when = new Date(item.createdAt).toLocaleString('ru-RU');
 		if (
-			!window.confirm(
-				`Вернуть все данные к копии от ${when}? Всё, что появилось после неё, будет отложено в сторону (не удалено).`
-			)
+			!(await ask(
+				`Вернуть все данные к копии от ${when}? Всё, что появилось после неё, будет отложено в сторону (не удалено).`,
+				{ title: 'Восстановить из копии', ok: 'Восстановить' }
+			))
 		)
 			return;
 		try {
@@ -88,9 +90,10 @@
 
 	async function restoreFile(f: File) {
 		if (
-			!window.confirm(
-				`Восстановить данные из файла «${f.name}»? Текущие данные будут отложены в сторону (не удалены).`
-			)
+			!(await ask(
+				`Восстановить данные из файла «${f.name}»? Текущие данные будут отложены в сторону (не удалены).`,
+				{ title: 'Восстановить из файла', ok: 'Восстановить' }
+			))
 		)
 			return;
 		busy = true;

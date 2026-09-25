@@ -2,6 +2,7 @@ import { del, post } from '$lib/api';
 import { toast, toastError } from '$lib/toasts.svelte';
 import type { Material } from '$lib/types';
 import type { MenuItem } from '$lib/ui/Menu.svelte';
+import { ask } from '$lib/ui/ask.svelte';
 
 export function materialActions(m: Material, changed: () => void): MenuItem[] {
 	const out: MenuItem[] = [];
@@ -36,7 +37,7 @@ export function materialActions(m: Material, changed: () => void): MenuItem[] {
 			label: 'Удалить',
 			danger: true,
 			onclick: async () => {
-				if (!confirm(`Удалить «${m.title}»?`)) return;
+				if (!(await ask(`Удалить «${m.title}»?`, { ok: 'Удалить', danger: true }))) return;
 				try {
 					await del(`/api/materials/${m.id}`);
 					toast('Удалено', 'ok');

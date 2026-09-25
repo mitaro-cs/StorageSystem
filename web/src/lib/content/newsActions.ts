@@ -2,6 +2,7 @@ import { del, patch, put } from '$lib/api';
 import { toast, toastError } from '$lib/toasts.svelte';
 import type { NewsItem } from '$lib/types';
 import type { MenuItem } from '$lib/ui/Menu.svelte';
+import { ask } from '$lib/ui/ask.svelte';
 
 /** Пункты меню новости по правам из ответа сервера. */
 export function newsActions(
@@ -40,7 +41,8 @@ export function newsActions(
 			label: 'Удалить',
 			danger: true,
 			onclick: async () => {
-				if (!confirm('Удалить новость? Это нельзя отменить.')) return;
+				if (!(await ask('Удалить новость? Это нельзя отменить.', { ok: 'Удалить', danger: true })))
+					return;
 				try {
 					await del(`/api/news/${item.id}`);
 					toast('Новость удалена', 'ok');

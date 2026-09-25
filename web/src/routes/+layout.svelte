@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { onMount } from 'svelte';
 	import Toaster from '$lib/ui/Toaster.svelte';
+	import { dialog } from '$lib/ui/ask.svelte';
 
 	let { children } = $props();
 
@@ -23,3 +24,7 @@
 
 {@render children()}
 <Toaster />
+<!-- Окно подтверждения (ask, askText): код грузится при первом вопросе. -->
+{#if dialog.current}
+	{#await import('$lib/ui/Dialogs.svelte') then m}<m.default />{/await}
+{/if}

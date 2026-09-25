@@ -6,6 +6,7 @@
 	import type { GroupChat } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
+	import { ask } from '$lib/ui/ask.svelte';
 
 	// Закреплённые чаты группы в Telegram: окно открывается с главной, прямо из строки кнопок.
 	let { open = $bindable(false), groupId }: { open?: boolean; groupId: number } = $props();
@@ -62,7 +63,7 @@
 	}
 
 	async function remove(c: GroupChat) {
-		if (!window.confirm(`Открепить «${c.title}»?`)) return;
+		if (!(await ask(`Открепить «${c.title}»?`, { ok: 'Открепить' }))) return;
 		try {
 			apply(await del<GroupChat[]>(`/api/groups/${groupId}/chats/${c.id}`));
 			if (editing?.id === c.id) reset();

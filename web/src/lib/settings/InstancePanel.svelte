@@ -8,6 +8,7 @@
 	import Permissions from './Permissions.svelte';
 	import SectionHead from '$lib/ui/SectionHead.svelte';
 	import { Crown, Info, KeyRound, ShieldCheck, SlidersHorizontal } from '@lucide/svelte';
+	import { ask } from '$lib/ui/ask.svelte';
 
 	interface Settings {
 		name: string;
@@ -47,7 +48,11 @@
 
 	async function setRole(u: UserRow, role: string) {
 		const self = u.id === session.me?.user.id;
-		if (self && role !== 'admin' && !confirm('Снять с себя роль администратора сайта?')) {
+		if (
+			self &&
+			role !== 'admin' &&
+			!(await ask('Снять с себя роль администратора сайта?', { ok: 'Снять', danger: true }))
+		) {
 			users = [...users];
 			return;
 		}

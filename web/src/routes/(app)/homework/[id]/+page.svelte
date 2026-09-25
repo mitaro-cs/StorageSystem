@@ -25,6 +25,7 @@
 	import Crumbs from '$lib/ui/Crumbs.svelte';
 	import { openFiles } from '$lib/files/viewer.svelte';
 	import { canPreview } from '$lib/fileKinds';
+	import { ask } from '$lib/ui/ask.svelte';
 
 	let item = $state<Homework | null>(null);
 	let missing = $state(false);
@@ -67,7 +68,7 @@
 				label: 'Удалить',
 				danger: true,
 				onclick: async () => {
-					if (!confirm('Удалить задание?')) return;
+					if (!(await ask('Удалить задание?', { ok: 'Удалить', danger: true }))) return;
 					try {
 						await del(`/api/homework/${h.id}`);
 						toast('Задание удалено', 'ok');

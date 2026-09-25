@@ -14,6 +14,7 @@
 	import Menu from '$lib/ui/Menu.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
+	import { ask, askText } from '$lib/ui/ask.svelte';
 
 	interface Props {
 		subjectId: number;
@@ -58,7 +59,11 @@
 	}
 
 	async function newFolder() {
-		const name = prompt('Название папки');
+		const name = await askText('Как назвать папку?', {
+			title: 'Новая папка',
+			ok: 'Создать',
+			maxlength: 80
+		});
 		if (!name) return;
 		try {
 			await post(`/api/subjects/${subjectId}/folders`, { name, parentId: folder });
@@ -69,7 +74,12 @@
 	}
 
 	async function renameFolder(id: number, current: string) {
-		const name = prompt('Новое название', current);
+		const name = await askText('Новое название папки', {
+			title: 'Переименовать',
+			ok: 'Сохранить',
+			value: current,
+			maxlength: 80
+		});
 		if (!name || name === current) return;
 		try {
 			await patch(`/api/folders/${id}`, { name });
@@ -80,7 +90,10 @@
 	}
 
 	async function deleteFolder(id: number, name: string) {
-		if (!confirm(`Удалить папку «${name}» со всем содержимым?`)) return;
+		if (
+			!(await ask(`Удалить папку «${name}» со всем содержимым?`, { ok: 'Удалить', danger: true }))
+		)
+			return;
 		try {
 			await del(`/api/folders/${id}`);
 			load();
