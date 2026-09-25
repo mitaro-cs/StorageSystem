@@ -65,7 +65,9 @@ async function fileFirst(req: Request, path: string): Promise<Response> {
 async function page(req: Request): Promise<Response> {
 	try {
 		const res = await fetch(req);
-		if (fromServer(res)) return res;
+		// Перенаправление приходит «непрозрачным» — заголовков не видно, но это ответ сервера, и
+		// браузер сам пойдёт по нему. Подменить его оболочкой — значит зациклить переход.
+		if (res.type === 'opaqueredirect' || fromServer(res)) return res;
 		return (await caches.match(INDEX)) ?? res;
 	} catch {
 		return (await caches.match(INDEX)) ?? Response.error();
@@ -78,7 +80,9 @@ sw.addEventListener('fetch', (event) => {
 	if (req.method !== 'GET' || url.origin !== location.origin) return;
 
 	if (req.mode === 'navigate') {
-		event.respondWith(page(req));
+		// Переходы на /api/… (вход окна хоста, скачивание архивов) — это не страницы приложения:
+		// пусть идут прямо на сервер.
+		if (!url.pathname.startsWith('/api/')) event.respondWith(page(req));
 		return;
 	}
 	if (ASSETS.includes(url.pathname)) {

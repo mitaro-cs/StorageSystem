@@ -8,7 +8,7 @@
 	import Hotkeys from '$lib/shell/Hotkeys.svelte';
 	import SwipeBack from '$lib/shell/SwipeBack.svelte';
 	import { viewer } from '$lib/files/viewer.svelte';
-	import { initPwa, pwa } from '$lib/pwa.svelte';
+	import { forgetServiceWorker, initPwa, pwa, registerServiceWorker } from '$lib/pwa.svelte';
 	import { startBell } from '$lib/notify.svelte';
 	import { ApiError, request } from '$lib/api';
 	import { toast } from '$lib/toasts.svelte';
@@ -42,7 +42,13 @@
 	});
 	onMount(() => {
 		if (session.me) {
-			initOffline(session.me);
+			// Окну приложения хоста не нужны ни офлайн-копия, ни service worker: сервер рядом.
+			if (session.me.hostWindow) {
+				forgetServiceWorker();
+			} else {
+				registerServiceWorker();
+				initOffline(session.me);
+			}
 			const u = session.me.user;
 			rememberAccount({
 				userId: u.id,

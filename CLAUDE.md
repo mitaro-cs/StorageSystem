@@ -99,6 +99,15 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
 - Ссылки и QR строятся от `instance.publicUrl` (`lib/copy.ts → siteUrl()`), а не от `location.origin`.
 - Окно не перехватывает перетаскивание файлов (`disable_drag_drop_handler`) — иначе DropZone их не
   получит.
+- Окно хоста без service worker: интерфейс регистрирует его сам (`registerServiceWorker`, в
+  `vite.config.ts` `serviceWorker.register: false`) и не в окне хоста. `/api/desktop/enter` отвечает
+  страницей, а не 302: перенаправление service worker видит «непрозрачным» (`opaqueredirect`), и
+  старые версии зацикливали вход. Страница подключает `static/host-window.js` (только для окна на
+  компьютере хоста) — он убирает service worker, кеши и копию данных. `scripts/desktop-smoke.sh`
+  запускает приложение дважды и ловит зацикливание.
+- Проверочные сборки приложения — только с другим идентификатором (`--config
+  '{"identifier":"app.groupbase.uptest","productName":"groupbase-uptest"}'`): с тем же `app.groupbase`
+  они делят с настоящим приложением хранилище окна (WebKit), блокировку второго запуска и порт.
 - Обновление: оболочка (tauri-plugin-updater, `latest.json` выпуска) проверяет через 20 с после запуска
   и раз в 6 ч, сообщает серверу `update-available X` в stdin (и заново — после перезапуска сервера) и
   один раз за запуск сама спрашивает «Обновить сейчас?». Сервер, не зная версии, просит проверить

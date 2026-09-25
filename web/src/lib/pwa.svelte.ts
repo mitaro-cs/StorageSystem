@@ -1,3 +1,5 @@
+import { dev } from '$app/environment';
+
 /**
  * Состояние сети и установка PWA. offline — сервер сейчас недоступен (показываются сохранённые
  * данные); network — есть ли у устройства интернет: если есть, значит выключен компьютер хоста.
@@ -29,6 +31,29 @@ export async function install() {
 	await deferred.prompt();
 	deferred = null;
 	pwa.canInstall = false;
+}
+
+/** Service worker: офлайн-режим и push. Регистрирует интерфейс сам — и не в окне хоста. */
+export function registerServiceWorker() {
+	if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+	navigator.serviceWorker
+		.register('/service-worker.js', { type: dev ? 'module' : 'classic' })
+		.catch(() => {});
+}
+
+/**
+ * Окно приложения хоста: сервер на этом же компьютере — service worker и его кеш не нужны. Прежние
+ * версии их регистрировали (и service worker мог зациклить вход окна), поэтому убираем остатки.
+ */
+export async function forgetServiceWorker() {
+	try {
+		const regs = (await navigator.serviceWorker?.getRegistrations()) ?? [];
+		await Promise.all(regs.map((r) => r.unregister()));
+		const keys = typeof caches === 'undefined' ? [] : await caches.keys();
+		await Promise.all(keys.map((k) => caches.delete(k)));
+	} catch {
+		/* нечего убирать */
+	}
 }
 
 export function forgetOfflineData() {

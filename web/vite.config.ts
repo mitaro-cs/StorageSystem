@@ -14,6 +14,8 @@ export default defineConfig({
 			// SPA: всё за авторизацией, поэтому без пререндеринга; бэкенд отдаёт index.html на любой путь.
 			adapter: adapter({ fallback: 'index.html', precompress: true, strict: true }),
 			output: { bundleStrategy: 'split' },
+			// Регистрирует сам интерфейс (lib/pwa.svelte.ts) — и не в окне приложения хоста.
+			serviceWorker: { register: false },
 			version: { pollInterval: 0 }
 		})
 	],

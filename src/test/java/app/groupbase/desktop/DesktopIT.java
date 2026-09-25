@@ -9,9 +9,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * Приложение хоста: окно на его компьютере входит по одноразовой ссылке от оболочки и не требует
@@ -32,8 +35,23 @@ class DesktopIT extends IntegrationTest {
     return u.getRawPath() + "?" + u.getRawQuery();
   }
 
-  private static String location(ApiClient.Response r) {
-    return r.raw().headers().firstValue("Location").orElse("");
+  /**
+   * Куда страница входа отправляет окно дальше. Это не перенаправление, а страница с меткой
+   * сервера: перенаправление service worker старых версий видел «непрозрачным» и зацикливал вход.
+   */
+  private static String next(ApiClient.Response r) {
+    assertThat(r.status()).as(r.body()).isEqualTo(200);
+    assertThat(r.raw().headers().firstValue("Content-Type").orElse("")).startsWith("text/html");
+    assertThat(r.raw().headers().firstValue("X-Groupbase")).contains("1");
+    assertThat(r.raw().headers().firstValue("Cache-Control").orElse("")).contains("no-store");
+    Matcher m = Pattern.compile("content=\"\\d;url=([^\"]*)\"").matcher(r.body());
+    assertThat(m.find()).isTrue();
+    return HtmlUtils.htmlUnescape(m.group(1));
+  }
+
+  /** Уборка service worker и копии данных подключается только в окне на компьютере хоста. */
+  private static boolean cleansUp(ApiClient.Response r) {
+    return r.body().contains("<script src=\"/host-window.js\"");
   }
 
   @Test
@@ -41,16 +59,16 @@ class DesktopIT extends IntegrationTest {
     // До настройки ссылка ведёт на первичную настройку с уже подставленным кодом.
     if (setup.needed()) {
       var r = client().get(enterPath());
-      assertThat(r.status()).isEqualTo(302);
-      assertThat(location(r)).endsWith("/setup?code=" + setup.setupCode());
+      assertThat(next(r)).isEqualTo("/setup?code=" + setup.setupCode());
+      assertThat(cleansUp(r)).isTrue();
     }
     admin();
 
     ApiClient host = client();
     String path = enterPath();
     var r = host.get(path);
-    assertThat(r.status()).isEqualTo(302);
-    assertThat(location(r)).endsWith("/");
+    assertThat(next(r)).isEqualTo("/");
+    assertThat(cleansUp(r)).isTrue();
     var me = host.get("/api/me").json();
     assertThat(me.get("restriction").isNull()).isTrue();
     assertThat(me.get("hostWindow").asBoolean()).isTrue();
@@ -59,7 +77,7 @@ class DesktopIT extends IntegrationTest {
 
     // Ссылка одноразовая.
     var again = client().get(path);
-    assertThat(location(again)).endsWith("/login");
+    assertThat(next(again)).isEqualTo("/login");
 
     // Та же локальная сессия, предъявленная через туннель, не действует.
     host.header("X-Forwarded-For", "203.0.113.7");
@@ -72,7 +90,9 @@ class DesktopIT extends IntegrationTest {
     String path = enterPath();
     ApiClient outsider = client().header("X-Forwarded-For", "198.51.100.4");
     var r = outsider.get(path);
-    assertThat(location(r)).endsWith("/login");
+    assertThat(next(r)).isEqualTo("/login");
+    // Ссылка, пришедшая участнику, не стирает его копию данных.
+    assertThat(cleansUp(r)).isFalse();
     assertThat(outsider.cookie("gb_session")).isNull();
   }
 

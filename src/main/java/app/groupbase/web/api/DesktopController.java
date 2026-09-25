@@ -15,11 +15,11 @@ import app.groupbase.web.Require;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.HtmlUtils;
 
 /** Только для приложения хоста: вход окна приложения и действия на его компьютере. */
 @RestController
@@ -60,25 +61,66 @@ class DesktopController {
   /**
    * Одноразовая ссылка от оболочки: окно приложения входит как хост без пароля. Ссылку знает только
    * оболочка, и принимается она только с этого же компьютера, не через туннель.
+   *
+   * <p>Ответ — страница, а не перенаправление: service worker старых версий получал перенаправление
+   * «непрозрачным», не видел метки сервера и подставлял сохранённую страницу — окно бесконечно
+   * возвращалось сюда же. Страница подключает {@code /host-window.js}: он убирает из окна хоста
+   * service worker и копию данных (они там не нужны — сервер на этом же компьютере) и переходит
+   * дальше.
    */
   @Public
-  @GetMapping("/enter")
-  ResponseEntity<Void> enter(
+  @GetMapping(value = "/enter", produces = MediaType.TEXT_HTML_VALUE)
+  ResponseEntity<String> enter(
       @RequestParam("t") String token, HttpServletRequest req, HttpServletResponse res) {
-    if (!Requests.fromThisComputer(req) || !bridge.consumeEnterToken(token)) {
-      return redirect("/login");
+    // Уборка в окне — только на компьютере хоста: чужая ссылка на этот адрес не должна стирать
+    // участнику копию данных с ещё не отправленными действиями.
+    boolean host = bridge.enabled() && Requests.fromThisComputer(req);
+    if (!host || !bridge.consumeEnterToken(token)) {
+      return page("/login", host);
     }
     if (setup.needed()) {
-      return redirect("/setup?code=" + setup.setupCode());
+      return page("/setup?code=" + setup.setupCode(), true);
     }
     return users
         .firstAdmin()
         .map(
-            host -> {
-              http.startSession(host, res);
-              return redirect("/");
+            h -> {
+              http.startSession(h, res);
+              return page("/", true);
             })
-        .orElseGet(() -> redirect("/login"));
+        .orElseGet(() -> page("/login", true));
+  }
+
+  /**
+   * Переход дальше. В окне хоста — скриптом после уборки (без скрипта — через две секунды), в
+   * остальных случаях — сразу.
+   */
+  static ResponseEntity<String> page(String next, boolean hostWindow) {
+    String url = HtmlUtils.htmlEscape(next);
+    String html =
+        """
+        <!doctype html>
+        <html lang="ru">
+        <head>
+        <meta charset="utf-8">
+        <meta name="color-scheme" content="light dark">
+        <meta http-equiv="refresh" content="%s;url=%s">
+        <title>groupbase</title>
+        %s
+        </head>
+        <body></body>
+        </html>
+        """
+            .formatted(
+                hostWindow ? "2" : "0",
+                url,
+                hostWindow
+                    ? "<script src=\"/host-window.js\" data-next=\"" + url + "\"></script>"
+                    : "");
+    return ResponseEntity.ok()
+        .contentType(new MediaType(MediaType.TEXT_HTML, java.nio.charset.StandardCharsets.UTF_8))
+        .cacheControl(CacheControl.noStore())
+        .body(html);
   }
 
   /**
@@ -113,9 +155,5 @@ class DesktopController {
     Files.createDirectories(dir);
     LocalOpen.folder(dir.toAbsolutePath());
     return Map.of("status", "ok");
-  }
-
-  private static ResponseEntity<Void> redirect(String path) {
-    return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(path)).build();
   }
 }
