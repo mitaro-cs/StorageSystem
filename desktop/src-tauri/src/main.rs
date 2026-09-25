@@ -30,11 +30,13 @@ const MAIN: &str = "main";
 const RESTART_CODE: i32 = 3;
 const HIDDEN_ARG: &str = "--hidden";
 
-/// Что показывает заставка: ход запуска или ошибка с кнопкой «Перезапустить».
+/// Что показывает заставка: ход запуска или ошибка с кодом и кнопкой «Перезапустить».
+/// Коды и что с ними делать — в docs/desktop.md («Коды ошибок») и в ui/splash.js.
 #[derive(Clone, Serialize, Default)]
 struct Status {
     text: String,
     error: bool,
+    code: Option<String>,
 }
 
 #[derive(Default)]
@@ -304,21 +306,75 @@ fn navigate(app: &AppHandle, url: &str) {
 }
 
 fn set_status(app: &AppHandle, text: &str, error: bool) {
-    let status = Status {
-        text: text.to_string(),
-        error,
-    };
+    emit_status(
+        app,
+        Status {
+            text: text.to_string(),
+            error,
+            code: None,
+        },
+    );
+}
+
+/// Ошибка с кодом: заставка покажет причину, код и что делать.
+fn set_error(app: &AppHandle, code: &str, text: &str) {
+    emit_status(
+        app,
+        Status {
+            text: text.to_string(),
+            error: true,
+            code: Some(code.to_string()),
+        },
+    );
+}
+
+fn emit_status(app: &AppHandle, status: Status) {
     app.state::<App>().server.lock().unwrap().status = status.clone();
     let _ = app.emit_to(MAIN, "status", status);
 }
 
-/// Вернуть окно на заставку (перезапуск сервера, ошибка).
+/// Вернуть окно на заставку (перезапуск сервера).
 fn show_splash(app: &AppHandle, text: &str, error: bool) {
     set_status(app, text, error);
+    to_splash(app);
+}
+
+/// Вернуть окно на заставку с ошибкой и её кодом.
+fn show_error(app: &AppHandle, code: &str, text: &str) {
+    set_error(app, code, text);
+    to_splash(app);
+}
+
+fn to_splash(app: &AppHandle) {
     if let Some(w) = app.get_webview_window(MAIN) {
         if !w.url().map(|u| is_local_page(&u)).unwrap_or(false) {
             let _ = w.navigate(splash_url());
         }
+    }
+}
+
+/// Причина по хвосту журнала сервера — там, где сервер не успел сказать её сам.
+fn classify(tail: &str) -> Option<(&'static str, &'static str)> {
+    if tail.contains("No space left") || tail.contains("SQLITE_FULL") {
+        Some((
+            "GB-207",
+            "На диске закончилось место. Освободите его и перезапустите приложение.",
+        ))
+    } else if tail.contains("database disk image is malformed")
+        || tail.contains("SQLITE_CORRUPT")
+        || tail.contains("SQLITE_NOTADB")
+    {
+        Some((
+            "GB-206",
+            "Не открывается база данных. Восстановите данные из резервной копии.",
+        ))
+    } else if tail.contains("OutOfMemoryError") {
+        Some((
+            "GB-209",
+            "Серверу не хватило памяти. Закройте тяжёлые программы и перезапустите.",
+        ))
+    } else {
+        None
     }
 }
 
@@ -340,7 +396,8 @@ fn runtime(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
     let jar = res.join("groupbase.jar");
     if !java.exists() || !jar.exists() {
         return Err(format!(
-            "Не найдены файлы сервера в {}. Переустановите приложение.",
+            "Не найдены файлы приложения (встроенная Java или сервер) в {}. Переустановите \
+             groupbase поверх — данные сохранятся.",
             res.display()
         ));
     }
@@ -368,7 +425,7 @@ fn start_server(app: &AppHandle) {
     let data = st.data.clone();
     let (java, jar) = match runtime(app) {
         Ok(p) => p,
-        Err(e) => return show_splash(app, &e, true),
+        Err(e) => return show_error(app, "GB-204", &e),
     };
     let java_log = OpenOptions::new()
         .create(true)
@@ -409,7 +466,7 @@ fn start_server(app: &AppHandle) {
     }
     let mut child = match cmd.spawn() {
         Ok(c) => c,
-        Err(e) => return show_splash(app, &format!("Не удалось запустить сервер: {e}"), true),
+        Err(e) => return show_error(app, "GB-205", &format!("Не удалось запустить сервер: {e}")),
     };
     log(app, &format!("сервер запущен (pid {})", child.id()));
     let stdout = child.stdout.take();
@@ -468,18 +525,30 @@ fn watch(app: AppHandle, child: Arc<Mutex<Child>>) {
     }
     let tail = log_tail(&st.data.join("logs").join("java.log"));
     let last = st.server.lock().unwrap().status.clone();
-    let reason = if last.error {
-        last.text
+    // Причина — от самого сервера (он успел сказать), иначе по журналу, иначе — просто «упал».
+    let (code, reason) = if last.error {
+        (
+            last.code.unwrap_or_else(|| "GB-200".into()),
+            last.text.split("\n\n").next().unwrap_or("").to_string(),
+        )
+    } else if let Some((c, r)) = tail.as_deref().and_then(classify) {
+        (c.to_string(), r.to_string())
     } else {
-        "Сервер группы неожиданно остановился.".into()
+        (
+            "GB-203".to_string(),
+            match code {
+                Some(c) => format!("Сервер группы неожиданно остановился (код выхода {c})."),
+                None => "Сервер группы неожиданно остановился.".to_string(),
+            },
+        )
     };
-    show_splash(
+    show_error(
         &app,
+        &code,
         &format!(
             "{reason}{}",
             tail.map(|t| format!("\n\n{t}")).unwrap_or_default()
         ),
-        true,
     );
 }
 
@@ -524,7 +593,14 @@ fn on_event(app: &AppHandle, v: &Value) {
         }
         "restart" => show_splash(app, "Перезапускаем сервер…", false),
         "status" => set_status(app, &text("message"), false),
-        "error" => set_status(app, &text("message"), true),
+        "error" => {
+            let code = text("code");
+            set_error(
+                app,
+                if code.is_empty() { "GB-200" } else { &code },
+                &text("message"),
+            );
+        }
         // «Обновить» в «Настройки → Сервер → Состояние».
         "update" => install_update(app),
         // «Состояние» открыли раньше, чем оболочка проверила обновления сама.

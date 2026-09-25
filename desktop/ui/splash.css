@@ -197,18 +197,61 @@ main {
 	}
 }
 
-/* Ошибка: стопка замирает и краснеет — видно сразу, что дальше нужно действие. */
+/* Ошибка: стопка рассыпается и краснеет, в углу — «!». Видно сразу, что нужно действие. */
 .error .bg {
 	fill: var(--danger);
 }
-.error .tile,
-.error .layer {
+.error .tile {
 	animation: none;
+}
+.error .l1 {
+	animation: scatter1 700ms cubic-bezier(0.3, 1.4, 0.5, 1) forwards;
+}
+.error .l2 {
+	animation: scatter2 700ms cubic-bezier(0.3, 1.4, 0.5, 1) 60ms forwards;
+}
+.error .l3 {
+	animation: scatter3 700ms cubic-bezier(0.3, 1.4, 0.5, 1) 120ms forwards;
 }
 .error .ring,
 .error .glow,
 .error .shine {
 	display: none;
+}
+.badge {
+	display: none;
+	transform-box: fill-box;
+	transform-origin: center;
+}
+.badge circle {
+	fill: var(--danger);
+	stroke: var(--bg);
+	stroke-width: 1.6;
+}
+.badge path {
+	fill: none;
+	stroke: #fff;
+	stroke-width: 1.8;
+	stroke-linecap: round;
+}
+.error .badge {
+	display: inline;
+	animation: pop 520ms cubic-bezier(0.2, 0.9, 0.25, 1.4) 250ms both;
+}
+@keyframes scatter1 {
+	to {
+		transform: translate(-2.5px, -2.5px) rotate(-14deg);
+	}
+}
+@keyframes scatter2 {
+	to {
+		transform: translate(2.5px, 0.5px) rotate(9deg);
+	}
+}
+@keyframes scatter3 {
+	to {
+		transform: translate(-1px, 2.5px) rotate(-5deg);
+	}
 }
 @media (prefers-reduced-motion: reduce) {
 	.mark * {
@@ -255,8 +298,47 @@ h1 {
 	}
 }
 .error #status {
+	max-width: 440px;
 	color: var(--danger);
 	font-weight: 600;
+}
+
+/* Код ошибки: нажатием копируется — его удобно прислать тому, кто помогает. */
+.code {
+	height: 30px;
+	padding: 0 12px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--surface);
+	color: var(--muted);
+	font:
+		600 13px/1 ui-monospace,
+		'SF Mono',
+		Menlo,
+		Consolas,
+		monospace;
+	letter-spacing: 0.02em;
+}
+.code b {
+	color: var(--text);
+}
+.advice {
+	max-width: 440px;
+	margin: 0;
+	color: var(--muted);
+	font-size: 14px;
+}
+details {
+	width: 100%;
+	max-width: 460px;
+	color: var(--muted);
+	font-size: 13px;
+}
+summary {
+	cursor: pointer;
+}
+details pre {
+	margin-top: 8px;
 }
 
 /* Скачивание обновления: настоящая доля, а не бегущая полоска. */

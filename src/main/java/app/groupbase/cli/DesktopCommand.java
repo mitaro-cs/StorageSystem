@@ -55,7 +55,7 @@ public class DesktopCommand implements Callable<Integer> {
     if (data == null) {
       String env = System.getenv(ENV_DATA);
       if (env == null || env.isBlank()) {
-        out.event("error", Map.of("message", "Не задан каталог данных"));
+        out.event("error", Map.of("message", "Не задан каталог данных", "code", "GB-200"));
         return 2;
       }
       data = Path.of(env);
@@ -80,7 +80,8 @@ public class DesktopCommand implements Callable<Integer> {
       props.put("groupbase.desktop.enabled", "true");
       ctx = AppContext.desktop(data, props, msg -> out.event("status", Map.of("message", msg)));
     } catch (Exception e) {
-      out.event("error", Map.of("message", reason(e)));
+      Problem p = problem(e);
+      out.event("error", Map.of("message", p.message(), "code", p.code()));
       return 1;
     }
 
@@ -147,20 +148,40 @@ public class DesktopCommand implements Callable<Integer> {
     done.countDown();
   }
 
-  /** Понятная причина, почему сервер не запустился. */
-  static String reason(Throwable e) {
+  /**
+   * Почему сервер не запустился — понятной фразой и кодом. Коды и что делать с каждым описаны в
+   * docs/desktop.md («Коды ошибок»); коды 204, 205 и 203 выдаёт сама оболочка.
+   */
+  record Problem(String code, String message) {}
+
+  static Problem problem(Throwable e) {
+    String last = null;
     for (Throwable t = e; t != null; t = t.getCause()) {
-      String m = t.getMessage();
+      String m = t.getMessage() == null ? "" : t.getMessage();
       if (t instanceof java.net.BindException) {
-        return "Порт уже занят другой программой. Перезапустите приложение.";
+        return new Problem("GB-201", "Порт уже занят другой программой. Перезапустите приложение.");
       }
-      if (m != null && m.contains("уже запущен")) {
-        return "groupbase уже запущен на этом компьютере.";
+      if (m.contains("уже запущен")) {
+        return new Problem("GB-202", "groupbase уже запущен на этом компьютере.");
       }
-      if (t.getCause() == null && m != null) {
-        return m;
+      if (m.contains("No space left") || m.contains("SQLITE_FULL")) {
+        return new Problem(
+            "GB-207", "На диске закончилось место. Освободите его и перезапустите приложение.");
+      }
+      if (m.contains("SQLITE_CORRUPT")
+          || m.contains("SQLITE_NOTADB")
+          || m.contains("database disk image is malformed")
+          || t instanceof org.flywaydb.core.api.FlywayException) {
+        return new Problem(
+            "GB-206", "Не открывается база данных. Восстановите данные из резервной копии.");
+      }
+      if (m.startsWith(AppContext.RESTORE_FAILED)) {
+        return new Problem("GB-208", m);
+      }
+      if (!m.isBlank()) {
+        last = m;
       }
     }
-    return String.valueOf(e);
+    return new Problem("GB-200", last == null ? String.valueOf(e) : last);
   }
 }

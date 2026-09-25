@@ -33,11 +33,21 @@
 					<path class="layer l2" d="M9 16l7 3.5 7-3.5" />
 					<path class="layer l3" d="M9 20.5 16 24l7-3.5" />
 				</g>
+				<!-- Значок ошибки: появляется, когда стопка рассыпается. -->
+				<g class="badge">
+					<circle cx="30" cy="2" r="6" />
+					<path d="M30-.8v3.4M30 5.2v.1" />
+				</g>
 			</svg>
 			<h1>groupbase</h1>
 			<p id="status" role="status">Запускаем сервер группы…</p>
 			<div class="progress" id="progress" hidden><span id="bar"></span></div>
-			<pre id="details" hidden></pre>
+			<button class="code" id="code" type="button" title="Скопировать код" hidden></button>
+			<p class="advice" id="advice" hidden></p>
+			<details id="more" hidden>
+				<summary>Подробности</summary>
+				<pre id="details"></pre>
+			</details>
 			<div class="actions" id="actions" hidden>
 				<button id="restart" class="primary">Перезапустить</button>
 				<button id="logs">Открыть журналы</button>

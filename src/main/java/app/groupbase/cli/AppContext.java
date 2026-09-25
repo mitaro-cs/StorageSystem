@@ -57,10 +57,17 @@ final class AppContext {
         .bannerMode(Banner.Mode.OFF);
   }
 
+  /** Начало сообщения о неудачном восстановлении — по нему оболочка показывает код GB-208. */
+  static final String RESTORE_FAILED = "Не удалось восстановить из копии";
+
   /** Восстановление из копии, заказанное из интерфейса, — до того как сервер откроет базу. */
   private static void applyPendingRestore(StandardEnvironment env, Consumer<String> say)
       throws IOException {
     Path data = Path.of(env.getProperty("groupbase.data-dir", "./data"));
-    PendingRestore.apply(data, say);
+    try {
+      PendingRestore.apply(data, say);
+    } catch (IOException e) {
+      throw new IOException(RESTORE_FAILED + ": " + e.getMessage(), e);
+    }
   }
 }

@@ -259,6 +259,141 @@
 						opacity: 0.5;
 					}
 				}
+				/* Не открылось: стопка рассыпается и краснеет, в углу «!», ниже — причина, код и что делать. */
+				#splash .badge {
+					display: none;
+					transform-box: fill-box;
+					transform-origin: center;
+				}
+				#splash .badge circle {
+					fill: #d93a2f;
+					stroke: var(--sp-bg);
+					stroke-width: 1.6;
+				}
+				#splash .badge path {
+					fill: none;
+					stroke: #fff;
+					stroke-width: 1.8;
+					stroke-linecap: round;
+				}
+				#splash .err {
+					display: none;
+					flex-direction: column;
+					align-items: center;
+					gap: 10px;
+					max-width: 360px;
+					padding: 0 20px;
+					text-align: center;
+					font:
+						15px/1.45 -apple-system,
+						'Segoe UI',
+						Roboto,
+						sans-serif;
+					animation: sp-in 420ms ease both;
+				}
+				@keyframes sp-in {
+					from {
+						opacity: 0;
+						transform: translateY(8px);
+					}
+				}
+				#splash .err b {
+					font-size: 19px;
+					letter-spacing: -0.01em;
+				}
+				#splash .err .why {
+					color: #d93a2f;
+					font-weight: 600;
+				}
+				#splash .err .what {
+					opacity: 0.65;
+					font-size: 14px;
+				}
+				#splash .err button {
+					height: 42px;
+					padding: 0 18px;
+					border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+					border-radius: 999px;
+					background: transparent;
+					color: inherit;
+					font-family: inherit;
+					font-size: 15px;
+					font-weight: 600;
+					line-height: 1;
+					cursor: pointer;
+				}
+				#splash .err .go {
+					border-color: currentColor;
+					background: currentColor;
+				}
+				#splash .err .go span {
+					color: var(--sp-bg);
+				}
+				#splash .err .code {
+					height: 30px;
+					padding: 0 12px;
+					font:
+						600 13px/1 ui-monospace,
+						'SF Mono',
+						Menlo,
+						Consolas,
+						monospace;
+					opacity: 0.8;
+				}
+				#splash .err .row {
+					display: flex;
+					flex-wrap: wrap;
+					justify-content: center;
+					gap: 8px;
+					margin-top: 6px;
+				}
+				#splash.failed .err {
+					display: flex;
+				}
+				#splash.failed .word,
+				#splash.failed .hint,
+				#splash.failed .ring,
+				#splash.failed .glow,
+				#splash.failed .shine {
+					display: none;
+				}
+				#splash.failed .t {
+					animation: none;
+				}
+				#splash.failed .bg {
+					fill: #d93a2f;
+				}
+				#splash.failed .l1 {
+					animation: sp-s1 700ms cubic-bezier(0.3, 1.4, 0.5, 1) forwards;
+				}
+				#splash.failed .l2 {
+					animation: sp-s2 700ms cubic-bezier(0.3, 1.4, 0.5, 1) 60ms forwards;
+				}
+				#splash.failed .l3 {
+					animation: sp-s3 700ms cubic-bezier(0.3, 1.4, 0.5, 1) 120ms forwards;
+				}
+				#splash.failed .l {
+					stroke: #fff;
+				}
+				#splash.failed .badge {
+					display: inline;
+					animation: sp-pop 520ms cubic-bezier(0.2, 0.9, 0.25, 1.4) 250ms both;
+				}
+				@keyframes sp-s1 {
+					to {
+						transform: translate(-2.5px, -2.5px) rotate(-14deg);
+					}
+				}
+				@keyframes sp-s2 {
+					to {
+						transform: translate(2.5px, 0.5px) rotate(9deg);
+					}
+				}
+				@keyframes sp-s3 {
+					to {
+						transform: translate(-1px, 2.5px) rotate(-5deg);
+					}
+				}
 				@media (prefers-reduced-motion: reduce) {
 					#splash *,
 					#splash .sp {
@@ -299,11 +434,174 @@
 						<path class="l l2" d="M9 16l7 3.5 7-3.5" />
 						<path class="l l3" d="M9 20.5 16 24l7-3.5" />
 					</g>
+					<g class="badge">
+						<circle cx="30" cy="2" r="6" />
+						<path d="M30-.8v3.4M30 5.2v.1" />
+					</g>
 				</svg>
 				<span class="word">groupbase</span>
 				<span class="hint">Открываем сайт группы…</span>
+				<div class="err" role="alert">
+					<b>Не получается открыть groupbase</b>
+					<span class="why"></span>
+					<span class="what"></span>
+					<button class="code" type="button" title="Скопировать код"></button>
+					<div class="row">
+						<button class="go" type="button" data-act="retry">
+							<span>Попробовать снова</span>
+						</button>
+						<button type="button" data-act="reset">Сбросить кэш и открыть</button>
+					</div>
+				</div>
 			</div>
 		</div>
+		<script>
+			// Сторож заставки: если интерфейс так и не открылся, объясняем почему — с кодом ошибки.
+			// Коды — в docs/desktop.md («Коды ошибок»).
+			(function () {
+				var splash = document.getElementById('splash');
+				var problems = [];
+				addEventListener(
+					'error',
+					function (e) {
+						var t = e.target;
+						var src = t && t !== window && (t.src || t.href);
+						problems.push(
+							src
+								? 'не загрузились файлы интерфейса (' + String(src).split('/').pop() + ')'
+								: e.message
+						);
+					},
+					true
+				);
+				addEventListener('unhandledrejection', function (e) {
+					var r = e.reason;
+					problems.push((r && (r.message || r.name)) || 'ошибка запуска');
+				});
+				function alive() {
+					return document.getElementById('splash') && !splash.classList.contains('gone');
+				}
+				function q(sel) {
+					return splash.querySelector(sel);
+				}
+				function fail(code, why, what) {
+					if (!alive() || splash.classList.contains('failed')) return;
+					q('.why').textContent = why;
+					q('.what').textContent = what;
+					q('.code').textContent = 'Код ошибки ' + code;
+					q('.code').setAttribute('data-code', code);
+					splash.setAttribute('aria-hidden', 'false');
+					splash.classList.add('failed');
+				}
+				var later =
+					'Если вы уже заходили раньше, откройте groupbase ещё раз — покажутся сохранённые данные.';
+				function check(last) {
+					if (!alive()) return;
+					if (!navigator.onLine)
+						return fail(
+							'GB-101',
+							'Нет подключения к интернету.',
+							'Проверьте Wi‑Fi или мобильную сеть и нажмите «Попробовать снова».'
+						);
+					var ctl = window.AbortController ? new AbortController() : null;
+					var timer = setTimeout(function () {
+						if (ctl) ctl.abort();
+					}, 7000);
+					fetch('/api/health', { cache: 'no-store', signal: ctl && ctl.signal }).then(
+						function (r) {
+							clearTimeout(timer);
+							if (!r.headers.get('X-Groupbase'))
+								return fail(
+									'GB-103',
+									'Вместо сайта группы ответил другой сервер.',
+									'Скорее всего, компьютер старосты выключен или доступ закрыт. ' + later
+								);
+							if (!r.ok)
+								return fail(
+									'GB-104',
+									'Сервер группы ответил ошибкой ' + r.status + '.',
+									'Попробуйте через минуту. Если повторяется — сообщите старосте код ошибки.'
+								);
+							if (problems.length)
+								return fail(
+									'GB-106',
+									'Интерфейс не запустился: ' + problems[0] + '.',
+									'Нажмите «Сбросить кэш и открыть». Если не поможет — обновите браузер.'
+								);
+							if (last)
+								return fail(
+									'GB-105',
+									'Сервер работает, но интерфейс не загрузился.',
+									'Обычно помогает «Сбросить кэш и открыть».'
+								);
+							// Сервер на месте, просто связь медленная — подождём ещё.
+							q('.hint').textContent = 'Связь медленная — ещё немного…';
+							setTimeout(function () {
+								check(true);
+							}, 15000);
+						},
+						function () {
+							clearTimeout(timer);
+							fail(
+								'GB-102',
+								'Сервер группы не отвечает.',
+								'Возможно, компьютер старосты выключен или нет связи. ' + later
+							);
+						}
+					);
+				}
+				setTimeout(function () {
+					check(false);
+				}, 8000);
+				splash.addEventListener('click', function (e) {
+					var b = e.target.closest && e.target.closest('button');
+					if (!b) return;
+					if (b.classList.contains('code')) {
+						var code = b.getAttribute('data-code');
+						if (navigator.clipboard)
+							navigator.clipboard.writeText(code).then(function () {
+								b.textContent = 'Скопировано';
+								setTimeout(function () {
+									b.textContent = 'Код ошибки ' + code;
+								}, 1400);
+							});
+						return;
+					}
+					if (b.getAttribute('data-act') === 'retry') return location.reload();
+					// Сброс: service worker и его кеш. Копию данных не трогаем — в ней могут быть
+					// ещё не отправленные действия.
+					var jobs = [];
+					if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations)
+						jobs.push(
+							navigator.serviceWorker.getRegistrations().then(function (list) {
+								return Promise.all(
+									list.map(function (r) {
+										return r.unregister();
+									})
+								);
+							})
+						);
+					if (window.caches)
+						jobs.push(
+							caches.keys().then(function (keys) {
+								return Promise.all(
+									keys.map(function (k) {
+										return caches.delete(k);
+									})
+								);
+							})
+						);
+					Promise.all(jobs).then(
+						function () {
+							location.reload();
+						},
+						function () {
+							location.reload();
+						}
+					);
+				});
+			})();
+		</script>
 		<div class="app-root">%sveltekit.body%</div>
 	</body>
 </html>
