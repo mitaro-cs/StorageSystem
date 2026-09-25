@@ -141,4 +141,22 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   палитра задаёт только их. Применяется до отрисовки скриптом в app.html, выбор — `shell/ThemePicker`.
 - «Настройки» в навигации — только если `hasSettings()` (session.svelte.ts); навигацию фильтрует
   `visibleNav()`.
+- Логотип — `web/static/logo.svg` (элементы по id: globe, grid, figure, eye; белые линии рассчитаны
+  на белый фон). Из него: `favicon.svg` (тот же, кадр крупнее), PNG-иконки — `java scripts/Icons.java`
+  (и `desktop` — исходники для `npm run icons` в desktop/), копии в заставках `app.html` и
+  `desktop/ui/index.html` (тест `logo.spec.ts` сверяет их с logo.svg), страница ошибки берёт части
+  через `<use href="/logo.svg#…">`.
+- Никаких `confirm()`, `prompt()`, `alert()`: окно хоста на Mac (WKWebView) их не показывает, а
+  плагин диалогов Tauri подменяет `confirm()` асинхронным — проверка получала «да». Вместо них —
+  `ask()` и `askText()` из `lib/ui/ask.svelte.ts` (окно `ui/Dialogs.svelte` грузится при первом
+  вопросе).
+- iPhone, установленный сайт: после клавиатуры iOS 26–27 сдвигает видимую область относительно
+  position: fixed (WebKit 297779). `lib/shell/viewport.ts` считает сдвиг (`--vv-shift`, класс
+  `kb-open` — печатают); нижние фиксированные элементы берут `translate: 0 var(--vv-shift, 0px)`.
+- Web Push: контакт в подписи VAPID (`sub`) — адрес сайта https или страница проекта, никогда не
+  mailto на localhost/IP: служба Apple отвечает 403 BadJwtToken (`VapidKeys.subject`). «Проверить»
+  возвращает код и причину службы (`PushSender.Report`).
+- Ключи входа: подсказка в поле логина (`mediation: 'conditional'`, у полей `autocomplete="…
+  webauthn"`), кнопка её отменяет. «Ключ безопасности» — `authenticatorAttachment: cross-platform`
+  и `hints: ['security-key']`.
 - У каждого пакета сервера — свои тесты (`EveryPackageHasTestsTest`).
