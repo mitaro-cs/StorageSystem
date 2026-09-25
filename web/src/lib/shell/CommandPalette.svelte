@@ -16,7 +16,7 @@
 	import { subjects } from '$lib/data.svelte';
 	import { score } from '$lib/fuzzy';
 	import { recent, type RecentItem } from '$lib/recent';
-	import { can, groups, selectGroup, isMulti } from '$lib/session.svelte';
+	import { can, groups, selectGroup, isMulti, visibleNav } from '$lib/session.svelte';
 	import { currentTheme, setTheme } from '$lib/theme';
 	import { fmtDue } from '$lib/format';
 	import { t } from '$lib/i18n/ru';
@@ -117,7 +117,7 @@
 				color: r.color,
 				run: () => go(r.type === 'subject' ? `/subjects/${r.id}` : `/materials/${r.id}`)
 			});
-		for (const n of mainNav)
+		for (const n of visibleNav(mainNav))
 			out.push({
 				id: `n-${n.href}`,
 				group: 'Разделы',

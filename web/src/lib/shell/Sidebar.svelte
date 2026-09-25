@@ -4,7 +4,14 @@
 	import { PanelLeftClose, PanelLeftOpen, Search } from '@lucide/svelte';
 	import { openPalette } from './palette.svelte';
 	import { t } from '$lib/i18n/ru';
-	import { canManage, currentGroup, isMulti, session, setManageMode } from '$lib/session.svelte';
+	import {
+		canManage,
+		currentGroup,
+		isMulti,
+		session,
+		setManageMode,
+		visibleNav
+	} from '$lib/session.svelte';
 	import { toastError } from '$lib/toasts.svelte';
 	import Switch from '$lib/ui/Switch.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
@@ -61,7 +68,7 @@
 	</button>
 
 	<nav class="main">
-		{#each mainNav as item (item.href)}
+		{#each visibleNav(mainNav) as item (item.href)}
 			{@const Icon = item.icon}
 			<a
 				href={item.href}

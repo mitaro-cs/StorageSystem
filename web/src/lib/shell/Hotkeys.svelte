@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { can } from '$lib/session.svelte';
+	import { can, hasSettings } from '$lib/session.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
 	import { openPalette, palette } from './palette.svelte';
 
@@ -47,7 +47,7 @@
 		// Состояние берём из DOM: событие close у диалога приходит с задержкой.
 		if (document.querySelector('dialog[open]')) return;
 		const now = Date.now();
-		if (pendingG && now - pendingG < 1200 && jumps[e.key]) {
+		if (pendingG && now - pendingG < 1200 && jumps[e.key] && (e.key !== 'o' || hasSettings())) {
 			pendingG = 0;
 			e.preventDefault();
 			goto(jumps[e.key]);
@@ -66,7 +66,7 @@
 		}
 	}
 
-	const rows: [string, string][] = [
+	const allRows: [string, string][] = [
 		['Ctrl/⌘ + K', 'Командная палитра'],
 		['/', 'Поиск'],
 		['n', 'Новая запись (ДЗ или новость)'],
@@ -82,6 +82,7 @@
 		['g b', 'Уведомления'],
 		['?', 'Эта подсказка']
 	];
+	const rows = $derived(allRows.filter(([k]) => k !== 'g o' || hasSettings()));
 </script>
 
 <svelte:window {onkeydown} />

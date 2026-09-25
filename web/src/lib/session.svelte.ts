@@ -128,3 +128,28 @@ export function groupsWith(perm: Permission): MeGroup[] {
 export function isAdmin(): boolean {
 	return manageMode() && session.me?.user.instanceRole === 'admin';
 }
+
+/** Права, у которых есть свой раздел в «Настройках». */
+const SETTINGS_PERMS: Permission[] = [
+	'create_accounts',
+	'create_invites',
+	'block_users',
+	'manage_permissions',
+	'manage_subjects',
+	'view_audit',
+	'export_group'
+];
+
+/**
+ * Есть ли что настраивать. Обычному участнику отдельный пункт «Настройки» не нужен: всё своё —
+ * тема, уведомления, пароль — в «Профиле».
+ */
+export function hasSettings(): boolean {
+	if (!manageMode()) return false;
+	return isAdmin() || SETTINGS_PERMS.some((p) => realCan(p));
+}
+
+/** Навигация без «Настроек» для тех, кому там нечего делать. */
+export function visibleNav<T extends { href: string }>(items: T[]): T[] {
+	return hasSettings() ? items : items.filter((i) => i.href !== '/settings');
+}
