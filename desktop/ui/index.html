@@ -9,13 +9,34 @@
 	</head>
 	<body>
 		<main>
-			<svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
-				<rect width="32" height="32" rx="9" />
-				<path d="M9 11.5 16 8l7 3.5-7 3.5z M9 16l7 3.5 7-3.5 M9 20.5l7 3.5 7-3.5" />
+			<!-- Та же «стопка», что у сайта (web/src/app.html): слои складываются и дышат, пока идёт работа. -->
+			<svg class="mark" viewBox="-12 -12 56 56" aria-hidden="true">
+				<defs>
+					<clipPath id="clip"><rect width="32" height="32" rx="9" /></clipPath>
+					<radialGradient id="glow">
+						<stop offset="0.35" stop-color="currentColor" />
+						<stop offset="1" stop-color="currentColor" stop-opacity="0" />
+					</radialGradient>
+					<linearGradient id="shine" x1="0" x2="1" y1="0" y2="0">
+						<stop offset="0" stop-color="#fff" stop-opacity="0" />
+						<stop offset="0.5" stop-color="#fff" stop-opacity="0.42" />
+						<stop offset="1" stop-color="#fff" stop-opacity="0" />
+					</linearGradient>
+				</defs>
+				<circle class="glow" cx="16" cy="16" r="27" />
+				<circle class="ring" cx="16" cy="16" r="16" />
+				<circle class="ring ring2" cx="16" cy="16" r="16" />
+				<g class="tile">
+					<rect class="bg" width="32" height="32" rx="9" />
+					<g clip-path="url(#clip)"><rect class="shine" x="-16" y="-8" width="10" height="48" /></g>
+					<path class="layer l1" d="M9 11.5 16 8l7 3.5-7 3.5-7-3.5Z" />
+					<path class="layer l2" d="M9 16l7 3.5 7-3.5" />
+					<path class="layer l3" d="M9 20.5 16 24l7-3.5" />
+				</g>
 			</svg>
 			<h1>groupbase</h1>
 			<p id="status" role="status">Запускаем сервер группы…</p>
-			<div class="spinner" id="spinner" aria-hidden="true"></div>
+			<div class="progress" id="progress" hidden><span id="bar"></span></div>
 			<pre id="details" hidden></pre>
 			<div class="actions" id="actions" hidden>
 				<button id="restart" class="primary">Перезапустить</button>
