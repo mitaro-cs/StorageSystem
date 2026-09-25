@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class MaterialsIT extends IntegrationTest {
 
@@ -229,5 +230,20 @@ class MaterialsIT extends IntegrationTest {
         .startsWith("attachment");
     assertThat(r.headers().firstValue("Content-Security-Policy").orElseThrow())
         .startsWith("sandbox");
+  }
+
+  @Autowired app.groupbase.files.FileStore store;
+
+  @Test
+  void missingFileOnDiskIsNotFoundNotServerError() throws IOException {
+    long g = newGroup("Потерянный файл");
+    TestUser headman = newUser(g, "headman");
+    long s = subject(g);
+    long id = headman.api().upload("lost.pdf", "%PDF-1.4 x".getBytes()).json().get("id").asLong();
+    headman.api().post("/api/subjects/" + s + "/materials", Map.of("kind", "file", "fileId", id));
+    Files.delete(store.path(store.find(id).orElseThrow().uuid()));
+    var r = headman.api().download("/api/files/" + id);
+    assertThat(r.statusCode()).isEqualTo(404);
+    assertThat(new String(r.body(), StandardCharsets.UTF_8)).contains("file_missing");
   }
 }

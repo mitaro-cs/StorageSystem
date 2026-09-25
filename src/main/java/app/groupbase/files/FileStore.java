@@ -159,7 +159,8 @@ public class FileStore {
     return orphans.size();
   }
 
-  Path path(String uuid) {
+  /** Где лежит зашифрованное содержимое файла. */
+  public Path path(String uuid) {
     if (!uuid.matches("[0-9a-f-]{36}")) {
       throw new IllegalArgumentException("bad uuid");
     }

@@ -13,8 +13,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +31,8 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 class FileController {
+
+  private static final Logger log = LoggerFactory.getLogger(FileController.class);
 
   record Uploaded(long id, String name, String mime, long size) {}
 
@@ -69,6 +75,18 @@ class FileController {
     if (!materials.canRead(actor, f)) {
       throw ApiException.notFound();
     }
+    // Сначала открываем: если содержимого нет на диске (восстановили копию без файлов, удалили
+    // вручную), человек получит понятное «файла нет», а не ошибку сервера.
+    InputStream in;
+    try {
+      in = files.open(f);
+    } catch (NoSuchFileException e) {
+      log.warn("Файл {} есть в базе, но его нет на диске", f.id());
+      throw new ApiException(
+          HttpStatus.NOT_FOUND,
+          "file_missing",
+          "Файла нет на сервере — попросите старосту загрузить его заново");
+    }
     boolean inline = !download && Mime.inline(f.mime());
     res.setContentType(f.mime().equals("text/plain") ? "text/plain; charset=utf-8" : f.mime());
     res.setContentLengthLong(f.size());
@@ -87,7 +105,7 @@ class FileController {
           "Content-Security-Policy",
           "sandbox; default-src 'none'; img-src 'self'; media-src 'self'");
     }
-    try (InputStream in = files.open(f);
+    try (in;
         OutputStream out = res.getOutputStream()) {
       in.transferTo(out);
     }
