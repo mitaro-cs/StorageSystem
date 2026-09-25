@@ -120,6 +120,15 @@ class GroupController {
     return groupService.setSession(actor, groupId, b.from(), b.to());
   }
 
+  record SessionNavBody(String mode) {}
+
+  /** Кнопка «Сессия» в меню: около сессии (по датам), всегда или никогда. */
+  @Require(Permission.MANAGE_SUBJECTS)
+  @PutMapping("/{groupId}/session-nav")
+  Group sessionNav(Actor actor, @PathVariable long groupId, @RequestBody SessionNavBody b) {
+    return groupService.setSessionNav(actor, groupId, b.mode());
+  }
+
   // --- участники ---
 
   /** Прогресс для чек-листа старосты на главной. */

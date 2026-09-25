@@ -162,4 +162,28 @@ class SessionIT extends IntegrationTest {
       }
     }
   }
+
+  @Test
+  void headmanChoosesWhenSessionButtonIsShown() {
+    long g = newGroup("Кнопка сессии");
+    TestUser headman = newUser(g, "headman");
+    TestUser student = newUser(g, "student");
+    String path = "/api/groups/" + g + "/session-nav";
+
+    // По умолчанию — только около сессии: кнопка нужна пару раз в год.
+    assertThat(
+            student.api().get("/api/me").json().get("groups").get(0).get("sessionNav").asString())
+        .isEqualTo("auto");
+    for (String mode : List.of("show", "hide", "auto")) {
+      var r = headman.api().put(path, Map.of("mode", mode));
+      assertThat(r.status()).as(r.body()).isEqualTo(200);
+      assertThat(r.json().get("sessionNav").asString()).isEqualTo(mode);
+    }
+    headman.api().put(path, Map.of("mode", "hide"));
+    assertThat(
+            student.api().get("/api/me").json().get("groups").get(0).get("sessionNav").asString())
+        .isEqualTo("hide");
+    assertThat(headman.api().put(path, Map.of("mode", "sometimes")).status()).isEqualTo(400);
+    assertThat(student.api().put(path, Map.of("mode", "show")).status()).isEqualTo(403);
+  }
 }

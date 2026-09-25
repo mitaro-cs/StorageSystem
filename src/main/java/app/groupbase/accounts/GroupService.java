@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -96,6 +97,21 @@ public class GroupService {
     groups.find(groupId).orElseThrow(ApiException::notFound);
     groups.setArchived(groupId, archived ? clock.millis() : null);
     audit.log(actor, groupId, archived ? "group.archive" : "group.unarchive", "group", groupId);
+  }
+
+  /** Режимы кнопки «Сессия» в меню. */
+  public static final Set<String> SESSION_NAV = Set.of("auto", "show", "hide");
+
+  /** Когда показывать кнопку «Сессия» в меню: около сессии, всегда или никогда. */
+  @Transactional
+  public Group setSessionNav(Actor actor, long groupId, String mode) {
+    groups.find(groupId).orElseThrow(ApiException::notFound);
+    if (mode == null || !SESSION_NAV.contains(mode)) {
+      throw ApiException.invalid("mode", "Выберите: около сессии, всегда или никогда");
+    }
+    groups.setSessionNav(groupId, mode);
+    audit.log(actor, groupId, "group.session_nav", "group", groupId, Map.of("mode", mode));
+    return groups.find(groupId).orElseThrow();
   }
 
   /**

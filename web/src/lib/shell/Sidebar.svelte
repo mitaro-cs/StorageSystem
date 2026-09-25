@@ -19,7 +19,7 @@
 	import SubjectList from './SubjectList.svelte';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import { isActive, mainNav } from './nav';
-	import { bell } from '$lib/notify.svelte';
+	import { sessionNavVisible } from '$lib/content/session';
 
 	let { collapsed = $bindable(false) }: { collapsed?: boolean } = $props();
 
@@ -41,6 +41,21 @@
 	}
 
 	const group = $derived(currentGroup());
+	// «Сессия» — только когда её показывает староста (или около сессии); в режиме «все группы» —
+	// если она нужна хоть одной группе.
+	const showSession = $derived(
+		(group ? [group] : (session.me?.groups ?? [])).some((g) => sessionNavVisible(g, Date.now()))
+	);
+	// Файлы — во вкладке «Материалы» каждого предмета, уведомления — колокольчиком на «Сегодня».
+	// В панели их нет, но командная палитра (⌘K) и горячие клавиши их находят.
+	const items = $derived(
+		visibleNav(mainNav).filter(
+			(i) =>
+				i.href !== '/materials' &&
+				i.href !== '/notifications' &&
+				(i.href !== '/session' || showSession)
+		)
+	);
 	const title = $derived(
 		group?.name ??
 			(isMulti()
@@ -68,7 +83,7 @@
 	</button>
 
 	<nav class="main">
-		{#each visibleNav(mainNav) as item (item.href)}
+		{#each items as item (item.href)}
 			{@const Icon = item.icon}
 			<a
 				href={item.href}
@@ -78,10 +93,6 @@
 			>
 				<Icon size={19} strokeWidth={1.8} />
 				{#if !collapsed}<span class="label-text">{item.label}</span>{/if}
-				{#if item.href === '/notifications' && bell.unread}<span
-						class="count num"
-						aria-label="непрочитанных: {bell.unread}">{bell.unread > 99 ? '99+' : bell.unread}</span
-					>{/if}
 			</a>
 		{/each}
 	</nav>
@@ -242,28 +253,6 @@
 	}
 	.label-text {
 		flex: 1;
-	}
-	.count {
-		min-width: 22px;
-		height: 22px;
-		padding: 0 6px;
-		border-radius: 11px;
-		background: var(--danger);
-		color: #fff;
-		font-size: 12px;
-		font-weight: 700;
-		line-height: 22px;
-		text-align: center;
-	}
-	.collapsed .count {
-		position: absolute;
-		top: 2px;
-		right: 2px;
-		min-width: 18px;
-		height: 18px;
-		font-size: 10.5px;
-		line-height: 18px;
-		padding: 0 4px;
 	}
 	.collapsed .main a {
 		width: 48px;

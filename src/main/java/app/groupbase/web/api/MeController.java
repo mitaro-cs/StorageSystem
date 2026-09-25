@@ -56,7 +56,8 @@ class MeController {
       GroupRole role,
       Set<Permission> permissions,
       List<GroupChatController.ChatView> chats,
-      Session session) {}
+      Session session,
+      String sessionNav) {}
 
   /** Сессия группы: первый и последний день (полночь по часовому поясу сайта). */
   record Session(long from, long to) {
@@ -197,7 +198,8 @@ class MeController {
         role,
         authz.permissions(actor, g.id()),
         chats,
-        Session.of(g));
+        Session.of(g),
+        g.sessionNav());
   }
 
   @PatchMapping

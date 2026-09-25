@@ -14,9 +14,9 @@
 	import HomeworkRow from '$lib/content/HomeworkRow.svelte';
 	import NewsCard from '$lib/content/NewsCard.svelte';
 	import NextDeadline from '$lib/content/NextDeadline.svelte';
-	import FirstSteps from '$lib/content/FirstSteps.svelte';
 	import { datesFor, sessionExams, sessionVisible } from '$lib/content/session';
 	import Avatar from '$lib/ui/Avatar.svelte';
+	import Bell from '$lib/shell/Bell.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 
@@ -58,6 +58,9 @@
 		)
 	);
 	const canPinChats = $derived(!!chatGroup && can('publish_news', chatGroup.id));
+	const canInvite = $derived(
+		(currentGroup() ? [currentGroup()!] : groups()).some((g) => can('create_invites', g.id))
+	);
 	const sortDone = (list: Today['upcoming']) =>
 		[...list].sort((a, b) => Number(a.done) - Number(b.done) || a.dueAt - b.dueAt);
 	const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -76,6 +79,9 @@
 			{cap(fmtWeekday(now))}, <span class="num">{fmtDate(now)}</span>{place ? ` · ${place}` : ''}
 		</p>
 	</div>
+	<!-- Уведомления на компьютере — здесь, на «Сегодня» (в боковой панели пункта нет). На телефоне
+	     колокольчик — в верхней панели. -->
+	<span class="desk-bell"><Bell /></span>
 	{#if me}
 		<a class="me" href="/profile" aria-label="Профиль">
 			<Avatar id={me.id} name={me.displayName} avatar={me.avatar} size={52} ring />
@@ -110,7 +116,12 @@
 	<a class="pill" href="/materials">Файлы</a>
 </div>
 
-<FirstSteps oncreate={() => (hwOpen = true)} />
+<!-- «Первые шаги» — только тем, кто приглашает (староста, замы): код грузится лишь для них. -->
+{#if canInvite}
+	{#await import('$lib/content/FirstSteps.svelte') then m}<m.default
+			oncreate={() => (hwOpen = true)}
+		/>{/await}
+{/if}
 
 {#if !data}
 	<div class="stack"><Skeleton /><Skeleton /></div>
@@ -240,6 +251,15 @@
 	.hello h1 {
 		font-size: clamp(28px, 6vw, 36px);
 		margin-bottom: 4px;
+	}
+	.desk-bell {
+		display: none;
+		flex: none;
+	}
+	@media (min-width: 900px) {
+		.desk-bell {
+			display: block;
+		}
 	}
 	.me {
 		flex: none;

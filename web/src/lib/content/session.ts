@@ -80,6 +80,21 @@ export function sessionVisible(
 	return exams.some((e) => daysUntil(e.dueAt, now) >= 0 && daysUntil(e.dueAt, now) <= 14);
 }
 
+/**
+ * Кнопка «Сессия» в меню. Её выбирает староста в «Настройки → Семестр»: всегда, никогда или около
+ * сессии — за три недели до начала и до последнего дня (по датам; без дат — не видна).
+ */
+export function sessionNavVisible(
+	group: Pick<MeGroup, 'session' | 'sessionNav'>,
+	now: number
+): boolean {
+	const mode = group.sessionNav ?? 'auto';
+	if (mode === 'show') return true;
+	if (mode === 'hide') return false;
+	const p = phase(group.session, now);
+	return p.kind === 'during' || (p.kind === 'before' && p.days <= LEAD_DAYS);
+}
+
 /** Даты сессии выбранной группы; в режиме «все группы» — если они есть ровно у одной. */
 export function datesFor(groups: MeGroup[], groupId: number | null): SessionDates | null {
 	if (groupId !== null) return groups.find((g) => g.id === groupId)?.session ?? null;

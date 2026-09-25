@@ -39,6 +39,11 @@ export interface MeGroup {
 	chats: GroupChat[];
 	/** Сессия: первый и последний день (полночь, мс); null — даты не заданы. */
 	session: { from: number; to: number } | null;
+	/**
+	 * Кнопка «Сессия» в меню: auto — около сессии (по датам), show — всегда, hide — никогда. У копии
+	 * данных от прежних версий поля нет — считается auto.
+	 */
+	sessionNav?: 'auto' | 'show' | 'hide';
 }
 
 export interface GroupChat {

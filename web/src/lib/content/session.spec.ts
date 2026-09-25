@@ -9,7 +9,8 @@ import {
 	phase,
 	progress,
 	sessionExams,
-	sessionVisible
+	sessionVisible,
+	sessionNavVisible
 } from './session';
 
 const at = (y: number, m: number, d: number, h = 0) => new Date(y, m - 1, d, h).getTime();
@@ -77,5 +78,33 @@ describe('сессия', () => {
 		expect(new Date(dayToMs('2027-01-10')).getHours()).toBe(12);
 		expect(msToDay(dayToMs('2027-01-10'))).toBe('2027-01-10');
 		expect(msToDay(at(2027, 1, 10))).toBe('2027-01-10');
+	});
+});
+
+describe('кнопка «Сессия» в меню', () => {
+	const DAY = 24 * 60 * 60 * 1000;
+	const now = new Date(2026, 8, 26, 12).getTime();
+	const at = (days: number) => now + days * DAY;
+	const group = (sessionNav: MeGroup['sessionNav'], from?: number, to?: number) => ({
+		sessionNav,
+		session: from !== undefined && to !== undefined ? { from, to } : null
+	});
+
+	it('староста выбрал «всегда» или «не показывать» — так и есть', () => {
+		expect(sessionNavVisible(group('show'), now)).toBe(true);
+		expect(sessionNavVisible(group('hide', at(-1), at(10)), now)).toBe(false);
+	});
+
+	it('«около сессии» — за три недели до начала и до последнего дня', () => {
+		expect(sessionNavVisible(group('auto', at(30), at(50)), now)).toBe(false);
+		expect(sessionNavVisible(group('auto', at(21), at(40)), now)).toBe(true);
+		expect(sessionNavVisible(group('auto', at(-3), at(10)), now)).toBe(true);
+		expect(sessionNavVisible(group('auto', at(-30), at(-2)), now)).toBe(false);
+	});
+
+	it('без дат и у данных от прежних версий (поля нет) — не видна', () => {
+		expect(sessionNavVisible(group('auto'), now)).toBe(false);
+		expect(sessionNavVisible(group(undefined, at(5), at(20)), now)).toBe(true);
+		expect(sessionNavVisible(group(undefined), now)).toBe(false);
 	});
 });
