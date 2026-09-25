@@ -172,7 +172,7 @@ class GroupIsolationIT extends IntegrationTest {
   }
 
   @Test
-  void moderatorActsInstanceWideButNotOnAdmins() {
+  void moderatorSeesAllGroupsButCannotBlockOrRemovePeople() {
     long a = newGroup("Модер");
     TestUser mod = newUser(a, "student");
     assertThat(
@@ -184,8 +184,19 @@ class GroupIsolationIT extends IntegrationTest {
     long b = newGroup("Чужая");
     TestUser victim = newUser(b, "student");
     assertThat(modApi.get("/api/groups/" + b + "/members").status()).isEqualTo(200);
+    // Блокировать и исключать людей могут только администратор и староста.
     assertThat(modApi.post("/api/admin/users/" + victim.id() + "/block", null).status())
-        .isEqualTo(200);
+        .isEqualTo(403);
+    assertThat(
+            modApi.post("/api/groups/" + b + "/members/" + victim.id() + "/block", null).status())
+        .isEqualTo(403);
+    assertThat(modApi.delete("/api/groups/" + b + "/members/" + victim.id()).status())
+        .isEqualTo(403);
+    modApi
+        .get("/api/me")
+        .json()
+        .get("groups")
+        .forEach(gr -> assertThat(gr.get("permissions").toString()).doesNotContain("block_users"));
     long adminId = admin().get("/api/me").json().get("user").get("id").asLong();
     assertThat(modApi.post("/api/admin/users/" + adminId + "/block", null).status()).isEqualTo(403);
     assertThat(modApi.patch("/api/admin/settings", Map.of("name", "x")).status()).isEqualTo(403);

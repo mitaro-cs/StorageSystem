@@ -16,8 +16,12 @@ public final class Rbac {
 
   private Rbac() {}
 
+  /**
+   * Модератор сайта следит за порядком в новостях и комментариях. Блокировать и исключать людей
+   * могут только администратор и староста — так решил владелец.
+   */
   private static final Set<Permission> MODERATOR =
-      EnumSet.of(BLOCK_USERS, PUBLISH_NEWS, MODERATE_CONTENT, COMMENT, VIEW_AUDIT, VIEW_GROUP);
+      EnumSet.of(PUBLISH_NEWS, MODERATE_CONTENT, COMMENT, VIEW_AUDIT, VIEW_GROUP);
 
   private static final Map<GroupRole, Set<Permission>> GROUP_DEFAULTS =
       new EnumMap<>(GroupRole.class);

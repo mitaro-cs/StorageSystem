@@ -27,7 +27,7 @@ class RbacMatrixTest {
     {ASSIGN_DEPUTY, "y-y--"},
     {CREATE_ACCOUNTS, "y-yc-"},
     {CREATE_INVITES, "y-yy-"},
-    {BLOCK_USERS, "yyy--"},
+    {BLOCK_USERS, "y-y--"},
     {RESET_PASSWORDS, "y-y--"},
     {MANAGE_SUBJECTS, "y-yc-"},
     {SHARE_SUBJECTS, "y-y--"},
