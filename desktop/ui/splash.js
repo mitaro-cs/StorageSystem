@@ -115,6 +115,6 @@ invoke('current_status').then(show);
 			line.style.opacity = String(Math.abs(lon) <= 30 ? 1 : edge * appear);
 		});
 	}
-	// Сначала плитка появляется с неподвижной сеткой, затем глобус начинает вращаться.
-	setTimeout(() => requestAnimationFrame(frame), 900);
+	// Сначала глобус падает на руки с неподвижной сеткой, затем начинает вращаться.
+	setTimeout(() => requestAnimationFrame(frame), 1400);
 })();

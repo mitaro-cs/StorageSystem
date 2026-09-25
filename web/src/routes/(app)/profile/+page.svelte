@@ -1,5 +1,4 @@
 <script lang="ts">
-	import NotificationSettings from '$lib/settings/NotificationSettings.svelte';
 	import { fioError } from '$lib/names';
 	import { goto } from '$app/navigation';
 	import {
@@ -23,7 +22,6 @@
 	import SectionHead from '$lib/ui/SectionHead.svelte';
 	import { ApiError, del, get, patch, post, request } from '$lib/api';
 	import { offline, wipeOffline } from '$lib/offline/engine';
-	import OfflineSettings from '$lib/settings/OfflineSettings.svelte';
 	import { forgetAccount } from '$lib/accounts';
 	import { t } from '$lib/i18n/ru';
 	import {
@@ -41,7 +39,6 @@
 	import Button from '$lib/ui/Button.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
-	import ThemePicker from '$lib/shell/ThemePicker.svelte';
 	import { forgetOfflineData, install, pwa } from '$lib/pwa.svelte';
 	import { clearCache } from '$lib/cache';
 	import { clearRecent } from '$lib/recent';
@@ -311,9 +308,10 @@
 		icon={Palette}
 		tone="violet"
 		title="Оформление"
-		text="Светлая или тёмная тема и цвет — под себя. Меняется сразу."
+		text="Светлая или тёмная тема, цвет и стиль карточек — под себя. Меняется сразу."
 	/>
-	<ThemePicker />
+	<!-- Код выбора оформления грузится отдельно: он ниже первого экрана профиля. -->
+	{#await import('$lib/shell/ThemePicker.svelte') then m}<m.default />{/await}
 </section>
 
 <section class="card block">
@@ -405,9 +403,10 @@
 {/if}
 
 <p class="chapter">Уведомления и офлайн</p>
-<NotificationSettings />
+<!-- Уведомления и офлайн — ниже первого экрана: их код грузится отдельно. -->
+{#await import('$lib/settings/NotificationSettings.svelte') then m}<m.default />{/await}
 
-<OfflineSettings />
+{#await import('$lib/settings/OfflineSettings.svelte') then m}<m.default />{/await}
 
 <p class="chapter">Прочее</p>
 <section class="card block">

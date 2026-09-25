@@ -69,3 +69,46 @@ export function setPalette(palette: Palette) {
 	}
 	setTimeout(() => root.classList.remove('theme-switching'), 300);
 }
+
+/**
+ * Стиль (Профиль → Оформление): как выглядят карточки и фон. «Обычный» — как было всегда; остальные
+ * включает каждый себе сам, на этом устройстве. Правила — в app.css (:root[data-style]) и в
+ * карточках новостей и заданий (цвет предмета).
+ */
+export const STYLES = [
+	{ id: 'plain', label: 'Обычный', hint: 'Ровные карточки — как было' },
+	{ id: 'depth', label: 'Объём', hint: 'Свет сверху и мягкие тени' },
+	{ id: 'glass', label: 'Стекло', hint: 'Полупрозрачные панели на цветном фоне' },
+	{ id: 'tint', label: 'Цвет предметов', hint: 'Новости и задания в цвете своего предмета' }
+] as const;
+
+export type Style = (typeof STYLES)[number]['id'];
+const STYLE_KEY = 'gb-style';
+
+export function isStyle(v: unknown): v is Style {
+	return STYLES.some((s) => s.id === v);
+}
+
+export function currentStyle(): Style {
+	try {
+		const v = localStorage.getItem(STYLE_KEY);
+		return isStyle(v) ? v : 'plain';
+	} catch {
+		return 'plain';
+	}
+}
+
+/** Меняет стиль сразу, с плавным переходом, и запоминает на этом устройстве. */
+export function setStyle(style: Style) {
+	const root = document.documentElement;
+	root.classList.add('theme-switching');
+	if (style === 'plain') root.removeAttribute('data-style');
+	else root.setAttribute('data-style', style);
+	try {
+		if (style === 'plain') localStorage.removeItem(STYLE_KEY);
+		else localStorage.setItem(STYLE_KEY, style);
+	} catch {
+		/* приватный режим — просто не запоминаем */
+	}
+	setTimeout(() => root.classList.remove('theme-switching'), 300);
+}

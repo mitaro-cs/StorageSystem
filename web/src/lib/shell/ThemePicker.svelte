@@ -3,22 +3,33 @@
 	import { Check, Monitor, Moon, Sun } from '@lucide/svelte';
 	import {
 		PALETTES,
+		STYLES,
 		currentPalette,
+		currentStyle,
 		currentTheme,
 		setPalette,
+		setStyle,
 		setTheme,
 		type Palette,
+		type Style,
 		type Theme
 	} from '$lib/theme';
 
-	// Оформление под себя: режим (светлый, тёмный, как в системе) и цвет. Меняется сразу,
-	// хранится на этом устройстве.
+	// Оформление под себя: режим (светлый, тёмный, как в системе), цвет и стиль карточек. Меняется
+	// сразу, хранится на этом устройстве.
 	let theme = $state<Theme>('system');
 	let palette = $state<Palette>('classic');
+	let style = $state<Style>('plain');
 	onMount(() => {
 		theme = currentTheme();
 		palette = currentPalette();
+		style = currentStyle();
 	});
+
+	function pickStyle(s: Style) {
+		style = s;
+		setStyle(s);
+	}
 
 	const modes: { value: Theme; label: string; icon: typeof Sun }[] = [
 		{ value: 'system', label: 'Как в системе', icon: Monitor },
@@ -82,6 +93,31 @@
 				</button>
 			{/each}
 		</div>
+	</div>
+	<div>
+		<p class="label" id="style-label">Стиль</p>
+		<div class="styles" role="radiogroup" aria-labelledby="style-label">
+			{#each STYLES as s (s.id)}
+				<button
+					type="button"
+					role="radio"
+					aria-checked={style === s.id}
+					aria-label={s.label}
+					title={s.hint}
+					class="swatch"
+					class:on={style === s.id}
+					onclick={() => pickStyle(s.id)}
+				>
+					<!-- Образец: фон страницы и две карточки в этом стиле. -->
+					<span class="look {s.id}" aria-hidden="true">
+						<i class="c c1"></i><i class="c c2"></i>
+						{#if style === s.id}<span class="tick"><Check size={13} strokeWidth={3} /></span>{/if}
+					</span>
+					<span class="name">{s.label}</span>
+				</button>
+			{/each}
+		</div>
+		<p class="hint">{STYLES.find((s) => s.id === style)?.hint}</p>
 	</div>
 	<p class="hint">Оформление сохраняется на этом устройстве.</p>
 </div>
@@ -219,5 +255,59 @@
 	}
 	.name {
 		white-space: nowrap;
+	}
+	.styles {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+		gap: var(--s2);
+	}
+	.styles + .hint {
+		margin-top: 6px;
+	}
+	.look {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 6px;
+		width: 100%;
+		height: 60px;
+		padding: 0 12px;
+		border-radius: 12px;
+		overflow: hidden;
+		background: var(--bg);
+		box-shadow: inset 0 0 0 1px rgb(127 127 127 / 0.25);
+	}
+	.c {
+		display: block;
+		height: 16px;
+		border-radius: 6px;
+		background: var(--surface);
+	}
+	.c2 {
+		width: 70%;
+	}
+	.look.depth .c {
+		background-image: linear-gradient(180deg, rgb(255 255 255 / 0.5), transparent);
+		box-shadow:
+			inset 0 1px 0 rgb(255 255 255 / 0.6),
+			0 6px 10px -6px rgb(0 0 0 / 0.45);
+	}
+	.look.glass {
+		background:
+			radial-gradient(60% 70% at 15% 20%, rgb(124 92 255 / 0.45), transparent),
+			radial-gradient(55% 70% at 90% 90%, rgb(255 146 64 / 0.45), transparent),
+			radial-gradient(50% 60% at 80% 10%, rgb(56 189 170 / 0.4), transparent), var(--bg);
+	}
+	.look.glass .c {
+		background: color-mix(in srgb, var(--surface) 55%, transparent);
+		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.4);
+		backdrop-filter: blur(6px);
+	}
+	.look.tint .c1 {
+		background: color-mix(in srgb, #4f7df5 22%, var(--surface));
+	}
+	.look.tint .c2 {
+		background: color-mix(in srgb, #1fa37a 22%, var(--surface));
 	}
 </style>

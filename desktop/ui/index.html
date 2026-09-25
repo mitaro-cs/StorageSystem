@@ -9,8 +9,9 @@
 	</head>
 	<body>
 		<main>
-			<!-- Тот же логотип, что у сайта (web/src/app.html, web/static/logo.svg): глобус вращается, пока
-			     идёт работа; при ошибке краснеет и соскальзывает с плеч. -->
+			<!-- Тот же логотип и те же движения, что у сайта (web/src/app.html, web/static/logo.svg):
+			     глобус падает на руки, вращается и покачивается, пока идёт работа; при ошибке краснеет и
+			     падает с плеч. -->
 			<svg class="mark" viewBox="-12 -12 56 56" aria-hidden="true">
 				<defs>
 					<clipPath id="clip"><circle cx="347.8" cy="273.1" r="165" /></clipPath>
@@ -18,6 +19,11 @@
 						<stop offset="0.35" stop-color="currentColor" />
 						<stop offset="1" stop-color="currentColor" stop-opacity="0" />
 					</radialGradient>
+					<linearGradient id="gloss" x1="0" x2="1" y1="0" y2="0">
+						<stop offset="0" stop-color="#fff" stop-opacity="0" />
+						<stop offset="0.5" stop-color="#fff" stop-opacity="0.32" />
+						<stop offset="1" stop-color="#fff" stop-opacity="0" />
+					</linearGradient>
 				</defs>
 				<circle class="glow" cx="16" cy="16" r="27" />
 				<circle class="ring" cx="16" cy="16" r="16" />
@@ -30,6 +36,10 @@
 							<g class="grid" clip-path="url(#clip)">
 								<path d="M181.8 190.3H513.8M181.8 273.2H513.8M181.8 356H513.8" />
 								<path class="mer" d="M347.8 107.2V439.1M338.5 107.2C317.2 121 306.1 134.8 297.8 148.7C289.4 162.5 284 176.3 279.4 190.2C274.8 204 271.3 217.8 268.8 231.6C266.3 245.5 264.9 259.3 264.9 273.1C264.9 287 266.3 300.8 268.8 314.6C271.3 328.5 274.8 342.3 279.4 356.1C284 370 289.4 383.8 297.8 397.6C306.1 411.5 317.2 425.3 338.5 439.1M357.1 107.2C378.4 121 389.5 134.8 397.8 148.7C406.2 162.5 411.6 176.3 416.2 190.2C420.8 204 424.3 217.8 426.8 231.6C429.3 245.5 430.7 259.3 430.7 273.1C430.7 287 429.3 300.8 426.8 314.6C424.3 328.5 420.8 342.3 416.2 356.1C411.6 370 406.2 383.8 397.8 397.6C389.5 411.5 378.4 425.3 357.1 439.1" />
+							</g>
+							<!-- Блик: пробегает по глобусу. -->
+							<g clip-path="url(#clip)">
+								<rect class="gloss" x="130" y="80" width="90" height="400" />
 							</g>
 						</g>
 						<path

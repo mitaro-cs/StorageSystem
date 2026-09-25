@@ -251,6 +251,78 @@
 	--pald-accent-text: #16063a;
 }
 
+/* ---------- Стиль (Профиль → Оформление, lib/theme.ts STYLES) ----------
+   По умолчанию атрибута нет — «Обычный», как было. «Цвет предметов» — в карточках новостей и
+   заданий (NewsCard, HomeworkRow). Срочные новости сохраняют свою янтарную обводку. */
+
+/* Объём: свет сверху, светлая кромка и мягкая многослойная тень; над страницей — слабое сияние. */
+:root[data-style='depth'] .card:not(.urgent) {
+	background-image: linear-gradient(180deg, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0) 140px);
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 0.9),
+		0 1px 2px rgb(16 18 24 / 0.06),
+		0 16px 36px -20px rgb(16 18 24 / 0.38);
+}
+:root[data-style='depth'] body::before,
+:root[data-style='glass'] body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+}
+:root[data-style='depth'] body::before {
+	background: radial-gradient(
+		900px 520px at 50% -160px,
+		color-mix(in srgb, var(--accent) 10%, transparent),
+		transparent 72%
+	);
+}
+
+/* Стекло: цветные пятна на фоне и полупрозрачные размытые панели. */
+:root[data-style='glass'] body::before {
+	background:
+		radial-gradient(38% 34% at 12% 14%, rgb(124 92 255 / 0.3), transparent 72%),
+		radial-gradient(34% 30% at 90% 26%, rgb(56 189 170 / 0.28), transparent 72%),
+		radial-gradient(46% 38% at 60% 96%, rgb(255 146 64 / 0.24), transparent 72%);
+}
+:root[data-style='glass'] .card {
+	background-color: color-mix(in srgb, var(--surface) 62%, transparent);
+	-webkit-backdrop-filter: blur(22px) saturate(1.5);
+	backdrop-filter: blur(22px) saturate(1.5);
+}
+:root[data-style='glass'] .card:not(.urgent) {
+	box-shadow:
+		inset 0 0 0 1px rgb(255 255 255 / 0.45),
+		0 12px 32px -20px rgb(16 18 24 / 0.32);
+}
+
+/* Стили в тёмной теме: кромка и свет слабее, тень глубже. */
+:root[data-theme='dark'][data-style='depth'] .card:not(.urgent) {
+	background-image: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0) 170px);
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 0.16),
+		0 18px 40px -16px rgb(0 0 0 / 0.9);
+}
+:root[data-theme='dark'][data-style='glass'] .card:not(.urgent) {
+	box-shadow:
+		inset 0 0 0 1px rgb(255 255 255 / 0.09),
+		0 18px 40px -18px rgb(0 0 0 / 0.8);
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light'])[data-style='depth'] .card:not(.urgent) {
+		background-image: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0) 170px);
+		box-shadow:
+			inset 0 1px 0 rgb(255 255 255 / 0.16),
+			0 18px 40px -16px rgb(0 0 0 / 0.9);
+	}
+	:root:not([data-theme='light'])[data-style='glass'] .card:not(.urgent) {
+		box-shadow:
+			inset 0 0 0 1px rgb(255 255 255 / 0.09),
+			0 18px 40px -18px rgb(0 0 0 / 0.8);
+	}
+}
+
 /* Плавная смена темы — только в момент переключения, чтобы не мигало при загрузке. */
 :root.theme-switching,
 :root.theme-switching * {

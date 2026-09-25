@@ -17,7 +17,7 @@
 	const soon = $derived(!item.done && !overdue && item.dueAt - now < 24 * 3600 * 1000);
 </script>
 
-<div class="hw" class:done={item.done}>
+<div class="hw" class:done={item.done} style:--subject={item.subject?.color}>
 	<DoneToggle done={item.done} label={item.title} onchange={(v) => ontoggle(item, v)} />
 	<div class="main">
 		<a href="/homework/{item.id}" class="title">{item.title}</a>
@@ -55,6 +55,20 @@
 	}
 	.hw:hover {
 		background: color-mix(in srgb, var(--surface-2) 50%, var(--surface));
+	}
+	/* Стиль «Стекло»: строка — часть полупрозрачной панели. */
+	:global(:root[data-style='glass']) .hw {
+		background: transparent;
+	}
+	:global(:root[data-style='glass']) .hw:hover {
+		background: color-mix(in srgb, var(--surface-2) 45%, transparent);
+	}
+	/* Стиль «Цвет предметов» (Профиль → Оформление): строка в цвете своего предмета. */
+	:global(:root[data-style='tint']) .hw {
+		background: color-mix(in srgb, var(--subject, var(--surface-2)) 11%, var(--surface));
+	}
+	:global(:root[data-style='tint']) .hw:hover {
+		background: color-mix(in srgb, var(--subject, var(--surface-2)) 18%, var(--surface));
 	}
 	.main {
 		flex: 1;

@@ -5,6 +5,7 @@
 	import { PRESETS, parseBackground, rememberBackground } from '$lib/appearance';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import Button from '$lib/ui/Button.svelte';
+	import ThemePicker from '$lib/shell/ThemePicker.svelte';
 
 	// Фон страниц входа, регистрации и приглашения — то, что одногруппники видят первым.
 	let value = $state<string | null>(null);
@@ -130,6 +131,15 @@
 			>
 		</div>
 	{/if}
+</section>
+
+<!-- Оформление сайта для себя: то же, что в профиле. Каждый участник выбирает своё там же. -->
+<section class="card block">
+	<p class="muted lead">
+		Оформление для вас на этом устройстве — режим, цвет и стиль карточек. Каждый участник выбирает
+		своё в «Профиле → Оформление»; по умолчанию сайт выглядит как всегда.
+	</p>
+	<ThemePicker />
 </section>
 
 <style>

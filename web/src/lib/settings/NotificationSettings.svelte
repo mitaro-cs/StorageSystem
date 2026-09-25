@@ -53,6 +53,12 @@
 		}
 	}
 	onMount(load);
+	// Раздел грузится отдельно — по ссылке /profile#notifications прокручиваем к нему сами.
+	let box: HTMLElement | undefined = $state();
+	onMount(() => {
+		if (location.hash === '#notifications')
+			requestAnimationFrame(() => box?.scrollIntoView({ block: 'start' }));
+	});
 
 	async function save(patch: Partial<NotificationPrefs>) {
 		try {
@@ -122,7 +128,7 @@
 	);
 </script>
 
-<section class="card block" id="notifications">
+<section class="card block" id="notifications" bind:this={box}>
 	<SectionHead
 		icon={Bell}
 		tone="amber"

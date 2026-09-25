@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PALETTES, isPalette } from './theme';
+import { PALETTES, STYLES, isPalette, isStyle } from './theme';
 
 describe('цветовые темы', () => {
 	it('у каждой темы свой id, название и цвета для обоих режимов', () => {
@@ -16,5 +16,20 @@ describe('цветовые темы', () => {
 		expect(isPalette('ocean')).toBe(true);
 		expect(isPalette('<script>')).toBe(false);
 		expect(isPalette(null)).toBe(false);
+	});
+});
+
+describe('стили оформления', () => {
+	it('первый — «Обычный», как было; у каждого есть название и пояснение', () => {
+		expect(STYLES[0].id).toBe('plain');
+		const ids = STYLES.map((s) => s.id);
+		expect(new Set(ids).size).toBe(ids.length);
+		for (const s of STYLES) expect(s.label && s.hint).toBeTruthy();
+	});
+
+	it('чужое значение из хранилища — не стиль', () => {
+		expect(isStyle('glass')).toBe(true);
+		expect(isStyle('glass" onload="x')).toBe(false);
+		expect(isStyle(undefined)).toBe(false);
 	});
 });

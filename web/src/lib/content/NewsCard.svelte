@@ -80,6 +80,10 @@
 	.news:has(.stretched):hover {
 		box-shadow: var(--shadow-2);
 	}
+	/* Стиль «Цвет предметов» (Профиль → Оформление): карточка в цвете своего предмета. */
+	:global(:root[data-style='tint']) .news:not(.urgent) {
+		background: color-mix(in srgb, var(--subject) 13%, var(--surface));
+	}
 	/* Полоса слева — цвет предмета (у новостей без предмета — нейтральная) */
 	.news::before {
 		content: '';

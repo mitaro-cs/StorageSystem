@@ -131,8 +131,8 @@ sw.addEventListener('push', (event) => {
 			sw.registration.showNotification(data.title || 'groupbase', {
 				body: data.body ?? '',
 				tag: data.tag,
-				icon: '/icons/icon-192.png',
-				badge: '/icons/badge-96.png',
+				icon: '/icons/icon-192.png?v=2',
+				badge: '/icons/badge-96.png?v=2',
 				lang: 'ru',
 				data: { url: data.url ?? '/' }
 			}),

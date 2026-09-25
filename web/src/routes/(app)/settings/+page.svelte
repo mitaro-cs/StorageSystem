@@ -139,7 +139,7 @@
 				{
 					value: 'appearance',
 					label: 'Внешний вид',
-					desc: 'Фон страниц входа и регистрации',
+					desc: 'Фон страниц входа, оформление, стиль карточек',
 					icon: Palette,
 					tone: 'red',
 					part: 'site',

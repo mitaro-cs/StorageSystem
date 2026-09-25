@@ -11,9 +11,10 @@
 		<meta name="color-scheme" content="light dark" />
 		<meta name="theme-color" content="#f1f2f4" media="(prefers-color-scheme: light)" />
 		<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
-		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<!-- ?v=2 — новый логотип: иконки кешируются на месяц, новый адрес загружает их заново. -->
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg?v=2" type="image/svg+xml" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
-		<link rel="apple-touch-icon" href="%sveltekit.assets%/icons/icon-180.png" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/icons/icon-180.png?v=2" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<link
@@ -31,15 +32,20 @@
 				var p = localStorage.getItem('gb-palette');
 				if (/^(graphite|ocean|forest|sunset|grape)$/.test(p || ''))
 					document.documentElement.setAttribute('data-palette', p);
+				// Стиль карточек и фона (Профиль → Оформление): «Обычный» — без атрибута.
+				var st = localStorage.getItem('gb-style');
+				if (/^(depth|glass|tint)$/.test(st || ''))
+					document.documentElement.setAttribute('data-style', st);
 			} catch (e) {}
 		</script>
 		<title>groupbase</title>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
-		<!-- Заставка, пока грузится приложение: появляется плитка логотипа, глобус в руках Атланта
-		     вращается, от плитки расходятся круги. Убирает её корневой макет (routes/+layout.svelte),
-		     когда интерфейс готов. -->
+		<!-- Заставка, пока грузится приложение: плитка логотипа выпрыгивает, Атлант поднимается, глобус
+		     падает ему на руки и пружинит, потом вращается и покачивается; по глобусу пробегает блик,
+		     Атлант моргает, от плитки расходятся круги. Убирает её корневой макет
+		     (routes/+layout.svelte), когда интерфейс готов. -->
 		<div id="splash" aria-hidden="true">
 			<style>
 				#splash {
@@ -115,10 +121,17 @@
 					fill: #1b0102;
 					transition: fill 400ms ease;
 				}
+				/* Глобус падает на руки и пружинит, потом Атлант его покачивает. */
 				#splash .globe {
 					transform-box: fill-box;
 					transform-origin: 18% 92%;
-					transition: transform 700ms cubic-bezier(0.3, 1.4, 0.5, 1);
+					animation:
+						sp-land 900ms cubic-bezier(0.3, 1, 0.4, 1) 420ms both,
+						sp-lift 3.2s ease-in-out 1.6s infinite;
+				}
+				#splash .gloss {
+					fill: url(#sp-gloss);
+					animation: sp-gloss 3.4s cubic-bezier(0.4, 0, 0.2, 1) 1.9s infinite;
 				}
 				#splash .grid {
 					fill: none;
@@ -136,9 +149,72 @@
 					stroke: #fff;
 					stroke-width: 3;
 					paint-order: stroke;
+					animation: sp-rise 700ms cubic-bezier(0.3, 1.5, 0.5, 1) 260ms both;
 				}
 				#splash .eye {
 					fill: #fff;
+					transform-box: fill-box;
+					transform-origin: center;
+					animation:
+						sp-rise 700ms cubic-bezier(0.3, 1.5, 0.5, 1) 260ms both,
+						sp-blink 4.6s ease-in-out 2.4s infinite;
+				}
+				@keyframes sp-land {
+					0% {
+						opacity: 0;
+						transform: translateY(-260px);
+					}
+					45% {
+						opacity: 1;
+						transform: translateY(10px) scale(1.05, 0.93);
+					}
+					62% {
+						transform: translateY(-24px);
+					}
+					80% {
+						transform: translateY(4px) scale(1.01, 0.99);
+					}
+					100% {
+						transform: none;
+					}
+				}
+				@keyframes sp-lift {
+					0%,
+					100% {
+						transform: none;
+					}
+					50% {
+						transform: translateY(-10px);
+					}
+				}
+				@keyframes sp-rise {
+					from {
+						opacity: 0;
+						transform: translateY(90px);
+					}
+					to {
+						opacity: 1;
+						transform: none;
+					}
+				}
+				@keyframes sp-blink {
+					0%,
+					90%,
+					100% {
+						transform: none;
+					}
+					94% {
+						transform: scaleY(0.12);
+					}
+				}
+				@keyframes sp-gloss {
+					from {
+						transform: translateX(-420px) skewX(-18deg);
+					}
+					45%,
+					to {
+						transform: translateX(420px) skewX(-18deg);
+					}
 				}
 				#splash .ring {
 					fill: none;
@@ -343,7 +419,18 @@
 					fill: #d93a2f;
 				}
 				#splash.failed .globe {
-					transform: translate(-10px, 14px) rotate(-11deg);
+					animation: sp-fall 800ms cubic-bezier(0.3, 1.3, 0.5, 1) forwards;
+				}
+				#splash.failed .gloss {
+					display: none;
+				}
+				#splash.failed .eye {
+					animation: none;
+				}
+				@keyframes sp-fall {
+					to {
+						transform: translate(-26px, 30px) rotate(-24deg);
+					}
 				}
 				#splash.failed .spin {
 					display: none;
@@ -363,6 +450,7 @@
 					}
 					#splash .ring,
 					#splash .glow,
+					#splash .gloss,
 					#splash .hint {
 						display: none;
 					}
@@ -376,6 +464,11 @@
 							<stop offset="0.35" stop-color="currentColor" />
 							<stop offset="1" stop-color="currentColor" stop-opacity="0" />
 						</radialGradient>
+						<linearGradient id="sp-gloss" x1="0" x2="1" y1="0" y2="0">
+							<stop offset="0" stop-color="#fff" stop-opacity="0" />
+							<stop offset="0.5" stop-color="#fff" stop-opacity="0.32" />
+							<stop offset="1" stop-color="#fff" stop-opacity="0" />
+						</linearGradient>
 					</defs>
 					<circle class="glow" cx="16" cy="16" r="27" />
 					<circle class="ring" cx="16" cy="16" r="16" />
@@ -392,6 +485,10 @@
 										class="mer"
 										d="M347.8 107.2V439.1M338.5 107.2C317.2 121 306.1 134.8 297.8 148.7C289.4 162.5 284 176.3 279.4 190.2C274.8 204 271.3 217.8 268.8 231.6C266.3 245.5 264.9 259.3 264.9 273.1C264.9 287 266.3 300.8 268.8 314.6C271.3 328.5 274.8 342.3 279.4 356.1C284 370 289.4 383.8 297.8 397.6C306.1 411.5 317.2 425.3 338.5 439.1M357.1 107.2C378.4 121 389.5 134.8 397.8 148.7C406.2 162.5 411.6 176.3 416.2 190.2C420.8 204 424.3 217.8 426.8 231.6C429.3 245.5 430.7 259.3 430.7 273.1C430.7 287 429.3 300.8 426.8 314.6C424.3 328.5 420.8 342.3 416.2 356.1C411.6 370 406.2 383.8 397.8 397.6C389.5 411.5 378.4 425.3 357.1 439.1"
 									/>
+								</g>
+								<!-- Блик: пробегает по глобусу. -->
+								<g clip-path="url(#sp-clip)">
+									<rect class="gloss" x="130" y="80" width="90" height="400" />
 								</g>
 							</g>
 							<path
@@ -622,12 +719,12 @@
 					}
 					requestAnimationFrame(frame);
 				}
-				// Сначала плитка появляется с неподвижной сеткой, затем глобус начинает вращаться.
+				// Сначала глобус падает на руки с неподвижной сеткой, затем начинает вращаться.
 				setTimeout(function () {
 					if (!splash.isConnected) return;
 					splash.classList.add('spinning');
 					requestAnimationFrame(frame);
-				}, 900);
+				}, 1400);
 			})();
 		</script>
 		<div class="app-root">%sveltekit.body%</div>
