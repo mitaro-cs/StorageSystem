@@ -133,4 +133,12 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   запроса, не IP (WebAuthn требует имени). e2e `16-passkeys` — виртуальный ключ Chromium через CDP.
 - `Permissions-Policy`: камера разрешена своей странице (сканер QR в профиле) — не возвращать
   `camera=()`.
+- Меню действий (`ui/Menu.svelte`) открывается в верхнем слое (Popover API) и ставится расчётом
+  `ui/menuPlace.ts`: у нижнего края — вверх, всегда целиком на экране, при прокрутке едет за кнопкой.
+  Не возвращать `position: absolute` внутри карточек с `overflow: hidden` — меню обрезалось.
+- Темы: режим — `data-theme` (lib/theme.ts), цвет — `data-palette` на `<html>`. В app.css базовые
+  токены берут `var(--pal-…)` (светлый) и `var(--pald-…)` (тёмный) с запасным значением «Классики»,
+  палитра задаёт только их. Применяется до отрисовки скриптом в app.html, выбор — `shell/ThemePicker`.
+- «Настройки» в навигации — только если `hasSettings()` (session.svelte.ts); навигацию фильтрует
+  `visibleNav()`.
 - У каждого пакета сервера — свои тесты (`EveryPackageHasTestsTest`).

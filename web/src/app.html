@@ -27,6 +27,10 @@
 			try {
 				var t = localStorage.getItem('gb-theme');
 				if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+				// Цветовая тема — до первой отрисовки, чтобы страница не мигнула «Классикой».
+				var p = localStorage.getItem('gb-palette');
+				if (/^(graphite|ocean|forest|sunset|grape)$/.test(p || ''))
+					document.documentElement.setAttribute('data-palette', p);
 			} catch (e) {}
 		</script>
 		<title>groupbase</title>

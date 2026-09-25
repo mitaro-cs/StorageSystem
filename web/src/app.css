@@ -49,7 +49,7 @@
 	--bottom-gap: 16px;
 
 	/* светлая тема: холодный светло-серый фон, белые карточки, чёрные чернила */
-	--bg: #f1f2f4;
+	--bg: var(--pal-bg, #f1f2f4);
 	--surface: #ffffff;
 	--surface-2: #f4f5f7;
 	--surface-3: #e8e9ed;
@@ -58,13 +58,13 @@
 	--text: #0d0d0f;
 	--text-2: #5e626b;
 	--text-3: #989ca5;
-	--accent: #0d0d0f;
-	--accent-hover: #2a2b30;
-	--accent-soft: #e8e9ed;
-	--accent-text: #ffffff;
-	--inverse: #0d0d0f;
+	--accent: var(--pal-accent, #0d0d0f);
+	--accent-hover: var(--pal-accent-hover, #2a2b30);
+	--accent-soft: var(--pal-accent-soft, #e8e9ed);
+	--accent-text: var(--pal-accent-text, #ffffff);
+	--inverse: var(--pal-inverse, #0d0d0f);
 	--inverse-text: #ffffff;
-	--inverse-2: #232429;
+	--inverse-2: var(--pal-inverse-2, #232429);
 	--inverse-muted: #a3a6ae;
 	--amber: #b86a00;
 	--amber-soft: #fcf0da;
@@ -77,7 +77,7 @@
 	--danger-soft: #fce9e7;
 	--ok: #1f8a4c;
 	--ok-soft: #e1f3e8;
-	--focus: #0d0d0f;
+	--focus: var(--pal-accent, #0d0d0f);
 	--overlay: rgb(12 13 16 / 0.36);
 	/* матовое стекло: нижняя панель и плавающие кнопки */
 	--glass: rgb(22 23 27 / 0.72);
@@ -92,19 +92,19 @@
 
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme='light']) {
-		--bg: #000000;
-		--surface: #1c1c1e;
-		--surface-2: #2a2a2d;
-		--surface-3: #3a3a3d;
-		--border: #262629;
+		--bg: var(--pald-bg, #000000);
+		--surface: var(--pald-surface, #1c1c1e);
+		--surface-2: var(--pald-surface-2, #2a2a2d);
+		--surface-3: var(--pald-surface-3, #3a3a3d);
+		--border: var(--pald-border, #262629);
 		--border-strong: #3a3a3e;
 		--text: #ffffff;
 		--text-2: #a1a1a8;
 		--text-3: #6c6c73;
-		--accent: #ffffff;
-		--accent-hover: #e4e4e7;
-		--accent-soft: #2a2a2d;
-		--accent-text: #000000;
+		--accent: var(--pald-accent, #ffffff);
+		--accent-hover: var(--pald-accent-hover, #e4e4e7);
+		--accent-soft: var(--pald-accent-soft, #2a2a2d);
+		--accent-text: var(--pald-accent-text, #000000);
 		--inverse: #ffffff;
 		--inverse-text: #0d0d0f;
 		--inverse-2: #f1f2f4;
@@ -115,7 +115,7 @@
 		--danger-soft: #3d1715;
 		--ok: #4cd07d;
 		--ok-soft: #12301d;
-		--focus: #ffffff;
+		--focus: var(--pald-accent, #ffffff);
 		--overlay: rgb(0 0 0 / 0.62);
 		--glass: rgb(44 44 48 / 0.62);
 		--glass-border: rgb(255 255 255 / 0.1);
@@ -128,19 +128,19 @@
 	}
 }
 :root[data-theme='dark'] {
-	--bg: #000000;
-	--surface: #1c1c1e;
-	--surface-2: #2a2a2d;
-	--surface-3: #3a3a3d;
-	--border: #262629;
+	--bg: var(--pald-bg, #000000);
+	--surface: var(--pald-surface, #1c1c1e);
+	--surface-2: var(--pald-surface-2, #2a2a2d);
+	--surface-3: var(--pald-surface-3, #3a3a3d);
+	--border: var(--pald-border, #262629);
 	--border-strong: #3a3a3e;
 	--text: #ffffff;
 	--text-2: #a1a1a8;
 	--text-3: #6c6c73;
-	--accent: #ffffff;
-	--accent-hover: #e4e4e7;
-	--accent-soft: #2a2a2d;
-	--accent-text: #000000;
+	--accent: var(--pald-accent, #ffffff);
+	--accent-hover: var(--pald-accent-hover, #e4e4e7);
+	--accent-soft: var(--pald-accent-soft, #2a2a2d);
+	--accent-text: var(--pald-accent-text, #000000);
 	--inverse: #ffffff;
 	--inverse-text: #0d0d0f;
 	--inverse-2: #f1f2f4;
@@ -151,7 +151,7 @@
 	--danger-soft: #3d1715;
 	--ok: #4cd07d;
 	--ok-soft: #12301d;
-	--focus: #ffffff;
+	--focus: var(--pald-accent, #ffffff);
 	--overlay: rgb(0 0 0 / 0.62);
 	--glass: rgb(44 44 48 / 0.62);
 	--glass-border: rgb(255 255 255 / 0.1);
@@ -161,6 +161,94 @@
 	--shadow-2: 0 16px 40px -12px rgb(0 0 0 / 0.8);
 	--shadow-3: 0 28px 64px -16px rgb(0 0 0 / 0.85), 0 0 0 1px rgb(255 255 255 / 0.06);
 	color-scheme: dark;
+}
+
+/* Цветовые темы (Профиль → Оформление): каждая задаёт цвета для светлого и тёмного режима.
+   «Классика» — без переменных, как выше. Выбор хранится на устройстве (lib/theme.ts). */
+:root[data-palette='graphite'] {
+	--pal-bg: #eceef1;
+	--pal-accent: #1d1e22;
+	--pal-accent-hover: #34363c;
+	--pald-bg: #111214;
+	--pald-surface: #1d1e22;
+	--pald-surface-2: #2a2b30;
+	--pald-surface-3: #383a40;
+	--pald-border: #2a2b30;
+	--pald-accent: #e8e8ec;
+	--pald-accent-hover: #d4d4da;
+	--pald-accent-soft: #2a2b30;
+}
+:root[data-palette='ocean'] {
+	--pal-bg: #eef2f8;
+	--pal-accent: #2f5bea;
+	--pal-accent-hover: #2349c9;
+	--pal-accent-soft: #e2e9fd;
+	--pal-accent-text: #ffffff;
+	--pal-inverse: #102048;
+	--pal-inverse-2: #1b2d5c;
+	--pald-bg: #04060c;
+	--pald-surface: #121826;
+	--pald-surface-2: #1c2436;
+	--pald-surface-3: #2a3449;
+	--pald-border: #1d2638;
+	--pald-accent: #7b9cff;
+	--pald-accent-hover: #9bb4ff;
+	--pald-accent-soft: #1b2745;
+	--pald-accent-text: #04102e;
+}
+:root[data-palette='forest'] {
+	--pal-bg: #eef4f0;
+	--pal-accent: #13804f;
+	--pal-accent-hover: #0e6b42;
+	--pal-accent-soft: #ddf1e6;
+	--pal-accent-text: #ffffff;
+	--pal-inverse: #0e2a1d;
+	--pal-inverse-2: #173b2a;
+	--pald-bg: #030805;
+	--pald-surface: #111a15;
+	--pald-surface-2: #1a261f;
+	--pald-surface-3: #27352d;
+	--pald-border: #1b271f;
+	--pald-accent: #4fd18b;
+	--pald-accent-hover: #72dda3;
+	--pald-accent-soft: #133021;
+	--pald-accent-text: #03170c;
+}
+:root[data-palette='sunset'] {
+	--pal-bg: #f8f1ee;
+	--pal-accent: #c9441f;
+	--pal-accent-hover: #b23a19;
+	--pal-accent-soft: #fde6de;
+	--pal-accent-text: #ffffff;
+	--pal-inverse: #3a1409;
+	--pal-inverse-2: #4d1d0f;
+	--pald-bg: #0b0504;
+	--pald-surface: #1d1412;
+	--pald-surface-2: #2a1d1a;
+	--pald-surface-3: #3a2925;
+	--pald-border: #2a1c19;
+	--pald-accent: #ff8a65;
+	--pald-accent-hover: #ffa586;
+	--pald-accent-soft: #3a1d14;
+	--pald-accent-text: #2a0a00;
+}
+:root[data-palette='grape'] {
+	--pal-bg: #f3f0f9;
+	--pal-accent: #7040d8;
+	--pal-accent-hover: #5e31bf;
+	--pal-accent-soft: #ece4fb;
+	--pal-accent-text: #ffffff;
+	--pal-inverse: #221142;
+	--pal-inverse-2: #2f1a58;
+	--pald-bg: #07040d;
+	--pald-surface: #171222;
+	--pald-surface-2: #221b31;
+	--pald-surface-3: #312842;
+	--pald-border: #231c33;
+	--pald-accent: #b597ff;
+	--pald-accent-hover: #c8b1ff;
+	--pald-accent-soft: #2a1c47;
+	--pald-accent-text: #16063a;
 }
 
 /* Плавная смена темы — только в момент переключения, чтобы не мигало при загрузке. */

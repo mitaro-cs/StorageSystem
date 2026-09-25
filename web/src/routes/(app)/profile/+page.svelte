@@ -11,6 +11,7 @@
 		LogOut,
 		MonitorSmartphone,
 		Newspaper,
+		Palette,
 		ScanLine,
 		Settings,
 		ShieldCheck,
@@ -28,6 +29,7 @@
 	import {
 		canManage,
 		groups,
+		hasSettings,
 		loadMe,
 		manageMode,
 		session,
@@ -39,7 +41,7 @@
 	import Button from '$lib/ui/Button.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
-	import ThemeToggle from '$lib/shell/ThemeToggle.svelte';
+	import ThemePicker from '$lib/shell/ThemePicker.svelte';
 	import { forgetOfflineData, install, pwa } from '$lib/pwa.svelte';
 	import { clearCache } from '$lib/cache';
 	import { clearRecent } from '$lib/recent';
@@ -246,7 +248,7 @@
 	<a href="/news"><Newspaper size={18} /> {t.nav.news}</a>
 	<a href="/subjects"><BookOpen size={18} /> {t.nav.subjects}</a>
 	<a href="/members"><Users size={18} /> {t.nav.members}</a>
-	<a href="/settings"><Settings size={18} /> {t.nav.settings}</a>
+	{#if hasSettings()}<a href="/settings"><Settings size={18} /> {t.nav.settings}</a>{/if}
 </nav>
 
 {#if canManage()}
@@ -278,7 +280,7 @@
 
 <p class="chapter">Аккаунт и безопасность</p>
 <section class="card block">
-	<SectionHead icon={UserRound} tone="gray" title="ФИО и оформление" />
+	<SectionHead icon={UserRound} tone="gray" title="ФИО" />
 	<form class="row" onsubmit={saveName}>
 		<input
 			class="input"
@@ -290,9 +292,16 @@
 		/>
 		<Button type="submit">Сохранить</Button>
 	</form>
-	<div class="row theme">
-		<span>Тема оформления</span><span class="spacer"></span><ThemeToggle />
-	</div>
+</section>
+
+<section class="card block">
+	<SectionHead
+		icon={Palette}
+		tone="violet"
+		title="Оформление"
+		text="Светлая или тёмная тема и цвет — под себя. Меняется сразу."
+	/>
+	<ThemePicker />
 </section>
 
 <section class="card block">
@@ -611,9 +620,6 @@
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 		color: var(--text-3);
-	}
-	.theme {
-		padding-top: var(--s2);
 	}
 	.wrap {
 		flex-wrap: wrap;
