@@ -58,6 +58,27 @@
 	let coverBusy = $state(false);
 	let coverInput: HTMLInputElement | undefined = $state();
 
+	/** Предел сервера для картинки (AvatarService.MAX_BYTES). */
+	const COVER_MAX = 5 * 1024 * 1024;
+
+	/**
+	 * Фото с телефона часто больше 5 МБ — уменьшаем в браузере: фону хватит 2560 точек по ширине
+	 * (сервер всё равно сохранит 1280), и через туннель уйдёт меньше.
+	 */
+	async function shrink(file: File): Promise<Blob> {
+		if (file.size <= COVER_MAX) return file;
+		const bitmap = await createImageBitmap(file);
+		const k = Math.min(1, 2560 / bitmap.width);
+		const canvas = document.createElement('canvas');
+		canvas.width = Math.round(bitmap.width * k);
+		canvas.height = Math.round(bitmap.height * k);
+		canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+		bitmap.close();
+		return new Promise((res, rej) =>
+			canvas.toBlob((b) => (b ? res(b) : rej(new Error('canvas'))), 'image/jpeg', 0.88)
+		);
+	}
+
 	async function uploadCover(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
@@ -66,10 +87,17 @@
 		coverBusy = true;
 		error = '';
 		try {
+			let body: Blob;
+			try {
+				body = await shrink(file);
+			} catch {
+				throw new Error('Эту картинку не открыть — выберите JPG, PNG или WebP');
+			}
+			if (body.size > COVER_MAX) throw new Error('Картинка больше 5 МБ — выберите поменьше');
 			const csrf = document.cookie.match(/(?:^|;\s*)(?:__Host-)?gb_csrf=([^;]+)/)?.[1] ?? '';
 			const r = await fetch(`/api/subjects/${edit.id}/cover`, {
 				method: 'PUT',
-				body: file,
+				body,
 				headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/octet-stream' }
 			});
 			const data = await r.json();
@@ -157,9 +185,13 @@
 					<SubjectArt id={edit.id} name={name || edit.name} {color} {icon} {cover} class="fill" />
 					<span class="cover-hint">
 						<ImagePlus size={18} />
-						{cover ? 'Заменить фон' : 'Поставить фон вместо иконки'}
+						{coverBusy ? 'Загружаем…' : cover ? 'Заменить фон' : 'Поставить фон вместо иконки'}
 					</span>
 				</button>
+				<p class="faint small cover-note">
+					JPG, PNG или WebP до 5 МБ — фото побольше уменьшатся сами. Лучше широкая картинка: она
+					обрезается до 16:9 по центру.
+				</p>
 				{#if cover}
 					<Button size="s" variant="ghost" onclick={removeCover} disabled={coverBusy}
 						><Trash2 size={15} /> Убрать фон</Button
@@ -347,6 +379,9 @@
 		position: absolute;
 		inset: 0;
 		border-radius: inherit;
+	}
+	.cover-note {
+		margin: 0;
 	}
 	.cover-hint {
 		position: absolute;
