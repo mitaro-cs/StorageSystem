@@ -1,7 +1,9 @@
 name: Значок macOS
 
-# Значок AppIcon.icon (формат Icon Composer) на Xcode 26: собирается ли Assets.car так же, как его
-# собирает tauri при выпуске, и как он выглядит в светлом, тёмном, прозрачном и тонированном Dock.
+# Значок AppIcon.icon (формат Icon Composer) → Assets.car на Xcode 26 и предпросмотр в светлом,
+# тёмном, прозрачном и тонированном Dock. tauri сам .icon не собирает (actool падает при вызове из
+# него: tauri-apps/tauri#15315), поэтому готовый Assets.car лежит в desktop/src-tauri/icons —
+# после изменения AppIcon.icon скачайте его из артефакта этой проверки и положите туда.
 on:
   push:
     branches: [miaro]
@@ -17,19 +19,30 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v5
-      - name: Assets.car, как в tauri build
+      # Минимальная версия — как у приложения (11.0): тогда в Assets.car есть и плоские картинки
+      # для macOS до 26, а не только слои для Liquid Glass.
+      - name: Assets.car
         run: |
           actool --version --output-format human-readable-text
           work="$RUNNER_TEMP/icon"
-          mkdir -p "$work/out"
+          mkdir -p "$work/out" icon-preview
           cp -R desktop/src-tauri/icons/AppIcon.icon "$work/Icon.icon"
           actool "$work/Icon.icon" --compile "$work/out" --output-format human-readable-text \
             --notices --warnings --output-partial-info-plist "$work/out/assetcatalog_generated_info.plist" \
-            --app-icon Icon --include-all-app-icons --accent-color AccentColor \
+            --app-icon Icon --include-all-app-icons \
             --enable-on-demand-resources NO --development-region en --target-device mac \
-            --minimum-deployment-target 26.0 --platform macosx
+            --minimum-deployment-target 11.0 --platform macosx
           ls -la "$work/out"
-          assetutil --info "$work/out/Assets.car" | head -60
+          assetutil --info "$work/out/Assets.car" > icon-preview/assets.json
+          jq -c '.[] | select(.AssetType != null) | {AssetType, Name, Appearance, "PixelWidth"}' icon-preview/assets.json | head -40
+          cp "$work/out/Assets.car" icon-preview/Assets.car
+          # Тот ли файл лежит в репозитории, что собирается из AppIcon.icon сейчас.
+          if [ -f desktop/src-tauri/icons/Assets.car ]; then
+            assetutil --info desktop/src-tauri/icons/Assets.car | jq -c '[.[] | select(.AssetType != null) | .SHA1Digest] | sort' > "$work/repo.txt"
+            jq -c '[.[] | select(.AssetType != null) | .SHA1Digest] | sort' icon-preview/assets.json > "$work/fresh.txt"
+            cmp -s "$work/repo.txt" "$work/fresh.txt" && echo "Assets.car в репозитории совпадает" \
+              || echo "::warning::Assets.car в репозитории устарел — замените его файлом из артефакта"
+          fi
       - name: Предпросмотр в разных оформлениях
         if: always()
         run: |
