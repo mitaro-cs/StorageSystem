@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Pin, PinOff, Send, Users } from '@lucide/svelte';
+	import { EyeOff, Pin, PinOff, Send, Users } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { get, post, put } from '$lib/api';
 	import { loadSubjects, sortedSubjects } from '$lib/data.svelte';
@@ -70,6 +70,24 @@
 		loadSubjects();
 	}
 
+	/** «Не мой предмет»: другая подгруппа — убрать из общих списков и уведомлений, или вернуть. */
+	async function setMine(mine: boolean) {
+		if (!subject) return;
+		try {
+			await put(`/api/subjects/${subject.id}/mine`, { value: mine });
+			subject.mine = mine;
+			await loadSubjects();
+			toast(
+				mine
+					? 'Предмет снова ваш: его задания и новости — в общих списках'
+					: 'Скрыто: задания, новости и уведомления этого предмета больше не придут',
+				'ok'
+			);
+		} catch (e) {
+			toastError(e);
+		}
+	}
+
 	async function openShare() {
 		directory = await get('/api/groups/directory');
 		shareTo = null;
@@ -99,6 +117,11 @@
 		const s = subject;
 		const out: MenuItem[] = [];
 		if (s.can.edit) out.push({ label: 'Изменить', onclick: () => (editor = true) });
+		out.push(
+			s.mine === false
+				? { label: 'Мой предмет — вернуть в списки', onclick: () => setMine(true) }
+				: { label: 'Не мой предмет (другая подгруппа)', onclick: () => setMine(false) }
+		);
 		if (s.can.share) out.push({ label: 'Сделать общим с группой…', onclick: openShare });
 		if (s.can.edit)
 			out.push({
@@ -172,6 +195,19 @@
 				</a>
 			{/each}
 		</nav>
+	{/if}
+
+	{#if subject.mine === false}
+		<div class="not-mine card" role="status">
+			<EyeOff size={18} />
+			<p>
+				<strong>Не ваш предмет.</strong>
+				<span class="muted"
+					>Его задания и новости не показываются в общих списках и не приходят уведомлениями.</span
+				>
+			</p>
+			<Button size="s" onclick={() => setMine(true)}>Это мой предмет</Button>
+		</div>
 	{/if}
 
 	<header class="hero">
@@ -282,6 +318,22 @@
 {/if}
 
 <style>
+	.not-mine {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-bottom: var(--s4);
+		padding: 12px 16px;
+		color: var(--text-2);
+	}
+	.not-mine p {
+		flex: 1;
+		min-width: 0;
+		margin: 0;
+	}
+	.not-mine strong {
+		color: var(--text);
+	}
 	.strip {
 		display: flex;
 		align-items: center;

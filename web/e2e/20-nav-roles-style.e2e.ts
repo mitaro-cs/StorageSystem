@@ -59,6 +59,12 @@ test('модератор сайта видит участников списко
 	await moderator.goto('/members');
 	await expect(moderator.locator('.list-row', { hasText: ADMIN.name })).toBeVisible();
 	await expect(moderator.getByRole('button', { name: 'Действия' })).toHaveCount(0);
+	// Модератору — «Модерация», но не «Управление» и не переключатель режима управления.
+	const side = moderator.getByRole('complementary', { name: 'Навигация' });
+	await expect(side.getByRole('link', { name: 'Модерация' })).toBeVisible();
+	await expect(side.getByRole('link', { name: 'Управление' })).toHaveCount(0);
+	await expect(moderator.getByRole('switch', { name: 'Режим управления' })).toHaveCount(0);
+	await expect(side.getByRole('link', { name: 'Настройки' })).toBeVisible();
 	await ctx.close();
 
 	await row.getByRole('button', { name: 'Действия' }).click();
@@ -66,14 +72,13 @@ test('модератор сайта видит участников списко
 	await expect(row).not.toContainText('Модератор');
 });
 
-test('стиль оформления: выбирается в профиле, сразу меняет вид и запоминается', async ({
-	page
-}) => {
+test('дизайн оформления: пять вариантов, сразу меняет вид и запоминается', async ({ page }) => {
 	await login(page, STUDENT);
-	await page.goto('/profile');
+	await page.goto('/profile?tab=appearance');
 	const html = page.locator('html');
-	const styles = page.getByRole('radiogroup', { name: 'Стиль' });
-	await styles.getByRole('radio', { name: 'Стекло' }).click();
+	const designs = page.getByRole('radiogroup', { name: 'Дизайн' });
+	await expect(designs.getByRole('radio')).toHaveCount(5);
+	await designs.getByRole('radio', { name: 'Стекло' }).click();
 	await expect(html).toHaveAttribute('data-style', 'glass');
 	const blur = () =>
 		page.evaluate(
@@ -83,9 +88,14 @@ test('стиль оформления: выбирается в профиле, �
 
 	await page.reload();
 	await expect(html).toHaveAttribute('data-style', 'glass');
-	await styles.getByRole('radio', { name: 'Цвет предметов' }).click();
-	await expect(html).toHaveAttribute('data-style', 'tint');
-	await styles.getByRole('radio', { name: 'Обычный' }).click();
+	await designs.getByRole('radio', { name: 'Бумага' }).click();
+	await expect(html).toHaveAttribute('data-style', 'paper');
+	// «Бумага» — заголовки с засечками.
+	const font = await page.evaluate(
+		() => getComputedStyle(document.querySelector('h1')!).fontFamily
+	);
+	expect(font).toMatch(/Iowan|Palatino|Georgia/);
+	await designs.getByRole('radio', { name: 'Классика' }).click();
 	await expect(html).not.toHaveAttribute('data-style', /.+/);
 	expect(await blur()).toBe('none');
 });

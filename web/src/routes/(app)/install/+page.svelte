@@ -111,7 +111,7 @@
 		<CircleCheck size={40} />
 		<h1>Приложение установлено</h1>
 		<p class="muted">Открывайте groupbase с иконки на экране — так быстрее и работает без сети.</p>
-		<a class="next" href="/profile#notifications"
+		<a class="next" href="/profile?tab=notifications"
 			><BellRing size={18} /> Теперь включите уведомления</a
 		>
 	</div>

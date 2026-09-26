@@ -31,7 +31,7 @@ test('вход по ключу: добавляется в профиле, пот
 	await page.getByRole('button', { name: 'Войти', exact: true }).click();
 	await expect(page.getByRole('heading', { level: 1 })).toContainText('Привет');
 
-	await page.goto(at('/profile'));
+	await page.goto(at('/profile?tab=security'));
 	await page.getByRole('button', { name: 'Добавить ключ' }).click();
 	const dialog = page.getByRole('dialog', { name: 'Вход по отпечатку или лицу' });
 	await dialog.getByLabel('Пароль').fill(STUDENT.password);
@@ -59,7 +59,7 @@ test('вход по ключу: добавляется в профиле, пот
 	await expect(page.getByRole('heading', { level: 1 })).toContainText('Привет', {
 		timeout: 20_000
 	});
-	await page.goto(at('/profile'));
+	await page.goto(at('/profile?tab=security'));
 	await expect(page.getByText(/вход .*назад|вход только что/)).toBeVisible();
 	expect(errors).toEqual([]);
 });

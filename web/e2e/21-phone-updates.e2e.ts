@@ -24,11 +24,12 @@ test('телефон: внизу — те же разделы, что на ко�
 	await page.getByRole('link', { name: 'Поиск', exact: true }).click();
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Поиск');
 
-	// Остальное — в профиле; там же видно, какая версия сайта.
+	// Остальное — в профиле; в его «Приложении» видно, какая версия сайта.
 	await nav.getByRole('link', { name: 'Профиль' }).click();
 	const more = page.getByRole('navigation', { name: 'Разделы' });
 	await expect(more.getByRole('link', { name: 'Участники' })).toBeVisible();
 	await expect(more.getByRole('link', { name: 'Уведомления' })).toBeVisible();
+	await more.getByRole('button', { name: /Приложение/ }).click();
 	await expect(page.getByText(/^groupbase \S+$/)).toBeVisible();
 	expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
 	expect(errors).toEqual([]);
@@ -51,8 +52,8 @@ test('настройки: какая версия стоит и кнопка «�
 		'update-check = false'
 	);
 
-	// Из профиля — ссылка сюда рядом с версией.
-	await page.goto('/profile');
+	// Из своих настроек («Приложение») — ссылка сюда рядом с версией.
+	await page.goto('/profile?tab=app');
 	await page.getByRole('link', { name: 'проверить обновления' }).click();
 	await expect(page).toHaveURL(/tab=updates/);
 	await expect(page.getByText('Установлена версия')).toBeVisible();

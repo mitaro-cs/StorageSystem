@@ -9,6 +9,7 @@
 		Moon,
 		Plus,
 		Search,
+		Upload,
 		UserPlus,
 		UserRound
 	} from '@lucide/svelte';
@@ -22,7 +23,7 @@
 	import { t } from '$lib/i18n/ru';
 	import type { Homework, Member } from '$lib/types';
 	import { mainNav } from './nav';
-	import { palette } from './palette.svelte';
+	import { openHelp, palette } from './palette.svelte';
 
 	interface Entry {
 		id: string;
@@ -88,6 +89,17 @@
 				label: 'Новая новость',
 				icon: Plus,
 				run: () => go('/news?new=1')
+			});
+		if (can('upload_materials') || can('suggest_materials'))
+			out.push({
+				id: 'a-upload',
+				group: 'Действия',
+				label: 'Загрузить файл',
+				icon: Upload,
+				run: () => {
+					palette.open = false;
+					palette.upload = true;
+				}
 			});
 		if (can('create_invites'))
 			out.push({
@@ -190,7 +202,8 @@
 	});
 
 	$effect(() => {
-		void palette.query;
+		// «?» в пустом поле — подсказка по сочетаниям клавиш (как на странице), а не поиск «?».
+		if (palette.query === '?') openHelp();
 		active = 0;
 	});
 
@@ -263,19 +276,19 @@
 					</li>
 				{/each}
 			</ul>
-			<footer class="small faint">
-				<span><kbd>↑</kbd><kbd>↓</kbd> выбор</span><span><kbd>Enter</kbd> открыть</span><span
-					><kbd>?</kbd> все сочетания</span
-				>
+			<footer class="small">
+				<span><kbd>↑</kbd><kbd>↓</kbd> выбор</span><span><kbd>Enter</kbd> открыть</span>
+				<button type="button" class="keys" onclick={openHelp}><kbd>?</kbd> все сочетания</button>
 			</footer>
 		</div>
 	{/if}
 </dialog>
 
 <style>
+	/* По центру окна; высота постоянная, чтобы окно не прыгало, пока печатаешь. */
 	.palette {
-		width: min(620px, calc(100vw - 24px));
-		margin: 12vh auto auto;
+		width: min(640px, calc(100vw - 24px));
+		margin: auto;
 		padding: 0;
 		border: 0;
 		border-radius: var(--r-xl);
@@ -294,7 +307,7 @@
 	.box {
 		display: flex;
 		flex-direction: column;
-		max-height: min(70dvh, 560px);
+		height: min(70dvh, 540px);
 	}
 	.search {
 		display: flex;
@@ -313,6 +326,7 @@
 		color: var(--text);
 	}
 	ul {
+		flex: 1;
 		list-style: none;
 		margin: 0;
 		padding: 6px;
@@ -367,9 +381,24 @@
 	}
 	footer {
 		display: flex;
+		align-items: center;
 		gap: 16px;
 		padding: 10px 16px;
 		border-top: 1px solid var(--border);
+		color: var(--text-2);
+	}
+	.keys {
+		margin-left: auto;
+		padding: 2px 6px;
+		border: 0;
+		border-radius: 8px;
+		background: none;
+		color: inherit;
+		font: inherit;
+	}
+	.keys:hover {
+		background: var(--surface-2);
+		color: var(--text);
 	}
 	kbd {
 		display: inline-grid;
@@ -395,9 +424,14 @@
 			opacity: 0;
 		}
 	}
+	/* Телефон: сверху — под пальцем и над клавиатурой. */
 	@media (max-width: 640px) {
 		.palette {
-			margin-top: 8px;
+			margin: 8px auto auto;
+		}
+		.box {
+			height: auto;
+			max-height: min(70dvh, 540px);
 		}
 		footer {
 			display: none;

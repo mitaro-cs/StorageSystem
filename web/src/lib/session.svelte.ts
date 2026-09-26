@@ -78,9 +78,14 @@ const MANAGE: ReadonlySet<Permission> = new Set<Permission>([
 	'export_group'
 ]);
 
-/** Режим управления включён (или у пользователя и нечем управлять). */
+/**
+ * Режим управления включён. Выключать его может только хост — администратор сайта: у старосты,
+ * замов и модераторов кнопки управления видны всегда (так решил владелец).
+ */
 export function manageMode(): boolean {
-	return session.me?.user.manageMode ?? true;
+	const me = session.me;
+	if (!me || me.user.instanceRole !== 'admin') return true;
+	return me.user.manageMode;
 }
 
 /** Переключить режим управления: сразу на экране, сервер запоминает его для всех устройств. */
@@ -95,7 +100,12 @@ export async function setManageMode(on: boolean): Promise<void> {
 	}
 }
 
-/** Есть ли вообще что включать: права управления в группе или роль в инстансе. */
+/** Переключатель «Режим управления» — только у администратора сайта (хоста). */
+export function canToggleManage(): boolean {
+	return session.me?.user.instanceRole === 'admin';
+}
+
+/** Помогает вести группу: права управления в группе или роль на сайте. */
 export function canManage(): boolean {
 	const me = session.me;
 	if (!me) return false;
@@ -129,27 +139,29 @@ export function isAdmin(): boolean {
 	return manageMode() && session.me?.user.instanceRole === 'admin';
 }
 
-/** Права, у которых есть свой раздел в «Настройках». */
+/**
+ * Права, у которых есть свой раздел в «Управлении». Журнал действий сюда не входит: модератору
+ * пункт «Управление» не нужен — его журнал в «Модерации».
+ */
 const SETTINGS_PERMS: Permission[] = [
 	'create_accounts',
 	'create_invites',
 	'block_users',
 	'manage_permissions',
 	'manage_subjects',
-	'view_audit',
 	'export_group'
 ];
 
 /**
- * Есть ли что настраивать. Обычному участнику отдельный пункт «Настройки» не нужен: всё своё —
- * тема, уведомления, пароль — в «Профиле».
+ * Есть ли чем управлять (пункт «Управление»). Всё своё — тема, уведомления, пароль — в личных
+ * настройках (шестерёнка у имени), они есть у каждого.
  */
 export function hasSettings(): boolean {
 	if (!manageMode()) return false;
 	return isAdmin() || SETTINGS_PERMS.some((p) => realCan(p));
 }
 
-/** Навигация без «Настроек» для тех, кому там нечего делать. */
+/** Навигация без «Управления» для тех, кому там нечего делать. */
 export function visibleNav<T extends { href: string }>(items: T[]): T[] {
 	return items.filter(
 		(i) =>

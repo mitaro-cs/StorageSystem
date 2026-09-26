@@ -96,7 +96,7 @@
 				title: 'Включите уведомления',
 				text: 'Новые задания и напоминания о сроках',
 				done: pushOn,
-				href: '/profile#notifications'
+				href: '/profile?tab=notifications'
 			}
 		);
 		return out;

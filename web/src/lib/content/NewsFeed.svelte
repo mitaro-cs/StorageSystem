@@ -140,6 +140,15 @@
 	.feed {
 		gap: var(--s3);
 	}
+	/* Большой монитор: карточки в две колонки — строки не растягиваются на весь экран. */
+	@media (min-width: 1440px) {
+		.feed {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			align-items: start;
+			gap: var(--s4);
+		}
+	}
 	.sentinel {
 		min-height: 1px;
 		margin-top: var(--s3);

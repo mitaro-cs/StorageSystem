@@ -35,6 +35,8 @@
 	let created = $state<CreatedAccount | null>(null);
 	let invite = $state<string | null>(null);
 	let fullscreen = $state<{ value: string; title: string; hint: string } | null>(null);
+	// Случайный клик мимо окна не стирает вписанное ФИО и не прячет ссылку для входа.
+	const dirty = $derived(!!fio.trim() || !!created);
 
 	$effect(() => {
 		if (!open) return;
@@ -86,7 +88,15 @@
 	const activation = $derived(created?.activationPath ? absolute(created.activationPath) : '');
 </script>
 
-<Modal bind:open title="Добавить людей" wide>
+<Modal
+	bind:open
+	{dirty}
+	dirtyText={created
+		? 'Ссылку для входа потом не показать — сначала отправьте её человеку.'
+		: 'Вписанное не сохранится.'}
+	title="Добавить людей"
+	wide
+>
 	<div class="tabs" role="tablist" aria-label="Способ">
 		{#if canCreate}
 			<button

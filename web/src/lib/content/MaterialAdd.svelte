@@ -24,6 +24,7 @@
 	let description = $state('');
 	let error = $state('');
 	let busy = $state(false);
+	const dirty = $derived(files.length > 0 || !!url || !!title || !!description);
 
 	$effect(() => {
 		if (open) {
@@ -75,7 +76,7 @@
 	}
 </script>
 
-<Modal bind:open title={suggest ? 'Предложить материал' : 'Добавить материал'}>
+<Modal bind:open {dirty} title={suggest ? 'Предложить материал' : 'Добавить материал'}>
 	<form id="material-form" class="stack form" onsubmit={save}>
 		{#if suggest}
 			<p class="note small">Староста проверит материал перед публикацией.</p>

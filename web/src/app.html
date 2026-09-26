@@ -29,20 +29,22 @@
 			try {
 				var t = localStorage.getItem('gb-theme');
 				if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
-				// Цветовая тема — до первой отрисовки, чтобы страница не мигнула «Классикой».
-				var p = localStorage.getItem('gb-palette');
-				if (/^(graphite|ocean|forest|sunset|grape)$/.test(p || ''))
-					document.documentElement.setAttribute('data-palette', p);
-				// Стиль карточек и фона (Профиль → Оформление): «Обычный» — без атрибута.
+				// Основной цвет — до первой отрисовки, чтобы страница не мигнула «Чернилами»: готовые
+				// переменные посчитал lib/colors.ts (только «--pal…:#цвет» — ничего другого не ставим).
+				var css = localStorage.getItem('gb-accent-css');
+				if (css && /^(--[a-z0-9-]+:[#0-9a-f]+;?)+$/.test(css)) {
+					document.documentElement.style.cssText = css;
+					document.documentElement.setAttribute('data-accent', '');
+				}
+				// Дизайн (Настройки → Оформление): «Классика» — без атрибута.
 				var st = localStorage.getItem('gb-style');
-				if (/^(depth|glass|tint|outline|neon|paper|comic)$/.test(st || ''))
+				if (/^(glass|depth|neon|paper)$/.test(st || ''))
 					document.documentElement.setAttribute('data-style', st);
-				// Фон страниц: узор или своя картинка (Профиль → Оформление → Фон).
-				var bg = localStorage.getItem('gb-bg');
-				var img = bg === 'custom' && localStorage.getItem('gb-bg-image');
-				if (/^(aurora|sunset|ocean|mint|grid|dots|lines)$/.test(bg || '') || img) {
-					document.documentElement.setAttribute('data-bg', bg);
-					if (img) document.documentElement.style.setProperty('--bg-image', 'url("' + img + '")');
+				// Своя картинка на фоне.
+				var img = localStorage.getItem('gb-bg') === 'custom' && localStorage.getItem('gb-bg-image');
+				if (img) {
+					document.documentElement.setAttribute('data-bg', 'custom');
+					document.documentElement.style.setProperty('--bg-image', 'url("' + img + '")');
 				}
 				// Значок во вкладке и для установки на экран «Домой».
 				var ic = localStorage.getItem('gb-icon');

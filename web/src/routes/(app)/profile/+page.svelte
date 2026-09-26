@@ -1,652 +1,395 @@
 <script lang="ts">
-	import { fioError } from '$lib/names';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { onMount, type Component } from 'svelte';
 	import {
 		Bell,
+		ChevronLeft,
+		ChevronRight,
 		Database,
-		Download,
-		Fingerprint,
-		KeyRound,
-		LogOut,
 		GraduationCap,
-		MonitorSmartphone,
 		Palette,
-		ScanLine,
-		Settings,
 		ShieldCheck,
-		Smartphone,
 		SlidersHorizontal,
+		Smartphone,
 		UserRound,
-		Users
+		Users,
+		WifiOff
 	} from '@lucide/svelte';
-	import SectionHead from '$lib/ui/SectionHead.svelte';
-	import { ApiError, del, get, patch, post, request } from '$lib/api';
-	import { offline, wipeOffline } from '$lib/offline/engine';
-	import { forgetAccount } from '$lib/accounts';
 	import { t } from '$lib/i18n/ru';
-	import {
-		canManage,
-		currentGroup,
-		groups,
-		hasSettings,
-		isAdmin,
-		loadMe,
-		manageMode,
-		session,
-		setManageMode
-	} from '$lib/session.svelte';
-	import Switch from '$lib/ui/Switch.svelte';
-	import { toast, toastError } from '$lib/toasts.svelte';
-	import Avatar from '$lib/ui/Avatar.svelte';
-	import Button from '$lib/ui/Button.svelte';
-	import Modal from '$lib/ui/Modal.svelte';
-	import { forgetOfflineData, install, pwa } from '$lib/pwa.svelte';
-	import { clearCache } from '$lib/cache';
-	import { clearRecent } from '$lib/recent';
-	import { ask, askText } from '$lib/ui/ask.svelte';
-	import { copy } from '$lib/copy';
+	import { currentGroup, groups, hasSettings, session } from '$lib/session.svelte';
 	import { sessionNavVisible } from '$lib/content/session';
 	import { canModerate, moderation } from '$lib/moderation.svelte';
-	import { welcome } from '$lib/onboarding.svelte';
+	import Avatar from '$lib/ui/Avatar.svelte';
+	import SectionHead from '$lib/ui/SectionHead.svelte';
+
+	// Свои настройки — у каждого: аккаунт (ФИО, вход, резервные коды, данные) отдельно от настроек
+	// приложения (оформление, уведомления, без интернета). Управление группой и сайтом — в /settings.
+	type Tone = 'blue' | 'green' | 'amber' | 'violet' | 'red' | 'teal' | 'gray';
+	interface Section {
+		value: string;
+		label: string;
+		desc: string;
+		icon: Component<{ size?: number | string }>;
+		tone: Tone;
+		part: 'account' | 'app';
+	}
+
+	const SECTIONS: Section[] = [
+		{
+			value: 'account',
+			label: 'Профиль',
+			desc: 'Фото, ФИО, логин и роли',
+			icon: UserRound,
+			tone: 'blue',
+			part: 'account'
+		},
+		{
+			value: 'security',
+			label: 'Вход и безопасность',
+			desc: 'Пароль, 2FA и резервные коды, ключи входа',
+			icon: ShieldCheck,
+			tone: 'green',
+			part: 'account'
+		},
+		{
+			value: 'data',
+			label: 'Мои данные',
+			desc: 'Скачать всё своё, выйти, удалить аккаунт',
+			icon: Database,
+			tone: 'gray',
+			part: 'account'
+		},
+		{
+			value: 'appearance',
+			label: 'Оформление',
+			desc: 'Тема, дизайн и цвет',
+			icon: Palette,
+			tone: 'violet',
+			part: 'app'
+		},
+		{
+			value: 'notifications',
+			label: 'Уведомления',
+			desc: 'Что присылать на телефон',
+			icon: Bell,
+			tone: 'amber',
+			part: 'app'
+		},
+		{
+			value: 'offline',
+			label: 'Без интернета',
+			desc: 'Что хранится на этом устройстве',
+			icon: WifiOff,
+			tone: 'teal',
+			part: 'app'
+		},
+		{
+			value: 'app',
+			label: 'Приложение',
+			desc: 'Установка на телефон, знакомство, версия',
+			icon: Smartphone,
+			tone: 'red',
+			part: 'app'
+		}
+	];
+	const PARTS = [
+		{ key: 'account', title: 'Аккаунт' },
+		{ key: 'app', title: 'Приложение' }
+	].map((p) => ({ ...p, items: SECTIONS.filter((s) => s.part === p.key) }));
 
 	const me = $derived(session.me!);
+	const asked = $derived(page.url.searchParams.get('tab'));
+	const tab = $derived(SECTIONS.some((s) => s.value === asked) ? asked! : 'account');
+	const current = $derived(SECTIONS.find((s) => s.value === tab)!);
+	/** На телефоне без выбранного раздела — профиль и меню, а не первый раздел. */
+	const menuOnly = $derived(!SECTIONS.some((s) => s.value === asked));
+
 	// «Сессия» — как в боковой панели компьютера: около сессии или по выбору старосты.
 	const showSession = $derived(
 		(currentGroup() ? [currentGroup()!] : groups()).some((g) => sessionNavVisible(g, Date.now()))
 	);
-	// Кабинет администратора и старосты: здесь же видны все люди группы с их ролями.
-	const seesPeople = $derived(
-		manageMode() &&
-			(!!me.user.instanceRole || groups().some((g) => g.role === 'headman' || g.role === 'deputy'))
-	);
-	let displayName = $derived(me.user.displayName);
 
-	let current = $state('');
-	let password = $state('');
-	let confirm = $state('');
-	let totpOpen = $state(false);
-	let totpUri = $state('');
-	let totpSecret = $state('');
-	// На телефоне QR-код с того же экрана не отсканировать — даём ссылку в приложение.
-	const onPhone = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
-	let code = $state('');
-	// Резервные коды: показываются после включения 2FA или по запросу нового набора.
-	let recoveryCodes = $state<string[] | null>(null);
-	let recoveryLeft = $state<number | null>(null);
-	let regenOpen = $state(false);
-	let regenCode = $state('');
-	let deleteOpen = $state(false);
-	let scanOpen = $state(false);
-	let deletePassword = $state('');
-	let avatarOpen = $state(false);
-
-	async function removeAvatar() {
-		try {
-			await del('/api/me/avatar');
-			await loadMe();
-		} catch (err) {
-			toastError(err);
-		}
-	}
-
-	async function setManage(on: boolean) {
-		try {
-			await setManageMode(on);
-			toast(on ? 'Кнопки управления снова видны' : 'Кнопки управления скрыты', 'ok');
-		} catch (e) {
-			toastError(e);
-		}
-	}
-
-	async function saveName(e: SubmitEvent) {
-		e.preventDefault();
-		const problem = fioError(displayName);
-		if (problem) return toastError(new Error(problem));
-		try {
-			await patch('/api/me', { displayName });
-			await loadMe();
-			toast('ФИО сохранено', 'ok');
-		} catch (err) {
-			toastError(err);
-		}
-	}
-
-	async function changePassword(e: SubmitEvent) {
-		e.preventDefault();
-		if (password !== confirm) return toastError(new Error('Пароли не совпадают'));
-		try {
-			await post('/api/me/password', { current, password });
-			current = password = confirm = '';
-			toast('Пароль изменён. Другие устройства вышли из аккаунта', 'ok');
-		} catch (err) {
-			toastError(err);
-		}
-	}
-
-	async function startTotp() {
-		try {
-			const r = await post<{ secret: string; uri: string }>('/api/me/totp/setup');
-			totpUri = r.uri;
-			totpSecret = r.secret;
-			code = '';
-			totpOpen = true;
-		} catch (err) {
-			toastError(err);
-		}
-	}
-
-	async function finishTotp() {
-		try {
-			const r = await post<{ recoveryCodes: string[] }>('/api/me/totp/enable', { code });
-			recoveryCodes = r.recoveryCodes;
-			await loadMe();
-			toast('Двухфакторная защита включена', 'ok');
-		} catch (err) {
-			toastError(err);
-		}
-	}
-
-	$effect(() => {
-		if (me.user.totpEnabled && recoveryLeft === null)
-			get<{ remaining: number }>('/api/me/totp/recovery')
-				.then((r) => (recoveryLeft = r.remaining))
-				.catch(() => {});
+	// Старые ссылки вида /profile#notifications ведут в нужный раздел.
+	onMount(() => {
+		const hash = location.hash.slice(1);
+		if (SECTIONS.some((s) => s.value === hash)) select(hash, true);
 	});
 
-	async function regenerate() {
-		try {
-			const r = await post<{ recoveryCodes: string[] }>('/api/me/totp/recovery', {
-				code: regenCode
-			});
-			recoveryCodes = r.recoveryCodes;
-			recoveryLeft = r.recoveryCodes.length;
-			regenCode = '';
-		} catch (err) {
-			toastError(err);
-		}
-	}
-
-	async function disableTotp() {
-		const c = await askText('Введите 6 цифр из приложения-аутентификатора', {
-			title: 'Отключить 2FA',
-			ok: 'Отключить',
-			danger: true,
-			inputmode: 'numeric',
-			autocomplete: 'one-time-code',
-			maxlength: 7
-		});
-		if (!c) return;
-		try {
-			await post('/api/me/totp/disable', { code: c });
-			await loadMe();
-			toast('2FA отключена', 'ok');
-		} catch (err) {
-			toastError(err);
-		}
-	}
-
-	/** Всё, что хранилось на устройстве, стирается: копия данных, файлы, недавнее. */
-	async function forgetDevice() {
-		forgetOfflineData();
-		await wipeOffline();
-		clearCache();
-		clearRecent();
-	}
-
-	/** Сначала уходим со страницы профиля, потом забываем пользователя — иначе она упадёт. */
-	async function leave() {
-		await goto('/login', { replaceState: true });
-		session.me = null;
-	}
-
-	async function logout() {
-		if (
-			offline.pending > 0 &&
-			!(await ask(
-				`Без сети сделано действий: ${offline.pending}. Они ещё не отправлены и пропадут. Выйти?`,
-				{ title: 'Выйти из аккаунта', ok: 'Выйти', danger: true }
-			))
-		)
-			return;
-		try {
-			await request('/api/auth/logout', { method: 'POST', body: {} });
-		} catch (err) {
-			return toastError(
-				err instanceof ApiError && err.status === 0
-					? new Error('Выйти можно, когда появится интернет')
-					: err
-			);
-		}
-		await forgetDevice();
-		await leave();
-	}
-
-	async function deleteAccount() {
-		try {
-			await del('/api/me', { password: deletePassword });
-			forgetAccount(me.user.id);
-			await forgetDevice();
-			await leave();
-		} catch (err) {
-			toastError(err);
-		}
+	function select(v: string, replaceState = false) {
+		goto(`/profile?tab=${v}`, { noScroll: true, keepFocus: true, replaceState });
 	}
 </script>
 
-<svelte:head><title>Профиль · groupbase</title></svelte:head>
+<svelte:head
+	><title>{menuOnly ? '' : `${current.label} · `}Настройки · groupbase</title></svelte:head
+>
 
-<header class="me-head">
-	<button
-		class="avatar-btn"
-		onclick={() => (avatarOpen = true)}
-		aria-label="Сменить аватар"
-		title="Сменить аватар"
-	>
-		<Avatar id={me.user.id} name={me.user.displayName} avatar={me.user.avatar} size={72} ring />
-		<span class="edit" aria-hidden="true">Изменить</span>
-	</button>
-	<div>
-		<h1>{me.user.displayName}</h1>
-		<p class="muted">
-			@{me.user.username}{me.user.instanceRole ? ` · ${t.roles[me.user.instanceRole]}` : ''}
-		</p>
-		<div class="roles">
-			{#each me.groups.filter((g) => g.role) as g (g.id)}<span class="chip"
-					>{g.name} · {t.roles[g.role!].toLowerCase()}</span
-				>{/each}
-		</div>
-		{#if me.user.avatar}
-			<button class="linklike small" onclick={removeAvatar}>Убрать аватар</button>
-		{/if}
-	</div>
-</header>
+<div class="page-head"><h1>{t.nav.mySettings}</h1></div>
 
-<!-- На телефоне: разделы, которых нет в нижней панели (новости и предметы — в ней). -->
-<nav class="quick mobile" aria-label="Разделы">
-	<a href="/members"><Users size={18} /> <span>{t.nav.members}</span></a>
-	{#if canModerate()}<a href="/moderation"
-			><ShieldCheck size={18} />
-			<span>{t.nav.moderation}</span>{#if moderation.reports + moderation.pending}<b
-					class="count num">{moderation.reports + moderation.pending}</b
-				>{/if}</a
-		>{/if}
-	{#if showSession}<a href="/session"><GraduationCap size={18} /> <span>{t.nav.session}</span></a
-		>{/if}
-	<a href="/notifications"><Bell size={18} /> <span>{t.nav.notifications}</span></a>
-	{#if hasSettings()}<a href="/settings"><Settings size={18} /> <span>{t.nav.settings}</span></a
-		>{/if}
-</nav>
+<div class="layout" class:menu-only={menuOnly}>
+	<nav class="menu" aria-label="Разделы настроек">
+		<a class="me card" href="/profile?tab=account" aria-label="Профиль">
+			<Avatar id={me.user.id} name={me.user.displayName} avatar={me.user.avatar} size={52} ring />
+			<span class="me-txt">
+				<strong>{me.user.displayName}</strong>
+				<span
+					>@{me.user.username}{me.user.instanceRole
+						? ` · ${t.roles[me.user.instanceRole]}`
+						: ''}</span
+				>
+			</span>
+		</a>
 
-{#if canManage()}
-	<p class="chapter">Управление</p>
-	<section class="card block">
-		<SectionHead
-			icon={SlidersHorizontal}
-			tone="violet"
-			title="Режим управления"
-			text="Кнопки администратора и старосты: приглашения, права, сервер, модерация. Выключите, чтобы пользоваться сайтом как участник — публиковать новости и задания можно и так."
-		>
-			<Switch checked={me.user.manageMode} label="Режим управления" onchange={setManage} />
-		</SectionHead>
-	</section>
-	{#if seesPeople}
-		<section class="card block" id="people">
-			<SectionHead
-				icon={Users}
-				tone="blue"
-				title="Люди"
-				text="Все участники группы и их роли. Меню «…» у человека — сменить роль, сбросить пароль, заблокировать."
-			/>
-			{#await import('$lib/content/People.svelte')}<p class="faint small">
-					Загружаем…
-				</p>{:then m}<m.default />{/await}
-		</section>
-	{/if}
-{/if}
-
-<p class="chapter">Аккаунт и безопасность</p>
-<section class="card block">
-	<SectionHead icon={UserRound} tone="gray" title="ФИО" />
-	<form class="row" onsubmit={saveName}>
-		<input
-			class="input"
-			bind:value={displayName}
-			maxlength="64"
-			autocomplete="name"
-			placeholder="Иванов Иван Иванович"
-			aria-label="ФИО"
-		/>
-		<Button type="submit">Сохранить</Button>
-	</form>
-</section>
-
-<section class="card block">
-	<SectionHead
-		icon={Palette}
-		tone="violet"
-		title="Оформление"
-		text="Светлая или тёмная тема, цвет и стиль карточек — под себя. Меняется сразу."
-	/>
-	<!-- Код выбора оформления грузится отдельно: он ниже первого экрана профиля. -->
-	{#await import('$lib/shell/ThemePicker.svelte') then m}<m.default />{/await}
-</section>
-
-<section class="card block">
-	<SectionHead
-		icon={MonitorSmartphone}
-		tone="teal"
-		title="Вход на другом устройстве"
-		text="На ноутбуке или втором телефоне откройте groupbase, выберите «По QR-коду» и отсканируйте код отсюда — логин и пароль вводить не придётся."
-	/>
-	<div>
-		<Button onclick={() => (scanOpen = true)}><ScanLine size={17} /> Сканировать QR-код</Button>
-	</div>
-</section>
-{#if scanOpen}
-	{#await import('$lib/auth/QrScanner.svelte') then m}<m.default bind:open={scanOpen} />{/await}
-{/if}
-
-<section class="card block">
-	<SectionHead icon={KeyRound} tone="amber" title="Пароль" />
-	<form class="stack" onsubmit={changePassword}>
-		<input type="text" autocomplete="username" value={me.user.username} hidden readonly />
-		{#if me.hostWindow}
-			<!-- Окно приложения на компьютере хоста: забытый пароль можно просто задать заново. -->
-			<p class="small muted">
-				Вы на компьютере, где работает сервер группы, — старый пароль не нужен. Новый пароль
-				понадобится для входа с телефона.
-			</p>
-		{:else}
-			<div>
-				<label class="label" for="cur">Текущий пароль</label>
-				<input
-					id="cur"
-					class="input"
-					type="password"
-					autocomplete="current-password"
-					bind:value={current}
-					required
-				/>
-			</div>
-		{/if}
-		<!-- Поля нового пароля с «Придумать за меня» (словарь) — отдельным кусочком. -->
-		{#await import('$lib/auth/PasswordFields.svelte') then m}
-			<m.default bind:password bind:confirm />
-		{/await}
-		<div><Button type="submit">Сменить пароль</Button></div>
-	</form>
-</section>
-
-<section class="card block">
-	<SectionHead
-		icon={ShieldCheck}
-		tone="green"
-		title="Двухфакторная защита"
-		text="Код из приложения на телефоне при каждом входе. {me.user.totpEnabled
-			? 'Включена.'
-			: 'Выключена.'}"
-	/>
-	{#if me.user.totpEnabled && recoveryLeft !== null}
-		<dl class="kv">
-			<div>
-				<dt>Резервные коды</dt>
-				<dd class:low={recoveryLeft <= 3}>
-					осталось <span class="num">{recoveryLeft}</span> из 10
-				</dd>
-			</div>
-		</dl>
-	{/if}
-	<div class="row wrap">
-		{#if me.user.totpEnabled}
-			<Button onclick={() => ((regenCode = ''), (recoveryCodes = null), (regenOpen = true))}
-				>Новые резервные коды</Button
-			>
-			{#if !me.user.instanceRole || !me.instance.requireStaffTotp}<Button onclick={disableTotp}
-					>Отключить</Button
+		<!-- На телефоне: разделы, которых нет в нижней панели. -->
+		<div class="quick mobile">
+			<a href="/members"><Users size={18} /> <span>{t.nav.members}</span></a>
+			{#if canModerate()}<a href="/moderation"
+					><ShieldCheck size={18} />
+					<span>{t.nav.moderation}</span>{#if moderation.reports + moderation.pending}<b
+							class="count num">{moderation.reports + moderation.pending}</b
+						>{/if}</a
 				>{/if}
-		{:else}
-			<Button variant="primary" onclick={startTotp}>Включить</Button>
-		{/if}
-	</div>
-</section>
+			{#if showSession}<a href="/session"
+					><GraduationCap size={18} /> <span>{t.nav.session}</span></a
+				>{/if}
+			<a href="/notifications"><Bell size={18} /> <span>{t.nav.notifications}</span></a>
+			{#if hasSettings()}<a href="/settings"
+					><SlidersHorizontal size={18} /> <span>{t.nav.settings}</span></a
+				>{/if}
+		</div>
 
-{#if !me.hostWindow}
-	<section class="card block">
-		<SectionHead
-			icon={Fingerprint}
-			tone="violet"
-			title="Вход по отпечатку или лицу"
-			text="Ключ на телефоне или ноутбуке вместо пароля и кода: приложили палец — и вы вошли. Подделать или выманить его нельзя."
-		/>
-		{#await import('$lib/auth/PasskeysPanel.svelte') then m}<m.default />{/await}
-	</section>
-{/if}
-
-<p class="chapter">Уведомления и офлайн</p>
-<!-- Уведомления и офлайн — ниже первого экрана: их код грузится отдельно. -->
-{#await import('$lib/settings/NotificationSettings.svelte') then m}<m.default />{/await}
-
-{#await import('$lib/settings/OfflineSettings.svelte') then m}<m.default />{/await}
-
-<p class="chapter">Прочее</p>
-<section class="card block">
-	<SectionHead
-		icon={Smartphone}
-		tone="blue"
-		title="Приложение на телефон"
-		text="groupbase можно установить как приложение: откроется без браузерной строки, а лента и ДЗ будут доступны без сети."
-	/>
-	<div class="row wrap">
-		{#if pwa.canInstall}<Button variant="primary" onclick={install}>Установить</Button>{/if}
-		<a class="download" href="/install">Как установить — по шагам</a>
-	</div>
-</section>
-
-<section class="card block">
-	<SectionHead
-		icon={Database}
-		tone="gray"
-		title="Мои данные"
-		text="ZIP-файл со всем, что связано с вами: профиль, отметки «сделано», комментарии, ваши публикации и загруженные файлы."
-	/>
-	<div>
-		<a class="download" href="/api/me/export" download><Download size={17} /> Скачать мои данные</a>
-	</div>
-</section>
-
-<section class="card block">
-	<SectionHead icon={LogOut} tone="red" title="Выход и удаление" />
-	<div class="row wrap">
-		<Button onclick={logout}><LogOut size={16} /> Выйти</Button>
-		<Button variant="danger" onclick={() => (deleteOpen = true)}>Удалить аккаунт</Button>
-	</div>
-	<p class="faint small">
-		<button class="linklike" onclick={() => (welcome.open = true)}
-			>Как пользоваться groupbase</button
-		>
-		· <span>groupbase {me.instance.version}</span>{#if isAdmin()}
-			· <a href="/settings?tab=updates">проверить обновления</a>{/if}
-	</p>
-</section>
-
-<!-- Редкие окна (аватар, 2FA, резервные коды) грузят свой код только при открытии. -->
-{#if avatarOpen}
-	{#await import('$lib/ui/AvatarCropper.svelte') then m}
-		<m.default
-			bind:open={avatarOpen}
-			endpoint="/api/me/avatar"
-			title="Ваш аватар"
-			ondone={() => loadMe()}
-		/>
-	{/await}
-{/if}
-
-<Modal bind:open={totpOpen} title={recoveryCodes ? 'Резервные коды' : 'Включить 2FA'}>
-	{#if recoveryCodes}
-		{@const codes = recoveryCodes}
-		{#await import('$lib/auth/RecoveryCodes.svelte') then m}
-			<m.default
-				{codes}
-				ondone={() => ((totpOpen = false), (recoveryCodes = null), (recoveryLeft = null))}
-			/>
-		{/await}
-	{:else}
-		<form
-			id="totp-form"
-			class="stack"
-			onsubmit={(e) => {
-				e.preventDefault();
-				finishTotp();
-			}}
-		>
-			<p class="muted">
-				{onPhone
-					? 'Добавьте ключ в приложение-аутентификатор на этом телефоне или отсканируйте QR-код с другого устройства.'
-					: 'Отсканируйте QR-код приложением-аутентификатором на телефоне.'}
-				Подойдёт любое: «Пароли» на iPhone, Google Authenticator, Яндекс Ключ, Microsoft Authenticator.
-			</p>
-			{#if onPhone && totpUri}
-				<!-- otpauth:// открывает приложение-аутентификатор этого телефона: QR с того же экрана не
-				     отсканировать. -->
-				<Button variant="primary" href={totpUri}>Добавить в приложение на этом телефоне</Button>
-			{/if}
-			{#if totpUri}
-				{#await import('$lib/ui/QrCode.svelte') then m}
-					<div class="qr"><m.default value={totpUri} label="QR-код" /></div>
-				{/await}
-			{/if}
-			<div class="secret">
-				<span class="hint">Или введите ключ вручную:</span>
-				<code class="num">{totpSecret.replace(/(.{4})/g, '$1 ').trim()}</code>
-				<Button size="s" onclick={() => copy(totpSecret, 'Ключ скопирован')}>Скопировать</Button>
+		{#each PARTS as p (p.key)}
+			<h2 class="part">{p.title}</h2>
+			<div class="items card">
+				{#each p.items as s (s.value)}
+					<button
+						class="item"
+						class:on={s.value === tab}
+						aria-current={s.value === tab ? 'page' : undefined}
+						onclick={() => select(s.value)}
+					>
+						<span class="ic {s.tone}"><s.icon size={19} /></span>
+						<span class="txt"><strong>{s.label}</strong><span>{s.desc}</span></span>
+						<ChevronRight size={16} class="chev" />
+					</button>
+				{/each}
 			</div>
-			<div>
-				<label class="label" for="totp-code">Код из приложения — 6 цифр</label>
-				<input
-					id="totp-code"
-					class="input num"
-					inputmode="numeric"
-					autocomplete="one-time-code"
-					maxlength="7"
-					bind:value={code}
-				/>
-			</div>
-		</form>
-	{/if}
-	{#snippet footer()}
-		{#if !recoveryCodes}
-			<Button onclick={() => (totpOpen = false)}>Отмена</Button>
-			<Button variant="primary" type="submit" form="totp-form">Включить</Button>
-		{/if}
-	{/snippet}
-</Modal>
+		{/each}
+	</nav>
 
-<Modal bind:open={regenOpen} title="Новые резервные коды">
-	{#if recoveryCodes}
-		{@const codes = recoveryCodes}
-		{#await import('$lib/auth/RecoveryCodes.svelte') then m}
-			<m.default {codes} ondone={() => ((regenOpen = false), (recoveryCodes = null))} />
-		{/await}
-	{:else}
-		<div class="stack">
-			<p class="muted">
-				Старые коды перестанут действовать. Для подтверждения введите код из приложения.
-			</p>
-			<input
-				class="input num"
-				inputmode="numeric"
-				autocomplete="one-time-code"
-				bind:value={regenCode}
-				aria-label="Код из приложения"
+	<section class="content" aria-labelledby="profile-section">
+		<button class="back" onclick={() => goto('/profile', { noScroll: true })}
+			><ChevronLeft size={18} /> Все настройки</button
+		>
+		<div class="head card">
+			<SectionHead
+				icon={current.icon}
+				tone={current.tone}
+				title={current.label}
+				text={current.desc}
+				id="profile-section"
 			/>
 		</div>
-	{/if}
-	{#snippet footer()}
-		{#if !recoveryCodes}
-			<Button onclick={() => (regenOpen = false)}>Отмена</Button>
-			<Button variant="primary" onclick={regenerate}>Получить</Button>
-		{/if}
-	{/snippet}
-</Modal>
-
-<Modal bind:open={deleteOpen} title="Удалить аккаунт">
-	<div class="stack">
-		<p>
-			Имя, логин, пароль и аватар будут стёрты. Ваши новости и задания останутся с подписью
-			«удалённый пользователь».
-		</p>
-		<label class="label" for="del-pass">Пароль для подтверждения</label>
-		<input
-			id="del-pass"
-			class="input"
-			type="password"
-			autocomplete="current-password"
-			bind:value={deletePassword}
-		/>
-	</div>
-	{#snippet footer()}
-		<Button onclick={() => (deleteOpen = false)}>Отмена</Button>
-		<Button variant="danger" onclick={deleteAccount} disabled={!deletePassword}
-			>Удалить навсегда</Button
-		>
-	{/snippet}
-</Modal>
+		{#key tab}
+			<div class="panel">
+				<!-- Каждый раздел грузит свой код при открытии: страница открывается быстро. -->
+				{#if tab === 'account'}
+					{#await import('$lib/profile/AccountPanel.svelte') then m}<m.default />{/await}
+				{:else if tab === 'security'}
+					{#await import('$lib/profile/SecurityPanel.svelte') then m}<m.default />{/await}
+				{:else if tab === 'data'}
+					{#await import('$lib/profile/DataPanel.svelte') then m}<m.default />{/await}
+				{:else if tab === 'appearance'}
+					{#await import('$lib/shell/ThemePicker.svelte') then m}
+						<section class="card pane"><m.default /></section>
+					{/await}
+				{:else if tab === 'notifications'}
+					{#await import('$lib/settings/NotificationSettings.svelte') then m}<m.default />{/await}
+				{:else if tab === 'offline'}
+					{#await import('$lib/settings/OfflineSettings.svelte') then m}<m.default />{/await}
+				{:else if tab === 'app'}
+					{#await import('$lib/profile/AppPanel.svelte') then m}<m.default />{/await}
+				{/if}
+			</div>
+		{/key}
+	</section>
+</div>
 
 <style>
-	.me-head {
+	.layout {
+		display: grid;
+		grid-template-columns: 300px minmax(0, 1fr);
+		gap: var(--s5);
+		align-items: start;
+	}
+	.menu {
+		position: sticky;
+		top: var(--s4);
+		display: flex;
+		flex-direction: column;
+		gap: var(--s2);
+	}
+	.me {
 		display: flex;
 		align-items: center;
-		gap: var(--s4);
-		margin-bottom: var(--s5);
+		gap: 14px;
+		padding: 14px;
+		color: var(--text);
 	}
-	.avatar-btn {
-		position: relative;
-		flex: none;
-		display: block;
-		line-height: 0;
-		margin: 4px;
-		padding: 0;
-		border: 0;
-		background: none;
-		border-radius: 50%;
+	.me:hover {
+		text-decoration: none;
 	}
-	.edit {
-		position: absolute;
-		inset: 0;
-		display: grid;
-		place-items: center;
-		border-radius: 50%;
-		background: rgb(0 0 0 / 0.45);
-		color: #fff;
+	.me-txt {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		line-height: 1.3;
+	}
+	.me-txt strong {
+		font-size: 16px;
+		font-weight: 650;
+		overflow-wrap: anywhere;
+	}
+	.me-txt span {
+		color: var(--text-2);
+		font-size: 13px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.part {
+		margin: var(--s3) 6px 0;
 		font-size: 12px;
-		font-weight: 600;
-		opacity: 0;
-		transition: opacity var(--dur) var(--ease);
-	}
-	.avatar-btn:hover .edit,
-	.avatar-btn:focus-visible .edit {
-		opacity: 1;
-	}
-	.linklike {
-		border: 0;
-		background: none;
-		padding: 0;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
 		color: var(--text-3);
 	}
-	.linklike:hover {
-		color: var(--danger);
-	}
-	.roles {
+	.items {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 6px;
-		margin-top: 8px;
+		flex-direction: column;
+		padding: 6px;
+		border-radius: var(--r-l);
+		background: var(--surface);
+		box-shadow: var(--shadow-1);
+	}
+	.item {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 10px;
+		border: 0;
+		border-radius: 12px;
+		background: transparent;
+		color: var(--text);
+		font: inherit;
+		text-align: left;
+		transition: background-color var(--dur) var(--ease);
+	}
+	.item:hover {
+		background: var(--surface-2);
+	}
+	.item.on {
+		background: var(--surface-2);
+		box-shadow: inset 3px 0 0 var(--accent);
+	}
+	.ic {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 36px;
+		height: 36px;
+		border-radius: 11px;
+		color: var(--c);
+		background: color-mix(in srgb, var(--c) 13%, transparent);
+	}
+	.blue {
+		--c: #3a6ff0;
+	}
+	.green {
+		--c: #1f9d57;
+	}
+	.amber {
+		--c: #d98a00;
+	}
+	.violet {
+		--c: #8b5cf6;
+	}
+	.red {
+		--c: #e0483e;
+	}
+	.teal {
+		--c: #0e9fa8;
+	}
+	.gray {
+		--c: var(--text-2);
+	}
+	.txt {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		line-height: 1.3;
+	}
+	.txt strong {
+		font-weight: 620;
+		font-size: 15px;
+	}
+	.txt span {
+		color: var(--text-2);
+		font-size: 12.5px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.item :global(.chev) {
+		flex: none;
+		color: var(--text-3);
+		display: none;
+	}
+	.content {
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--s4);
+	}
+	.head {
+		padding: var(--s4) var(--s5);
+		border-radius: var(--r-l);
+		background: var(--surface);
+		box-shadow: var(--shadow-1);
+	}
+	.panel {
+		display: flex;
+		flex-direction: column;
+		gap: var(--s4);
+		animation: panel-in 200ms var(--ease);
+	}
+	@keyframes panel-in {
+		from {
+			opacity: 0;
+			transform: translateY(6px);
+		}
+	}
+	.back {
+		display: none;
+		align-items: center;
+		gap: 4px;
+		align-self: flex-start;
+		padding: 6px 10px 6px 4px;
+		border: 0;
+		border-radius: 10px;
+		background: none;
+		color: var(--text-2);
+		font: inherit;
+		font-weight: 600;
 	}
 	.quick {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 8px;
-		margin-bottom: var(--s4);
+		margin: var(--s2) 0;
 	}
 	.quick a {
 		display: flex;
@@ -685,70 +428,39 @@
 		line-height: 22px;
 		text-align: center;
 	}
-	@media (min-width: 900px) {
+	@media (min-width: 901px) {
 		.mobile {
 			display: none;
 		}
 	}
-	.block {
-		display: flex;
-		flex-direction: column;
-		gap: var(--s4);
-		padding: var(--s5);
-		margin-bottom: var(--s4);
-	}
-	.chapter {
-		margin: var(--s6) 4px var(--s3);
-		font-size: 12.5px;
-		font-weight: 700;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--text-3);
-	}
-	.wrap {
-		flex-wrap: wrap;
-	}
-	.qr {
-		width: 210px;
-		align-self: center;
-		border-radius: var(--r);
-	}
-	.secret {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 6px 10px;
-	}
-	.secret .hint {
-		width: 100%;
-	}
-	.secret code {
-		padding: 6px 10px;
-		border-radius: 8px;
-		background: var(--surface-2);
-		font-size: 14px;
-		letter-spacing: 0.04em;
-		/* Переносим между группами по 4 знака, а не посреди группы. */
-		overflow-wrap: anywhere;
-		user-select: all;
-	}
-	.kv dd.low {
-		color: var(--danger);
-	}
-	.download {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		height: 44px;
-		padding: 0 20px;
-		border: 1px solid var(--border-strong);
-		border-radius: var(--r-full);
-		background: var(--surface);
-		color: var(--text);
-		font-weight: 580;
-	}
-	.download:hover {
-		background: var(--surface-2);
-		text-decoration: none;
+	/* Телефон и узкое окно: либо профиль с меню разделов, либо открытый раздел с «назад». */
+	@media (max-width: 900px) {
+		.layout {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.menu {
+			position: static;
+		}
+		.layout:not(.menu-only) .menu {
+			display: none;
+		}
+		.layout.menu-only .content {
+			display: none;
+		}
+		.item {
+			padding: 12px 10px;
+		}
+		.item :global(.chev) {
+			display: block;
+		}
+		.item.on {
+			box-shadow: none;
+		}
+		.menu-only .item.on {
+			background: transparent;
+		}
+		.back {
+			display: inline-flex;
+		}
 	}
 </style>

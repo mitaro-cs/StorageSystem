@@ -1,104 +1,46 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Check, ImagePlus, Monitor, Moon, Sun } from '@lucide/svelte';
+	import { Check, ImagePlus, Monitor, Moon, Sun, Trash2 } from '@lucide/svelte';
 	import {
-		PALETTES,
 		STYLES,
-		currentPalette,
 		currentStyle,
 		currentTheme,
-		setPalette,
 		setStyle,
 		setTheme,
-		type Palette,
 		type Style,
 		type Theme
 	} from '$lib/theme';
+	import { DEFAULT_SAT, PRESETS, currentAccent, oklch, setAccent, type Accent } from '$lib/colors';
 	import {
-		BACKGROUNDS,
 		ICONS,
-		ICON_PALETTE,
-		currentBackground,
 		currentIcon,
 		customBackground,
-		iconFor,
-		iconMatch,
-		setBackground,
+		removeCustomBackground,
 		setCustomBackground,
-		setIcon,
-		setIconMatch,
-		type Background
+		setIcon
 	} from '$lib/looks';
 	import { iconSrc, type AppIcon } from '$lib/appIcon.svelte';
 	import { toast } from '$lib/toasts.svelte';
-	import Switch from '$lib/ui/Switch.svelte';
+	import Button from '$lib/ui/Button.svelte';
 
-	// Оформление под себя: режим (светлый, тёмный, как в системе), цвет и стиль карточек. Меняется
-	// сразу, хранится на этом устройстве.
+	// Оформление под себя: режим, один из пяти дизайнов, основной цвет и его насыщенность, своя
+	// картинка на фоне и значок. Меняется сразу, хранится на этом устройстве.
 	let theme = $state<Theme>('system');
-	let palette = $state<Palette>('classic');
 	let style = $state<Style>('plain');
-	let bg = $state<Background>('none');
+	let accent = $state<Accent>({ hue: null, sat: DEFAULT_SAT });
+	let custom = $state(false);
 	let bgImage = $state<string | null>(null);
 	let icon = $state<AppIcon>('light');
-	let match = $state(true);
 	let fileInput: HTMLInputElement | undefined = $state();
+
 	onMount(() => {
 		theme = currentTheme();
-		palette = currentPalette();
 		style = currentStyle();
-		bg = currentBackground();
+		accent = currentAccent();
+		custom = accent.hue !== null && !PRESETS.some((p) => p.hue === accent.hue);
 		bgImage = customBackground();
 		icon = currentIcon();
-		match = iconMatch();
 	});
-
-	function pickBackground(b: Background) {
-		if (b === 'custom' && !bgImage) {
-			fileInput?.click();
-			return;
-		}
-		bg = b;
-		setBackground(b);
-	}
-
-	async function pickFile(e: Event) {
-		const file = (e.currentTarget as HTMLInputElement).files?.[0];
-		(e.currentTarget as HTMLInputElement).value = '';
-		if (!file) return;
-		try {
-			if (!(await setCustomBackground(file))) {
-				toast('Картинка не поместилась в память браузера — выберите поменьше', 'error');
-				return;
-			}
-		} catch {
-			toast('Эту картинку не открыть — выберите JPG, PNG или WebP', 'error');
-			return;
-		}
-		bgImage = customBackground();
-		bg = 'custom';
-	}
-
-	function pickIcon(i: AppIcon) {
-		icon = i;
-		setIcon(i);
-		if (!match) return;
-		// Оформление под значок: его цвета, у тёмного значка — и тёмный режим.
-		palette = ICON_PALETTE[i];
-		setPalette(palette);
-		if (i === 'dark' && theme !== 'dark') pickTheme('dark');
-	}
-
-	function toggleMatch(on: boolean) {
-		match = on;
-		setIconMatch(on);
-		if (on) pickIcon(icon);
-	}
-
-	function pickStyle(s: Style) {
-		style = s;
-		setStyle(s);
-	}
 
 	const modes: { value: Theme; label: string; icon: typeof Sun }[] = [
 		{ value: 'system', label: 'Как в системе', icon: Monitor },
@@ -111,18 +53,61 @@
 		setTheme(t);
 	}
 
-	function pickPalette(p: Palette) {
-		palette = p;
-		setPalette(p);
-		// Связаны — значок того же цвета («Классика» оставляет светлый или тёмный, какой был).
-		if (match && ICON_PALETTE[icon] !== p) {
-			const next = p === 'classic' && icon === 'dark' ? 'dark' : iconFor(p);
-			if (next !== icon) {
-				icon = next;
-				setIcon(next);
-			}
-		}
+	function pickStyle(s: Style) {
+		style = s;
+		setStyle(s);
 	}
+
+	function pickPreset(hue: number | null) {
+		custom = false;
+		accent = { ...accent, hue };
+		setAccent(accent);
+	}
+
+	function pickCustom() {
+		custom = true;
+		accent = { ...accent, hue: accent.hue ?? 200 };
+		setAccent(accent);
+	}
+
+	/** Ползунки: без плавного перехода — цвет идёт за пальцем. */
+	function slide(next: Partial<Accent>) {
+		accent = { ...accent, ...next };
+		setAccent(accent, false);
+	}
+
+	async function pickFile(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file) return;
+		try {
+			if (!(await setCustomBackground(file))) {
+				toast('Картинка не поместилась в память браузера — выберите поменьше', 'error');
+				return;
+			}
+		} catch {
+			toast('Эту картинку не открыть — выберите JPG, PNG или WebP', 'error');
+			return;
+		}
+		bgImage = customBackground();
+	}
+
+	function dropBackground() {
+		removeCustomBackground();
+		bgImage = null;
+	}
+
+	function pickIcon(i: AppIcon) {
+		icon = i;
+		setIcon(i);
+	}
+
+	/** Образец цвета — ярким, как на кнопке. */
+	const dot = (hue: number) => oklch(0.62, 0.19, hue);
+	const satLabel = $derived(
+		accent.sat < 25 ? 'спокойно' : accent.sat < 55 ? 'мягко' : accent.sat < 80 ? 'ярко' : 'сочно'
+	);
 </script>
 
 <div class="picker">
@@ -143,86 +128,129 @@
 			{/each}
 		</div>
 	</div>
+
 	<div>
-		<p class="label" id="palette-label">Цвет</p>
-		<div class="swatches" role="radiogroup" aria-labelledby="palette-label">
-			{#each PALETTES as p (p.id)}
-				<button
-					type="button"
-					role="radio"
-					aria-checked={palette === p.id}
-					aria-label={p.label}
-					class="swatch"
-					class:on={palette === p.id}
-					onclick={() => pickPalette(p.id)}
-				>
-					<!-- Образец: слева светлый режим, справа тёмный — фон, «кнопка» и строка текста. -->
-					<span class="mini" aria-hidden="true">
-						<span class="half" style:--bg={p.light[0]} style:--acc={p.light[1]}>
-							<i class="pill"></i><i class="line"></i>
-						</span>
-						<span class="half" style:--bg={p.dark[0]} style:--acc={p.dark[1]}>
-							<i class="pill"></i><i class="line"></i>
-						</span>
-						{#if palette === p.id}<span class="tick"><Check size={13} strokeWidth={3} /></span>{/if}
-					</span>
-					<span class="name">{p.label}</span>
-				</button>
-			{/each}
-		</div>
-	</div>
-	<div>
-		<p class="label" id="style-label">Стиль</p>
-		<div class="styles" role="radiogroup" aria-labelledby="style-label">
+		<p class="label" id="style-label">Дизайн</p>
+		<div class="designs" role="radiogroup" aria-labelledby="style-label">
 			{#each STYLES as s (s.id)}
 				<button
 					type="button"
 					role="radio"
 					aria-checked={style === s.id}
 					aria-label={s.label}
-					title={s.hint}
-					class="swatch"
+					class="design"
 					class:on={style === s.id}
 					onclick={() => pickStyle(s.id)}
 				>
-					<!-- Образец — маленький экран: заголовок, две карточки с полосой предмета и кнопка. -->
+					<!-- Образец — маленький экран в этом дизайне: заголовок, две карточки и кнопка. -->
 					<span class="look {s.id}" aria-hidden="true">
 						<i class="t"></i>
-						<i class="c c1" style:--subject="#4f7df5"><b></b></i>
+						<i class="c c1" style:--subject="#4f7df5"><b></b><b class="short"></b></i>
 						<i class="c c2" style:--subject="#1fa37a"><b></b></i>
 						<i class="btn-mini"></i>
 						{#if style === s.id}<span class="tick"><Check size={13} strokeWidth={3} /></span>{/if}
 					</span>
 					<span class="name">{s.label}</span>
+					<span class="about">{s.hint}</span>
 				</button>
 			{/each}
 		</div>
-		<p class="hint">{STYLES.find((s) => s.id === style)?.hint}</p>
 	</div>
+
 	<div>
-		<p class="label" id="bg-label">Фон</p>
-		<div class="bgs" role="radiogroup" aria-labelledby="bg-label">
-			{#each BACKGROUNDS as b (b.id)}
+		<p class="label" id="color-label">Цвет</p>
+		<div class="colors" role="radiogroup" aria-labelledby="color-label">
+			{#each PRESETS as p (p.id)}
+				{@const on = !custom && accent.hue === p.hue}
 				<button
 					type="button"
 					role="radio"
-					aria-checked={bg === b.id}
-					aria-label={b.label}
-					class="swatch"
-					class:on={bg === b.id}
-					onclick={() => pickBackground(b.id)}
+					aria-checked={on}
+					aria-label={p.label}
+					title={p.label}
+					class="color"
+					class:on
+					class:ink={p.hue === null}
+					style:--c={p.hue === null ? undefined : dot(p.hue)}
+					onclick={() => pickPreset(p.hue)}
 				>
-					<span
-						class="bgp {b.id}"
-						style:--img={b.id === 'custom' && bgImage ? `url("${bgImage}")` : undefined}
-						aria-hidden="true"
-					>
-						{#if b.id === 'custom' && !bgImage}<ImagePlus size={20} />{/if}
-						{#if bg === b.id}<span class="tick"><Check size={13} strokeWidth={3} /></span>{/if}
-					</span>
-					<span class="name">{b.label}</span>
+					{#if on}<Check size={16} strokeWidth={3} />{/if}
 				</button>
 			{/each}
+			<button
+				type="button"
+				role="radio"
+				aria-checked={custom}
+				aria-label="Свой цвет"
+				title="Свой цвет"
+				class="color rainbow"
+				class:on={custom}
+				onclick={pickCustom}
+			>
+				{#if custom}<Check size={16} strokeWidth={3} />{/if}
+			</button>
+		</div>
+		{#if custom && accent.hue !== null}
+			<label class="slider">
+				<span class="row-label">Свой цвет</span>
+				<input
+					type="range"
+					class="hue"
+					min="0"
+					max="359"
+					value={accent.hue}
+					aria-label="Оттенок"
+					oninput={(e) => slide({ hue: Number(e.currentTarget.value) })}
+				/>
+			</label>
+		{/if}
+		<label class="slider" class:off={accent.hue === null}>
+			<span class="row-label"
+				>Насыщенность <span class="value num"
+					>{accent.hue === null ? '' : `${accent.sat}% · ${satLabel}`}</span
+				></span
+			>
+			<input
+				type="range"
+				class="sat"
+				min="0"
+				max="100"
+				step="5"
+				value={accent.sat}
+				disabled={accent.hue === null}
+				aria-label="Насыщенность"
+				style:--from={accent.hue === null ? undefined : oklch(0.6, 0.02, accent.hue)}
+				style:--to={accent.hue === null ? undefined : oklch(0.6, 0.24, accent.hue)}
+				oninput={(e) => slide({ sat: Number(e.currentTarget.value) })}
+			/>
+		</label>
+		<p class="hint">
+			{accent.hue === null
+				? '«Чернила» — чёрно-белая классика. Выберите цвет — и кнопки, фон и карточки станут в его тонах.'
+				: 'Меньше — спокойнее для глаз, больше — цветнее кнопки, фон и карточки.'}
+		</p>
+	</div>
+
+	<div>
+		<p class="label">Картинка на фоне</p>
+		<div class="bg-row">
+			<span
+				class="bgp"
+				style:background-image={bgImage ? `url("${bgImage}")` : undefined}
+				aria-hidden="true"
+			>
+				{#if !bgImage}<ImagePlus size={20} />{/if}
+			</span>
+			<div class="row wrap">
+				<Button size="s" onclick={() => fileInput?.click()}
+					><ImagePlus size={15} /> {bgImage ? 'Другая картинка' : 'Выбрать картинку'}</Button
+				>
+				{#if bgImage}
+					<Button size="s" variant="ghost" onclick={dropBackground}
+						><Trash2 size={15} /> Убрать</Button
+					>
+				{/if}
+			</div>
 		</div>
 		<input
 			bind:this={fileInput}
@@ -233,12 +261,8 @@
 			aria-hidden="true"
 			onchange={pickFile}
 		/>
-		{#if bg === 'custom' && bgImage}
-			<button type="button" class="linklike small" onclick={() => fileInput?.click()}
-				>Выбрать другую картинку</button
-			>
-		{/if}
 	</div>
+
 	<div>
 		<p class="label" id="icon-label">Значок</p>
 		<div class="icons" role="radiogroup" aria-labelledby="icon-label">
@@ -248,7 +272,7 @@
 					role="radio"
 					aria-checked={icon === i.id}
 					aria-label={i.label}
-					class="swatch"
+					class="design icon"
 					class:on={icon === i.id}
 					onclick={() => pickIcon(i.id)}
 				>
@@ -260,13 +284,6 @@
 				</button>
 			{/each}
 		</div>
-		<div class="match">
-			<div>
-				<span>Оформление под значок</span>
-				<span class="hint">Цвета интерфейса — как у значка, у тёмного значка — тёмная тема</span>
-			</div>
-			<Switch checked={match} label="Оформление под значок" onchange={toggleMatch} />
-		</div>
 		<p class="hint">
 			Во вкладке браузера меняется сразу. На Android значок на экране обновится сам, на iPhone —
 			если удалить сайт с экрана «Домой» и добавить снова.
@@ -276,29 +293,16 @@
 </div>
 
 <style>
-	.match {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--s3);
-		margin-top: var(--s3);
-		padding: 12px 14px;
-		border-radius: var(--r);
-		background: var(--surface-2);
-	}
-	.match > div {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		min-width: 0;
-	}
-	.match .hint {
-		margin: 0;
-	}
 	.picker {
 		display: flex;
 		flex-direction: column;
-		gap: var(--s4);
+		gap: var(--s5);
+	}
+	.picker .label {
+		margin-bottom: 10px;
+		font-size: 14px;
+		color: var(--text);
+		font-weight: 620;
 	}
 	.seg {
 		display: grid;
@@ -330,7 +334,7 @@
 	.seg button.on {
 		background: var(--surface);
 		color: var(--text);
-		box-shadow: 0 1px 3px rgb(16 18 24 / 0.1);
+		box-shadow: 0 1px 3px rgb(16 18 24 / 0.12);
 	}
 	/* На узком экране — без иконок: «Как в системе» должно поместиться целиком. */
 	@media (max-width: 420px) {
@@ -341,301 +345,391 @@
 			display: none;
 		}
 	}
-	.swatches {
+
+	/* ---------- Дизайны ---------- */
+	.designs {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-		gap: var(--s2);
+		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+		gap: var(--s3);
 	}
-	.swatch {
+	.design {
 		display: flex;
 		flex-direction: column;
-		align-items: center;
-		gap: 6px;
-		padding: 6px 6px 8px;
+		align-items: stretch;
+		gap: 4px;
+		padding: 8px 8px 10px;
 		border: 1px solid transparent;
-		border-radius: var(--r);
+		border-radius: 18px;
 		background: transparent;
-		color: var(--text-2);
+		color: var(--text);
 		font: inherit;
-		font-size: 13px;
-		font-weight: 550;
+		text-align: left;
 		transition:
 			border-color var(--dur) var(--ease),
 			background-color var(--dur) var(--ease),
 			transform 120ms var(--ease);
 	}
-	.swatch:hover {
+	.design:hover {
 		background: var(--surface-2);
 	}
-	.swatch:active {
-		transform: scale(0.97);
+	.design:active {
+		transform: scale(0.98);
 	}
-	.swatch.on {
+	.design.on {
 		border-color: var(--accent);
-		color: var(--text);
+		background: color-mix(in srgb, var(--accent) 6%, transparent);
 	}
-	.mini {
-		position: relative;
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		width: 100%;
-		height: 52px;
-		border-radius: 12px;
-		overflow: hidden;
-		box-shadow: inset 0 0 0 1px rgb(127 127 127 / 0.25);
+	.design .name {
+		margin-top: 6px;
+		padding: 0 4px;
+		font-size: 14px;
+		font-weight: 620;
 	}
-	.half {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: flex-start;
-		gap: 5px;
-		min-width: 0;
-		padding: 0 7px;
-		overflow: hidden;
-		background: var(--bg);
-	}
-	.pill,
-	.line {
-		display: block;
-		flex: none;
-		max-width: 100%;
-		background: var(--acc);
-	}
-	.pill {
-		width: 28px;
-		height: 11px;
-		border-radius: 6px;
-	}
-	.line {
-		width: 36px;
-		height: 4px;
-		border-radius: 2px;
-		opacity: 0.35;
+	.design .about {
+		padding: 0 4px;
+		color: var(--text-2);
+		font-size: 12.5px;
+		line-height: 1.35;
 	}
 	.tick {
 		position: absolute;
-		top: 5px;
-		right: 5px;
+		top: 7px;
+		right: 7px;
 		display: grid;
 		place-items: center;
-		width: 20px;
-		height: 20px;
+		width: 22px;
+		height: 22px;
 		border-radius: 50%;
 		background: var(--accent);
 		color: var(--accent-text);
+		box-shadow: 0 2px 6px rgb(0 0 0 / 0.25);
 	}
-	.name {
-		white-space: nowrap;
-	}
-	.styles {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(122px, 1fr));
-		gap: var(--s2);
-	}
-	.styles + .hint {
-		margin-top: 6px;
-	}
-	/* Мини-экран стиля: при наведении карточки всплывают по очереди, выбранный — со свечением. */
+	/* Мини-экран дизайна: при наведении карточки всплывают по очереди. */
 	.look {
-		--surface-m: var(--surface);
+		--m-bg: var(--bg);
+		--m-card: var(--surface);
+		--m-text: var(--text);
+		--m-line: var(--text-3);
 		position: relative;
 		display: flex;
 		flex-direction: column;
-		gap: 5px;
-		width: 100%;
-		height: 78px;
-		padding: 9px 10px;
+		gap: 6px;
+		height: 96px;
+		padding: 11px 12px;
 		border-radius: 14px;
 		overflow: hidden;
-		background: var(--bg);
-		box-shadow: inset 0 0 0 1px rgb(127 127 127 / 0.25);
-		transition: box-shadow 220ms var(--ease);
-	}
-	.swatch.on .look {
-		box-shadow:
-			inset 0 0 0 1px rgb(127 127 127 / 0.25),
-			0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+		background: var(--m-bg);
+		box-shadow: inset 0 0 0 1px rgb(127 127 127 / 0.22);
 	}
 	.t {
 		display: block;
-		width: 38%;
-		height: 6px;
-		border-radius: 3px;
-		background: var(--text);
-		opacity: 0.8;
+		width: 42%;
+		height: 7px;
+		border-radius: 4px;
+		background: var(--m-text);
+		opacity: 0.85;
 	}
 	.c {
 		position: relative;
 		display: flex;
-		align-items: center;
-		height: 17px;
-		padding-left: 8px;
-		border-radius: 6px;
-		background: var(--surface-m);
+		flex-direction: column;
+		justify-content: center;
+		gap: 3px;
+		height: 22px;
+		padding-left: 10px;
+		border-radius: 7px;
+		background: var(--m-card);
 		transition: transform 260ms cubic-bezier(0.3, 1.4, 0.5, 1);
 	}
 	.c::before {
 		content: '';
 		position: absolute;
-		left: 3px;
-		top: 4px;
-		bottom: 4px;
+		left: 4px;
+		top: 5px;
+		bottom: 5px;
 		width: 2px;
 		border-radius: 1px;
 		background: var(--subject);
 	}
 	.c b {
 		display: block;
-		width: 55%;
+		width: 58%;
 		height: 3px;
 		border-radius: 2px;
-		background: var(--text-3);
-		opacity: 0.6;
+		background: var(--m-line);
+		opacity: 0.7;
+	}
+	.c b.short {
+		width: 34%;
+		opacity: 0.45;
 	}
 	.c2 {
-		width: 78%;
+		width: 76%;
 	}
 	.btn-mini {
 		position: absolute;
-		right: 9px;
-		bottom: 8px;
-		width: 22px;
-		height: 10px;
-		border-radius: 5px;
+		right: 11px;
+		bottom: 10px;
+		width: 28px;
+		height: 12px;
+		border-radius: 6px;
 		background: var(--accent);
 	}
-	.swatch:hover .c1 {
+	.design:hover .c1 {
 		transform: translateY(-2px);
 	}
-	.swatch:hover .c2 {
+	.design:hover .c2 {
 		transform: translateY(-2px);
 		transition-delay: 60ms;
 	}
-	.look.depth .c {
-		background-image: linear-gradient(180deg, rgb(255 255 255 / 0.5), transparent);
-		box-shadow:
-			inset 0 1px 0 rgb(255 255 255 / 0.6),
-			0 6px 10px -6px rgb(0 0 0 / 0.45);
+	.look.plain .c {
+		box-shadow: 0 0 0 1px rgb(127 127 127 / 0.14);
 	}
 	.look.glass {
 		background:
-			radial-gradient(60% 70% at 15% 20%, rgb(124 92 255 / 0.45), transparent),
-			radial-gradient(55% 70% at 90% 90%, rgb(255 146 64 / 0.45), transparent),
-			radial-gradient(50% 60% at 80% 10%, rgb(56 189 170 / 0.4), transparent), var(--bg);
+			radial-gradient(
+				70% 70% at 10% 15%,
+				color-mix(in srgb, var(--mesh-1) 60%, transparent),
+				transparent
+			),
+			radial-gradient(
+				60% 70% at 95% 95%,
+				color-mix(in srgb, var(--mesh-3) 55%, transparent),
+				transparent
+			),
+			radial-gradient(
+				55% 60% at 85% 10%,
+				color-mix(in srgb, var(--mesh-2) 50%, transparent),
+				transparent
+			),
+			var(--m-bg);
 	}
 	.look.glass .c {
-		background: color-mix(in srgb, var(--surface) 55%, transparent);
-		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.4);
+		background: color-mix(in srgb, var(--m-card) 52%, transparent);
+		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.45);
 		backdrop-filter: blur(6px);
 	}
-	.look.tint .c1 {
-		background: color-mix(in srgb, #4f7df5 22%, var(--surface));
+	.look.depth {
+		background:
+			radial-gradient(
+				120% 60% at 50% -20%,
+				color-mix(in srgb, var(--accent) 14%, transparent),
+				transparent
+			),
+			var(--m-bg);
 	}
-	.look.tint .c2 {
-		background: color-mix(in srgb, #1fa37a 22%, var(--surface));
+	.look.depth .c {
+		background-image: linear-gradient(180deg, rgb(255 255 255 / 0.55), transparent);
+		box-shadow:
+			inset 0 1px 0 rgb(255 255 255 / 0.7),
+			0 6px 12px -6px rgb(0 0 0 / 0.5);
 	}
-	.look.outline .c {
-		background: transparent;
-		box-shadow: inset 0 0 0 1.2px var(--border-strong);
+	.look.depth .btn-mini {
+		background-image: linear-gradient(180deg, rgb(255 255 255 / 0.3), transparent);
+		box-shadow: 0 4px 8px -3px color-mix(in srgb, var(--accent) 70%, transparent);
 	}
 	.look.neon .c {
 		border: 1px solid transparent;
 		background:
-			linear-gradient(var(--surface), var(--surface)) padding-box,
-			linear-gradient(135deg, var(--subject), #ff4fd8, #33d6ff) border-box;
-		box-shadow: 0 0 10px -3px var(--subject);
+			linear-gradient(var(--m-card), var(--m-card)) padding-box,
+			linear-gradient(135deg, var(--subject), var(--mesh-2), var(--mesh-3)) border-box;
+		box-shadow: 0 0 12px -3px var(--subject);
+	}
+	.look.neon .btn-mini {
+		box-shadow: 0 0 10px -1px var(--accent);
 	}
 	.look.paper {
-		background: #f3eee3;
+		--m-bg: #f3eee3;
+		--m-card: #fffdf7;
+		--m-text: #2a2317;
+		--m-line: #7c7159;
 	}
 	.look.paper .t {
-		height: 7px;
+		height: 8px;
 		border-radius: 1px;
-		background: #3d3120;
 	}
 	.look.paper .c {
-		background: #fffdf7;
 		box-shadow: 0 4px 8px -6px rgb(90 64 20 / 0.6);
 	}
-	.look.comic .c {
+	.look.paper .btn-mini {
+		background: #3a2e1d;
+	}
+
+	/* ---------- Цвет ---------- */
+	.colors {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+	}
+	.color {
+		display: grid;
+		place-items: center;
+		width: 40px;
+		height: 40px;
+		padding: 0;
+		border: 0;
+		border-radius: 50%;
+		background: var(--c);
+		color: #fff;
 		box-shadow:
-			inset 0 0 0 1.5px var(--text),
-			2px 2px 0 var(--text);
+			inset 0 0 0 1px rgb(0 0 0 / 0.08),
+			0 0 0 0 transparent;
+		transition:
+			transform 140ms var(--ease),
+			box-shadow var(--dur) var(--ease);
 	}
-	.look.comic .btn-mini {
-		box-shadow: 1.5px 1.5px 0 var(--text);
+	.color:hover {
+		transform: scale(1.08);
 	}
-	/* Фон: образец узора или картинки. */
-	.bgs,
+	.color.on {
+		box-shadow:
+			0 0 0 3px var(--surface),
+			0 0 0 5px var(--c, var(--text));
+	}
+	.color.ink {
+		background: linear-gradient(135deg, #0d0d0f 50%, #ffffff 50%);
+		color: #fff;
+		box-shadow: inset 0 0 0 1px rgb(127 127 127 / 0.4);
+	}
+	.color.ink.on {
+		box-shadow:
+			inset 0 0 0 1px rgb(127 127 127 / 0.4),
+			0 0 0 3px var(--surface),
+			0 0 0 5px var(--text);
+	}
+	.color.ink :global(svg) {
+		filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.8));
+	}
+	.color.rainbow {
+		--c: var(--text);
+		background: conic-gradient(
+			from 0deg,
+			#ff5e5e,
+			#ffb03a,
+			#f5e663,
+			#5fd068,
+			#35c7d6,
+			#4f7df5,
+			#a35cf0,
+			#ff5eb3,
+			#ff5e5e
+		);
+	}
+	.color.rainbow :global(svg) {
+		filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.6));
+	}
+	.slider {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-top: var(--s4);
+	}
+	.slider.off {
+		opacity: 0.55;
+	}
+	.row-label {
+		display: flex;
+		justify-content: space-between;
+		gap: 8px;
+		font-size: 14px;
+		font-weight: 550;
+	}
+	.value {
+		color: var(--text-2);
+		font-weight: 500;
+	}
+	input[type='range'] {
+		width: 100%;
+		height: 28px;
+		margin: 0;
+		background: transparent;
+		appearance: none;
+		-webkit-appearance: none;
+		cursor: pointer;
+	}
+	input[type='range']:disabled {
+		cursor: default;
+	}
+	input[type='range']::-webkit-slider-runnable-track {
+		height: 12px;
+		border-radius: 6px;
+		background: var(--track);
+		box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+	}
+	input[type='range']::-moz-range-track {
+		height: 12px;
+		border-radius: 6px;
+		background: var(--track);
+	}
+	input[type='range']::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		width: 24px;
+		height: 24px;
+		margin-top: -6px;
+		border-radius: 50%;
+		background: #fff;
+		box-shadow:
+			0 0 0 1px rgb(0 0 0 / 0.12),
+			0 2px 6px rgb(0 0 0 / 0.3);
+	}
+	input[type='range']::-moz-range-thumb {
+		width: 24px;
+		height: 24px;
+		border: 0;
+		border-radius: 50%;
+		background: #fff;
+		box-shadow:
+			0 0 0 1px rgb(0 0 0 / 0.12),
+			0 2px 6px rgb(0 0 0 / 0.3);
+	}
+	.hue {
+		--track: linear-gradient(
+			90deg,
+			#ff5e5e,
+			#ffb03a,
+			#f5e663,
+			#5fd068,
+			#35c7d6,
+			#4f7df5,
+			#a35cf0,
+			#ff5eb3,
+			#ff5e5e
+		);
+	}
+	.sat {
+		--track: linear-gradient(90deg, var(--from, var(--surface-3)), var(--to, var(--surface-3)));
+	}
+
+	/* ---------- Картинка и значок ---------- */
+	.bg-row {
+		display: flex;
+		align-items: center;
+		gap: var(--s3);
+	}
+	.bgp {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 96px;
+		height: 60px;
+		border-radius: 12px;
+		background: var(--surface-2) center / cover;
+		color: var(--text-3);
+		box-shadow: inset 0 0 0 1px rgb(127 127 127 / 0.25);
+	}
 	.icons {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
 		gap: var(--s2);
 	}
-	.bgp {
-		position: relative;
-		display: grid;
-		place-items: center;
-		width: 100%;
-		height: 56px;
-		border-radius: 12px;
-		overflow: hidden;
-		background: var(--bg);
-		color: var(--text-3);
-		box-shadow: inset 0 0 0 1px rgb(127 127 127 / 0.25);
+	.design.icon {
+		align-items: center;
+		text-align: center;
 	}
-	.bgp.aurora {
-		background:
-			radial-gradient(70% 70% at 10% 10%, rgb(124 92 255 / 0.55), transparent 70%),
-			radial-gradient(70% 70% at 95% 30%, rgb(56 189 170 / 0.5), transparent 70%),
-			radial-gradient(80% 70% at 50% 110%, rgb(59 130 246 / 0.45), transparent 72%), var(--bg);
-	}
-	.bgp.sunset {
-		background:
-			radial-gradient(80% 70% at 0% 0%, rgb(255 159 67 / 0.6), transparent 70%),
-			radial-gradient(70% 70% at 100% 30%, rgb(238 77 126 / 0.5), transparent 70%),
-			radial-gradient(80% 70% at 40% 110%, rgb(168 107 255 / 0.45), transparent 72%), var(--bg);
-	}
-	.bgp.ocean {
-		background:
-			radial-gradient(80% 70% at 100% 0%, rgb(47 128 255 / 0.55), transparent 70%),
-			radial-gradient(70% 70% at 0% 60%, rgb(34 211 238 / 0.45), transparent 70%),
-			radial-gradient(80% 70% at 70% 110%, rgb(18 56 168 / 0.5), transparent 72%), var(--bg);
-	}
-	.bgp.mint {
-		background:
-			radial-gradient(80% 70% at 0% 0%, rgb(47 182 124 / 0.55), transparent 70%),
-			radial-gradient(70% 70% at 100% 45%, rgb(163 230 53 / 0.4), transparent 70%),
-			radial-gradient(80% 70% at 30% 110%, rgb(20 184 166 / 0.45), transparent 72%), var(--bg);
-	}
-	.bgp.grid {
-		background:
-			linear-gradient(color-mix(in srgb, var(--text) 12%, transparent) 1px, transparent 1px) 0 0 /
-				10px 10px,
-			linear-gradient(90deg, color-mix(in srgb, var(--text) 12%, transparent) 1px, transparent 1px)
-				0 0 / 10px 10px,
-			var(--bg);
-	}
-	.bgp.dots {
-		background:
-			radial-gradient(
-					circle,
-					color-mix(in srgb, var(--text) 30%, transparent) 1px,
-					transparent 1.4px
-				)
-				0 0 / 9px 9px,
-			var(--bg);
-	}
-	.bgp.lines {
-		background:
-			linear-gradient(90deg, transparent 14px, rgb(238 77 126 / 0.45) 14px 15px, transparent 15px),
-			linear-gradient(color-mix(in srgb, #2f80ff 30%, transparent) 1px, transparent 1px) 0 0 / 100%
-				11px,
-			var(--bg);
-	}
-	.bgp.custom {
-		background: var(--img, var(--surface-2)) center / cover;
+	.design.icon .name {
+		margin-top: 2px;
+		font-size: 13px;
+		font-weight: 550;
 	}
 	.ic {
 		position: relative;
@@ -651,10 +745,10 @@
 		box-shadow: 0 6px 14px -8px rgb(0 0 0 / 0.5);
 		transition: transform 220ms cubic-bezier(0.3, 1.5, 0.5, 1);
 	}
-	.swatch:hover .ic img {
+	.design:hover .ic img {
 		transform: translateY(-2px) rotate(-3deg);
 	}
-	.swatch.on .ic img {
+	.design.on .ic img {
 		transform: scale(1.06);
 	}
 	@media (prefers-reduced-motion: reduce) {

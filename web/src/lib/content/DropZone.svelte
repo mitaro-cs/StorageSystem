@@ -12,6 +12,10 @@
 		multiple?: boolean;
 		max?: number;
 		label?: string;
+		/** Большие фото уменьшать до 2048 точек перед отправкой (новости: лента грузится быстрее). */
+		shrink?: boolean;
+		/** Подсказка под «Выберите файл». */
+		hint?: string;
 	}
 
 	let {
@@ -19,7 +23,9 @@
 		uploading = $bindable(0),
 		multiple = true,
 		max = 10,
-		label = 'Файлы'
+		label = 'Файлы',
+		shrink = false,
+		hint = 'PDF, документы, презентации, картинки, архивы'
 	}: Props = $props();
 
 	interface Pending {
@@ -43,10 +49,31 @@
 	// Кнопка «Сфотографировать» — только там, где есть камера и палец, а не мышь.
 	const touch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
+	/** Фото с телефона — 4–10 МБ; для новости хватит 2048 точек и JPEG (~300–600 КБ). */
+	async function smaller(file: File): Promise<File> {
+		if (!shrink || !/^image\/(jpeg|png|webp|heic|heif)$/.test(file.type) || file.size < 700_000)
+			return file;
+		try {
+			const bitmap = await createImageBitmap(file);
+			const k = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
+			const canvas = document.createElement('canvas');
+			canvas.width = Math.round(bitmap.width * k);
+			canvas.height = Math.round(bitmap.height * k);
+			canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+			bitmap.close();
+			const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.86));
+			if (!blob || blob.size >= file.size) return file;
+			return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+		} catch {
+			return file;
+		}
+	}
+
 	async function send(item: Pending) {
 		item.error = undefined;
 		item.progress = 0;
 		try {
+			item.file = await smaller(item.file);
 			const info = await uploadFile(item.file, (f) => (item.progress = f));
 			files = [...files, info];
 			pending = pending.filter((x) => x.key !== item.key);
@@ -107,9 +134,7 @@
 	>
 		<Upload size={20} />
 		<span><strong>Выберите файл</strong> или перетащите сюда</span>
-		<span class="faint small"
-			>PDF, документы, презентации, картинки, архивы{touch ? '' : ' · можно вставить Ctrl+V'}</span
-		>
+		<span class="faint small">{hint}{touch ? '' : ' · можно вставить Ctrl+V'}</span>
 	</button>
 	{#if touch}
 		<button type="button" class="shoot" onclick={() => camera?.click()}

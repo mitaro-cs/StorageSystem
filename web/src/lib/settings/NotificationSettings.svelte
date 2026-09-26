@@ -19,8 +19,6 @@
 	import type { NotificationPrefs, NotificationSettings } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
 	import Switch from '$lib/ui/Switch.svelte';
-	import SectionHead from '$lib/ui/SectionHead.svelte';
-	import { Bell } from '@lucide/svelte';
 
 	let s = $state<NotificationSettings | null>(null);
 	let subscribed = $state(false);
@@ -32,7 +30,7 @@
 	const supported = !hostWindow && pushSupported();
 	const needsInstall = supported && needsInstallForPush();
 	const inBrowser = $derived(
-		(siteUrl().startsWith('https://') ? siteUrl() : location.origin) + '/profile#notifications'
+		(siteUrl().startsWith('https://') ? siteUrl() : location.origin) + '/profile?tab=notifications'
 	);
 
 	let offlineOnly = $state(false);
@@ -53,12 +51,6 @@
 		}
 	}
 	onMount(load);
-	// Раздел грузится отдельно — по ссылке /profile#notifications прокручиваем к нему сами.
-	let box: HTMLElement | undefined = $state();
-	onMount(() => {
-		if (location.hash === '#notifications')
-			requestAnimationFrame(() => box?.scrollIntoView({ block: 'start' }));
-	});
 
 	async function save(patch: Partial<NotificationPrefs>) {
 		try {
@@ -128,14 +120,9 @@
 	);
 </script>
 
-<section class="card block" id="notifications" bind:this={box}>
-	<SectionHead
-		icon={Bell}
-		tone="amber"
-		title="Уведомления"
-		text="Что присылать на телефон: новые задания, напоминания о сроках, новости."
-	/>
-	{#if offlineOnly}<p class="faint small">
+<!-- На этом устройстве: включить, проверить, выключить. -->
+<section class="card pane" id="notifications">
+	{#if offlineOnly}<p class="muted small">
 			Настройки уведомлений откроются, когда появится интернет.
 		</p>{/if}
 
@@ -188,9 +175,14 @@
 			{/if}
 		</div>
 	{/if}
+</section>
 
-	{#if s}
-		<p class="faint small">Что присылать на телефон (в колокольчике видно всё):</p>
+{#if s}
+	<section class="card pane">
+		<div>
+			<h3>Что присылать на телефон</h3>
+			<p class="muted small">В колокольчике на сайте видно всё — это только про уведомления.</p>
+		</div>
 		<div class="kv prefs">
 			<div>
 				<span>Новые задания</span>
@@ -232,7 +224,7 @@
 			<div>
 				<span>
 					Утренняя сводка
-					<span class="faint small block">что сдать сегодня и завтра</span>
+					<span class="muted small sub">что сдать сегодня и завтра</span>
 				</span>
 				<span class="row">
 					{#if s.prefs.digest}
@@ -255,9 +247,11 @@
 				</span>
 			</div>
 		</div>
+	</section>
 
-		{#if s.devices.length}
-			<p class="faint small">Устройства с уведомлениями:</p>
+	{#if s.devices.length}
+		<section class="card pane">
+			<h3>Устройства с уведомлениями</h3>
 			<ul class="devices">
 				{#each s.devices as d (d.id)}
 					<li>
@@ -273,21 +267,27 @@
 					</li>
 				{/each}
 			</ul>
-		{/if}
+		</section>
 	{/if}
-</section>
+{/if}
 
 <style>
-	section {
-		display: flex;
-		flex-direction: column;
-		gap: var(--s3);
-		scroll-margin-top: 80px;
-	}
 	.device {
 		display: flex;
 		align-items: center;
 		gap: 14px;
+	}
+	/* Кнопки — под текстом, а не под значком. */
+	@media (min-width: 520px) {
+		.device + .row {
+			padding-left: 54px;
+		}
+	}
+	.pane h3 {
+		font-size: 17px;
+	}
+	.pane h3 + p {
+		margin-top: 2px;
 	}
 	.grow {
 		flex: 1;
@@ -308,7 +308,7 @@
 		min-height: 40px;
 		padding: 6px 12px;
 	}
-	.block {
+	.sub {
 		display: block;
 	}
 	.devices {

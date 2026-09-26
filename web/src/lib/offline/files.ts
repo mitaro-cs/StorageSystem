@@ -36,6 +36,7 @@ function wanted(s: Snapshot): FileInfo[] {
 	const out = new Map<number, FileInfo>();
 	for (const m of s.materials) if (m.file && m.file.id > 0) out.set(m.file.id, m.file);
 	for (const h of s.homework) for (const f of h.attachments) if (f.id > 0) out.set(f.id, f);
+	for (const n of s.news) for (const f of n.attachments ?? []) if (f.id > 0) out.set(f.id, f);
 	return [...out.values()];
 }
 

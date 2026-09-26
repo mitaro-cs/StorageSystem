@@ -1,8 +1,6 @@
 <script lang="ts">
-	import SectionHead from '$lib/ui/SectionHead.svelte';
-	import { WifiOff } from '@lucide/svelte';
 	import { onMount } from 'svelte';
-	import { CloudOff, RefreshCw } from '@lucide/svelte';
+	import { CloudOff, RefreshCw, Trash2 } from '@lucide/svelte';
 	import { fmtAgo, fmtSize } from '$lib/format';
 	import { flushOutbox, offline, pendingLabels, syncNow } from '$lib/offline/engine';
 	import {
@@ -66,13 +64,7 @@
 	}
 </script>
 
-<section class="card block" id="offline">
-	<SectionHead
-		icon={WifiOff}
-		tone="teal"
-		title="Без интернета"
-		text="Что хранится на этом устройстве и открывается, когда нет сети или сервер выключен."
-	/>
+<section class="card pane" id="offline">
 	<p class="muted">
 		Задания, новости, материалы и участники хранятся на этом устройстве и открываются без сети.
 		Отметки, комментарии и публикации без сети сохраняются здесь и уходят на сервер, когда интернет
@@ -107,8 +99,13 @@
 			><RefreshCw size={16} /> Обновить сейчас</Button
 		>
 	</div>
+</section>
 
-	<h3>Файлы материалов</h3>
+<section class="card pane">
+	<div>
+		<h3>Файлы материалов</h3>
+		<p class="muted small">Какие файлы держать на устройстве, чтобы они открывались без сети.</p>
+	</div>
 	<div class="choices" role="radiogroup" aria-label="Какие файлы хранить на устройстве">
 		{#each CHOICES as c (c.value)}
 			<button
@@ -122,25 +119,31 @@
 			</button>
 		{/each}
 	</div>
-	<p class="faint small num">
-		Сохранено файлов: {used.files}{used.bytes !== null
-			? ` · всего занято на устройстве: ${fmtSize(used.bytes)}`
-			: ''}
-	</p>
+	<dl class="kv">
+		<div>
+			<dt>Сохранено файлов</dt>
+			<dd class="num">{used.files}</dd>
+		</div>
+		{#if used.bytes !== null}
+			<div>
+				<dt>Занято на устройстве</dt>
+				<dd class="num">{fmtSize(used.bytes)}</dd>
+			</div>
+		{/if}
+	</dl>
 	{#if used.files}
-		<div><Button variant="ghost" onclick={clearFiles}>Удалить файлы с устройства</Button></div>
+		<div>
+			<Button onclick={clearFiles}><Trash2 size={16} /> Удалить файлы с устройства</Button>
+		</div>
 	{/if}
 </section>
 
 <style>
-	section {
-		display: flex;
-		flex-direction: column;
-		gap: var(--s3);
-		scroll-margin-top: 80px;
-	}
 	h3 {
-		margin-top: var(--s2);
+		font-size: 17px;
+	}
+	h3 + p {
+		margin-top: 2px;
 	}
 	.queue {
 		list-style: none;
@@ -159,9 +162,10 @@
 		align-items: center;
 		gap: 8px;
 	}
+	/* По ширине карточки, а не экрана: в настройках рядом меню разделов. */
 	.choices {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
+		grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 		gap: 8px;
 	}
 	.choices button {
@@ -177,7 +181,7 @@
 		text-align: left;
 	}
 	.choices button span {
-		color: var(--text-3);
+		color: var(--text-2);
 	}
 	.choices button.on {
 		background: var(--accent);
@@ -186,11 +190,6 @@
 	}
 	.choices button.on span {
 		color: inherit;
-		opacity: 0.7;
-	}
-	@media (max-width: 520px) {
-		.choices {
-			grid-template-columns: 1fr;
-		}
+		opacity: 0.85;
 	}
 </style>

@@ -1,35 +1,19 @@
 import { appIcon, iconSrc, type AppIcon } from './appIcon.svelte';
-import type { Palette } from './theme';
 
 /**
- * Фон страниц (Профиль → Оформление): градиенты и узоры подстраиваются под светлую и тёмную тему,
- * своя картинка хранится на этом устройстве (уменьшенной, в localStorage). Правила — в app.css
- * (:root[data-bg]), применяется до отрисовки скриптом в app.html.
+ * Своя картинка на фоне страниц (Настройки → Оформление): хранится на этом устройстве, уменьшенной,
+ * в localStorage. Правило — в app.css (:root[data-bg='custom']), применяется до отрисовки скриптом
+ * в app.html. Узоры и градиенты фона с 0.4.10 — часть дизайнов (lib/theme.ts STYLES).
  */
-export const BACKGROUNDS = [
-	{ id: 'none', label: 'Без фона' },
-	{ id: 'aurora', label: 'Аврора' },
-	{ id: 'sunset', label: 'Закат' },
-	{ id: 'ocean', label: 'Океан' },
-	{ id: 'mint', label: 'Мята' },
-	{ id: 'grid', label: 'Клетка' },
-	{ id: 'dots', label: 'Точки' },
-	{ id: 'lines', label: 'Линейка' },
-	{ id: 'custom', label: 'Своя картинка' }
-] as const;
-
-export type Background = (typeof BACKGROUNDS)[number]['id'];
+export type Background = 'none' | 'custom';
 const BG_KEY = 'gb-bg';
 const BG_IMAGE_KEY = 'gb-bg-image';
 
-export function isBackground(v: unknown): v is Background {
-	return BACKGROUNDS.some((b) => b.id === v);
-}
-
 export function currentBackground(): Background {
 	try {
-		const v = localStorage.getItem(BG_KEY);
-		return isBackground(v) ? v : 'none';
+		return localStorage.getItem(BG_KEY) === 'custom' && localStorage.getItem(BG_IMAGE_KEY)
+			? 'custom'
+			: 'none';
 	} catch {
 		return 'none';
 	}
@@ -44,22 +28,26 @@ export function customBackground(): string | null {
 	}
 }
 
-function applyBackground(bg: Background, image: string | null) {
+function applyBackground(image: string | null) {
 	const root = document.documentElement;
-	if (bg === 'none' || (bg === 'custom' && !image)) root.removeAttribute('data-bg');
-	else root.setAttribute('data-bg', bg);
-	if (bg === 'custom' && image) root.style.setProperty('--bg-image', `url("${image}")`);
-	else root.style.removeProperty('--bg-image');
+	if (image) {
+		root.setAttribute('data-bg', 'custom');
+		root.style.setProperty('--bg-image', `url("${image}")`);
+	} else {
+		root.removeAttribute('data-bg');
+		root.style.removeProperty('--bg-image');
+	}
 }
 
-export function setBackground(bg: Background) {
+/** Убрать картинку с фона (и из памяти браузера). */
+export function removeCustomBackground() {
 	try {
-		if (bg === 'none') localStorage.removeItem(BG_KEY);
-		else localStorage.setItem(BG_KEY, bg);
+		localStorage.removeItem(BG_KEY);
+		localStorage.removeItem(BG_IMAGE_KEY);
 	} catch {
-		/* приватный режим — просто не запоминаем */
+		/* приватный режим */
 	}
-	applyBackground(bg, bg === 'custom' ? customBackground() : null);
+	applyBackground(null);
 }
 
 /**
@@ -81,7 +69,7 @@ export async function setCustomBackground(file: Blob): Promise<boolean> {
 	} catch {
 		return false;
 	}
-	applyBackground('custom', data);
+	applyBackground(data);
 	return true;
 }
 
@@ -100,44 +88,6 @@ export const ICONS = [
 ] as const;
 
 const ICON_KEY = 'gb-icon';
-const MATCH_KEY = 'gb-icon-match';
-
-/**
- * Оформление под значок: у каждого значка — своя цветовая тема (у тёмного — ещё и тёмный режим).
- * Выбрали значок — интерфейс в его цветах, выбрали цвет — значок того же цвета. Связь можно
- * выключить.
- */
-export const ICON_PALETTE: Record<AppIcon, Palette> = {
-	light: 'classic',
-	dark: 'graphite',
-	ocean: 'ocean',
-	forest: 'forest',
-	sunset: 'sunset',
-	grape: 'grape'
-};
-
-/** Значок под цвет темы (у «Классики» и «Графита» — светлый и тёмный). */
-export function iconFor(palette: Palette): AppIcon {
-	const hit = (Object.keys(ICON_PALETTE) as AppIcon[]).find((i) => ICON_PALETTE[i] === palette);
-	return hit ?? 'light';
-}
-
-export function iconMatch(): boolean {
-	try {
-		return localStorage.getItem(MATCH_KEY) !== '0';
-	} catch {
-		return true;
-	}
-}
-
-export function setIconMatch(on: boolean) {
-	try {
-		if (on) localStorage.removeItem(MATCH_KEY);
-		else localStorage.setItem(MATCH_KEY, '0');
-	} catch {
-		/* приватный режим — просто не запоминаем */
-	}
-}
 
 export function isAppIcon(v: unknown): v is AppIcon {
 	return ICONS.some((i) => i.id === v);

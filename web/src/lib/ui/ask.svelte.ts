@@ -12,6 +12,8 @@ export interface AskOptions {
 	ok?: string;
 	/** Красная кнопка — для удаления и других необратимых действий. */
 	danger?: boolean;
+	/** Надпись на кнопке отказа; по умолчанию — «Отмена». */
+	cancel?: string;
 }
 
 export interface AskTextOptions extends AskOptions {

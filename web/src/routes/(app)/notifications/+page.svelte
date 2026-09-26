@@ -98,7 +98,7 @@
 </div>
 
 {#if !pushOn}
-	<a class="promo" href="/profile#notifications">
+	<a class="promo" href="/profile?tab=notifications">
 		<span class="circle ink"><BellRing size={19} /></span>
 		<span>
 			<strong>Получайте уведомления на телефон</strong>

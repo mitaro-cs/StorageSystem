@@ -11,7 +11,7 @@ test('вход без ввода логина: выбор аккаунта и QR
 	await login(phone, STUDENT);
 
 	// Выход и повторный вход: логин не вводим — выбираем себя.
-	await phone.goto('/profile');
+	await phone.goto('/profile?tab=data');
 	await phone.getByRole('button', { name: 'Выйти' }).click();
 	await expect(phone.getByText('Кто входит?')).toBeVisible();
 	await phone.getByRole('button', { name: /^Ким Олег/ }).click();

@@ -315,6 +315,9 @@ export async function enqueue(method: string, path: string, body?: unknown): Pro
 	} else if (path === '/api/news') {
 		temp = await nextTemp();
 		const subject = s.subjects.find((x) => x.id === b.subjectId);
+		const files = (Array.isArray(b.attachments) ? (b.attachments as number[]) : []).map(
+			(id) => stashed.get(id) ?? { id, name: 'файл', mime: '', size: 0 }
+		);
 		const item: NewsItem = {
 			id: temp,
 			title: String(b.title ?? ''),
@@ -329,6 +332,7 @@ export async function enqueue(method: string, path: string, body?: unknown): Pro
 			subject: subject ? { id: subject.id, name: subject.name, color: subject.color } : null,
 			groups: groupRefs(me, b.groupIds),
 			comments: 0,
+			attachments: files,
 			can,
 			pending: true
 		};

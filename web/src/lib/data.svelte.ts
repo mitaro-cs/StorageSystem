@@ -14,9 +14,14 @@ export function subjectById(id: number): Subject | undefined {
 	return subjects.list.find((s) => s.id === id);
 }
 
-/** Активные предметы, закреплённые — первыми. */
-export function sortedSubjects(groupId: number | null): Subject[] {
+/** Активные предметы, закреплённые — первыми. mine — без скрытых у себя (другая подгруппа). */
+export function sortedSubjects(groupId: number | null, mine = false): Subject[] {
 	return subjects.list
-		.filter((s) => !s.archived && (groupId === null || s.groups.some((g) => g.id === groupId)))
+		.filter(
+			(s) =>
+				!s.archived &&
+				(!mine || s.mine !== false) &&
+				(groupId === null || s.groups.some((g) => g.id === groupId))
+		)
 		.sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.name.localeCompare(b.name, 'ru'));
 }

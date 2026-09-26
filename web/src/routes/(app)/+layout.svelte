@@ -25,6 +25,8 @@
 	const detail = $derived(
 		/^\/((homework|news|subjects|materials)\/[^/]+|install$)/.test(page.url.pathname)
 	);
+	// Новость и задание целиком — узкой колонкой: длинные строки на большом мониторе читать трудно.
+	const narrow = $derived(/^\/(homework|news)\/[^/]+$/.test(page.url.pathname));
 	let collapsed = $state(false);
 	onMount(initPwa);
 	onMount(startBell);
@@ -129,6 +131,11 @@
 	$effect(() => {
 		if (palette.open) paletteWanted = true;
 	});
+	// «Загрузить файл» — тоже по первому открытию; дальше окно живёт, пока идёт загрузка.
+	let uploadWanted = $state(false);
+	$effect(() => {
+		if (palette.upload) uploadWanted = true;
+	});
 </script>
 
 <a class="skip" href="#content">Перейти к содержимому</a>
@@ -153,7 +160,7 @@
 				<CloudUpload size={15} /> Отправляем сделанное без сети: {offline.pending}
 			</div>
 		{/if}
-		<main id="content" tabindex="-1">
+		<main id="content" tabindex="-1" class:narrow>
 			{#key page.url.pathname}
 				<div class="page" in:fly={{ y: 14, duration: 300 }}>
 					{@render children()}
@@ -165,6 +172,11 @@
 </div>
 {#if paletteWanted}
 	{#await import('$lib/shell/CommandPalette.svelte') then m}<m.default />{/await}
+{/if}
+{#if uploadWanted}
+	{#await import('$lib/content/UploadPicker.svelte') then m}<m.default
+			bind:open={palette.upload}
+		/>{/await}
 {/if}
 <!-- Знакомство: код грузится, только когда окно нужно. -->
 {#if welcome.open}
@@ -192,6 +204,9 @@
 		padding: var(--s4) var(--s4)
 			calc(var(--bottom-nav) + var(--bottom-gap) + var(--s7) + env(safe-area-inset-bottom));
 		outline: none;
+	}
+	main.narrow {
+		max-width: calc(860px + 2 * var(--s5));
 	}
 	.desktop-only {
 		display: none;

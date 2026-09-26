@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { offline } from '$lib/offline/engine';
 	import { firstName } from '$lib/names';
-	import { Plus, Search, ArrowRight, CalendarCheck, TriangleAlert, Send } from '@lucide/svelte';
+	import {
+		Plus,
+		Search,
+		ArrowRight,
+		CalendarCheck,
+		TriangleAlert,
+		Send,
+		Upload
+	} from '@lucide/svelte';
 	import { get } from '$lib/api';
 	import { peek, put } from '$lib/cache';
 	import { TODAY_KEY } from '$lib/early';
@@ -10,19 +18,29 @@
 	import { fmtDate, fmtWeekday, fmtWeekdayShort, plural, relativeDay } from '$lib/format';
 	import { flip, fly, slide, stagger } from '$lib/motion';
 	import { toggleDone, byDay } from '$lib/content/homework';
-	import { openPalette } from '$lib/shell/palette.svelte';
-	import type { Today } from '$lib/types';
+	import { openPalette, palette } from '$lib/shell/palette.svelte';
+	import type { NewsItem, Today } from '$lib/types';
 	import HomeworkRow from '$lib/content/HomeworkRow.svelte';
 	import NewsCard from '$lib/content/NewsCard.svelte';
+	import type { MenuItem } from '$lib/ui/Menu.svelte';
 	import NextDeadline from '$lib/content/NextDeadline.svelte';
 	import { datesFor, sessionExams, sessionVisible } from '$lib/content/session';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import Bell from '$lib/shell/Bell.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
+	import { subjects } from '$lib/data.svelte';
 
 	let data = $state<Today | null>(untrack(() => peek<Today>(`today:${session.groupId}`) ?? null));
 	let newsOpen = $state(false);
+	let editingNews = $state<NewsItem | null>(null);
+	// Меню «…» у новостей (скрыть, удалить, пожаловаться) — отдельным кусочком: главная легче.
+	let newsMenu = $state<
+		((n: NewsItem, h: { edit(): void; removed(): void; changed(): void }) => MenuItem[]) | null
+	>(null);
+	$effect(() => {
+		import('$lib/content/newsActions').then((m) => (newsMenu = m.newsActions));
+	});
 	let chatsOpen = $state(false);
 	let hwOpen = $state(false);
 	const now = Date.now();
@@ -76,6 +94,13 @@
 	const sessionDates = $derived(datesFor(groups(), session.groupId));
 	const exams = $derived(data?.exams ? sessionExams(data.exams, sessionDates) : []);
 	const showSession = $derived(sessionVisible(sessionDates, exams, now));
+	// Предметы по подгруппам (английский №1 и №2) — спросим, какая своя. Здесь — только грубая
+	// проверка по названию; наборы и «уже выбрано» считает сама карточка (грузится отдельно).
+	const askSubgroup = $derived(
+		subjects.list.some(
+			(s) => s.mine !== false && /№\s*\d|подгр|группа\s*\d|\(\s*\d\s*\)/i.test(s.name)
+		)
+	);
 </script>
 
 <svelte:head><title>Сегодня · groupbase</title></svelte:head>
@@ -108,7 +133,14 @@
 		<button class="pill ink" onclick={() => (hwOpen = true)}><Plus size={16} /> Задание</button>
 	{/if}
 	{#if can('publish_news')}
-		<button class="pill" onclick={() => (newsOpen = true)}><Plus size={16} /> Новость</button>
+		<button class="pill" onclick={() => ((editingNews = null), (newsOpen = true))}
+			><Plus size={16} /> Новость</button
+		>
+	{/if}
+	{#if can('upload_materials') || can('suggest_materials')}
+		<button class="pill" onclick={() => (palette.upload = true)}
+			><Upload size={16} /> Загрузить файл</button
+		>
 	{/if}
 	{#each chats as c (c.id)}
 		<a class="pill tg" href={c.url} target="_blank" rel="noreferrer"><Send size={15} /> {c.label}</a
@@ -128,6 +160,12 @@
 {#if canInvite}
 	{#await import('$lib/content/FirstSteps.svelte') then m}<m.default
 			oncreate={() => (hwOpen = true)}
+		/>{/await}
+{/if}
+
+{#if askSubgroup}
+	{#await import('$lib/content/SubgroupChoice.svelte') then m}<m.default
+			onchange={() => load(session.groupId)}
 		/>{/await}
 {/if}
 
@@ -157,80 +195,96 @@
 		{/if}
 	</div>
 
-	{#if news.length}
-		<section class="block">
-			<div class="section-head">
-				<h2>Новости</h2>
-				<a class="more-link" href="/news">Все новости</a>
-			</div>
-			<div class="stack">
-				{#each news as n, i (n.id)}
-					<div in:fly={{ y: 10, delay: stagger(i, 40) }}><NewsCard item={n} compact /></div>
-				{/each}
-			</div>
-		</section>
-	{/if}
-
-	{#if overdue.length}
-		<section class="block" out:slide>
-			<div class="section-head">
-				<h2 class="danger">Просрочено</h2>
-				<span class="aside num">{overdue.length}</span>
-			</div>
-			<div class="list">
-				{#each overdue as h, i (h.id)}
-					<div in:fly={{ y: 8, delay: stagger(i) }} out:slide animate:flip>
-						<HomeworkRow item={h} {now} ontoggle={toggleDone} />
-					</div>
-				{/each}
-			</div>
-		</section>
-	{/if}
-
-	<section class="block">
-		<div class="section-head">
-			<h2>Дедлайны</h2>
-			<a class="more-link" href="/homework"
-				>{data.upcoming.length}
-				{plural(data.upcoming.length, ['задание', 'задания', 'заданий'])}</a
-			>
-		</div>
-		{#if days.length === 0}
-			<div class="card">
-				<Empty
-					title="На неделю ничего не задано"
-					text="Когда появятся задания, они будут здесь, по дням."
-				/>
-			</div>
-		{:else}
-			<ol class="timeline">
-				{#each days as d, di (d.day)}
-					<li in:fly={{ y: 8, delay: stagger(di, 50) }}>
-						<span class="node num" aria-hidden="true">{new Date(d.day).getDate()}</span>
-						<div class="day">
-							<p class="day-title">
-								<strong>{cap(relativeDay(d.day, now))}</strong>
-								<span class="faint">{fmtWeekdayShort(d.day)}, {fmtDate(d.day)}</span>
-							</p>
-							<div class="list">
-								{#each sortDone(d.items) as h, i (h.id)}
-									<div in:fly={{ y: 8, delay: stagger(i + di * 2) }} animate:flip>
-										<HomeworkRow item={h} {now} ontoggle={toggleDone} />
-									</div>
-								{/each}
-							</div>
+	<!-- На широком экране — две колонки: задания слева, новости справа. -->
+	<div class="dash">
+		{#if news.length}
+			<section class="block news-col">
+				<div class="section-head">
+					<h2>Новости</h2>
+					<a class="more-link" href="/news">Все новости</a>
+				</div>
+				<div class="stack">
+					{#each news as n, i (n.id)}
+						<div in:fly={{ y: 10, delay: stagger(i, 40) }}>
+							<!-- Меню «…» и здесь: модератор скрывает и удаляет плохую новость прямо с главной. -->
+							<NewsCard
+								item={n}
+								compact
+								actions={newsMenu?.(n, {
+									edit: () => ((editingNews = n), (newsOpen = true)),
+									removed: () => load(session.groupId),
+									changed: () => load(session.groupId)
+								}) ?? []}
+							/>
 						</div>
-					</li>
-				{/each}
-			</ol>
+					{/each}
+				</div>
+			</section>
 		{/if}
-	</section>
+
+		<div class="work-col">
+			{#if overdue.length}
+				<section class="block" out:slide>
+					<div class="section-head">
+						<h2 class="danger">Просрочено</h2>
+						<span class="aside num">{overdue.length}</span>
+					</div>
+					<div class="list">
+						{#each overdue as h, i (h.id)}
+							<div in:fly={{ y: 8, delay: stagger(i) }} out:slide animate:flip>
+								<HomeworkRow item={h} {now} ontoggle={toggleDone} />
+							</div>
+						{/each}
+					</div>
+				</section>
+			{/if}
+
+			<section class="block">
+				<div class="section-head">
+					<h2>Дедлайны</h2>
+					<a class="more-link" href="/homework"
+						>{data.upcoming.length}
+						{plural(data.upcoming.length, ['задание', 'задания', 'заданий'])}</a
+					>
+				</div>
+				{#if days.length === 0}
+					<div class="card">
+						<Empty
+							title="На неделю ничего не задано"
+							text="Когда появятся задания, они будут здесь, по дням."
+						/>
+					</div>
+				{:else}
+					<ol class="timeline">
+						{#each days as d, di (d.day)}
+							<li in:fly={{ y: 8, delay: stagger(di, 50) }}>
+								<span class="node num" aria-hidden="true">{new Date(d.day).getDate()}</span>
+								<div class="day">
+									<p class="day-title">
+										<strong>{cap(relativeDay(d.day, now))}</strong>
+										<span class="faint">{fmtWeekdayShort(d.day)}, {fmtDate(d.day)}</span>
+									</p>
+									<div class="list">
+										{#each sortDone(d.items) as h, i (h.id)}
+											<div in:fly={{ y: 8, delay: stagger(i + di * 2) }} animate:flip>
+												<HomeworkRow item={h} {now} ontoggle={toggleDone} />
+											</div>
+										{/each}
+									</div>
+								</div>
+							</li>
+						{/each}
+					</ol>
+				{/if}
+			</section>
+		</div>
+	</div>
 {/if}
 
 <!-- Формы публикации грузятся по кнопке: главная открывается быстрее. -->
 {#if newsOpen}
 	{#await import('$lib/content/NewsComposer.svelte') then m}
-		<m.default bind:open={newsOpen} onsaved={() => load(session.groupId)} />
+		<m.default bind:open={newsOpen} edit={editingNews} onsaved={() => load(session.groupId)} />
 	{/await}
 {/if}
 {#if chatGroup && canPinChats && chatsOpen}
@@ -329,6 +383,26 @@
 	.pill.ghost {
 		border-style: dashed;
 		color: var(--text-2);
+	}
+	.dash {
+		display: flex;
+		flex-direction: column;
+	}
+	@media (min-width: 1440px) {
+		.dash {
+			display: grid;
+			grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+			gap: var(--s6);
+			align-items: start;
+		}
+		.work-col {
+			grid-column: 1;
+			grid-row: 1;
+		}
+		.news-col {
+			grid-column: 2;
+			grid-row: 1;
+		}
 	}
 	.block {
 		margin-bottom: var(--s6);

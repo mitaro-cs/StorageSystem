@@ -3,9 +3,9 @@
 	import { page } from '$app/state';
 	import { can, hasSettings } from '$lib/session.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
-	import { openPalette, palette } from './palette.svelte';
+	import { shortcut } from '$lib/platform';
+	import { openHelp, openPalette, palette } from './palette.svelte';
 
-	let help = $state(false);
 	let pendingG = 0;
 
 	const jumps: Record<string, string> = {
@@ -69,12 +69,12 @@
 			e.preventDefault();
 			newItem();
 		} else if (e.key === '?') {
-			help = true;
+			openHelp();
 		}
 	}
 
 	const allRows: [string, string][] = [
-		['Ctrl/⌘ + K', 'Командная палитра'],
+		[shortcut('K').replace(' ', ' + '), 'Командная палитра'],
 		['/', 'Поиск'],
 		['n', 'Новая запись (ДЗ или новость)'],
 		['g h', 'Сегодня'],
@@ -85,8 +85,8 @@
 		['g s', 'Предметы'],
 		['g u', 'Участники'],
 		['g r', 'Модерация'],
-		['g o', 'Настройки'],
-		['g p', 'Профиль'],
+		['g o', 'Управление'],
+		['g p', 'Настройки и профиль'],
 		['g b', 'Уведомления'],
 		['?', 'Эта подсказка']
 	];
@@ -99,7 +99,7 @@
 
 <svelte:window {onkeydown} />
 
-<Modal bind:open={help} title="Горячие клавиши">
+<Modal bind:open={palette.help} title="Горячие клавиши">
 	<table class="keys">
 		<tbody>
 			{#each rows as [k, v] (k)}

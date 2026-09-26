@@ -13,12 +13,14 @@
 	} from '@lucide/svelte';
 	import { fly } from '$lib/motion';
 	import { appIcon, iconSrc } from '$lib/appIcon.svelte';
-	import { canManage, currentGroup, groups, session } from '$lib/session.svelte';
+	import { canManage, currentGroup, groups } from '$lib/session.svelte';
 	import { finishWelcome } from '$lib/onboarding.svelte';
 	import { install, installed, pwa } from '$lib/pwa.svelte';
 	import Button from '$lib/ui/Button.svelte';
+	import { typo } from '$lib/typo';
 
 	// Знакомство: что такое groupbase и как им пользоваться — несколько карточек с листанием.
+	// Одна мысль на карточку и одна короткая фраза: длинное никто не читает.
 	interface Step {
 		icon?: Component<{ size?: number | string; strokeWidth?: number | string }>;
 		tone: string;
@@ -28,47 +30,47 @@
 	}
 
 	const group = currentGroup()?.name ?? groups()[0]?.name ?? '';
-	const staff = canManage() || !!session.me?.user.instanceRole;
+	const staff = canManage();
 
 	const steps: Step[] = [
 		{
 			tone: 'brand',
-			title: 'Добро пожаловать в groupbase',
-			text: `Это сайт ${group ? `группы ${group}` : 'вашей группы'}: новости, домашние задания, материалы и чаты предметов — в одном месте, на телефоне и на компьютере.`
+			title: 'Привет! Это groupbase',
+			text: `Сайт ${group ? `группы ${group}` : 'вашей группы'}: задания, новости и файлы предметов — в одном месте.`
 		},
 		{
 			icon: CalendarCheck,
 			tone: 'blue',
-			title: '«Сегодня» — главный экран',
-			text: 'Что сдать на неделе, срочные новости и ближайший дедлайн. Сделали задание — отметьте галочкой: отметку видите только вы.'
+			title: 'Главное — на «Сегодня»',
+			text: 'Что сдать на неделе и свежие новости. Сделали задание — поставьте галочку.'
 		},
 		{
 			icon: BookOpen,
 			tone: 'green',
-			title: 'Предметы и файлы',
-			text: 'У каждого предмета — задания, материалы и чат. Лекции и методички открываются прямо в приложении, не нужно ничего скачивать.'
+			title: 'Всё по предметам',
+			text: 'У каждого предмета — задания, файлы и чат. Лекции открываются прямо здесь.'
 		},
 		{
 			icon: WifiOff,
 			tone: 'violet',
-			title: 'Работает и без интернета',
-			text: 'Всё, что вы открывали, остаётся на телефоне: в метро и на паре расписание и файлы под рукой. Отметки и комментарии без сети уйдут, когда она появится.'
+			title: 'Работает без интернета',
+			text: 'Открытое сохраняется на устройстве — пригодится в метро и на паре.'
 		},
 		{
 			icon: BellRing,
 			tone: 'amber',
-			title: 'Ничего не пропустите',
-			text: 'Колокольчик сообщит о новых заданиях и новостях, а уведомления на телефон — даже когда сайт закрыт. Новые комментарии появляются сами.',
+			title: 'Не пропустите срок',
+			text: 'Уведомления о новых заданиях и дедлайнах придут, даже когда сайт закрыт.',
 			action: {
 				label: 'Включить уведомления',
-				run: () => done('/profile#notifications')
+				run: () => done('/profile?tab=notifications')
 			}
 		},
 		{
 			icon: Smartphone,
 			tone: 'teal',
 			title: 'Как обычное приложение',
-			text: 'Добавьте сайт на экран «Домой» — он откроется без адресной строки, со своим значком. Значок и оформление можно поменять в профиле.',
+			text: 'Добавьте сайт на экран «Домой» — он откроется без адресной строки.',
 			action: installed()
 				? undefined
 				: pwa.canInstall
@@ -80,13 +82,13 @@
 					icon: ShieldCheck,
 					tone: 'red',
 					title: 'Вы помогаете группе',
-					text: 'Задания и новости публикуются кнопкой «+», людей приглашают в «Настройках», а жалобы и материалы на проверку ждут в «Модерации». Кнопки управления можно спрятать — «Режим управления» в профиле.'
+					text: 'Публикуйте кнопкой «+». Людей зовите в «Управлении», жалобы ждут в «Модерации».'
 				}
 			: {
 					icon: Flag,
 					tone: 'red',
-					title: 'Если что-то не так',
-					text: 'Нажмите «Пожаловаться» в меню записи или у комментария — модераторы разберутся, ваше имя они не увидят. С вопросами — к старосте.'
+					title: 'Что-то не так?',
+					text: 'Нажмите «Пожаловаться» в меню записи. Модераторы разберутся, а ваше имя не увидят.'
 				}
 	];
 
@@ -148,8 +150,8 @@
 						<img src={iconSrc(appIcon.id)} alt="" width="96" height="96" />
 					{/if}
 				</div>
-				<h2>{s.title}</h2>
-				<p>{s.text}</p>
+				<h2>{typo(s.title)}</h2>
+				<p>{typo(s.text)}</p>
 				{#if s.action}
 					<Button size="s" onclick={s.action.run}>{s.action.label}</Button>
 				{/if}
@@ -179,7 +181,7 @@
 
 <style>
 	.welcome {
-		width: min(460px, calc(100vw - 24px));
+		width: min(480px, calc(100vw - 24px));
 		padding: 0;
 		border: 0;
 		border-radius: var(--r-xl);
@@ -229,8 +231,8 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 12px;
-		min-height: 300px;
+		gap: 14px;
+		min-height: 290px;
 		text-align: center;
 	}
 	.art {
@@ -290,14 +292,18 @@
 	}
 	h2 {
 		margin: 0;
-		font-size: 23px;
-		letter-spacing: -0.02em;
+		font-size: 26px;
+		letter-spacing: -0.025em;
+		text-wrap: balance;
 	}
+	/* Крупно и контрастно: читается и на большом мониторе, и в тёмной теме. */
 	p {
 		margin: 0;
-		max-width: 36ch;
-		color: var(--text-2);
+		max-width: 30ch;
+		color: color-mix(in srgb, var(--text) 82%, transparent);
+		font-size: 17px;
 		line-height: 1.5;
+		text-wrap: pretty;
 	}
 	footer {
 		display: flex;

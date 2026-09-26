@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { PanelLeftClose, PanelLeftOpen, Search } from '@lucide/svelte';
+	import { PanelLeftClose, PanelLeftOpen, Search, Settings } from '@lucide/svelte';
 	import { openPalette } from './palette.svelte';
+	import { shortcut } from '$lib/platform';
 	import { t } from '$lib/i18n/ru';
 	import {
-		canManage,
+		canToggleManage,
 		currentGroup,
 		isMulti,
 		session,
@@ -22,6 +23,7 @@
 	import { canModerate, moderation, refreshModeration } from '$lib/moderation.svelte';
 	import { appIcon, iconSrc } from '$lib/appIcon.svelte';
 	import { sessionNavVisible } from '$lib/content/session';
+	import { firstName, lastName } from '$lib/names';
 
 	let { collapsed = $bindable(false) }: { collapsed?: boolean } = $props();
 
@@ -56,7 +58,7 @@
 		(group ? [group] : (session.me?.groups ?? [])).some((g) => sessionNavVisible(g, Date.now()))
 	);
 	// Файлы — во вкладке «Материалы» каждого предмета, уведомления — колокольчиком на «Сегодня».
-	// В панели их нет, но командная палитра (⌘K) и горячие клавиши их находят.
+	// В панели их нет, но командная палитра (Ctrl K, ⌘K) и горячие клавиши их находят.
 	const items = $derived(
 		visibleNav(mainNav).filter(
 			(i) =>
@@ -65,6 +67,11 @@
 				(i.href !== '/session' || showSession)
 		)
 	);
+	// Внизу — «Имя Фамилия»: ФИО целиком не помещается рядом с кнопками.
+	const myName = $derived.by(() => {
+		const fio = session.me?.user.displayName ?? '';
+		return [firstName(fio), lastName(fio)].filter(Boolean).join(' ') || fio;
+	});
 	const title = $derived(
 		group?.name ??
 			(isMulti()
@@ -103,9 +110,9 @@
 		</div>
 	</div>
 
-	<button class="finder" onclick={() => openPalette()} title="Командная палитра (Ctrl/⌘+K)">
+	<button class="finder" onclick={() => openPalette()} title="Найти или перейти ({shortcut('K')})">
 		<Search size={17} />
-		{#if !collapsed}<span>Найти или перейти</span><kbd>⌘K</kbd>{/if}
+		{#if !collapsed}<span>Найти или перейти</span><kbd>{shortcut('K')}</kbd>{/if}
 	</button>
 
 	<nav class="main">
@@ -134,7 +141,8 @@
 		</div>
 	{/if}
 
-	{#if !collapsed && session.me && canManage()}
+	<!-- Режим управления переключает только хост (администратор сайта). -->
+	{#if !collapsed && session.me && canToggleManage()}
 		<div class="manage">
 			<span>Режим управления</span>
 			<Switch
@@ -147,15 +155,23 @@
 
 	<div class="bottom">
 		{#if session.me}
-			<a class="me" href="/profile" title={session.me.user.displayName}>
+			<a class="me" href="/profile?tab=account" title={session.me.user.displayName}>
 				<Avatar
 					id={session.me.user.id}
 					name={session.me.user.displayName}
 					avatar={session.me.user.avatar}
 					size={36}
 				/>
-				{#if !collapsed}<span class="name">{session.me.user.displayName}</span>{/if}
+				{#if !collapsed}<span class="name">{myName}</span>{/if}
 			</a>
+			<!-- Шестерёнка у имени — сразу видно, где свои настройки: оформление, уведомления, пароль. -->
+			<a
+				class="gear"
+				class:active={page.url.pathname === '/profile'}
+				href="/profile"
+				aria-label={t.nav.mySettings}
+				title={t.nav.mySettings}><Settings size={19} /></a
+			>
 		{/if}
 		{#if !collapsed}<ThemeToggle />{/if}
 		<button
@@ -402,6 +418,28 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+	.gear {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		color: var(--text-2);
+		transition:
+			background-color var(--dur) var(--ease),
+			color var(--dur) var(--ease),
+			rotate 400ms var(--ease);
+	}
+	.gear:hover {
+		background: var(--surface);
+		color: var(--text);
+		rotate: 60deg;
+	}
+	.gear.active {
+		background: var(--accent);
+		color: var(--accent-text);
 	}
 	.collapse {
 		display: grid;

@@ -62,58 +62,42 @@ test('новый комментарий появляется у других с�
 	await ctx.close();
 });
 
-test('оформление: новые стили, фон и значок меняются сразу и запоминаются', async ({ page }) => {
+test('оформление: дизайн, цвет и значок меняются сразу и запоминаются', async ({ page }) => {
 	const errors = watchConsole(page);
 	await login(page, STUDENT);
-	await page.goto('/profile');
+	await page.goto('/profile?tab=appearance');
 	const html = page.locator('html');
-	await page
-		.getByRole('radiogroup', { name: 'Стиль' })
-		.getByRole('radio', { name: 'Неон' })
-		.click();
+	const designs = page.getByRole('radiogroup', { name: 'Дизайн' });
+	const colors = page.getByRole('radiogroup', { name: 'Цвет' });
+	const icons = page.getByRole('radiogroup', { name: 'Значок' });
+	await designs.getByRole('radio', { name: 'Сияние' }).click();
 	await expect(html).toHaveAttribute('data-style', 'neon');
-	await page
-		.getByRole('radiogroup', { name: 'Фон' })
-		.getByRole('radio', { name: 'Клетка' })
-		.click();
-	await expect(html).toHaveAttribute('data-bg', 'grid');
-	await page
-		.getByRole('radiogroup', { name: 'Значок' })
-		.getByRole('radio', { name: 'Океан' })
-		.click();
+	await colors.getByRole('radio', { name: 'Зелёный' }).click();
+	await icons.getByRole('radio', { name: 'Океан' }).click();
 	await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /icons\/v\/ocean\.svg/);
 	await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
 		'href',
 		'/manifest-ocean.webmanifest'
 	);
-	// Оформление под значок: интерфейс в его цветах.
-	await expect(html).toHaveAttribute('data-palette', 'ocean');
-	await expect(
-		page.getByRole('radiogroup', { name: 'Цвет' }).getByRole('radio', { name: 'Океан' })
-	).toHaveAttribute('aria-checked', 'true');
+	// Значок больше не перекрашивает интерфейс: цвет — тот, что выбран.
+	await expect(colors.getByRole('radio', { name: 'Зелёный' })).toHaveAttribute(
+		'aria-checked',
+		'true'
+	);
 
 	// После перезагрузки — то же, ещё до отрисовки интерфейса (скрипт в app.html).
 	await page.reload();
 	await expect(html).toHaveAttribute('data-style', 'neon');
-	await expect(html).toHaveAttribute('data-bg', 'grid');
+	await expect(html).toHaveAttribute('data-accent', '');
 	await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /icons\/v\/ocean\.svg/);
 	const manifest = await page.request.get('/manifest-ocean.webmanifest');
 	expect(await manifest.text()).toContain('/icons/v/ocean-192.png');
 
 	// Вернуть как было — для остальных тестов.
-	await page
-		.getByRole('radiogroup', { name: 'Стиль' })
-		.getByRole('radio', { name: 'Обычный' })
-		.click();
-	await page
-		.getByRole('radiogroup', { name: 'Фон' })
-		.getByRole('radio', { name: 'Без фона' })
-		.click();
-	await page
-		.getByRole('radiogroup', { name: 'Значок' })
-		.getByRole('radio', { name: 'Светлый' })
-		.click();
-	await expect(html).not.toHaveAttribute('data-bg', /.+/);
-	await expect(html).not.toHaveAttribute('data-palette', /.+/);
+	await designs.getByRole('radio', { name: 'Классика' }).click();
+	await colors.getByRole('radio', { name: 'Чернила' }).click();
+	await icons.getByRole('radio', { name: 'Светлый' }).click();
+	await expect(html).not.toHaveAttribute('data-style', /.+/);
+	expect(await html.getAttribute('data-accent')).toBeNull();
 	expect(errors).toEqual([]);
 });

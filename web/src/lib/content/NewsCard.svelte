@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MessageCircle, Pin, EyeOff, CloudOff, Zap } from '@lucide/svelte';
+	import { MessageCircle, Paperclip, Pin, EyeOff, CloudOff, Zap } from '@lucide/svelte';
 	import type { NewsItem } from '$lib/types';
 	import { fmtAgo } from '$lib/format';
 	import { isMulti } from '$lib/session.svelte';
@@ -60,10 +60,20 @@
 	{#if item.bodyHtml}
 		<Prose html={item.bodyHtml} class="body {full ? '' : 'clamp'}" />
 	{/if}
+	<!-- Фото и файлы — отдельным кусочком: у большинства новостей их нет. -->
+	{#if item.attachments?.length && !compact}
+		{#await import('./NewsFiles.svelte') then m}<m.default
+				files={item.attachments}
+				title={item.title}
+			/>{/await}
+	{/if}
 	{#if !full}
 		<footer class="faint small">
 			<MessageCircle size={15} />
 			<span class="num">{item.comments}</span>
+			{#if item.attachments?.length && compact}<span class="clip"
+					><Paperclip size={14} /> <span class="num">{item.attachments.length}</span></span
+				>{/if}
 		</footer>
 	{/if}
 </article>
@@ -81,10 +91,6 @@
 	}
 	.news:has(.stretched):hover {
 		box-shadow: var(--shadow-2);
-	}
-	/* Стиль «Цвет предметов» (Профиль → Оформление): карточка в цвете своего предмета. */
-	:global(:root[data-style='tint']) .news:not(.urgent) {
-		background: color-mix(in srgb, var(--subject) 13%, var(--surface));
 	}
 	/* Полоса слева — цвет предмета (у новостей без предмета — нейтральная) */
 	.news::before {
@@ -229,5 +235,11 @@
 		display: flex;
 		align-items: center;
 		gap: 6px;
+	}
+	.clip {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		margin-left: 10px;
 	}
 </style>

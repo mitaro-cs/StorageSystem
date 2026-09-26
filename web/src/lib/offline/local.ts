@@ -71,12 +71,21 @@ function find<T extends { id: number }>(list: T[], id: number): T {
 	return x;
 }
 
+/** Предметы, скрытые у себя («не мой предмет»): в общих списках их нет — как на сервере. */
+function notMine(s: Snapshot): Set<number> {
+	return new Set(s.subjects.filter((x) => x.mine === false).map((x) => x.id));
+}
+
 export function homeworkList(s: Snapshot, q: URLSearchParams, now: number): Homework[] {
 	const group = num(q, 'group');
 	const subject = num(q, 'subject');
 	const scope = group === null ? null : [group];
+	const hidden = subject === null ? notMine(s) : new Set<number>();
 	const list = s.homework.filter(
-		(h) => inScope(h.groups, scope) && (subject === null || h.subject.id === subject)
+		(h) =>
+			inScope(h.groups, scope) &&
+			(subject === null || h.subject.id === subject) &&
+			!hidden.has(h.subject.id)
 	);
 	const sod = startOfDay(now);
 	switch (q.get('view') ?? 'week') {
@@ -114,8 +123,14 @@ export function newsFeed(s: Snapshot, q: URLSearchParams) {
 	const before = num(q, 'before');
 	const limit = Math.min(Math.max(num(q, 'limit') ?? 20, 1), 50);
 	const scope = group === null ? null : [group];
+	const hidden = subject === null ? notMine(s) : new Set<number>();
 	const list = s.news
-		.filter((n) => inScope(n.groups, scope) && (subject === null || n.subject?.id === subject))
+		.filter(
+			(n) =>
+				inScope(n.groups, scope) &&
+				(subject === null || n.subject?.id === subject) &&
+				!(n.subject && hidden.has(n.subject.id))
+		)
 		.sort(newest);
 	const pinned = before === null ? list.filter((n) => n.pinned).slice(0, 10) : [];
 	const rest = list.filter((n) => !n.pinned && (before === null || (n.id > 0 && n.id < before)));
@@ -392,7 +407,7 @@ export function resolve(path: string, s: Snapshot, now = Date.now()): unknown {
 		const group = num(q, 'group');
 		const subjectIds = new Set(
 			s.subjects
-				.filter((x) => group === null || x.groups.some((g) => g.id === group))
+				.filter((x) => x.mine !== false && (group === null || x.groups.some((g) => g.id === group)))
 				.map((x) => x.id)
 		);
 		return s.materials

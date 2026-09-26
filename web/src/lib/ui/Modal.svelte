@@ -1,18 +1,40 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { X } from '@lucide/svelte';
+	import { ask } from './ask.svelte';
 
 	interface Props {
 		open: boolean;
 		title: string;
 		wide?: boolean;
+		/**
+		 * В окне есть несохранённое (написанный текст): клик мимо окна, Esc и крестик сначала
+		 * спрашивают, а не закрывают молча. Кнопка «Отмена» в самом окне закрывает сразу.
+		 */
+		dirty?: boolean;
+		/** Что пропадёт, если закрыть, — текст вопроса. */
+		dirtyText?: string;
 		onclose?: () => void;
 		children: Snippet;
 		footer?: Snippet;
 	}
 
-	let { open = $bindable(), title, wide = false, onclose, children, footer }: Props = $props();
+	let {
+		open = $bindable(),
+		title,
+		wide = false,
+		dirty = false,
+		dirtyText = 'Написанное не сохранится.',
+		onclose,
+		children,
+		footer
+	}: Props = $props();
 	let dialog: HTMLDialogElement | undefined = $state();
+	const titleId = $props.id();
+	let shake = $state(false);
+	// Нажали мимо окна, а не выделяли текст в поле и отпустили снаружи: тогда click тоже приходит
+	// на сам dialog, и окно закрывалось посреди выделения.
+	let downOutside = false;
 
 	$effect(() => {
 		if (!dialog) return;
@@ -24,24 +46,50 @@
 		open = false;
 		onclose?.();
 	}
+
+	/** Закрыть по желанию человека (мимо окна, Esc, крестик): написанное — только с вопросом. */
+	async function tryClose() {
+		if (!dirty) return close();
+		shake = true;
+		setTimeout(() => (shake = false), 400);
+		if (
+			await ask(dirtyText, {
+				title: 'Закрыть без сохранения?',
+				ok: 'Закрыть',
+				cancel: 'Продолжить',
+				danger: true
+			})
+		)
+			close();
+	}
 </script>
 
 <dialog
 	bind:this={dialog}
 	class:wide
-	aria-labelledby="modal-title"
+	class:shake
+	aria-labelledby={titleId}
+	oncancel={(e) => {
+		// Esc: при несохранённом — спрашиваем, а окно остаётся.
+		if (dirty) {
+			e.preventDefault();
+			tryClose();
+		}
+	}}
 	onclose={() => {
 		if (open) close();
 	}}
+	onpointerdown={(e) => (downOutside = e.target === dialog)}
 	onclick={(e) => {
-		if (e.target === dialog) close();
+		if (e.target === dialog && downOutside) tryClose();
+		downOutside = false;
 	}}
 >
 	{#if open}
 		<div class="panel">
 			<header>
-				<h2 id="modal-title">{title}</h2>
-				<button class="x" onclick={close} aria-label="Закрыть"><X size={18} /></button>
+				<h2 id={titleId}>{title}</h2>
+				<button class="x" onclick={tryClose} aria-label="Закрыть"><X size={18} /></button>
 			</header>
 			<div class="body">{@render children()}</div>
 			{#if footer}<footer>{@render footer()}</footer>{/if}
@@ -66,6 +114,20 @@
 	}
 	dialog[open] {
 		animation: pop 340ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+	}
+	/* Мимо окна с написанным текстом — окно вздрагивает и остаётся. */
+	dialog.shake {
+		animation: shake 360ms var(--ease);
+	}
+	@keyframes shake {
+		20%,
+		60% {
+			transform: translateX(-6px);
+		}
+		40%,
+		80% {
+			transform: translateX(6px);
+		}
 	}
 	dialog::backdrop {
 		background: var(--overlay);

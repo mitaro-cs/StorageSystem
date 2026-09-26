@@ -17,9 +17,10 @@
 		ShieldCheck,
 		Users
 	} from '@lucide/svelte';
+	import { t } from '$lib/i18n/ru';
 	import {
 		can,
-		canManage,
+		canToggleManage,
 		currentGroup,
 		groups,
 		isAdmin,
@@ -103,7 +104,7 @@
 				},
 				{
 					value: 'audit',
-					label: 'Журнал',
+					label: 'Журнал действий',
 					desc: 'Кто и что менял',
 					icon: History,
 					tone: 'gray',
@@ -148,8 +149,8 @@
 				},
 				{
 					value: 'appearance',
-					label: 'Внешний вид',
-					desc: 'Фон страниц входа, оформление, стиль карточек',
+					label: 'Страница входа',
+					desc: 'Фон, который видят все при входе и регистрации',
 					icon: Palette,
 					tone: 'red',
 					part: 'site',
@@ -190,11 +191,12 @@
 	}
 </script>
 
-<svelte:head><title>{current ? `${current.label} · ` : ''}Настройки · groupbase</title></svelte:head
+<svelte:head
+	><title>{current ? `${current.label} · ` : ''}{t.nav.settings} · groupbase</title></svelte:head
 >
 
 <div class="page-head">
-	<h1>Настройки</h1>
+	<h1>{t.nav.settings}</h1>
 	{#if isMulti() && current?.part === 'group'}
 		<select
 			class="select pick"
@@ -207,7 +209,7 @@
 	{/if}
 </div>
 
-{#if !manageMode() && canManage()}
+{#if !manageMode() && canToggleManage()}
 	<div class="card">
 		<Empty
 			title="Режим управления выключен"
@@ -219,10 +221,10 @@
 {:else if sections.length === 0}
 	<div class="card">
 		<Empty
-			title="Здесь пока нечего настраивать"
-			text="Настройки группы доступны старосте. Свой профиль, тема и пароль — в разделе «Профиль»."
+			title="Управлять здесь пока нечем"
+			text="Группой управляют староста и администратор. Своё — тема, уведомления, пароль — в настройках: шестерёнка рядом с вашим именем."
 		>
-			<a href="/profile">Открыть профиль</a>
+			<a href="/profile">{t.nav.mySettings}</a>
 		</Empty>
 	</div>
 {:else}
@@ -230,7 +232,7 @@
 		<nav class="menu" aria-label="Разделы настроек">
 			{#each parts as p (p.key)}
 				<p class="part">{p.title}</p>
-				<div class="items">
+				<div class="items card">
 					{#each p.items as s (s.value)}
 						<button
 							class="item"
@@ -252,7 +254,7 @@
 				<button class="back" onclick={() => goto('/settings', { noScroll: true })}
 					><ChevronLeft size={18} /> Все настройки</button
 				>
-				<div class="head">
+				<div class="head card">
 					<SectionHead
 						icon={current.icon}
 						tone={current.tone}

@@ -115,6 +115,8 @@ export interface Subject {
 	chatUrl: string | null;
 	archived: boolean;
 	pinned: boolean;
+	/** Предмет этого человека; false — скрыл у себя как предмет другой подгруппы (с 0.4.10). */
+	mine?: boolean;
 	groups: GroupRef[];
 	can: { edit: boolean; share: boolean };
 }
@@ -139,6 +141,8 @@ export interface NewsItem {
 	subject: SubjectRef | null;
 	groups: GroupRef[];
 	comments: number;
+	/** Фото и файлы (у серверов до 0.4.10 поля нет). */
+	attachments?: FileInfo[];
 	can: ItemCan;
 	/** Создано без сети и ещё не отправлено на сервер. */
 	pending?: boolean;

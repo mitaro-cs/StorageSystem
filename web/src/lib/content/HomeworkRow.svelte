@@ -56,19 +56,12 @@
 	.hw:hover {
 		background: color-mix(in srgb, var(--surface-2) 50%, var(--surface));
 	}
-	/* Стиль «Стекло»: строка — часть полупрозрачной панели. */
-	:global(:root[data-style='glass']) .hw {
+	/* «Стекло» и «Объём»: строка — часть панели, сквозь неё видно материал списка. */
+	:global(:root:is([data-style='glass'], [data-style='depth'])) .hw {
 		background: transparent;
 	}
-	:global(:root[data-style='glass']) .hw:hover {
+	:global(:root:is([data-style='glass'], [data-style='depth'])) .hw:hover {
 		background: color-mix(in srgb, var(--surface-2) 45%, transparent);
-	}
-	/* Стиль «Цвет предметов» (Профиль → Оформление): строка в цвете своего предмета. */
-	:global(:root[data-style='tint']) .hw {
-		background: color-mix(in srgb, var(--subject, var(--surface-2)) 11%, var(--surface));
-	}
-	:global(:root[data-style='tint']) .hw:hover {
-		background: color-mix(in srgb, var(--subject, var(--surface-2)) 18%, var(--surface));
 	}
 	.main {
 		flex: 1;

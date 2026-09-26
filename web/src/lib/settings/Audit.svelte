@@ -1,49 +1,14 @@
 <script lang="ts">
 	import { get, qs } from '$lib/api';
-	import { fmtAgo } from '$lib/format';
+	import { fmtDate, fmtTime, relativeDay } from '$lib/format';
 	import type { AuditEntry } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
+	import { auditLabel, auditLink, auditTarget } from './auditLabels';
 
+	// Журнал действий: кто и что менял — по-русски, с названием записи и ссылкой на неё.
 	let { groupId }: { groupId: number | null } = $props();
 	let items = $state<AuditEntry[]>([]);
 	let done = $state(false);
-
-	const labels: Record<string, string> = {
-		'user.create': 'создал аккаунты',
-		'user.block': 'заблокировал пользователя',
-		'user.unblock': 'разблокировал пользователя',
-		'user.delete': 'удалил аккаунт',
-		'user.delete_self': 'удалил свой аккаунт',
-		'user.reset_link': 'выдал ссылку сброса пароля',
-		'user.activate': 'аккаунт активирован',
-		'user.reset': 'пароль сброшен по ссылке',
-		'user.password_change': 'сменил пароль',
-		'user.instance_role': 'изменил роль на сайте',
-		'user.totp_enable': 'включил 2FA',
-		'user.totp_disable': 'выключил 2FA',
-		'member.role': 'изменил роль участника',
-		'member.remove': 'исключил из группы',
-		'invite.create': 'создал приглашение',
-		'invite.revoke': 'отозвал приглашение',
-		'invite.accept': 'регистрация по приглашению',
-		'invite.join': 'вступил по приглашению',
-		'group.create': 'создал группу',
-		'group.update': 'изменил группу',
-		'permissions.update': 'изменил права',
-		'settings.update': 'изменил настройки',
-		'subject.create': 'создал предмет',
-		'subject.link': 'сделал предмет общим',
-		'subject.link_request': 'запросил общий предмет',
-		'subject.link_accept': 'принял общий предмет',
-		'news.create': 'опубликовал новость',
-		'news.delete': 'удалил новость',
-		'news.hide': 'скрыл новость',
-		'homework.create': 'опубликовал задание',
-		'homework.delete': 'удалил задание',
-		'comment.delete': 'удалил комментарий',
-		'hosts.enable': 'включил работу на нескольких компьютерах',
-		'hosts.disable': 'выключил работу на нескольких компьютерах'
-	};
 
 	async function load(before?: number) {
 		const base = groupId === null ? '/api/admin/audit' : `/api/groups/${groupId}/audit`;
@@ -56,23 +21,41 @@
 		void groupId;
 		load();
 	});
+
+	/** Записи по дням: «Сегодня», «Вчера», «12 сентября». */
+	const days = $derived.by(() => {
+		const out: { day: string; items: AuditEntry[] }[] = [];
+		for (const e of items) {
+			const rel = relativeDay(e.at);
+			const day = rel === 'сегодня' ? 'Сегодня' : rel === 'вчера' ? 'Вчера' : fmtDate(e.at);
+			if (out.at(-1)?.day !== day) out.push({ day, items: [] });
+			out.at(-1)!.items.push(e);
+		}
+		return out;
+	});
 </script>
 
-<div class="list">
-	{#each items as e (e.id)}
-		<div class="list-row">
-			<div class="info">
-				<span
-					><strong>{e.actorName || 'Система'}</strong>
-					{labels[e.action] ?? e.action}{e.targetId ? ` #${e.targetId}` : ''}</span
-				>
-				<span class="faint small num">{fmtAgo(e.at)}{e.ip ? ` · ${e.ip}` : ''}</span>
+{#each days as d (d.day)}
+	<p class="day">{d.day}</p>
+	<div class="list">
+		{#each d.items as e (e.id)}
+			{@const target = auditTarget(e)}
+			{@const link = auditLink(e)}
+			<div class="list-row">
+				<span class="time faint num">{fmtTime(e.at)}</span>
+				<p class="what">
+					<strong>{e.actorName || 'Система'}</strong>
+					{auditLabel(e.action)}
+					{#if target && link}<a href={link}>«{target}»</a>{:else if target}<span class="target"
+							>«{target}»</span
+						>{/if}
+				</p>
 			</div>
-		</div>
-	{:else}
-		<p class="faint empty">Записей нет</p>
-	{/each}
-</div>
+		{/each}
+	</div>
+{:else}
+	<p class="faint empty">Записей нет</p>
+{/each}
 {#if !done && items.length}
 	<div class="more">
 		<Button variant="ghost" onclick={() => load(items[items.length - 1].id)}>Показать ещё</Button>
@@ -80,9 +63,41 @@
 {/if}
 
 <style>
-	.info {
-		display: flex;
-		flex-direction: column;
+	.day {
+		margin: var(--s3) 6px var(--s2);
+		font-size: 12.5px;
+		font-weight: 700;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		color: var(--text-3);
+	}
+	.day:first-child {
+		margin-top: 0;
+	}
+	.list-row {
+		align-items: baseline;
+		min-height: 52px;
+	}
+	.time {
+		flex: none;
+		width: 44px;
+		font-size: 13px;
+	}
+	.what {
+		flex: 1;
+		min-width: 0;
+		margin: 0;
+		color: var(--text-2);
+		overflow-wrap: anywhere;
+	}
+	.what strong {
+		color: var(--text);
+		font-weight: 620;
+	}
+	.what a,
+	.target {
+		color: var(--text);
+		font-weight: 550;
 	}
 	.empty {
 		padding: var(--s4);

@@ -58,7 +58,7 @@
 		if (section !== 'materials') folderPath = [];
 	});
 
-	const subjectList = $derived(sortedSubjects(session.groupId));
+	const subjectList = $derived(sortedSubjects(session.groupId, true));
 	const withFiles = $derived((homework ?? []).filter((h) => h.attachments.length));
 	const openHw = $derived(homeworkId !== null ? homework?.find((h) => h.id === homeworkId) : null);
 	const base = $derived(subjectId !== null ? `/materials?subject=${subjectId}` : '/materials');

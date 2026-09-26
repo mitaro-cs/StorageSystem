@@ -42,7 +42,8 @@ test('режим управления прячет кнопки админист
 	await expect(page.getByRole('heading', { name: 'Резервные копии' })).toBeVisible();
 	await page.screenshot({ path: 'test-results/shots/settings-server.png', fullPage: true });
 
-	await page.goto('/profile');
+	// Переключатель — только у хоста (администратора): в боковой панели и в «Настройки → Приложение».
+	await page.goto('/profile?tab=app');
 	const toggle = page.getByRole('switch', { name: 'Режим управления' }).first();
 	await expect(toggle).toHaveAttribute('aria-checked', 'true');
 	await toggle.click();

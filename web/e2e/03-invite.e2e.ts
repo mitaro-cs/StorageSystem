@@ -24,9 +24,7 @@ test('студент регистрируется по инвайту, види�
 	await expect(student.getByRole('heading', { level: 1 })).toHaveText('Привет, Олег');
 	// Знакомство с сайтом — сразу после регистрации; закрыть можно в любой момент.
 	const welcome = student.getByRole('dialog', { name: 'Знакомство с groupbase' });
-	await expect(
-		welcome.getByRole('heading', { name: 'Добро пожаловать в groupbase' })
-	).toBeVisible();
+	await expect(welcome.getByRole('heading', { name: 'Привет! Это groupbase' })).toBeVisible();
 	await welcome.getByRole('button', { name: 'Закрыть' }).click();
 	await expect(welcome).toBeHidden();
 
@@ -40,7 +38,7 @@ test('студент регистрируется по инвайту, види�
 	// Прав на публикацию и настройки у студента нет.
 	await expect(student.getByRole('button', { name: 'Задание' })).toHaveCount(0);
 	await student.goto('/settings');
-	await expect(student.getByText('Здесь пока нечего настраивать')).toBeVisible();
+	await expect(student.getByText('Управлять здесь пока нечем')).toBeVisible();
 	await student.goto('/news');
 	await expect(student.getByRole('button', { name: 'Новость' })).toHaveCount(0);
 	await student.screenshot({ path: 'test-results/shots/news-mobile.png', fullPage: true });

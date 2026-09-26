@@ -16,44 +16,66 @@ async function openMenuAtBottom(page: Page, trigger: Locator) {
 	return menu;
 }
 
-test('обычному участнику отдельный пункт «Настройки» не нужен', async ({ page }) => {
+test('обычному участнику «Управление» не нужно; свои настройки — у шестерёнки, по разделам', async ({
+	page
+}) => {
 	await login(page, STUDENT);
-	const nav = page.getByRole('navigation').first();
-	await expect(nav.getByRole('link', { name: 'Сегодня' })).toBeVisible();
-	await expect(nav.getByRole('link', { name: 'Настройки' })).toHaveCount(0);
-	await page.goto('/profile');
+	const side = page.getByRole('complementary', { name: 'Навигация' });
+	await expect(side.getByRole('link', { name: 'Сегодня' })).toBeVisible();
+	await expect(side.getByRole('link', { name: 'Управление' })).toHaveCount(0);
+	// Режим управления переключает только хост.
+	await expect(page.getByRole('switch', { name: 'Режим управления' })).toHaveCount(0);
+	await side.getByRole('link', { name: 'Настройки' }).click();
+	await expect(page).toHaveURL(/\/profile$/);
+	// Аккаунт (ФИО, вход, резервные коды) — отдельно от настроек приложения.
+	const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
+	await expect(menu.getByRole('heading', { name: 'Аккаунт' })).toBeVisible();
+	await expect(menu.getByRole('heading', { name: 'Приложение' })).toBeVisible();
+	await menu.getByRole('button', { name: /Оформление/ }).click();
 	await expect(page.getByRole('heading', { name: 'Оформление' })).toBeVisible();
+	await expect(page).toHaveURL(/tab=appearance/);
 });
 
-test('тема оформления: цвет и режим меняются сразу и сохраняются', async ({ page }) => {
+test('цвет оформления: основной цвет и насыщенность меняются сразу и сохраняются', async ({
+	page
+}) => {
 	await login(page, STUDENT);
-	await page.goto('/profile');
-	await page
-		.getByRole('radiogroup', { name: 'Цвет' })
-		.getByRole('radio', { name: 'Океан' })
-		.click();
+	await page.goto('/profile?tab=appearance');
+	const colors = page.getByRole('radiogroup', { name: 'Цвет' });
 	const html = page.locator('html');
-	await expect(html).toHaveAttribute('data-palette', 'ocean');
 	const accent = () =>
 		page.evaluate(() =>
 			getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
 		);
-	expect(await accent()).toBe('#2f5bea');
+	await colors.getByRole('radio', { name: 'Синий' }).click();
+	await expect(html).toHaveAttribute('data-accent', '');
+	const light = await accent();
+	expect(light).toMatch(/^#[0-9a-f]{6}$/);
+	expect(light).not.toBe('#0d0d0f');
 
 	await page.getByRole('radio', { name: 'Тёмная' }).click();
 	await expect(html).toHaveAttribute('data-theme', 'dark');
-	expect(await accent()).toBe('#7b9cff');
+	const dark = await accent();
+	expect(dark).not.toBe(light);
 
-	// После перезагрузки — та же тема, без мигания «Классикой».
+	// Насыщенность до нуля — спокойный серый вместо яркого цвета.
+	await page.getByRole('slider', { name: 'Насыщенность' }).fill('0');
+	const calm = await accent();
+	expect(calm).not.toBe(dark);
+
+	// После перезагрузки — то же, без мигания «Чернилами» (скрипт в app.html).
 	await page.reload();
-	await expect(html).toHaveAttribute('data-palette', 'ocean');
 	await expect(html).toHaveAttribute('data-theme', 'dark');
-	await expect(
-		page.getByRole('radiogroup', { name: 'Цвет' }).getByRole('radio', { name: 'Океан' })
-	).toHaveAttribute('aria-checked', 'true');
+	await expect(html).toHaveAttribute('data-accent', '');
+	expect(await accent()).toBe(calm);
+	await expect(colors.getByRole('radio', { name: 'Синий' })).toHaveAttribute(
+		'aria-checked',
+		'true'
+	);
 
-	await page.getByRole('radio', { name: 'Классика' }).click();
-	await expect(html).not.toHaveAttribute('data-palette', /.+/);
+	await colors.getByRole('radio', { name: 'Чернила' }).click();
+	expect(await html.getAttribute('data-accent')).toBeNull();
+	await page.getByRole('radio', { name: 'Как в системе' }).click();
 });
 
 test('меню действий у нижнего края экрана открывается целиком — в участниках и в настройках', async ({

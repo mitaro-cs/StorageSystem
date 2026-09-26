@@ -48,6 +48,12 @@
 	let busy = $state(false);
 
 	const allowed = $derived(groupsWith('publish_homework'));
+	// Написанное и приложенное не теряется от случайного клика мимо окна.
+	const dirty = $derived(
+		title !== (edit?.title ?? '') ||
+			body !== (edit?.bodyMd ?? '') ||
+			files.length !== (edit?.attachments.length ?? 0)
+	);
 	const subjectOptions = $derived(
 		subjects.list.filter(
 			(s) => !s.archived && s.groups.some((g) => allowed.some((a) => a.id === g.id))
@@ -135,7 +141,7 @@
 	}
 </script>
 
-<Modal bind:open title={edit ? 'Редактировать задание' : 'Новое задание'} wide>
+<Modal bind:open {dirty} title={edit ? 'Редактировать задание' : 'Новое задание'} wide>
 	<form id="hw-form" class="stack form" onsubmit={save}>
 		<KindPicker bind:value={() => kind, pickKind} />
 		<div class="grid">

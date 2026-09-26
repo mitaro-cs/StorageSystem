@@ -16,9 +16,7 @@ test('первый запуск создаёт группу и админист�
 
 	// Новому человеку — знакомство с сайтом: листаем до конца.
 	const welcome = page.getByRole('dialog', { name: 'Знакомство с groupbase' });
-	await expect(
-		welcome.getByRole('heading', { name: 'Добро пожаловать в groupbase' })
-	).toBeVisible();
+	await expect(welcome.getByRole('heading', { name: 'Привет! Это groupbase' })).toBeVisible();
 	const next = welcome.getByRole('button', { name: 'Далее' });
 	while (await next.isVisible()) await next.click();
 	await expect(welcome.getByRole('heading', { name: 'Вы помогаете группе' })).toBeVisible();

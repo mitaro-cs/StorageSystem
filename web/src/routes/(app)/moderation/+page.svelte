@@ -24,7 +24,7 @@
 			{ value: 'queue' as Tab, label: 'Очередь', count: moderation.reports + moderation.pending },
 			{ value: 'comments' as Tab, label: 'Комментарии', count: 0 },
 			{ value: 'hidden' as Tab, label: 'Скрытое', count: 0 },
-			{ value: 'log' as Tab, label: 'Журнал', count: 0, hide: !can('view_audit') }
+			{ value: 'log' as Tab, label: 'Журнал действий', count: 0, hide: !can('view_audit') }
 		].filter((t) => !t.hide)
 	);
 	const asked = $derived(page.url.searchParams.get('tab') as Tab | null);

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Plus, Users, Archive, ArrowRight, Send, Sparkles } from '@lucide/svelte';
+	import { Plus, Users, Archive, ArrowRight, EyeOff, Send, Sparkles } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { get, post } from '$lib/api';
 	import { can, currentGroup, groups, session } from '$lib/session.svelte';
@@ -10,6 +10,8 @@
 	import Button from '$lib/ui/Button.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 	import SubjectArt from '$lib/ui/SubjectArt.svelte';
+	import { choices, open } from '$lib/content/subgroups';
+	import type { Subject } from '$lib/types';
 
 	let editor = $state(false);
 	let wizard = $state(false);
@@ -19,11 +21,17 @@
 	const target = $derived(
 		currentGroup() ?? groups().find((g) => g.permissions.includes('manage_subjects'))
 	);
-	const visible = $derived(
-		subjects.list
-			.filter((s) => session.groupId === null || s.groups.some((g) => g.id === session.groupId))
-			.filter((s) => showArchived || !s.archived)
+	const inGroup = $derived(
+		subjects.list.filter(
+			(s) => session.groupId === null || s.groups.some((g) => g.id === session.groupId)
+		)
 	);
+	const visible = $derived(
+		inGroup.filter((s) => (showArchived || !s.archived) && s.mine !== false)
+	);
+	// «Не мои» — предметы другой подгруппы, которые человек скрыл у себя: внизу, вернуть — в карточке.
+	const notMine = $derived(inGroup.filter((s) => !s.archived && s.mine === false));
+	const askSubgroup = $derived(choices(inGroup).some((c) => open(c)));
 	const archivedCount = $derived(subjects.list.filter((s) => s.archived).length);
 
 	onMount(async () => {
@@ -75,7 +83,60 @@
 	</section>
 {/if}
 
-{#if visible.length === 0}
+{#if askSubgroup}
+	{#await import('$lib/content/SubgroupChoice.svelte') then m}<m.default />{/await}
+{/if}
+
+{#snippet card(s: Subject, i: number)}
+	<div class="cell" in:fly={{ y: 10, delay: stagger(i) }}>
+		<a
+			class="subject card"
+			href="/subjects/{s.id}"
+			class:archived={s.archived}
+			class:other={s.mine === false}
+		>
+			<span class="cover">
+				<SubjectArt
+					id={s.id}
+					name={s.name}
+					color={s.color}
+					avatar={s.avatar}
+					icon={s.icon}
+					class="fill"
+				/>
+				{#if s.groups.length > 1 || s.archived || s.mine === false}
+					<span class="tags">
+						{#if s.groups.length > 1}<span class="chip glass"
+								><Users size={12} /> общий · {s.groups.length}</span
+							>{/if}
+						{#if s.archived}<span class="chip glass"><Archive size={12} /> архив</span>{/if}
+						{#if s.mine === false}<span class="chip glass"><EyeOff size={12} /> не мой</span>{/if}
+					</span>
+				{/if}
+			</span>
+			<span class="foot">
+				<span class="text">
+					<strong class="name">{s.name}</strong>
+					<span class="muted small teacher">{s.teacher || 'Преподаватель не указан'}</span>
+				</span>
+				<span class="circle ink" aria-hidden="true"><ArrowRight size={18} /></span>
+			</span>
+		</a>
+		{#if s.chatUrl}
+			<!-- Рядом с карточкой, а не внутри: ссылка в ссылке недопустима. -->
+			<a
+				class="chat"
+				href={s.chatUrl}
+				target="_blank"
+				rel="noreferrer"
+				aria-label="Чат предмета «{s.name}» в Telegram"
+				title="Чат предмета в Telegram"><Send size={16} /></a
+			>
+		{/if}
+	</div>
+{/snippet}
+
+{#if visible.length === 0 && notMine.length === 0}
 	<div class="card">
 		<Empty
 			title="Предметов пока нет"
@@ -84,49 +145,20 @@
 	</div>
 {:else}
 	<div class="grid">
-		{#each visible as s, i (s.id)}
-			<div class="cell" in:fly={{ y: 10, delay: stagger(i) }}>
-				<a class="subject card" href="/subjects/{s.id}" class:archived={s.archived}>
-					<span class="cover">
-						<SubjectArt
-							id={s.id}
-							name={s.name}
-							color={s.color}
-							avatar={s.avatar}
-							icon={s.icon}
-							class="fill"
-						/>
-						{#if s.groups.length > 1 || s.archived}
-							<span class="tags">
-								{#if s.groups.length > 1}<span class="chip glass"
-										><Users size={12} /> общий · {s.groups.length}</span
-									>{/if}
-								{#if s.archived}<span class="chip glass"><Archive size={12} /> архив</span>{/if}
-							</span>
-						{/if}
-					</span>
-					<span class="foot">
-						<span class="text">
-							<strong class="name">{s.name}</strong>
-							<span class="muted small teacher">{s.teacher || 'Преподаватель не указан'}</span>
-						</span>
-						<span class="circle ink" aria-hidden="true"><ArrowRight size={18} /></span>
-					</span>
-				</a>
-				{#if s.chatUrl}
-					<!-- Рядом с карточкой, а не внутри: ссылка в ссылке недопустима. -->
-					<a
-						class="chat"
-						href={s.chatUrl}
-						target="_blank"
-						rel="noreferrer"
-						aria-label="Чат предмета «{s.name}» в Telegram"
-						title="Чат предмета в Telegram"><Send size={16} /></a
-					>
-				{/if}
-			</div>
-		{/each}
+		{#each visible as s, i (s.id)}{@render card(s, i)}{/each}
 	</div>
+	{#if notMine.length}
+		<section class="others">
+			<h2>Не мои предметы</h2>
+			<p class="muted small">
+				Другая подгруппа: их задания и новости не показываются в общих списках и не приходят
+				уведомлениями. Вернуть — «Мой предмет» в меню предмета.
+			</p>
+			<div class="grid">
+				{#each notMine as s, i (s.id)}{@render card(s, i)}{/each}
+			</div>
+		</section>
+	{/if}
 {/if}
 
 {#if archivedCount}
@@ -159,6 +191,21 @@
 		align-items: center;
 		gap: var(--s2);
 		flex-wrap: wrap;
+	}
+	.others {
+		display: flex;
+		flex-direction: column;
+		gap: var(--s2);
+		margin-top: var(--s6);
+	}
+	.others h2 {
+		font-size: 19px;
+	}
+	.others .grid {
+		margin-top: var(--s2);
+	}
+	.subject.other {
+		opacity: 0.72;
 	}
 	/* Карточки как «Upcoming tours»: обложка, название, круглая чёрная стрелка */
 	.grid {

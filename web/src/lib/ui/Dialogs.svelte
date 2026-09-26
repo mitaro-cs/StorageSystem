@@ -60,7 +60,7 @@
 			{/if}
 		</form>
 		{#snippet footer()}
-			<Button onclick={cancel}>Отмена</Button>
+			<Button onclick={cancel}>{current?.options.cancel ?? 'Отмена'}</Button>
 			<Button variant={current?.options.danger ? 'danger' : 'primary'} type="submit" form="ask-form"
 				>{current?.options.ok ?? 'Готово'}</Button
 			>

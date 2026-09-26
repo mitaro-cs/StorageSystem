@@ -6,8 +6,8 @@ import {
 	GraduationCap,
 	House,
 	Newspaper,
-	Settings,
 	ShieldCheck,
+	SlidersHorizontal,
 	UserRound,
 	Users
 } from '@lucide/svelte';
@@ -23,7 +23,7 @@ export const mainNav = [
 	{ href: '/members', label: t.nav.members, icon: Users, key: 'u' },
 	{ href: '/moderation', label: t.nav.moderation, icon: ShieldCheck, key: 'r' },
 	{ href: '/notifications', label: t.nav.notifications, icon: Bell, key: 'b' },
-	{ href: '/settings', label: t.nav.settings, icon: Settings, key: 'o' }
+	{ href: '/settings', label: t.nav.settings, icon: SlidersHorizontal, key: 'o' }
 ];
 
 /**
