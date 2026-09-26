@@ -146,6 +146,7 @@ public class FileStore {
                 SELECT * FROM files f WHERE f.created_at < ?
                   AND NOT EXISTS (SELECT 1 FROM materials m WHERE m.file_id = f.id)
                   AND NOT EXISTS (SELECT 1 FROM homework_attachments a WHERE a.file_id = f.id)
+                  AND NOT EXISTS (SELECT 1 FROM post_attachments p WHERE p.file_id = f.id)
                 """)
             .param(olderThan)
             .query(MAPPER)

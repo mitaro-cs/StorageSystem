@@ -191,6 +191,40 @@ public class SubjectStore {
         .update();
   }
 
+  // --- «не мой предмет» (другая подгруппа) ---
+
+  /** Предметы, которые человек у себя скрыл. */
+  public Set<Long> hidden(long userId) {
+    return new HashSet<>(
+        db.sql("SELECT subject_id FROM subject_hidden WHERE user_id = ?")
+            .param(userId)
+            .query(Long.class)
+            .list());
+  }
+
+  /** Кто скрыл у себя этот предмет — им не присылаем уведомления о нём. */
+  public Set<Long> hiddenBy(long subjectId) {
+    return new HashSet<>(
+        db.sql("SELECT user_id FROM subject_hidden WHERE subject_id = ?")
+            .param(subjectId)
+            .query(Long.class)
+            .list());
+  }
+
+  public void hide(long userId, long subjectId, long now) {
+    db.sql(
+            "INSERT INTO subject_hidden (user_id, subject_id, hidden_at) VALUES (?, ?, ?)"
+                + " ON CONFLICT DO NOTHING")
+        .params(userId, subjectId, now)
+        .update();
+  }
+
+  public void unhide(long userId, long subjectId) {
+    db.sql("DELETE FROM subject_hidden WHERE user_id = ? AND subject_id = ?")
+        .params(userId, subjectId)
+        .update();
+  }
+
   // --- запросы на связывание ---
 
   private static final String REQUEST_SELECT =

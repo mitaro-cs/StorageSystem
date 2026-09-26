@@ -146,6 +146,60 @@ class NotificationsIT extends IntegrationTest {
     throw new AssertionError("push для " + d.endpoint() + " не пришёл");
   }
 
+  /**
+   * «Не мой предмет»: английский №1 и №2 — студент скрыл у себя №2 и не получает о нём уведомлений;
+   * его задания и новости не видны в общих списках, но есть на странице предмета.
+   */
+  @Test
+  void hiddenSubjectDoesNotNotifyAndLeavesFeeds() throws Exception {
+    long g = newGroup("Подгруппы");
+    TestUser headman = newUser(g, "headman");
+    TestUser first = newUser(g, "student");
+    long english1 = subject(headman.api(), g, "Английский №1");
+    long english2 = subject(headman.api(), g, "Английский №2");
+    var hide = first.api().put("/api/subjects/" + english2 + "/mine", Map.of("value", false));
+    assertThat(hide.status()).as(hide.body()).isEqualTo(200);
+    assertThat(first.api().get("/api/subjects/" + english2).json().get("mine").asBoolean())
+        .isFalse();
+    assertThat(first.api().get("/api/subjects/" + english1).json().get("mine").asBoolean())
+        .isTrue();
+
+    long own = homework(headman.api(), english1, g, "Эссе для №1", Duration.ofDays(2));
+    long other = homework(headman.api(), english2, g, "Эссе для №2", Duration.ofDays(2));
+    var news =
+        headman
+            .api()
+            .post(
+                "/api/news",
+                Map.of("title", "Пары №2 не будет", "subjectId", english2, "groupIds", List.of(g)));
+    assertThat(news.status()).as(news.body()).isEqualTo(200);
+
+    // Пришло только про свой предмет.
+    awaitUnread(first, 1);
+    Thread.sleep(300);
+    assertThat(unread(first)).isEqualTo(1);
+    assertThat(
+            first.api().get("/api/notifications").json().get("items").get(0).get("url").asString())
+        .isEqualTo("/homework/" + own);
+
+    // Общие списки — без него, страница предмета — со всем.
+    var week = first.api().get("/api/homework?view=week").json();
+    List<Long> ids = new java.util.ArrayList<>();
+    week.forEach(h -> ids.add(h.get("id").asLong()));
+    assertThat(ids).contains(own).doesNotContain(other);
+    var today = first.api().get("/api/today").json();
+    assertThat(today.get("news").toString()).doesNotContain("Пары №2");
+    assertThat(first.api().get("/api/news?subject=" + english2).json().toString())
+        .contains("Пары №2");
+    assertThat(first.api().get("/api/homework?view=week&subject=" + english2).json().toString())
+        .contains("Эссе для №2");
+
+    // Вернул предмет — снова в списках.
+    first.api().put("/api/subjects/" + english2 + "/mine", Map.of("value", true));
+    assertThat(first.api().get("/api/homework?view=week").json().toString())
+        .contains("Эссе для №2");
+  }
+
   @Test
   void newHomeworkGoesToBellAndEncryptedPush() throws Exception {
     inbox.clear();

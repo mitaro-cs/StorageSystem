@@ -213,6 +213,48 @@ class MaterialsIT extends IntegrationTest {
   }
 
   @Test
+  void newsCarriesPhotosAndFiles() {
+    long g = newGroup("Фото в новостях");
+    TestUser deputy = newUser(g, "deputy");
+    TestUser student = newUser(g, "student");
+    TestUser stranger = newUser(newGroup("Чужие"), "student");
+    long fileId = deputy.api().upload("Расписание.pdf", PDF).json().get("id").asLong();
+    var news =
+        deputy
+            .api()
+            .post(
+                "/api/news",
+                Map.of(
+                    "title",
+                    "Новое расписание",
+                    "groupIds",
+                    List.of(g),
+                    "attachments",
+                    List.of(fileId)));
+    assertThat(news.status()).as(news.body()).isEqualTo(200);
+    long id = news.json().get("id").asLong();
+    assertThat(news.json().get("attachments").get(0).get("name").asString())
+        .isEqualTo("Расписание.pdf");
+    // Файл видят те, кто видит новость; чужим — нет.
+    assertThat(student.api().download("/api/files/" + fileId).statusCode()).isEqualTo(200);
+    assertThat(stranger.api().download("/api/files/" + fileId).statusCode()).isIn(403, 404);
+    // Тот же файл ко второй новости не прикрепить.
+    assertThat(
+            deputy
+                .api()
+                .post(
+                    "/api/news",
+                    Map.of(
+                        "title", "Ещё раз", "groupIds", List.of(g), "attachments", List.of(fileId)))
+                .status())
+        .isEqualTo(403);
+    // Убрали вложения при правке — у новости их больше нет.
+    var edited =
+        deputy.api().patch("/api/news/" + id, Map.of("attachments", List.<Long>of())).json();
+    assertThat(edited.get("attachments").size()).isZero();
+  }
+
+  @Test
   void textFilesAreSandboxed() {
     long g = newGroup("Песочница");
     TestUser headman = newUser(g, "headman");

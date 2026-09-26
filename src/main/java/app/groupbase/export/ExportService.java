@@ -389,6 +389,30 @@ public class ExportService {
         }
         flags(b, p);
         b.append('\n').append(p.get("body_md")).append('\n');
+        // Фото и файлы новости — рядом, в папке «… — файлы».
+        String base = ZipWriter.safe(day(at) + " " + p.get("title"));
+        List<String> names = new ArrayList<>();
+        for (Long fid :
+            db.sql("SELECT file_id FROM post_attachments WHERE post_id = ? ORDER BY position")
+                .param(p.get("id"))
+                .query(Long.class)
+                .list()) {
+          StoredFile f = files.find(fid).orElse(null);
+          if (f != null) {
+            try (InputStream in = files.open(f)) {
+              String path =
+                  zip.file(
+                      "Новости/" + base + " — файлы/" + ZipWriter.safe(f.name()),
+                      in,
+                      f.createdAt());
+              names.add(path.substring(path.lastIndexOf('/') + 1));
+            }
+          }
+        }
+        if (!names.isEmpty()) {
+          b.append("\n## Файлы\n\nВ папке «").append(base).append(" — файлы»:\n\n");
+          names.forEach(n -> b.append("- ").append(n).append('\n'));
+        }
         comments(b, "post", (Long) p.get("id"));
         zip.text(
             ZipWriter.path("Новости", day(at) + " " + p.get("title")) + ".md", b.toString(), at);

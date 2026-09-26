@@ -280,9 +280,11 @@ public class MaterialService {
             """
             m.status = 'published' AND m.hidden = 0 AND EXISTS (
               SELECT 1 FROM subject_groups sg WHERE sg.subject_id = m.subject_id AND sg.group_id IN (:g))
+            AND NOT EXISTS (SELECT 1 FROM subject_hidden sh
+              WHERE sh.user_id = :uid AND sh.subject_id = m.subject_id)
             ORDER BY m.created_at DESC LIMIT :limit
             """,
-            Map.of("g", scope, "limit", limit));
+            Map.of("g", scope, "limit", limit, "uid", actor.id()));
     return views(actor, rows);
   }
 
@@ -409,7 +411,8 @@ public class MaterialService {
         groups.getFirst(),
         "material." + (status.equals("pending") ? "suggest" : "create"),
         "material",
-        id);
+        id,
+        Map.of("title", title == null ? "" : title));
     events.publishEvent(new Submitted(id, subjectId, title, status, actor.id()));
     return get(actor, id);
   }
@@ -610,6 +613,25 @@ public class MaterialService {
         return true;
       }
     }
+    List<Long> posts =
+        db.sql("SELECT post_id FROM post_attachments WHERE file_id = ?")
+            .param(f.id())
+            .query(Long.class)
+            .list();
+    for (Long p : posts) {
+      boolean hidden =
+          db.sql("SELECT hidden FROM posts WHERE id = ?").param(p).query(Integer.class).single()
+              != 0;
+      List<Long> groups =
+          db.sql("SELECT group_id FROM post_targets WHERE post_id = ?")
+              .param(p)
+              .query(Long.class)
+              .list();
+      if (access.canSee(actor, groups)
+          && (!hidden || access.can(actor, Permission.MODERATE_CONTENT, groups))) {
+        return true;
+      }
+    }
     return false;
   }
 
@@ -618,17 +640,24 @@ public class MaterialService {
     List<Long> groups = access.visibleGroups(actor);
     return access.can(actor, Permission.UPLOAD_MATERIALS, groups)
         || access.can(actor, Permission.SUGGEST_MATERIALS, groups)
-        || access.can(actor, Permission.PUBLISH_HOMEWORK, groups);
+        || access.can(actor, Permission.PUBLISH_HOMEWORK, groups)
+        || access.can(actor, Permission.PUBLISH_NEWS, groups);
   }
 
-  private boolean attached(long fileId) {
+  /** Файл уже прикреплён: к материалу, заданию или новости — второй раз его не взять. */
+  static boolean used(JdbcClient db, long fileId) {
     return db.sql(
                 "SELECT (SELECT count(*) FROM materials WHERE file_id = ?)"
-                    + " + (SELECT count(*) FROM homework_attachments WHERE file_id = ?)")
-            .params(fileId, fileId)
+                    + " + (SELECT count(*) FROM homework_attachments WHERE file_id = ?)"
+                    + " + (SELECT count(*) FROM post_attachments WHERE file_id = ?)")
+            .params(fileId, fileId, fileId)
             .query(Integer.class)
             .single()
         > 0;
+  }
+
+  private boolean attached(long fileId) {
+    return used(db, fileId);
   }
 
   private boolean isAuthor(Actor actor, Row r) {

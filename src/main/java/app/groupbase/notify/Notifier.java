@@ -119,6 +119,18 @@ public class Notifier implements DisposableBean {
   }
 
   /**
+   * Участники, которым этот предмет нужен: без тех, кто скрыл его у себя (другая подгруппа —
+   * английский №1 и №2). Без предмета — все участники.
+   */
+  Set<Long> followers(Collection<Long> groupIds, long except, Long subjectId) {
+    Set<Long> out = members(groupIds, except);
+    if (subjectId != null) {
+      out.removeAll(subjects.hiddenBy(subjectId));
+    }
+    return out;
+  }
+
+  /**
    * Те, кто модерирует в этих группах: по роли в группе (староста) и администраторы и модераторы
    * сайта — они модерируют везде, даже не состоя в группе.
    */
@@ -185,7 +197,7 @@ public class Notifier implements DisposableBean {
     later(
         () ->
             deliver(
-                members(e.groups(), e.authorId()),
+                followers(e.groups(), e.authorId(), e.subjectId()),
                 new Message(
                     "homework",
                     e.kind().announce() + " · " + e.subjectName(),
@@ -200,7 +212,7 @@ public class Notifier implements DisposableBean {
     later(
         () ->
             deliver(
-                members(e.groups(), e.authorId()),
+                followers(e.groups(), e.authorId(), e.subjectId()),
                 new Message(
                     "news",
                     e.urgent() ? "Срочно: " + e.title() : e.title(),
@@ -230,7 +242,7 @@ public class Notifier implements DisposableBean {
           p -> true);
     } else if ("published".equals(e.status())) {
       deliver(
-          members(groupIds, e.authorId()),
+          followers(groupIds, e.authorId(), e.subjectId()),
           new Message(
               "material", "Новый материал · " + subject, e.title(), "/materials/" + e.id(), false),
           Prefs::materials);

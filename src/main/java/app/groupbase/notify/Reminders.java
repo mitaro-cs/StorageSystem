@@ -73,6 +73,8 @@ public class Reminders {
                                   WHERE d.user_id = m.user_id AND d.homework_id = h.id)
                   AND NOT EXISTS (SELECT 1 FROM homework_reminders r
                                   WHERE r.user_id = m.user_id AND r.homework_id = h.id)
+                  AND NOT EXISTS (SELECT 1 FROM subject_hidden sh
+                                  WHERE sh.user_id = m.user_id AND sh.subject_id = h.subject_id)
                 GROUP BY h.id, m.user_id
                 """)
             .param("now", now)
@@ -203,6 +205,8 @@ public class Reminders {
                           WHERE t.homework_id = h.id AND m.user_id = :u)
               AND NOT EXISTS (SELECT 1 FROM homework_done d
                               WHERE d.homework_id = h.id AND d.user_id = :u)
+              AND NOT EXISTS (SELECT 1 FROM subject_hidden sh
+                              WHERE sh.user_id = :u AND sh.subject_id = h.subject_id)
             """)
         .param("now", now)
         .param("tomorrow", startOfTomorrow)

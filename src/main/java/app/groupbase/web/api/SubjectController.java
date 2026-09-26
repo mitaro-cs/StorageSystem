@@ -65,6 +65,13 @@ class SubjectController {
     return Map.of("status", "ok");
   }
 
+  /** «Не мой предмет» (другая подгруппа): value=false — скрыть у себя, true — вернуть. */
+  @PutMapping("/api/subjects/{id}/mine")
+  Map<String, String> mine(Actor actor, @PathVariable long id, @RequestBody FlagBody b) {
+    subjects.setMine(actor, id, !Boolean.FALSE.equals(b.value()));
+    return Map.of("status", "ok");
+  }
+
   @PostMapping("/api/subjects/{id}/links")
   SubjectService.LinkResult link(Actor actor, @PathVariable long id, @RequestBody LinkBody b) {
     if (b.groupId() == null) {

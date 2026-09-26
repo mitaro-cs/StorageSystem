@@ -44,6 +44,8 @@ public class SubjectService {
       String chatUrl,
       boolean archived,
       boolean pinned,
+      // Предмет этого человека; false — скрыл у себя как предмет другой подгруппы.
+      boolean mine,
       List<SubjectStore.GroupRef> groups,
       Can can) {}
 
@@ -75,8 +77,9 @@ public class SubjectService {
     List<SubjectStore.Row> rows = subjects.visible(access.scope(actor, onlyGroup));
     var groupMap = subjects.groupsOf(rows.stream().map(SubjectStore.Row::id).toList());
     Set<Long> pins = subjects.pinned(actor.id());
+    Set<Long> hidden = subjects.hidden(actor.id());
     return rows.stream()
-        .map(r -> view(actor, r, groupMap.getOrDefault(r.id(), List.of()), pins))
+        .map(r -> view(actor, r, groupMap.getOrDefault(r.id(), List.of()), pins, hidden))
         .toList();
   }
 
@@ -86,7 +89,8 @@ public class SubjectService {
         actor,
         r,
         subjects.groupsOf(List.of(id)).getOrDefault(id, List.of()),
-        subjects.pinned(actor.id()));
+        subjects.pinned(actor.id()),
+        subjects.hidden(actor.id()));
   }
 
   /** Предмет, видимый пользователю, иначе 404 (не раскрываем существование). */
@@ -97,7 +101,11 @@ public class SubjectService {
   }
 
   private SubjectView view(
-      Actor actor, SubjectStore.Row r, List<SubjectStore.GroupRef> gs, Set<Long> pins) {
+      Actor actor,
+      SubjectStore.Row r,
+      List<SubjectStore.GroupRef> gs,
+      Set<Long> pins,
+      Set<Long> hidden) {
     List<Long> ids = gs.stream().map(SubjectStore.GroupRef::id).toList();
     return new SubjectView(
         r.id(),
@@ -110,6 +118,7 @@ public class SubjectService {
         r.chatUrl(),
         r.archivedAt() != null,
         pins.contains(r.id()),
+        !hidden.contains(r.id()),
         gs,
         new Can(
             access.can(actor, Permission.MANAGE_SUBJECTS, ids),
@@ -160,6 +169,19 @@ public class SubjectService {
       subjects.pin(actor.id(), id, clock.millis());
     } else {
       subjects.unpin(actor.id(), id);
+    }
+  }
+
+  /**
+   * «Не мой предмет»: скрыть у себя предмет другой подгруппы — его задания, новости и материалы
+   * пропадут из общих лент и уведомлений (на странице предмета всё остаётся) — или вернуть.
+   */
+  public void setMine(Actor actor, long id, boolean mine) {
+    visible(actor, id);
+    if (mine) {
+      subjects.unhide(actor.id(), id);
+    } else {
+      subjects.hide(actor.id(), id, clock.millis());
     }
   }
 

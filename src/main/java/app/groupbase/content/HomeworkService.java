@@ -115,6 +115,7 @@ public class HomeworkService {
       long authorId,
       String title,
       long dueAt,
+      long subjectId,
       String subjectName,
       Kind kind,
       String place) {}
@@ -238,6 +239,13 @@ public class HomeworkService {
             AND (h.hidden = 0 OR h.author_id = :uid OR EXISTS (
               SELECT 1 FROM homework_targets t2 WHERE t2.homework_id = h.id AND t2.group_id IN (:mod)))
             """);
+    // Общие списки — без предметов, которые человек скрыл у себя (другая подгруппа); на странице
+    // самого предмета видно всё.
+    if (subject == null) {
+      where.append(
+          " AND NOT EXISTS (SELECT 1 FROM subject_hidden sh"
+              + " WHERE sh.user_id = :uid AND sh.subject_id = h.subject_id)");
+    }
     long now = clock.millis();
     switch (view) {
       case WEEK -> {
@@ -360,10 +368,12 @@ public class HomeworkService {
             .single();
     targets.set(Targets.Kind.HOMEWORK, id, to);
     setAttachments(actor, id, in.attachments());
-    audit.log(actor, to.iterator().next(), "homework.create", "homework", id);
+    audit.log(
+        actor, to.iterator().next(), "homework.create", "homework", id, Map.of("title", title));
     Item item = get(actor, id);
     events.publishEvent(
-        new Published(id, to, actor.id(), title, due, item.subject().name(), kind, place));
+        new Published(
+            id, to, actor.id(), title, due, in.subjectId(), item.subject().name(), kind, place));
     return item;
   }
 
@@ -562,15 +572,7 @@ public class HomeworkService {
               .query(Long.class)
               .optional()
               .orElseThrow(ApiException::notFound);
-      boolean used =
-          db.sql(
-                      "SELECT (SELECT count(*) FROM materials WHERE file_id = ?)"
-                          + " + (SELECT count(*) FROM homework_attachments WHERE file_id = ?)")
-                  .params(f, f)
-                  .query(Integer.class)
-                  .single()
-              > 0;
-      if (uploader == null || uploader != actor.id() || used) {
+      if (uploader == null || uploader != actor.id() || MaterialService.used(db, f)) {
         throw ApiException.forbidden("Этот файл нельзя прикрепить");
       }
     }

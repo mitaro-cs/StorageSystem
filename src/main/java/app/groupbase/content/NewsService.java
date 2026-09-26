@@ -30,7 +30,19 @@ public class NewsService {
       List<Long> groupIds,
       Long subjectId,
       Boolean pinned,
-      Boolean urgent) {}
+      Boolean urgent,
+      /* Фото и файлы: id загруженных файлов; null при изменении — не трогать. */
+      List<Long> attachments) {
+    public Input(
+        String title,
+        String body,
+        List<Long> groupIds,
+        Long subjectId,
+        Boolean pinned,
+        Boolean urgent) {
+      this(title, body, groupIds, subjectId, pinned, urgent, null);
+    }
+  }
 
   public record SubjectRef(long id, String name, String color) {}
 
@@ -50,12 +62,14 @@ public class NewsService {
       SubjectRef subject,
       List<SubjectStore.GroupRef> groups,
       int comments,
+      List<MaterialService.FileInfo> attachments,
       Can can) {}
 
   public record Page(List<Item> pinned, List<Item> items, Long next) {}
 
   /** Событие для уведомлений и поиска. */
-  public record Published(long id, Set<Long> groups, long authorId, boolean urgent, String title) {}
+  public record Published(
+      long id, Set<Long> groups, long authorId, boolean urgent, String title, Long subjectId) {}
 
   private record Row(
       long id,
@@ -155,6 +169,8 @@ public class NewsService {
         AND (:subject IS NULL OR p.subject_id = :subject)
         AND (p.hidden = 0 OR p.author_id = :uid OR EXISTS (
           SELECT 1 FROM post_targets t2 WHERE t2.post_id = p.id AND t2.group_id IN (:mod)))
+        AND (:subject IS NOT NULL OR p.subject_id IS NULL OR NOT EXISTS (
+          SELECT 1 FROM subject_hidden sh WHERE sh.user_id = :uid AND sh.subject_id = p.subject_id))
         """;
     List<Row> pinned = List.of();
     if (before == null) {
@@ -250,8 +266,10 @@ public class NewsService {
             .query(Long.class)
             .single();
     targets.set(Targets.Kind.POST, id, to);
-    audit.log(actor, to.iterator().next(), "news.create", "post", id);
-    events.publishEvent(new Published(id, to, actor.id(), Boolean.TRUE.equals(in.urgent()), title));
+    setAttachments(actor, id, in.attachments());
+    audit.log(actor, to.iterator().next(), "news.create", "post", id, Map.of("title", title));
+    events.publishEvent(
+        new Published(id, to, actor.id(), Boolean.TRUE.equals(in.urgent()), title, in.subjectId()));
     return get(actor, id);
   }
 
@@ -272,7 +290,67 @@ public class NewsService {
                 + " updated_at = ? WHERE id = ?")
         .params(title, md, Markdown.render(md), pinned ? 1 : 0, urgent ? 1 : 0, clock.millis(), id)
         .update();
+    if (in.attachments() != null) {
+      setAttachments(actor, id, in.attachments());
+    }
     return get(actor, id);
+  }
+
+  /**
+   * Прикрепляет фото и файлы к новости. Новые файлы должен был загрузить сам автор (или модератор,
+   * который правит новость); уже прикреплённые к ней остаются. Открепленные удалит уборка сирот.
+   */
+  private void setAttachments(Actor actor, long id, List<Long> fileIds) {
+    List<Long> wanted = fileIds == null ? List.of() : fileIds.stream().distinct().toList();
+    if (wanted.size() > 10) {
+      throw ApiException.invalid("attachments", "Не больше 10 вложений");
+    }
+    List<Long> current =
+        attachments(List.of(id)).getOrDefault(id, List.of()).stream()
+            .map(MaterialService.FileInfo::id)
+            .toList();
+    for (Long f : wanted) {
+      if (current.contains(f)) {
+        continue;
+      }
+      Long uploader =
+          db.sql("SELECT uploaded_by FROM files WHERE id = ?")
+              .param(f)
+              .query(Long.class)
+              .optional()
+              .orElseThrow(ApiException::notFound);
+      if (uploader == null || uploader != actor.id() || MaterialService.used(db, f)) {
+        throw ApiException.forbidden("Этот файл нельзя прикрепить");
+      }
+    }
+    db.sql("DELETE FROM post_attachments WHERE post_id = ?").param(id).update();
+    for (int i = 0; i < wanted.size(); i++) {
+      db.sql("INSERT INTO post_attachments (post_id, file_id, position) VALUES (?, ?, ?)")
+          .params(id, wanted.get(i), i)
+          .update();
+    }
+  }
+
+  private Map<Long, List<MaterialService.FileInfo>> attachments(List<Long> postIds) {
+    Map<Long, List<MaterialService.FileInfo>> out = new HashMap<>();
+    if (postIds.isEmpty()) {
+      return out;
+    }
+    db.sql(
+            """
+            SELECT a.post_id, f.id, f.name, f.mime, f.size FROM post_attachments a
+            JOIN files f ON f.id = a.file_id
+            WHERE a.post_id IN (:ids) ORDER BY a.position
+            """)
+        .param("ids", postIds)
+        .query(
+            rs -> {
+              out.computeIfAbsent(rs.getLong(1), k -> new ArrayList<>())
+                  .add(
+                      new MaterialService.FileInfo(
+                          rs.getLong(2), rs.getString(3), rs.getString(4), rs.getLong(5)));
+            });
+    return out;
   }
 
   @Transactional
@@ -336,6 +414,7 @@ public class NewsService {
     Map<Long, Person> authors = people.load(authorIds);
     Map<Long, String> groupNames = new HashMap<>();
     groups.listByIds(groupIds).forEach(g -> groupNames.put(g.id(), g.name()));
+    Map<Long, List<MaterialService.FileInfo>> files = attachments(ids);
     List<Item> out = new ArrayList<>();
     for (Row r : rows) {
       List<Long> tg = t.getOrDefault(r.id(), List.of());
@@ -359,6 +438,7 @@ public class NewsService {
                   .map(g -> new SubjectStore.GroupRef(g, groupNames.getOrDefault(g, "")))
                   .toList(),
               r.comments(),
+              files.getOrDefault(r.id(), List.of()),
               new Can(canEdit(actor, r, tg), isAuthor(actor, r) || mod, mod)));
     }
     return out;
