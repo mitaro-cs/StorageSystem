@@ -2,14 +2,14 @@
 	import { fioError } from '$lib/names';
 	import { goto } from '$app/navigation';
 	import {
-		BookOpen,
+		Bell,
 		Database,
 		Download,
 		Fingerprint,
 		KeyRound,
 		LogOut,
+		GraduationCap,
 		MonitorSmartphone,
-		Newspaper,
 		Palette,
 		ScanLine,
 		Settings,
@@ -26,8 +26,10 @@
 	import { t } from '$lib/i18n/ru';
 	import {
 		canManage,
+		currentGroup,
 		groups,
 		hasSettings,
+		isAdmin,
 		loadMe,
 		manageMode,
 		session,
@@ -44,8 +46,13 @@
 	import { clearRecent } from '$lib/recent';
 	import { ask, askText } from '$lib/ui/ask.svelte';
 	import { copy } from '$lib/copy';
+	import { sessionNavVisible } from '$lib/content/session';
 
 	const me = $derived(session.me!);
+	// «Сессия» — как в боковой панели компьютера: около сессии или по выбору старосты.
+	const showSession = $derived(
+		(currentGroup() ? [currentGroup()!] : groups()).some((g) => sessionNavVisible(g, Date.now()))
+	);
 	// Кабинет администратора и старосты: здесь же видны все люди группы с их ролями.
 	const seesPeople = $derived(
 		manageMode() &&
@@ -253,11 +260,14 @@
 	</div>
 </header>
 
+<!-- На телефоне: разделы, которых нет в нижней панели (новости и предметы — в ней). -->
 <nav class="quick mobile" aria-label="Разделы">
-	<a href="/news"><Newspaper size={18} /> {t.nav.news}</a>
-	<a href="/subjects"><BookOpen size={18} /> {t.nav.subjects}</a>
-	<a href="/members"><Users size={18} /> {t.nav.members}</a>
-	{#if hasSettings()}<a href="/settings"><Settings size={18} /> {t.nav.settings}</a>{/if}
+	<a href="/members"><Users size={18} /> <span>{t.nav.members}</span></a>
+	{#if showSession}<a href="/session"><GraduationCap size={18} /> <span>{t.nav.session}</span></a
+		>{/if}
+	<a href="/notifications"><Bell size={18} /> <span>{t.nav.notifications}</span></a>
+	{#if hasSettings()}<a href="/settings"><Settings size={18} /> <span>{t.nav.settings}</span></a
+		>{/if}
 </nav>
 
 {#if canManage()}
@@ -440,7 +450,10 @@
 		<Button onclick={logout}><LogOut size={16} /> Выйти</Button>
 		<Button variant="danger" onclick={() => (deleteOpen = true)}>Удалить аккаунт</Button>
 	</div>
-	<p class="faint small">groupbase {me.instance.version}</p>
+	<p class="faint small">
+		groupbase {me.instance.version}{#if isAdmin()}
+			· <a href="/settings?tab=updates">проверить обновления</a>{/if}
+	</p>
 </section>
 
 <!-- Редкие окна (аватар, 2FA, резервные коды) грузят свой код только при открытии. -->
@@ -636,6 +649,16 @@
 	}
 	.quick a:hover {
 		text-decoration: none;
+	}
+	/* Узкий телефон: значок не сжимается, длинная подпись («Уведомления») — с многоточием. */
+	.quick a :global(svg) {
+		flex: none;
+	}
+	.quick span {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	@media (min-width: 900px) {
 		.mobile {

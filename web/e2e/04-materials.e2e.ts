@@ -41,9 +41,18 @@ test('староста загружает материал, студент ег�
 	const ctx = await browser.newContext({ locale: 'ru-RU', viewport: { width: 390, height: 844 } });
 	const student = await ctx.newPage();
 	await login(student, STUDENT);
+	// На телефоне файлы — внутри предмета: «Предметы» в нижней панели → предмет → «Материалы».
 	await student
 		.getByRole('navigation', { name: 'Основные разделы' })
-		.getByRole('link', { name: 'Файлы' })
+		.getByRole('link', { name: 'Предметы' })
+		.click();
+	await student
+		.getByRole('link', { name: /Математический анализ/ })
+		.first()
+		.click();
+	await student
+		.getByRole('navigation', { name: 'Разделы предмета' })
+		.getByRole('link', { name: 'Материалы' })
 		.click();
 	await student.getByRole('link', { name: 'Лекция 1.pdf' }).first().click();
 	await expect(student.getByRole('heading', { name: 'Лекция 1.pdf' })).toBeVisible();

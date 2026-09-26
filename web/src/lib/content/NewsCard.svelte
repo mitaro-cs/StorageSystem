@@ -34,8 +34,10 @@
 		<div class="band"><Zap size={15} strokeWidth={2.4} /> Срочно</div>
 	{/if}
 	<header>
-		<Author person={item.author} label={full ? undefined : shortName(item.author.displayName)} />
-		<span class="faint small num when">{fmtAgo(item.createdAt)}</span>
+		<span class="byline">
+			<Author person={item.author} label={full ? undefined : shortName(item.author.displayName)} />
+			<span class="faint small num when">{fmtAgo(item.createdAt)}</span>
+		</span>
 		<span class="spacer"></span>
 		{#if item.pinned}<span class="faint" title="Закреплено"><Pin size={15} /></span>{/if}
 		<Menu items={actions} />
@@ -199,9 +201,29 @@
 	.news :global(.body:not(.clamp)) {
 		pointer-events: auto;
 	}
+	.byline {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-width: 0;
+	}
 	.when {
 		flex: none;
 		white-space: nowrap;
+	}
+	/* Телефон: время — под именем, чтобы имя не обрезалось до пары букв. */
+	@media (max-width: 480px) {
+		.byline {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0;
+		}
+		.byline :global(.author) {
+			max-width: 100%;
+		}
+		.when {
+			margin: -3px 0 0 36px;
+		}
 	}
 	footer {
 		display: flex;

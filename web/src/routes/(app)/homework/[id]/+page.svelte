@@ -284,7 +284,21 @@
 	h1 {
 		font-size: clamp(20px, 4.4vw, 26px);
 		line-height: 1.2;
-		overflow-wrap: anywhere;
+		overflow-wrap: break-word;
+		hyphens: auto;
+	}
+	/* Узкий телефон: картинка — полосой сверху, название — во всю ширину, без разрывов слов. */
+	@media (max-width: 520px) {
+		.hero {
+			grid-template-columns: 1fr;
+			gap: var(--s3);
+		}
+		.cover {
+			min-height: 112px;
+		}
+		.hero-info {
+			padding: 0 4px 2px;
+		}
 	}
 	.sub {
 		color: var(--inverse-muted);

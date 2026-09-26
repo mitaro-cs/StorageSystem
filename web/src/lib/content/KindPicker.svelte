@@ -43,6 +43,18 @@
 			grid-template-columns: repeat(3, 1fr);
 		}
 	}
+	/* Узкий телефон: в три колонки «Лабораторная» не помещается — две колонки, значок рядом. */
+	@media (max-width: 420px) {
+		.seg {
+			grid-template-columns: repeat(2, 1fr);
+		}
+		button {
+			flex-direction: row;
+			gap: 8px;
+			height: 44px;
+			font-size: 13px;
+		}
+	}
 	button {
 		display: inline-flex;
 		flex-direction: column;

@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { ChevronDown } from '@lucide/svelte';
+	import { ChevronDown, Search } from '@lucide/svelte';
 	import { t } from '$lib/i18n/ru';
 	import { currentGroup, groups, isMulti, selectGroup, session } from '$lib/session.svelte';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import Bell from './Bell.svelte';
 
-	// Разделы на телефоне — в нижней панели, остальное (новости, предметы, участники, настройки) —
-	// на главной и в профиле, поэтому отдельного меню здесь нет.
+	// Разделы на телефоне — в нижней панели (как в боковой панели компьютера), поиск — здесь,
+	// участники и настройки — в профиле, поэтому отдельного меню нет.
 	const title = $derived(
 		currentGroup()?.name ??
 			(isMulti() ? t.nav.allGroups : (session.me?.groups[0]?.name ?? 'groupbase'))
@@ -30,6 +30,9 @@
 	{:else}
 		<strong class="title">{title}</strong>
 	{/if}
+	<a class="circle" href="/search" aria-label={t.nav.search} title={t.nav.search}
+		><Search size={19} /></a
+	>
 	<Bell />
 	<ThemeToggle />
 </header>
