@@ -108,6 +108,18 @@ class HostController {
     return run(hosts::takeOver);
   }
 
+  /**
+   * «Вернуть сайт сюда» после переноса по коду, если на новом компьютере он так и не заработал.
+   * Только с этого компьютера: в этом состоянии войти по паролю нельзя.
+   */
+  @PostMapping("/return")
+  HostService.View returnHere(HttpServletRequest req) {
+    if (!here(req)) {
+      throw ApiException.forbidden("Доступно только в приложении на компьютере хоста");
+    }
+    return run(hosts::returnHere);
+  }
+
   /** Запрос с этого же компьютера — окно приложения хоста (не через туннель). */
   private boolean here(HttpServletRequest req) {
     return bridge.enabled() && Requests.fromThisComputer(req);

@@ -73,7 +73,9 @@ public class HostService implements SmartLifecycle {
     /** Ждём ответа хоста или пока облако докачает данные. */
     WAITING,
     /** Данные взяты — сервер перезапускается. */
-    SWITCHING;
+    SWITCHING,
+    /** Сайт перенесён отсюда на другой компьютер по коду — здесь не открывается. */
+    MOVED;
 
     public String id() {
       return name().toLowerCase(Locale.ROOT);
@@ -187,6 +189,9 @@ public class HostService implements SmartLifecycle {
   private ScheduledExecutorService timer;
   private volatile boolean running;
 
+  /** До этого времени изменения на сайте не принимаются: его забирает другой компьютер по коду. */
+  private volatile long movingUntil;
+
   public HostService(
       GroupbaseProperties props,
       JdbcClient db,
@@ -219,7 +224,12 @@ public class HostService implements SmartLifecycle {
       }
     }
     this.cfg = c;
-    if (cfg != null && cfg.dir() != null) {
+    if (cfg != null && cfg.moved() > 0) {
+      // Сайт перенесли отсюда по коду: старые данные здесь не должны заработать снова.
+      role = Role.MOVED;
+      message = MOVED_MESSAGE;
+      access.suspend(message);
+    } else if (cfg != null && cfg.dir() != null) {
       folder = new SiteFolder(cfg.dir());
       // До того как AccessService поднимет туннель: не хост — туннель не нужен.
       synchronized (this) {
@@ -228,10 +238,108 @@ public class HostService implements SmartLifecycle {
     }
   }
 
+  static final String MOVED_MESSAGE = "Сайт перенесён на другой компьютер.";
+
   /** Сайт работает здесь (или перенос выключен): API открыт, фоновые копии делаются. */
   public boolean serving() {
     Role r = role;
     return r == Role.OFF || r == Role.HOST;
+  }
+
+  /** Сайт забирает другой компьютер по коду: читать можно, менять — нет. */
+  public boolean moving() {
+    return clock.millis() < movingUntil;
+  }
+
+  /** Запретить изменения до этого времени (0 — снять запрет). */
+  public void lockWrites(long until) {
+    movingUntil = until;
+  }
+
+  /** Код переноса даёт только компьютер, на котором сайт сейчас работает. */
+  public void requireServing() {
+    requireApp();
+    if (!serving()) {
+      throw new Problem("Код переноса даёт компьютер, на котором сейчас работает сайт");
+    }
+  }
+
+  /**
+   * Сайт забрали по коду: здесь он больше не открывается и туннель не поднимается — ни сейчас, ни
+   * после перезапуска. Перенос через облачную папку при этом выключается (другие компьютеры её не
+   * заберут сами), чтобы сайт не заработал в двух местах.
+   */
+  public synchronized void movedAway() {
+    long now = clock.millis();
+    if (folder != null) {
+      try {
+        folder.writeHost(record(SiteFolder.DETACHED, now, lastSnapshot, null));
+      } catch (IOException e) {
+        // Папки не видно — другие компьютеры и так её не читают.
+      }
+      folder = null;
+      cfg.setDir(null);
+    }
+    cfg.setMoved(now);
+    saveCfg();
+    movingUntil = 0;
+    role = Role.MOVED;
+    plan = null;
+    message = MOVED_MESSAGE;
+    problem = null;
+    access.suspend(message);
+    log.info("Сайт перенесён на другой компьютер по коду — этот больше не хост");
+  }
+
+  /**
+   * «Вернуть сайт сюда» после переноса по коду — если на новом компьютере он так и не заработал.
+   * Сначала проверяем, что по адресу сайта никто не отвечает: иначе будут два разных сайта.
+   */
+  public View returnHere() {
+    requireApp();
+    synchronized (this) {
+      if (role != Role.MOVED) {
+        return view();
+      }
+    }
+    Probe seen = probe();
+    lastSeen = seen;
+    if (seen.seen() == Seen.OTHER || seen.seen() == Seen.HERE) {
+      throw new Problem(
+          "Сайт уже работает на другом компьютере. Чтобы вернуть его сюда, возьмите там код"
+              + " переноса и введите его здесь.");
+    }
+    synchronized (this) {
+      cfg.setMoved(0);
+      saveCfg();
+      role = Role.OFF;
+      message = null;
+      problem = null;
+      access.resume();
+      log.info("Сайт возвращён на этот компьютер");
+      return view();
+    }
+  }
+
+  /**
+   * Перед тем как взять сайт по коду: этот компьютер начинает с чистого листа — без общей папки,
+   * заказанных снимков и отметки «перенесён».
+   */
+  public synchronized void prepareForPull() {
+    if (cfg == null) {
+      return;
+    }
+    cfg.setDir(null);
+    cfg.setPending(null, false);
+    cfg.setClaim(false);
+    cfg.setMoved(0);
+    cfg.setFailed(null, "");
+    cfg.setError("");
+    saveCfg();
+    folder = null;
+    role = Role.SWITCHING;
+    message = "Переносим сайт на этот компьютер…";
+    access.suspend(message);
   }
 
   /** Текст для ответа API в режиме ожидания. */
@@ -486,7 +594,7 @@ public class HostService implements SmartLifecycle {
       case CHECKING -> checkingStep(now);
       case STANDBY, WAITING -> decide(now, true);
       default -> {
-        // OFF и SWITCHING — делать нечего.
+        // OFF, SWITCHING и MOVED — делать нечего.
       }
     }
   }
@@ -881,6 +989,9 @@ public class HostService implements SmartLifecycle {
     if (role == Role.STANDBY && p == null && folder != null && !Files.isDirectory(folder.dir())) {
       action = null;
     }
+    if (role == Role.MOVED) {
+      action = "return";
+    }
     List<Choice> choices = new ArrayList<>();
     if (available && folder == null) {
       for (CloudFolders.Folder f : roots()) {
@@ -1160,7 +1271,7 @@ public class HostService implements SmartLifecycle {
     return found.name();
   }
 
-  private void requireApp() {
+  public void requireApp() {
     if (cfg == null || !bridge.enabled()) {
       throw new Problem("Работа на нескольких компьютерах — только в приложении хоста");
     }

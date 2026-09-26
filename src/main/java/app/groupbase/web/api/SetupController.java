@@ -4,6 +4,7 @@ import app.groupbase.accounts.GroupService;
 import app.groupbase.accounts.SetupService;
 import app.groupbase.backup.RestoreStager;
 import app.groupbase.hosts.HostService;
+import app.groupbase.hosts.TransferService;
 import app.groupbase.web.ApiException;
 import app.groupbase.web.Public;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,16 +36,42 @@ class SetupController {
 
   record JoinBody(String path) {}
 
+  record TransferBody(String url, String code) {}
+
   private final SetupService setup;
   private final Http http;
   private final RestoreStager restore;
   private final HostService hosts;
+  private final TransferService transfers;
 
-  SetupController(SetupService setup, Http http, RestoreStager restore, HostService hosts) {
+  SetupController(
+      SetupService setup,
+      Http http,
+      RestoreStager restore,
+      HostService hosts,
+      TransferService transfers) {
     this.setup = setup;
     this.http = http;
     this.restore = restore;
     this.hosts = hosts;
+    this.transfers = transfers;
+  }
+
+  /**
+   * Первый запуск: забрать сайт с работающего компьютера по коду переноса — вместо файла резервной
+   * копии. Данные встанут после перезапуска.
+   */
+  @PostMapping("/transfer")
+  RestoreStager.Result transfer(@RequestParam String code, @RequestBody TransferBody b) {
+    setup.checkCode(code);
+    if (!setup.needed()) {
+      throw ApiException.conflict("already_setup", "Сайт уже настроен");
+    }
+    try {
+      return new RestoreStager.Result("restarting", transfers.pull(b.url(), b.code()));
+    } catch (HostService.Problem e) {
+      throw ApiException.badRequest(e.getMessage());
+    }
   }
 
   /**

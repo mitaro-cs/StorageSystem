@@ -39,7 +39,7 @@ public final class PendingRestore {
     if (!Files.isRegularFile(pending)) {
       return false;
     }
-    say.accept("Восстанавливаем данные из резервной копии…");
+    say.accept("Разворачиваем данные сайта…");
     BackupService.restore(pending, dataDir, say);
     // Прежние данные остались в before-restore-…; сам архив больше не нужен.
     Files.delete(pending);
