@@ -28,7 +28,10 @@ test('обычному участнику отдельный пункт «Нас
 test('тема оформления: цвет и режим меняются сразу и сохраняются', async ({ page }) => {
 	await login(page, STUDENT);
 	await page.goto('/profile');
-	await page.getByRole('radio', { name: 'Океан' }).click();
+	await page
+		.getByRole('radiogroup', { name: 'Цвет' })
+		.getByRole('radio', { name: 'Океан' })
+		.click();
 	const html = page.locator('html');
 	await expect(html).toHaveAttribute('data-palette', 'ocean');
 	const accent = () =>
@@ -45,7 +48,9 @@ test('тема оформления: цвет и режим меняются с�
 	await page.reload();
 	await expect(html).toHaveAttribute('data-palette', 'ocean');
 	await expect(html).toHaveAttribute('data-theme', 'dark');
-	await expect(page.getByRole('radio', { name: 'Океан' })).toHaveAttribute('aria-checked', 'true');
+	await expect(
+		page.getByRole('radiogroup', { name: 'Цвет' }).getByRole('radio', { name: 'Океан' })
+	).toHaveAttribute('aria-checked', 'true');
 
 	await page.getByRole('radio', { name: 'Классика' }).click();
 	await expect(html).not.toHaveAttribute('data-palette', /.+/);

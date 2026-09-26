@@ -50,7 +50,7 @@ test('модератор сайта видит участников списко
 	await page.goto('/members');
 	const row = page.locator('.list-row', { hasText: STUDENT.name });
 	await row.getByRole('button', { name: 'Действия' }).click();
-	await page.getByRole('menuitem', { name: 'Сделать модератором сайта' }).click();
+	await page.getByRole('menuitem', { name: 'Сделать модератором' }).click();
 	await expect(row).toContainText('Модератор');
 
 	const ctx = await browser.newContext({ locale: 'ru-RU' });

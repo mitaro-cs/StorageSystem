@@ -97,11 +97,11 @@ test('люди: администратор назначает модератор
 	await page.goto('/members');
 	const row = page.locator('.list-row', { hasText: STUDENT.name });
 	await row.getByRole('button', { name: 'Действия' }).click();
-	await row.getByRole('menuitem', { name: 'Сделать модератором сайта' }).click();
-	await expect(row.getByText('Модератор сайта')).toBeVisible();
+	await row.getByRole('menuitem', { name: 'Сделать модератором' }).click();
+	await expect(row.getByText('Модератор', { exact: true })).toBeVisible();
 	await row.getByRole('button', { name: 'Действия' }).click();
 	await row.getByRole('menuitem', { name: 'Снять роль модератора' }).click();
-	await expect(row.getByText('Модератор сайта')).toHaveCount(0);
+	await expect(row.getByText('Модератор', { exact: true })).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'Добавить людей' }).click();
 	const dialog = page.getByRole('dialog');

@@ -148,7 +148,8 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   — без атрибута), правила — в app.css и в NewsCard/HomeworkRow (цвет предмета — `--subject`).
   Каждый выбирает себе; по умолчанию вид не меняется.
 - Блокировать, исключать и удалять людей (`block_users`) могут только администратор и староста —
-  у модератора сайта этого права нет (Rbac.MODERATOR).
+  у модератора этого права нет (Rbac.MODERATOR). В интерфейсе роли — «Администратор» и
+  «Модератор», без «сайта».
 - Иконки (`/icons/*`, favicon) кешируются на месяц: при смене картинки — новый `?v=` в app.html,
   manifest.webmanifest и service-worker.ts.
 - Логотип — `web/static/logo.svg` (элементы по id: globe, grid, figure, eye; белые линии рассчитаны
@@ -181,6 +182,32 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
 - «Настройки → Версия и обновления» (`lib/settings/UpdatesPanel.svelte`, `POST
   /api/admin/update-check`): GitHub сразу (`UpdateCheck.checkNow`, ответ с причиной ошибки), в
   приложении хоста — ещё и оболочка. В e2e проверка выключена (`GROUPBASE_UPDATE_CHECK=false`).
+- «Модерация» (`routes/(app)/moderation`, пакет `moderation`, `/api/moderation/*`): жалобы (таблица
+  `reports`, `POST /api/reports`, от человека на одно — одна открытая; кто пожаловался, модераторы не
+  видят), материалы на проверке, свежие и скрытые записи и комментарии, журнал (действия из
+  `ModerationService.LOG_ACTIONS`). Доступ — у кого `moderate_content` хоть в одной группе;
+  скрывают и удаляют сервисы новостей, заданий, материалов и комментариев (у комментария —
+  `PUT /api/comments/{id}/hidden`). Число в меню — `lib/moderation.svelte.ts`, действия и
+  «Пожаловаться» — `lib/content/moderate.ts`. Уведомления о жалобах и материалах на проверку —
+  и модераторам сайта (`Notifier.moderators`).
+- Живые обновления: `sync/LiveUpdates` (SSE `/api/live`, раз в секунду смотрит `MAX(seq)` журнала
+  `changes`; в потоке только номер, данные — обычными запросами; `bell` — кому пришло уведомление).
+  Фронт — `lib/live.ts` (грузится отдельно): пока вкладка видна, по событию — `syncNow()` или
+  `offline.version++`; нет «hello» за 8 с (туннель копит ответ) — опрос раз в 20 с. `LiveUpdates` —
+  `SmartLifecycle`: закрывает соединения до «вежливой» остановки Tomcat (иначе ждала бы до 20 с).
+- Оформление на устройстве (`lib/looks.ts`, выбор — `shell/ThemePicker`): фон страниц — `data-bg`
+  на `<html>` и слой `:root[data-bg]::before` в app.css (своя картинка — `--bg-image`, data: URL в
+  localStorage), значок — `lib/appIcon.svelte.ts` (варианты — `java scripts/Icons.java variants`:
+  `static/icons/v/*`, `manifest-*.webmanifest`). Стили `outline`, `neon`, `paper`, `comic` — в app.css.
+  Всё применяет скрипт в app.html до отрисовки.
+- Фон карточки предмета: `subjects.cover`, `AvatarService.storeCover` (16:9, 1280 и 480, WebP),
+  `PUT/DELETE /api/subjects/{id}/cover`; `SubjectArt` показывает его вместо иконки.
+- Знакомство после регистрации: `users.onboarded_at` (у прежних — заполнено миграцией),
+  `me.user.onboarded`, окно — `lib/Welcome.svelte` (открывается после ухода заставки: событие
+  `gb:splash-gone`), состояние — `lib/onboarding.svelte.ts`. В e2e его закрывают 01 и 03 — дальше не
+  мешает.
+- Бюджет 100 КБ: редкое на тяжёлых страницах — лениво (добавление людей, QR-код, поля нового пароля,
+  разбор офлайн-копии `offline/local.ts`, живые обновления).
 - iPhone, установленный сайт: после клавиатуры iOS 26–27 сдвигает видимую область относительно
   position: fixed (WebKit 297779). `lib/shell/viewport.ts` считает сдвиг (`--vv-shift`, класс
   `kb-open` — печатают); нижние фиксированные элементы берут `translate: 0 var(--vv-shift, 0px)`.
