@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Комментарии к новостям, ДЗ и материалам. Права — по группам родительской записи. */
 @Service
@@ -30,8 +31,17 @@ public class CommentService {
     }
   }
 
+  /**
+   * @param canHide скрыть и вернуть может модератор: скрытый видят только модераторы и автор
+   */
   public record Comment(
-      long id, Person author, String bodyHtml, long createdAt, boolean hidden, boolean canDelete) {}
+      long id,
+      Person author,
+      String bodyHtml,
+      long createdAt,
+      boolean hidden,
+      boolean canDelete,
+      boolean canHide) {}
 
   private record Row(long id, Long authorId, String bodyHtml, long createdAt, boolean hidden) {}
 
@@ -61,7 +71,7 @@ public class CommentService {
   }
 
   /** Группы, которым виден родитель. Пусто — родителя нет. */
-  List<Long> parentGroups(Parent parent, long id) {
+  public List<Long> parentGroups(Parent parent, long id) {
     return switch (parent) {
       case POST -> targets.of(Targets.Kind.POST, id);
       case HOMEWORK -> targets.of(Targets.Kind.HOMEWORK, id);
@@ -119,7 +129,8 @@ public class CommentService {
                     r.bodyHtml(),
                     r.createdAt(),
                     r.hidden(),
-                    mod || (r.authorId() != null && r.authorId() == actor.id())))
+                    mod || (r.authorId() != null && r.authorId() == actor.id()),
+                    mod))
         .toList();
   }
 
@@ -142,27 +153,72 @@ public class CommentService {
             .query(Long.class)
             .single();
     Person me = people.load(List.of(actor.id())).get(actor.id());
-    return new Comment(cid, me, html, now, false, true);
+    return new Comment(
+        cid, me, html, now, false, true, access.can(actor, Permission.MODERATE_CONTENT, groups));
+  }
+
+  private record C(String type, long targetId, Long authorId) {}
+
+  private C find(long commentId) {
+    return db.sql("SELECT target_type, target_id, author_id FROM comments WHERE id = ?")
+        .param(commentId)
+        .query((rs, i) -> new C(rs.getString(1), rs.getLong(2), Rows.longOrNull(rs, "author_id")))
+        .optional()
+        .orElseThrow(ApiException::notFound);
+  }
+
+  /**
+   * Скрыть или вернуть комментарий — модератор. Скрытый не удаляется: его видят модераторы и автор,
+   * а вернуть можно в «Модерации».
+   */
+  @Transactional
+  public void setHidden(Actor actor, long commentId, boolean hidden) {
+    C c = find(commentId);
+    Parent parent = Parent.valueOf(c.type().toUpperCase(Locale.ROOT));
+    List<Long> groups = visibleParent(actor, parent, c.targetId());
+    if (!access.can(actor, Permission.MODERATE_CONTENT, groups)) {
+      throw ApiException.forbidden();
+    }
+    db.sql("UPDATE comments SET hidden = ? WHERE id = ?")
+        .params(hidden ? 1 : 0, commentId)
+        .update();
+    audit.log(
+        actor, groups.getFirst(), hidden ? "comment.hide" : "comment.unhide", "comment", commentId);
   }
 
   public void delete(Actor actor, long commentId) {
-    record C(String type, long targetId, Long authorId) {}
-    C c =
-        db.sql("SELECT target_type, target_id, author_id FROM comments WHERE id = ?")
-            .param(commentId)
-            .query(
-                (rs, i) -> new C(rs.getString(1), rs.getLong(2), Rows.longOrNull(rs, "author_id")))
-            .optional()
-            .orElseThrow(ApiException::notFound);
+    C c = find(commentId);
     Parent parent = Parent.valueOf(c.type().toUpperCase(Locale.ROOT));
     List<Long> groups = visibleParent(actor, parent, c.targetId());
     boolean own = c.authorId() != null && c.authorId() == actor.id();
     if (!own && !access.can(actor, Permission.MODERATE_CONTENT, groups)) {
       throw ApiException.forbidden();
     }
+    String text =
+        db.sql("SELECT body_md FROM comments WHERE id = ?")
+            .param(commentId)
+            .query(String.class)
+            .optional()
+            .orElse("");
     db.sql("DELETE FROM comments WHERE id = ?").param(commentId).update();
     if (!own) {
-      audit.log(actor, groups.getFirst(), "comment.delete", "comment", commentId);
+      // Самого комментария больше нет — в журнале модерации видно, что это было и где.
+      audit.log(
+          actor,
+          groups.getFirst(),
+          "comment.delete",
+          "comment",
+          commentId,
+          Map.of("text", snippet(text, 120), "parent", parent.id() + ":" + c.targetId()));
     }
+  }
+
+  /** Начало текста одной строкой: для журнала и карточек модерации. */
+  public static String snippet(String markdown, int max) {
+    String s =
+        markdown == null
+            ? ""
+            : markdown.replaceAll("[*_`#>\\[\\]]", "").replaceAll("\\s+", " ").strip();
+    return s.length() <= max ? s : s.substring(0, max - 1).strip() + "…";
   }
 }

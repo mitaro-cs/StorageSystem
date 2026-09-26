@@ -26,7 +26,8 @@ public class SubjectStore {
       long createdAt,
       Long archivedAt,
       String chatUrl,
-      String icon) {}
+      String icon,
+      String cover) {}
 
   public record GroupRef(long id, String name) {}
 
@@ -54,7 +55,8 @@ public class SubjectStore {
               rs.getLong("created_at"),
               Rows.longOrNull(rs, "archived_at"),
               rs.getString("chat_url"),
-              rs.getString("icon"));
+              rs.getString("icon"),
+              rs.getString("cover"));
 
   private final JdbcClient db;
 
@@ -108,6 +110,10 @@ public class SubjectStore {
 
   public void setArchived(long id, Long at) {
     db.sql("UPDATE subjects SET archived_at = ? WHERE id = ?").params(at, id).update();
+  }
+
+  public void setCover(long id, String cover) {
+    db.sql("UPDATE subjects SET cover = ? WHERE id = ?").params(cover, id).update();
   }
 
   public void setAvatar(long id, String avatar) {

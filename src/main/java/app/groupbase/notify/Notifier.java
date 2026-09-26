@@ -2,16 +2,20 @@ package app.groupbase.notify;
 
 import app.groupbase.auth.Authz;
 import app.groupbase.auth.Permission;
+import app.groupbase.auth.Rbac;
 import app.groupbase.config.GroupbaseProperties;
 import app.groupbase.content.HomeworkService;
 import app.groupbase.content.MaterialService;
 import app.groupbase.content.NewsService;
 import app.groupbase.content.SubjectStore;
+import app.groupbase.moderation.ModerationService;
 import app.groupbase.notify.NotificationPrefs.Prefs;
 import app.groupbase.notify.PushSender.Message;
 import app.groupbase.store.GroupStore;
 import app.groupbase.store.Member;
 import app.groupbase.store.User;
+import app.groupbase.store.UserStore;
+import app.groupbase.sync.LiveUpdates;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -52,6 +56,8 @@ public class Notifier implements DisposableBean {
   private final GroupStore groups;
   private final SubjectStore subjects;
   private final Authz authz;
+  private final UserStore users;
+  private final LiveUpdates live;
   private final GroupbaseProperties props;
   private final Clock clock;
 
@@ -63,6 +69,8 @@ public class Notifier implements DisposableBean {
       GroupStore groups,
       SubjectStore subjects,
       Authz authz,
+      UserStore users,
+      LiveUpdates live,
       GroupbaseProperties props,
       Clock clock) {
     this.store = store;
@@ -72,6 +80,8 @@ public class Notifier implements DisposableBean {
     this.groups = groups;
     this.subjects = subjects;
     this.authz = authz;
+    this.users = users;
+    this.live = live;
     this.props = props;
     this.clock = clock;
   }
@@ -82,6 +92,7 @@ public class Notifier implements DisposableBean {
       return;
     }
     store.insert(users, m.kind(), m.title(), m.body(), m.url(), clock.millis());
+    live.bell(users);
     pushOnly(users, m, wantsPush);
   }
 
@@ -107,7 +118,10 @@ public class Notifier implements DisposableBean {
     return out;
   }
 
-  /** Те, кто может одобрять материалы в этих группах. */
+  /**
+   * Те, кто модерирует в этих группах: по роли в группе (староста) и администраторы и модераторы
+   * сайта — они модерируют везде, даже не состоя в группе.
+   */
   Set<Long> moderators(Collection<Long> groupIds, long except) {
     Set<Long> out = new LinkedHashSet<>();
     for (Long g : groupIds) {
@@ -117,6 +131,13 @@ public class Notifier implements DisposableBean {
             && authz.roleAllows(m.role(), Permission.MODERATE_CONTENT, g)) {
           out.add(m.userId());
         }
+      }
+    }
+    for (User u : users.listStaff()) {
+      if (u.status() == User.Status.ACTIVE
+          && u.id() != except
+          && Rbac.instanceAllows(u.instanceRole(), Permission.MODERATE_CONTENT)) {
+        out.add(u.id());
       }
     }
     return out;
@@ -204,7 +225,7 @@ public class Notifier implements DisposableBean {
               "material_pending",
               "Материал на проверку · " + subject,
               e.title(),
-              "/subjects/" + e.subjectId() + "?tab=materials",
+              "/moderation",
               false),
           p -> true);
     } else if ("published".equals(e.status())) {
@@ -214,5 +235,21 @@ public class Notifier implements DisposableBean {
               "material", "Новый материал · " + subject, e.title(), "/materials/" + e.id(), false),
           Prefs::materials);
     }
+  }
+
+  /** Жалоба — модераторам этих групп: в колокольчик и push (как материал на проверку). */
+  @TransactionalEventListener(fallbackExecution = true)
+  public void onReport(ModerationService.Reported e) {
+    later(
+        () ->
+            deliver(
+                moderators(e.groups(), e.reporterId()),
+                new Message(
+                    "report",
+                    "Жалоба: " + e.title(),
+                    e.reason().isBlank() ? "Без пояснения" : e.reason(),
+                    "/moderation",
+                    false),
+                p -> true));
   }
 }

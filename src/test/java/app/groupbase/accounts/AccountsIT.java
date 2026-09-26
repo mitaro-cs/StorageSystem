@@ -361,4 +361,17 @@ class AccountsIT extends IntegrationTest {
       a.patch("/api/admin/settings", Map.of("directAccounts", true));
     }
   }
+
+  @Test
+  void newcomerSeesWelcomeOnce() {
+    long g = newGroup("Знакомство");
+    TestUser u = newUser(g, "student");
+    // Только что зарегистрировался — окно знакомства ещё не показано.
+    assertThat(u.api().get("/api/me").json().get("user").get("onboarded").asBoolean()).isFalse();
+    var r = u.api().patch("/api/me/preferences", Map.of("onboarded", true));
+    assertThat(r.status()).as(r.body()).isEqualTo(200);
+    assertThat(u.api().get("/api/me").json().get("user").get("onboarded").asBoolean()).isTrue();
+    // Режим управления при этом не меняется.
+    assertThat(r.json().get("manageMode").asBoolean()).isTrue();
+  }
 }

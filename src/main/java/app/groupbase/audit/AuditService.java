@@ -53,6 +53,12 @@ public class AuditService {
     return store.list(groupIds, beforeId, limit);
   }
 
+  /** Только эти действия — журнал модерации. */
+  public List<AuditStore.Entry> list(
+      List<Long> groupIds, List<String> actions, Long beforeId, int limit) {
+    return store.list(groupIds, actions, beforeId, limit);
+  }
+
   public int forgetOldIps() {
     return store.forgetIps(clock.millis() - IP_RETENTION.toMillis());
   }

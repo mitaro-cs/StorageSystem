@@ -82,4 +82,10 @@ class NewsController {
     comments.delete(actor, id);
     return Map.of("status", "ok");
   }
+
+  @PutMapping("/api/comments/{id}/hidden")
+  Map<String, String> hideComment(Actor actor, @PathVariable long id, @RequestBody FlagBody b) {
+    comments.setHidden(actor, id, Boolean.TRUE.equals(b.value()));
+    return Map.of("status", "ok");
+  }
 }

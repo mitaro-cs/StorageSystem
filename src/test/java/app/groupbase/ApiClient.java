@@ -48,6 +48,17 @@ public class ApiClient {
     return send("GET", path, null);
   }
 
+  /** Поток строк ответа (SSE): читается по мере прихода, с cookie этого клиента. */
+  public java.util.stream.Stream<String> stream(String path)
+      throws IOException, InterruptedException {
+    HttpRequest req =
+        HttpRequest.newBuilder(URI.create(base.apply(port) + path))
+            .header("Accept", "text/event-stream")
+            .GET()
+            .build();
+    return http.send(req, HttpResponse.BodyHandlers.ofLines()).body();
+  }
+
   public Response post(String path, Object body) {
     return send("POST", path, body);
   }

@@ -43,7 +43,8 @@ class MeController {
       String avatar,
       InstanceRole instanceRole,
       boolean totpEnabled,
-      boolean manageMode) {}
+      boolean manageMode,
+      boolean onboarded) {}
 
   record GroupView(
       long id,
@@ -90,7 +91,10 @@ class MeController {
 
   record ProfileBody(String displayName) {}
 
-  record PreferencesBody(Boolean manageMode) {}
+  /**
+   * @param onboarded true — знакомство с сайтом просмотрено (больше не показывать)
+   */
+  record PreferencesBody(Boolean manageMode, Boolean onboarded) {}
 
   record PasswordBody(String current, String password) {}
 
@@ -109,6 +113,7 @@ class MeController {
   private final boolean desktop;
   private final PublicUrl publicUrl;
   private final GroupChatStore chats;
+  private final java.time.Clock clock;
 
   MeController(
       UserStore users,
@@ -120,7 +125,8 @@ class MeController {
       Cookies cookies,
       GroupbaseProperties props,
       PublicUrl publicUrl,
-      GroupChatStore chats) {
+      GroupChatStore chats,
+      java.time.Clock clock) {
     this.users = users;
     this.groups = groups;
     this.authz = authz;
@@ -132,6 +138,7 @@ class MeController {
     this.desktop = props.desktop().enabled();
     this.publicUrl = publicUrl;
     this.chats = chats;
+    this.clock = clock;
   }
 
   @AllowRestricted
@@ -162,7 +169,8 @@ class MeController {
             u.avatar(),
             u.instanceRole(),
             u.totpEnabled(),
-            users.manageMode(u.id())),
+            users.manageMode(u.id()),
+            users.onboarded(u.id())),
         actor.restriction() == null ? null : actor.restriction().id(),
         new InstanceView(
             name,
@@ -182,7 +190,11 @@ class MeController {
     if (b.manageMode() != null) {
       users.setManageMode(actor.id(), b.manageMode());
     }
-    return Map.of("manageMode", users.manageMode(actor.id()));
+    if (Boolean.TRUE.equals(b.onboarded())) {
+      users.setOnboarded(actor.id(), clock.millis());
+    }
+    return Map.of(
+        "manageMode", users.manageMode(actor.id()), "onboarded", users.onboarded(actor.id()));
   }
 
   private GroupView view(

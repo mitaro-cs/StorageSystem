@@ -111,6 +111,33 @@ class AvatarController {
     return Map.of("avatar", id);
   }
 
+  /** Фон карточки предмета — широкая картинка вместо иконки. */
+  @PutMapping("/api/subjects/{subjectId}/cover")
+  Map<String, String> setCover(Actor actor, @PathVariable long subjectId, HttpServletRequest req)
+      throws IOException {
+    SubjectStore.Row s = manageable(actor, subjectId);
+    String id = avatars.storeCover(req.getInputStream());
+    subjects.setCover(subjectId, id);
+    avatars.delete(s.cover());
+    return Map.of("cover", id);
+  }
+
+  @DeleteMapping("/api/subjects/{subjectId}/cover")
+  Map<String, String> removeCover(Actor actor, @PathVariable long subjectId) {
+    SubjectStore.Row s = manageable(actor, subjectId);
+    subjects.setCover(subjectId, null);
+    avatars.delete(s.cover());
+    return Map.of("status", "ok");
+  }
+
+  private SubjectStore.Row manageable(Actor actor, long subjectId) {
+    SubjectStore.Row s = subjectService.visible(actor, subjectId);
+    if (!access.can(actor, Permission.MANAGE_SUBJECTS, subjects.groupIds(subjectId))) {
+      throw ApiException.forbidden();
+    }
+    return s;
+  }
+
   /** При удалении аккаунта удаляется и аватар. */
   @EventListener
   void onUserDeleted(AccountService.UserDeleted e) {

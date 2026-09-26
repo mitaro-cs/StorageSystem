@@ -207,6 +207,22 @@ public class UserStore {
         .optional();
   }
 
+  /** Знакомство с сайтом (окно после регистрации) уже показано. */
+  public boolean onboarded(long id) {
+    return db.sql("SELECT onboarded_at IS NOT NULL FROM users WHERE id = ?")
+            .param(id)
+            .query(Integer.class)
+            .optional()
+            .orElse(1)
+        == 1;
+  }
+
+  public void setOnboarded(long id, long now) {
+    db.sql("UPDATE users SET onboarded_at = ? WHERE id = ? AND onboarded_at IS NULL")
+        .params(now, id)
+        .update();
+  }
+
   /** Режим управления: false — интерфейс без кнопок администратора и старосты. */
   public boolean manageMode(long id) {
     return db.sql("SELECT manage_mode FROM users WHERE id = ?")

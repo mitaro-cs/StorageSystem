@@ -40,8 +40,12 @@ public class AvatarService {
   public static final int MAX_BYTES = 5 * 1024 * 1024;
   private static final int MAX_SIDE = 8000;
   public static final int[] SIZES = {256, 64};
+
+  /** Фон карточки предмета: 16:9, ширина 1280 (крупно) и 480 (плитки в списке). */
+  public static final int[] COVER_WIDTHS = {1280, 480};
+
   private static final Pattern ID = Pattern.compile("[0-9a-f]{20}");
-  private static final Pattern NAME = Pattern.compile("([0-9a-f]{20})-(256|64)\\.webp");
+  private static final Pattern NAME = Pattern.compile("([0-9a-f]{20})-(256|64|1280|480)\\.webp");
 
   private final Path dir;
   private final byte[] key;
@@ -77,6 +81,64 @@ public class AvatarService {
     return id;
   }
 
+  /**
+   * Сохраняет фон карточки предмета: середина картинки 16:9, перекодированная с нуля (без EXIF), в
+   * двух размерах. Возвращает идентификатор.
+   */
+  public String storeCover(InputStream body) throws IOException {
+    BufferedImage src = decode(read(body));
+    BufferedImage wide = cropWide(src);
+    String id = HexFormat.of().formatHex(Tokens.randomBytes(10));
+    Files.createDirectories(dir);
+    for (int w : COVER_WIDTHS) {
+      write(id + "-" + w + ".webp", encodeWebp(fit(wide, w, w * 9 / 16)));
+    }
+    return id;
+  }
+
+  private static byte[] read(InputStream body) throws IOException {
+    byte[] data = body.readNBytes(MAX_BYTES + 1);
+    if (data.length > MAX_BYTES) {
+      throw new ApiException(HttpStatus.CONTENT_TOO_LARGE, "too_large", "Картинка больше 5 МБ");
+    }
+    if (!supported(data)) {
+      throw new ApiException(
+          HttpStatus.UNSUPPORTED_MEDIA_TYPE, "file_type", "Нужна картинка PNG, JPEG или WebP");
+    }
+    return data;
+  }
+
+  private void write(String name, byte[] webp) throws IOException {
+    Path part = dir.resolve(name + ".part");
+    try (OutputStream out = FileCrypto.encrypt(Files.newOutputStream(part), key, name)) {
+      out.write(webp);
+    }
+    Files.move(part, dir.resolve(name), java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+  }
+
+  /** Середина картинки в пропорции 16:9. */
+  static BufferedImage cropWide(BufferedImage src) {
+    int w = src.getWidth();
+    int h = Math.min(src.getHeight(), w * 9 / 16);
+    w = Math.min(w, h * 16 / 9);
+    BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+    Graphics2D g = out.createGraphics();
+    g.setColor(java.awt.Color.WHITE);
+    g.fillRect(0, 0, w, h);
+    g.drawImage(src, -(src.getWidth() - w) / 2, -(src.getHeight() - h) / 2, null);
+    g.dispose();
+    return out;
+  }
+
+  /** Уменьшение до w×h ступенями по половине; меньшие картинки не растягиваются сверх размера. */
+  static BufferedImage fit(BufferedImage src, int w, int h) {
+    BufferedImage cur = src;
+    while (cur.getWidth() / 2 >= w) {
+      cur = scale(cur, cur.getWidth() / 2, cur.getHeight() / 2);
+    }
+    return cur.getWidth() <= w ? cur : scale(cur, w, h);
+  }
+
   /** Расшифрованный WebP по имени вида {@code <id>-64.webp}; null, если такого нет. */
   public InputStream open(String name) throws IOException {
     if (!NAME.matcher(name).matches()) {
@@ -96,6 +158,9 @@ public class AvatarService {
     try {
       for (int size : SIZES) {
         Files.deleteIfExists(dir.resolve(id + "-" + size + ".webp"));
+      }
+      for (int w : COVER_WIDTHS) {
+        Files.deleteIfExists(dir.resolve(id + "-" + w + ".webp"));
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
@@ -175,13 +240,17 @@ public class AvatarService {
   }
 
   private static BufferedImage scale(BufferedImage src, int size) {
-    BufferedImage out = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
+    return scale(src, size, size);
+  }
+
+  private static BufferedImage scale(BufferedImage src, int w, int h) {
+    BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
     Graphics2D g = out.createGraphics();
     g.setRenderingHint(
         RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
     g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-    g.drawImage(src, 0, 0, size, size, null);
+    g.drawImage(src, 0, 0, w, h, null);
     g.dispose();
     return out;
   }

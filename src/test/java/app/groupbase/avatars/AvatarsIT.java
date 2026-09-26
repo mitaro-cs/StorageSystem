@@ -119,4 +119,42 @@ class AvatarsIT extends IntegrationTest {
     assertThat(headman.api().putRaw("/api/groups/" + g + "/avatar", img).status()).isEqualTo(403);
     assertThat(admin().putRaw("/api/groups/" + g + "/avatar", img).status()).isEqualTo(200);
   }
+
+  @Test
+  void subjectCoverIsWideReencodedAndRemovable() throws IOException {
+    long g = newGroup("Фоны предметов");
+    TestUser student = newUser(g, "student");
+    TestUser headman = newUser(g, "headman");
+    long s =
+        admin()
+            .post("/api/groups/" + g + "/subjects", Map.of("name", "Физика"))
+            .json()
+            .get("id")
+            .asLong();
+    byte[] img = jpegWithExif();
+    assertThat(student.api().putRaw("/api/subjects/" + s + "/cover", img).status()).isEqualTo(403);
+    var up = headman.api().putRaw("/api/subjects/" + s + "/cover", img);
+    assertThat(up.status()).as(up.body()).isEqualTo(200);
+    String cover = up.json().get("cover").asString();
+
+    // Широкая картинка 16:9 в двух размерах, без EXIF; предмет знает свой фон.
+    for (int w : new int[] {1280, 480}) {
+      var dl = student.api().download("/api/avatars/" + cover + "-" + w + ".webp");
+      assertThat(dl.statusCode()).isEqualTo(200);
+      byte[] webp = dl.body();
+      assertThat(new String(webp, 8, 4, StandardCharsets.US_ASCII)).isEqualTo("WEBP");
+      assertThat(new String(webp, StandardCharsets.ISO_8859_1)).doesNotContain(SECRET);
+      BufferedImage out = ImageIO.read(new ByteArrayInputStream(webp));
+      assertThat(out.getWidth()).isEqualTo(Math.min(w, 1200));
+      assertThat(out.getWidth() * 9).isEqualTo(out.getHeight() * 16);
+    }
+    assertThat(student.api().get("/api/subjects/" + s).json().get("cover").asString())
+        .isEqualTo(cover);
+
+    // Убрать фон: снова иконка, файлов нет.
+    assertThat(headman.api().delete("/api/subjects/" + s + "/cover").status()).isEqualTo(200);
+    assertThat(student.api().get("/api/subjects/" + s).json().get("cover").isNull()).isTrue();
+    assertThat(student.api().download("/api/avatars/" + cover + "-480.webp").statusCode())
+        .isEqualTo(404);
+  }
 }

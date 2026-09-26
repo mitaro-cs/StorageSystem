@@ -46,7 +46,14 @@ public class AuditStore {
    * записи этих групп. beforeId — курсор пагинации.
    */
   public List<Entry> list(List<Long> groupIds, Long beforeId, int limit) {
-    String where = groupIds == null ? "1 = 1" : "a.group_id IN (:groups)";
+    return list(groupIds, null, beforeId, limit);
+  }
+
+  /** То же, только эти действия (actions == null — все): журнал модерации. */
+  public List<Entry> list(List<Long> groupIds, List<String> actions, Long beforeId, int limit) {
+    String where =
+        (groupIds == null ? "1 = 1" : "a.group_id IN (:groups)")
+            + (actions == null ? "" : " AND a.action IN (:actions)");
     var q =
         db.sql(
                 """
@@ -63,6 +70,9 @@ public class AuditStore {
         return List.of();
       }
       q = q.param("groups", groupIds);
+    }
+    if (actions != null) {
+      q = q.param("actions", actions);
     }
     return q.query(
             (rs, i) ->
