@@ -5,6 +5,8 @@
 	import { fmtAgo } from '$lib/format';
 	import { waitForRestart } from '$lib/settings/server/restart';
 	import type { Hosts } from '$lib/settings/server/types';
+	import PullForm from '$lib/hosts/PullForm.svelte';
+	import { ask } from '$lib/ui/ask.svelte';
 	import Button from '$lib/ui/Button.svelte';
 
 	// Этот компьютер хоста сейчас не хост: сайт работает на другом (или ждёт данных из облака).
@@ -14,6 +16,7 @@
 	let busy = $state(false);
 	let error = $state('');
 	let restarting = false;
+	let byCode = $state(false);
 
 	async function load() {
 		try {
@@ -38,6 +41,7 @@
 	});
 
 	async function takeOver() {
+		if (h?.action === 'return') return returnHere();
 		error = '';
 		busy = true;
 		try {
@@ -57,12 +61,34 @@
 		}
 	}
 
+	/** После переноса по коду: сайт так и не заработал на новом компьютере — вернуть сюда. */
+	async function returnHere() {
+		if (
+			!(await ask(
+				'Сайт снова заработает здесь — с данными на момент переноса. Делайте так, только если на новом компьютере groupbase закрыт или не запустился: иначе будут два разных сайта.',
+				{ title: 'Вернуть сайт сюда', ok: 'Вернуть', danger: true }
+			))
+		)
+			return;
+		error = '';
+		busy = true;
+		try {
+			h = await request<Hosts>('/api/host/return', { method: 'POST', body: {}, quiet401: true });
+			location.replace('/');
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Не получилось';
+		} finally {
+			busy = false;
+		}
+	}
+
 	const other = $derived(h?.other?.name ?? 'другом компьютере');
 	const spinning = $derived(
 		!!h && (h.role === 'waiting' || h.role === 'switching' || h.role === 'checking')
 	);
 	const title = $derived.by(() => {
 		if (!h) return 'Сайт работает на другом компьютере';
+		if (h.role === 'moved') return 'Сайт перенесён на другой компьютер';
 		if (h.role === 'switching') return 'Переносим сайт сюда…';
 		if (h.role === 'checking') return 'Проверяем, где сейчас сайт…';
 		if (h.role === 'waiting')
@@ -83,10 +109,12 @@
 	const actionLabel = $derived(
 		h?.action === 'request'
 			? 'Перенести сюда'
-			: h?.action === 'back'
+			: h?.action === 'back' || h?.action === 'return'
 				? 'Вернуть сайт сюда'
 				: 'Запустить здесь'
 	);
+	// Забрать сюда по коду можно, пока здесь ничего не происходит само.
+	const canPull = $derived(!!h && (h.role === 'standby' || h.role === 'moved'));
 </script>
 
 <svelte:head><title>Сайт на другом компьютере · groupbase</title></svelte:head>
@@ -112,8 +140,13 @@
 			свежее.
 		</p>
 	{:else if h}
-		<!-- Для «работает на другом» заголовок уже всё сказал. -->
-		{#if h.message && !(h.role === 'standby' && h.plan === 'live')}
+		<!-- Для «работает на другом» и «перенесён» заголовок уже всё сказал. -->
+		{#if h.role === 'moved'}
+			<p class="muted">
+				Теперь он работает там — по тому же адресу. Здесь остались данные на момент переноса.
+				Вернуть его сюда — кодом переноса с того компьютера.
+			</p>
+		{:else if h.message && !(h.role === 'standby' && h.plan === 'live')}
 			<p class="muted">{h.message}</p>
 		{/if}
 
@@ -144,9 +177,26 @@
 			<span class="spinner" aria-hidden="true"></span>
 		{/if}
 
-		{#if h.action}
+		{#if canPull}
+			<div class="by-code">
+				{#if byCode}
+					<PullForm endpoint="/api/host/pull" label="Перенести сюда по коду" />
+				{:else}
+					<Button
+						variant={h.role === 'moved' ? 'primary' : 'secondary'}
+						onclick={() => (byCode = true)}>Перенести сюда по коду</Button
+					>
+				{/if}
+			</div>
+		{/if}
+
+		{#if h.action && !byCode}
 			<div class="act">
-				<Button variant="primary" loading={busy} onclick={takeOver}>{actionLabel}</Button>
+				<Button
+					variant={h.action === 'return' ? 'ghost' : 'primary'}
+					loading={busy}
+					onclick={takeOver}>{actionLabel}</Button
+				>
 				{#if h.action === 'request'}
 					<p class="faint small">
 						«{other}» сохранит последние изменения и остановится, а сайт продолжит работу здесь —
@@ -166,7 +216,7 @@
 		{#if error || h.error}<p class="error-text" role="alert">{error || h.error}</p>{/if}
 
 		<p class="faint small foot">
-			Этот компьютер — «{h.computer?.name ?? 'этот компьютер'}». Здесь данные могут быть
+			{h.computer?.name ? `Этот компьютер — «${h.computer.name}». ` : ''}Здесь данные могут быть
 			устаревшими, поэтому сайт отсюда не открывается, пока он работает на другом компьютере.
 		</p>
 	{/if}
@@ -252,6 +302,15 @@
 		height: 100%;
 		background: var(--accent);
 		transition: width 400ms var(--ease);
+	}
+	.by-code {
+		width: min(360px, 100%);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+	.by-code :global(form) {
+		width: 100%;
 	}
 	.act {
 		display: flex;

@@ -8,6 +8,7 @@
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import { waitForRestart } from './restart';
+	import TransferCode from './TransferCode.svelte';
 	import type { BackupInfo, Backups } from './types';
 	import { ask } from '$lib/ui/ask.svelte';
 
@@ -199,9 +200,13 @@
 	{/if}
 
 	<h3 class="sub">Перенос на другой компьютер</h3>
+	{#if session.me?.instance.desktop}
+		<TransferCode />
+	{/if}
 	<p class="small muted">
-		Скачайте копию, установите groupbase на новом компьютере и при первом запуске выберите
-		«Восстановить из копии». Или загрузите копию сюда, чтобы вернуть данные на этом компьютере.
+		{session.me?.instance.desktop ? 'Или файлом: скачайте' : 'Скачайте'} копию, установите groupbase на
+		новом компьютере и при первом запуске выберите «Восстановить из резервной копии». Или загрузите копию
+		сюда, чтобы вернуть данные на этом компьютере.
 	</p>
 	<div>
 		<input

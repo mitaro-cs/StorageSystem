@@ -2,7 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { Check, Cloud, History } from '@lucide/svelte';
+	import { ArrowLeftRight, Check, Cloud, History } from '@lucide/svelte';
+	import PullForm from '$lib/hosts/PullForm.svelte';
 	import { putFile } from '$lib/upload';
 	import { waitForRestart } from '$lib/settings/server/restart';
 	import type { FoundSite } from '$lib/settings/server/types';
@@ -37,6 +38,10 @@
 	let restoring = $state<'' | 'restarting' | 'staged'>('');
 	let restoreMessage = $state('');
 	let backupFile: HTMLInputElement | undefined = $state();
+
+	// Сайт уже работает на другом компьютере — забрать его сюда по коду переноса, без файлов.
+	let byCode = $state(false);
+	let pulling = $state(false);
 
 	// Второй компьютер хоста: сайт уже лежит в облачной папке — его сохранил туда другой компьютер.
 	let sites = $state<FoundSite[]>([]);
@@ -174,114 +179,141 @@
 			</p>
 		</section>
 	{/if}
-	<form onsubmit={submit}>
-		{#if fromLink}
-			<p class="linked"><Check size={16} /> Код настройки подставлен из ссылки</p>
-		{:else}
-			<div>
-				<label class="label" for="code">Код настройки</label>
-				<input id="code" class="input num" bind:value={code} autocomplete="off" required />
-				<p class="hint">
-					Проще открыть ссылку из окна сервера — в ней код уже есть. Или выполните <code
-						>groupbase init</code
-					>.
-				</p>
-			</div>
-		{/if}
-
-		<fieldset class="modes">
-			<legend class="label">Режим</legend>
-			<label class="mode" class:on={mode === 'single'}>
-				<input type="radio" bind:group={mode} value="single" />
-				<strong>Одна группа</strong><span class="faint small">Сайт одной группы</span>
-			</label>
-			<label class="mode" class:on={mode === 'multi'}>
-				<input type="radio" bind:group={mode} value="multi" />
-				<strong>Несколько групп</strong><span class="faint small">Поток или кафедра</span>
-			</label>
-		</fieldset>
-
-		{#if mode === 'multi'}
-			<div>
-				<label class="label" for="iname">Название сайта</label>
-				<input id="iname" class="input" bind:value={instanceName} placeholder="Поток БИН-25" />
-				<p class="hint">
-					Сайт — это весь ваш groupbase: все группы потока, общие настройки и администраторы.
-				</p>
-			</div>
-		{/if}
-
-		<div>
-			<label class="label" for="gname">{mode === 'multi' ? 'Первая группа' : 'Группа'}</label>
-			<input id="gname" class="input" bind:value={groupName} placeholder="БИН2509" required />
-		</div>
-		<fieldset class="pick">
-			<legend class="label">Курс</legend>
-			<div class="chips" role="radiogroup" aria-label="Курс">
-				{#each [1, 2, 3, 4, 5, 6] as n (n)}
-					<button
-						type="button"
-						role="radio"
-						aria-checked={course === n}
-						class:on={course === n}
-						onclick={() => (course = n)}>{n}</button
-					>
-				{/each}
-			</div>
-		</fieldset>
-		<fieldset class="pick">
-			<legend class="label">Вуз</legend>
-			<div class="chips" role="radiogroup" aria-label="Вуз">
-				{#each UNIVERSITIES as u (u)}
-					<button
-						type="button"
-						role="radio"
-						aria-checked={!otherUni && university === u}
-						class:on={!otherUni && university === u}
-						onclick={() => ((university = u), (otherUni = false))}>{u}</button
-					>
-				{/each}
-				<button
-					type="button"
-					role="radio"
-					aria-checked={otherUni}
-					class:on={otherUni}
-					onclick={() => ((otherUni = true), (university = ''))}>Другой</button
-				>
-			</div>
-			{#if otherUni}
-				<input
-					class="input other"
-					bind:value={university}
-					placeholder="Название вуза"
-					aria-label="Вуз"
+	<section class="by-code" class:open={byCode}>
+		{#if byCode}
+			<p class="head"><ArrowLeftRight size={18} /> <strong>Перенос по коду</strong></p>
+			{#if code.trim()}
+				<PullForm
+					endpoint={`/api/setup/transfer?code=${encodeURIComponent(code.trim())}`}
+					bind:busy={pulling}
 				/>
+			{:else}
+				<p class="error-text">Нужен код настройки — откройте ссылку из окна сервера</p>
 			{/if}
-		</fieldset>
+			{#if !pulling}
+				<button type="button" class="linklike small" onclick={() => (byCode = false)}
+					>Нет, создать новую группу</button
+				>
+			{/if}
+		{:else}
+			<div class="grow">
+				<strong>Сайт уже работает на другом компьютере?</strong>
+				<p class="faint small">Перенесите его сюда по коду — без файлов и с тем же адресом.</p>
+			</div>
+			<Button onclick={() => (byCode = true)}>Перенести по коду</Button>
+		{/if}
+	</section>
 
-		<hr />
+	{#if !byCode}
+		<form onsubmit={submit}>
+			{#if fromLink}
+				<p class="linked"><Check size={16} /> Код настройки подставлен из ссылки</p>
+			{:else}
+				<div>
+					<label class="label" for="code">Код настройки</label>
+					<input id="code" class="input num" bind:value={code} autocomplete="off" required />
+					<p class="hint">
+						Проще открыть ссылку из окна сервера — в ней код уже есть. Или выполните <code
+							>groupbase init</code
+						>.
+					</p>
+				</div>
+			{/if}
 
-		<FioField bind:value={displayName} />
-		<div>
-			<label class="label" for="uname">Имя пользователя для входа</label>
-			<input
-				id="uname"
-				class="input"
-				bind:value={username}
-				autocomplete="username"
-				autocapitalize="none"
-				spellcheck="false"
-				placeholder="ivanov.ivan"
-				oninput={() => (usernameTouched = true)}
-				required
-			/>
-			<p class="hint">Придумали по ФИО — можно поменять.</p>
-		</div>
-		<PasswordFields bind:password bind:confirm />
+			<fieldset class="modes">
+				<legend class="label">Режим</legend>
+				<label class="mode" class:on={mode === 'single'}>
+					<input type="radio" bind:group={mode} value="single" />
+					<strong>Одна группа</strong><span class="faint small">Сайт одной группы</span>
+				</label>
+				<label class="mode" class:on={mode === 'multi'}>
+					<input type="radio" bind:group={mode} value="multi" />
+					<strong>Несколько групп</strong><span class="faint small">Поток или кафедра</span>
+				</label>
+			</fieldset>
 
-		{#if error}<p class="error-text" role="alert">{error}</p>{/if}
-		<Button variant="primary" type="submit" loading={busy}>Создать</Button>
-	</form>
+			{#if mode === 'multi'}
+				<div>
+					<label class="label" for="iname">Название сайта</label>
+					<input id="iname" class="input" bind:value={instanceName} placeholder="Поток БИН-25" />
+					<p class="hint">
+						Сайт — это весь ваш groupbase: все группы потока, общие настройки и администраторы.
+					</p>
+				</div>
+			{/if}
+
+			<div>
+				<label class="label" for="gname">{mode === 'multi' ? 'Первая группа' : 'Группа'}</label>
+				<input id="gname" class="input" bind:value={groupName} placeholder="БИН2509" required />
+			</div>
+			<fieldset class="pick">
+				<legend class="label">Курс</legend>
+				<div class="chips" role="radiogroup" aria-label="Курс">
+					{#each [1, 2, 3, 4, 5, 6] as n (n)}
+						<button
+							type="button"
+							role="radio"
+							aria-checked={course === n}
+							class:on={course === n}
+							onclick={() => (course = n)}>{n}</button
+						>
+					{/each}
+				</div>
+			</fieldset>
+			<fieldset class="pick">
+				<legend class="label">Вуз</legend>
+				<div class="chips" role="radiogroup" aria-label="Вуз">
+					{#each UNIVERSITIES as u (u)}
+						<button
+							type="button"
+							role="radio"
+							aria-checked={!otherUni && university === u}
+							class:on={!otherUni && university === u}
+							onclick={() => ((university = u), (otherUni = false))}>{u}</button
+						>
+					{/each}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={otherUni}
+						class:on={otherUni}
+						onclick={() => ((otherUni = true), (university = ''))}>Другой</button
+					>
+				</div>
+				{#if otherUni}
+					<input
+						class="input other"
+						bind:value={university}
+						placeholder="Название вуза"
+						aria-label="Вуз"
+					/>
+				{/if}
+			</fieldset>
+
+			<hr />
+
+			<FioField bind:value={displayName} />
+			<div>
+				<label class="label" for="uname">Имя пользователя для входа</label>
+				<input
+					id="uname"
+					class="input"
+					bind:value={username}
+					autocomplete="username"
+					autocapitalize="none"
+					spellcheck="false"
+					placeholder="ivanov.ivan"
+					oninput={() => (usernameTouched = true)}
+					required
+				/>
+				<p class="hint">Придумали по ФИО — можно поменять.</p>
+			</div>
+			<PasswordFields bind:password bind:confirm />
+
+			{#if error}<p class="error-text" role="alert">{error}</p>{/if}
+			<Button variant="primary" type="submit" loading={busy}>Создать</Button>
+		</form>
+	{/if}
 
 	<div class="restore">
 		<p class="muted small">Переезжаете на новый компьютер или переустановили программу?</p>
@@ -305,6 +337,34 @@
 {/if}
 
 <style>
+	.by-code {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 12px;
+		margin-bottom: var(--s5);
+		padding: var(--s4);
+		border: 1px solid var(--border);
+		border-radius: var(--r);
+		background: var(--surface-2);
+	}
+	.by-code.open {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.by-code .grow {
+		flex: 1;
+		min-width: 200px;
+	}
+	.by-code p {
+		margin: 2px 0 0;
+	}
+	.by-code .head {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin: 0;
+	}
 	.found {
 		display: flex;
 		flex-direction: column;

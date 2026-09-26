@@ -60,7 +60,15 @@ export interface UpdateCheck {
 }
 
 /** Сайт на нескольких компьютерах хоста (GET /api/host). */
-export type HostRole = 'off' | 'host' | 'checking' | 'standby' | 'waiting' | 'switching';
+export type HostRole =
+	| 'off'
+	| 'host'
+	| 'checking'
+	| 'standby'
+	| 'waiting'
+	| 'switching'
+	/** Сайт перенесён отсюда на другой компьютер по коду. */
+	| 'moved';
 
 export interface Hosts {
 	/** Приложение хоста: здесь это возможно. */
@@ -77,8 +85,11 @@ export interface Hosts {
 	other: { name: string; state: string; heartbeat: number; fresh: boolean } | null;
 	snapshotAt: number | null;
 	snapshotBy: string | null;
-	/** Что предложить: request — попросить передать, start — запустить здесь, back — вернуть. */
-	action: 'request' | 'start' | 'back' | null;
+	/**
+	 * Что предложить: request — попросить передать, start — запустить здесь, back — вернуть
+	 * переданный, return — вернуть после переноса по коду.
+	 */
+	action: 'request' | 'start' | 'back' | 'return' | null;
 	folder: string | null;
 	cloud: string | null;
 	choices: { label: string; path: string }[];
@@ -94,4 +105,23 @@ export interface FoundSite {
 	name: string;
 	host: string | null;
 	at: number | null;
+}
+
+/** Код переноса на другой компьютер (GET/POST /api/host/transfer/code). */
+export interface TransferCode {
+	code: string;
+	expiresAt: number;
+	/** Адрес сайта, по которому другой компьютер заберёт данные; null — доступ не открыт. */
+	url: string | null;
+	/** waiting — ждём другой компьютер, sending — забирает, sent — забрал, ждём подтверждения. */
+	phase: 'waiting' | 'sending' | 'sent';
+	sent: number;
+}
+
+/** Как идёт перенос сюда (GET /api/host/pull). */
+export interface PullProgress {
+	phase: 'idle' | 'download' | 'check' | 'confirm' | 'restart' | 'error';
+	received: number;
+	total: number;
+	error: string | null;
 }
