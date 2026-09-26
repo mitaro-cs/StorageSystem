@@ -39,6 +39,9 @@ public class Icons {
       desktop(logo, 1024, new File(dir, "app-1024.png"));
       tray(logo, 44, Color.BLACK, new File(dir, "tray-template.png"));
       tray(logo, 32, Color.WHITE, new File(dir, "tray-light.png"));
+      File layers = new File(dir.getParentFile(), "icons/AppIcon.icon/Assets");
+      layers.mkdirs();
+      layer(logo, 1024, new File(layers, "logo.png"));
       return;
     }
     File dir = new File(args.length > 0 ? args[0] : "web/static/icons");
@@ -93,6 +96,22 @@ public class Icons {
     g.translate(off, off);
     g.scale(s, s);
     draw(g, logo);
+    g.dispose();
+    ImageIO.write(img, "png", out);
+  }
+
+  /**
+   * Слой логотипа для значка macOS 26+ (AppIcon.icon, формат Icon Composer): силуэт на прозрачном,
+   * холст — вся плитка значка. Цвет задаёт icon.json: тёмный на белом фоне, в тёмном оформлении
+   * Dock — белый на тёмном. Сетка, зазор вокруг фигуры и глаз — прозрачные, сквозь них виден фон.
+   */
+  static void layer(Logo logo, int size, File out) throws Exception {
+    BufferedImage img = canvas(size);
+    Graphics2D g = graphics(img);
+    double s = size / SIDE;
+    g.scale(s, s);
+    g.setColor(logo.ink());
+    g.fill(silhouette(logo, logo.line(), logo.gap()));
     g.dispose();
     ImageIO.write(img, "png", out);
   }

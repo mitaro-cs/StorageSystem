@@ -57,14 +57,15 @@ jobs:
       fail-fast: false
       matrix:
         # app — не лишнее: архив автообновления (.app.tar.gz) tauri делает только из цели app, не из dmg.
+        # macOS — на macos-26: значок AppIcon.icon (светлый и тёмный Dock) собирает только Xcode 26+.
         include:
           - name: macOS (Apple Silicon)
-            os: macos-14
+            os: macos-26
             target: aarch64-apple-darwin
             bundles: app,dmg
             file: macos-apple-silicon.dmg
           - name: macOS (Intel)
-            os: macos-14
+            os: macos-26
             target: x86_64-apple-darwin
             bundles: app,dmg
             file: macos-intel.dmg
@@ -122,6 +123,30 @@ jobs:
         run: |
           npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} \
             --config "{\"version\":\"${{ needs.jar.outputs.version }}\"}"
+      # Без Assets.car macOS 26+ берёт старый значок .icns и в тёмном Dock логотип теряется.
+      - name: Значок macOS 26+ в приложении
+        if: runner.os == 'macOS'
+        run: |
+          app=$(find "desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos" -maxdepth 1 -name '*.app' -print -quit)
+          [ -s "$app/Contents/Resources/Assets.car" ] || { echo "Нет Assets.car: AppIcon.icon не собран (нужен Xcode 26+)" >&2; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$app/Contents/Info.plist"
+      - name: Предпросмотр значка в разных оформлениях Dock
+        if: runner.os == 'macOS' && !matrix.cross-jdk
+        continue-on-error: true
+        run: |
+          ictool="$(dirname "$(xcode-select -p)")/Applications/Icon Composer.app/Contents/Executables/ictool"
+          mkdir -p icon-preview
+          for r in Default Dark ClearDark TintedDark; do
+            "$ictool" desktop/src-tauri/icons/AppIcon.icon --export-image --output-file "icon-preview/$r.png" \
+              --platform macOS --rendition "$r" --width 256 --height 256 --scale 2
+          done
+      - uses: actions/upload-artifact@v5
+        if: runner.os == 'macOS' && !matrix.cross-jdk
+        continue-on-error: true
+        with:
+          name: macos-icon-preview
+          path: icon-preview
+          retention-days: 7
       # Собранное приложение должно запуститься (сборку для Intel на Apple Silicon не запустить).
       - name: Проверка запуска
         if: ${{ !matrix.cross-jdk }}
@@ -159,6 +184,8 @@ jobs:
       - uses: actions/download-artifact@v5
         with:
           path: dist
+          # Только файлы выпуска (groupbase-*), без предпросмотра значка.
+          pattern: groupbase-*
           merge-multiple: true
       - run: ls -la dist
       - name: Файл обновлений latest.json
