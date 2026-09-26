@@ -46,4 +46,15 @@ export interface Status {
 	update: { version: string; url: string } | null;
 	/** Окно приложения хоста: обновление ставится кнопкой, без скачивания вручную. */
 	canUpdate: boolean;
+	/** Последняя проверка обновлений (у серверов до 0.4.7 её нет). */
+	check?: UpdateCheck;
+}
+
+export interface UpdateCheck {
+	/** Последний выпуск; null — ещё не узнали. */
+	latest: string | null;
+	/** Когда проверяли, 0 — ни разу. */
+	checkedAt: number;
+	/** Почему не удалось проверить; null — удалось. */
+	error: string | null;
 }

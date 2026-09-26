@@ -27,7 +27,9 @@ export default defineConfig({
 			GROUPBASE_HTTP_PORT: String(port),
 			GROUPBASE_HTTP_INSECURE: 'true',
 			GROUPBASE_AUTH_REQUIRE_STAFF_TOTP: 'false',
-			GROUPBASE_SETUP_CODE: 'e2e-setup-code'
+			GROUPBASE_SETUP_CODE: 'e2e-setup-code',
+			// Без запросов к GitHub: «Проверить обновления» отвечает, что проверка выключена.
+			GROUPBASE_UPDATE_CHECK: 'false'
 		}
 	}
 });

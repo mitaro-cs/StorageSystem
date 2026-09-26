@@ -203,6 +203,34 @@ class DesktopIT extends IntegrationTest {
   }
 
   @Test
+  void checkForUpdatesButtonShowsVersionAndResult() {
+    ApiClient host = client();
+    admin();
+    host.get(enterPath());
+    // Сборка для разработки (в тестах) в GitHub не ходит — объясняет почему.
+    var r = host.post("/api/admin/update-check", Map.of());
+    assertThat(r.status()).as(r.body()).isEqualTo(200);
+    var s = r.json();
+    assertThat(s.get("version").asString()).isNotBlank();
+    assertThat(s.get("check").get("error").asString()).contains("сборка для разработки");
+
+    // Версию нашла оболочка — это и есть итог проверки, даже если GitHub серверу не ответил.
+    bridge.setAvailableUpdate("9.9.9");
+    try {
+      var found = host.post("/api/admin/update-check", Map.of()).json();
+      assertThat(found.get("check").get("latest").asString()).isEqualTo("9.9.9");
+      assertThat(found.get("check").get("error").isNull()).isTrue();
+      assertThat(found.get("canUpdate").asBoolean()).isTrue();
+    } finally {
+      bridge.setAvailableUpdate(null);
+    }
+
+    // Проверять обновления может только администратор сайта.
+    ApiClient anonymous = client();
+    assertThat(anonymous.post("/api/admin/update-check", Map.of()).status()).isEqualTo(401);
+  }
+
+  @Test
   void manageModeCanBeTurnedOff() {
     ApiClient host = client();
     admin();

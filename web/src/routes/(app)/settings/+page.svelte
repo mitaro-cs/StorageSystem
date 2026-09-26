@@ -4,6 +4,7 @@
 	import type { Component } from 'svelte';
 	import {
 		Archive,
+		ArrowUpCircle,
 		CalendarRange,
 		ChevronLeft,
 		ChevronRight,
@@ -121,9 +122,18 @@
 				{
 					value: 'server',
 					label: 'Сервер',
-					desc: desktop ? 'Доступ для группы, копии, обновления' : 'Состояние и обновления',
+					desc: desktop ? 'Доступ для группы, копии, состояние' : 'Состояние сервера',
 					icon: Server,
 					tone: 'teal',
+					part: 'site',
+					show: isAdmin()
+				},
+				{
+					value: 'updates',
+					label: 'Версия и обновления',
+					desc: `Сейчас ${session.me?.instance.version ?? ''} · проверить новую`,
+					icon: ArrowUpCircle,
+					tone: 'green',
 					part: 'site',
 					show: isAdmin()
 				},
@@ -278,6 +288,8 @@
 							{#await import('$lib/settings/AppearancePanel.svelte') then m}<m.default />{/await}
 						{:else if tab === 'server'}
 							{#await import('$lib/settings/server/ServerPanel.svelte') then m}<m.default />{/await}
+						{:else if tab === 'updates'}
+							{#await import('$lib/settings/UpdatesPanel.svelte') then m}<m.default />{/await}
 						{:else if group && tab === 'audit'}
 							{#await import('$lib/settings/Audit.svelte') then m}<m.default
 									groupId={isAdmin() ? null : group.id}

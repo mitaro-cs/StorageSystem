@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** «Состояние сервера» для администратора: версия, место на диске, резервные копии, обновления. */
@@ -23,6 +24,7 @@ class StatusController {
 
   /**
    * @param dataDir путь к данным — только в окне приложения на компьютере хоста
+   * @param check последняя проверка обновлений: какая версия последняя, когда и чем кончилась
    */
   record View(
       String version,
@@ -32,7 +34,8 @@ class StatusController {
       Sizes sizes,
       BackupService.Status backup,
       UpdateCheck.Update update,
-      boolean canUpdate) {}
+      boolean canUpdate,
+      UpdateCheck.Result check) {}
 
   private final GroupbaseProperties props;
   private final BackupService backups;
@@ -71,7 +74,30 @@ class StatusController {
         new Sizes(db, files, free),
         backups.status(),
         update,
-        host && update != null);
+        host && update != null,
+        check());
+  }
+
+  /**
+   * «Проверить обновления»: спрашивает GitHub сейчас и ждёт ответа, а в приложении хоста просит
+   * проверить и оболочку — она найдёт версию для кнопки «Обновить сейчас».
+   */
+  @Require(Permission.MANAGE_INSTANCE)
+  @PostMapping("/api/admin/update-check")
+  View checkNow(Actor actor) throws IOException {
+    bridge.requestCheck();
+    updates.checkNow();
+    return status(actor);
+  }
+
+  /** Итог проверки: версию, найденную оболочкой, тоже считаем — GitHub мог не ответить серверу. */
+  private UpdateCheck.Result check() {
+    UpdateCheck.Result r = updates.result();
+    String shell = bridge.availableUpdate();
+    if (shell != null && (r.latest() == null || UpdateCheck.newer(shell, r.latest()))) {
+      return new UpdateCheck.Result(shell, r.checkedAt(), null);
+    }
+    return r;
   }
 
   /** Новая версия: в приложении хоста её находит оболочка, на своём сервере — запрос к GitHub. */
