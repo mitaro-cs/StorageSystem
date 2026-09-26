@@ -115,7 +115,15 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 	const isJson = res.headers.get('Content-Type')?.startsWith('application/json');
 	const data = isJson ? await res.json() : null;
 	if (!res.ok) {
-		if (res.status === 401 && !opts.anonymous && !opts.quiet401 && typeof window !== 'undefined') {
+		// Сайт сейчас работает на другом компьютере хоста: здесь — страница ожидания.
+		if (data?.error === 'standby' && typeof window !== 'undefined') {
+			if (location.pathname !== '/standby') location.replace('/standby');
+		} else if (
+			res.status === 401 &&
+			!opts.anonymous &&
+			!opts.quiet401 &&
+			typeof window !== 'undefined'
+		) {
 			const next = location.pathname + location.search;
 			await goto(`/login?next=${encodeURIComponent(next)}`, { replaceState: true });
 		}

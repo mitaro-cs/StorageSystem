@@ -17,16 +17,21 @@
 	import {
 		BACKGROUNDS,
 		ICONS,
+		ICON_PALETTE,
 		currentBackground,
 		currentIcon,
 		customBackground,
+		iconFor,
+		iconMatch,
 		setBackground,
 		setCustomBackground,
 		setIcon,
+		setIconMatch,
 		type Background
 	} from '$lib/looks';
 	import { iconSrc, type AppIcon } from '$lib/appIcon.svelte';
 	import { toast } from '$lib/toasts.svelte';
+	import Switch from '$lib/ui/Switch.svelte';
 
 	// Оформление под себя: режим (светлый, тёмный, как в системе), цвет и стиль карточек. Меняется
 	// сразу, хранится на этом устройстве.
@@ -36,6 +41,7 @@
 	let bg = $state<Background>('none');
 	let bgImage = $state<string | null>(null);
 	let icon = $state<AppIcon>('light');
+	let match = $state(true);
 	let fileInput: HTMLInputElement | undefined = $state();
 	onMount(() => {
 		theme = currentTheme();
@@ -44,6 +50,7 @@
 		bg = currentBackground();
 		bgImage = customBackground();
 		icon = currentIcon();
+		match = iconMatch();
 	});
 
 	function pickBackground(b: Background) {
@@ -75,6 +82,17 @@
 	function pickIcon(i: AppIcon) {
 		icon = i;
 		setIcon(i);
+		if (!match) return;
+		// Оформление под значок: его цвета, у тёмного значка — и тёмный режим.
+		palette = ICON_PALETTE[i];
+		setPalette(palette);
+		if (i === 'dark' && theme !== 'dark') pickTheme('dark');
+	}
+
+	function toggleMatch(on: boolean) {
+		match = on;
+		setIconMatch(on);
+		if (on) pickIcon(icon);
 	}
 
 	function pickStyle(s: Style) {
@@ -96,6 +114,14 @@
 	function pickPalette(p: Palette) {
 		palette = p;
 		setPalette(p);
+		// Связаны — значок того же цвета («Классика» оставляет светлый или тёмный, какой был).
+		if (match && ICON_PALETTE[icon] !== p) {
+			const next = p === 'classic' && icon === 'dark' ? 'dark' : iconFor(p);
+			if (next !== icon) {
+				icon = next;
+				setIcon(next);
+			}
+		}
 	}
 </script>
 
@@ -234,6 +260,13 @@
 				</button>
 			{/each}
 		</div>
+		<div class="match">
+			<div>
+				<span>Оформление под значок</span>
+				<span class="hint">Цвета интерфейса — как у значка, у тёмного значка — тёмная тема</span>
+			</div>
+			<Switch checked={match} label="Оформление под значок" onchange={toggleMatch} />
+		</div>
 		<p class="hint">
 			Во вкладке браузера меняется сразу. На Android значок на экране обновится сам, на iPhone —
 			если удалить сайт с экрана «Домой» и добавить снова.
@@ -243,6 +276,25 @@
 </div>
 
 <style>
+	.match {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--s3);
+		margin-top: var(--s3);
+		padding: 12px 14px;
+		border-radius: var(--r);
+		background: var(--surface-2);
+	}
+	.match > div {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+	}
+	.match .hint {
+		margin: 0;
+	}
 	.picker {
 		display: flex;
 		flex-direction: column;

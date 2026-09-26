@@ -1,10 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Check, History } from '@lucide/svelte';
+	import { onMount } from 'svelte';
+	import { Check, Cloud, History } from '@lucide/svelte';
 	import { putFile } from '$lib/upload';
 	import { waitForRestart } from '$lib/settings/server/restart';
-	import { post } from '$lib/api';
+	import type { FoundSite } from '$lib/settings/server/types';
+	import { post, request } from '$lib/api';
+	import { fmtAgo } from '$lib/format';
+	import { ask } from '$lib/ui/ask.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
 	import FioField from '$lib/auth/FioField.svelte';
@@ -33,6 +37,52 @@
 	let restoring = $state<'' | 'restarting' | 'staged'>('');
 	let restoreMessage = $state('');
 	let backupFile: HTMLInputElement | undefined = $state();
+
+	// Второй компьютер хоста: сайт уже лежит в облачной папке — его сохранил туда другой компьютер.
+	let sites = $state<FoundSite[]>([]);
+	async function findSites() {
+		if (!code.trim() || restoring) return;
+		try {
+			sites = await request<FoundSite[]>(
+				`/api/setup/sites?code=${encodeURIComponent(code.trim())}`,
+				{ anonymous: true }
+			);
+		} catch {
+			sites = [];
+		}
+	}
+	onMount(() => {
+		findSites();
+		// Облачный диск может докачивать папку — проверяем ещё, пока открыта страница.
+		const t = setInterval(findSites, 10_000);
+		return () => clearInterval(t);
+	});
+
+	async function join(s: FoundSite) {
+		if (
+			!(await ask(
+				`Этот компьютер возьмёт данные сайта «${s.name}» из облачной папки (${s.cloud}).${s.host ? ` Если сайт сейчас работает на «${s.host}», он там и останется, а здесь появится кнопка «Перенести сюда».` : ''}`,
+				{ title: 'Подключить этот компьютер', ok: 'Подключить' }
+			))
+		)
+			return;
+		error = '';
+		busy = true;
+		try {
+			const r = await post<{ status: 'restarting' | 'staged'; message: string }>(
+				`/api/setup/join?code=${encodeURIComponent(code.trim())}`,
+				{ path: s.path },
+				{ anonymous: true }
+			);
+			restoring = r.status;
+			restoreMessage = r.message;
+			if (r.status === 'restarting') await waitForRestart();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Ошибка';
+		} finally {
+			busy = false;
+		}
+	}
 
 	/** Переезд на новый компьютер: вместо настройки — всё из резервной копии. */
 	async function restore(f: File) {
@@ -100,6 +150,30 @@
 		<p>{restoreMessage}</p>
 	</div>
 {:else}
+	{#if sites.length}
+		<section class="found" aria-label="Сайты в облачной папке">
+			<p class="found-head"><Cloud size={18} /> <strong>Уже есть сайт в облачной папке</strong></p>
+			{#each sites as s (s.path)}
+				<div class="site">
+					<div class="info">
+						<strong>{s.name || 'Сайт groupbase'}</strong>
+						<span class="faint small"
+							>{s.cloud}{s.host ? ` · работает на «${s.host}»` : ''}{s.at
+								? ` · ${fmtAgo(s.at)}`
+								: ''}</span
+						>
+					</div>
+					<Button variant="primary" size="s" loading={busy} onclick={() => join(s)}
+						>Подключить</Button
+					>
+				</div>
+			{/each}
+			<p class="faint small">
+				Этот компьютер станет вторым компьютером хоста: сайт работает там, где открыто приложение, с
+				теми же данными и адресом. Создавать новую группу не нужно.
+			</p>
+		</section>
+	{/if}
 	<form onsubmit={submit}>
 		{#if fromLink}
 			<p class="linked"><Check size={16} /> Код настройки подставлен из ссылки</p>
@@ -211,6 +285,12 @@
 
 	<div class="restore">
 		<p class="muted small">Переезжаете на новый компьютер или переустановили программу?</p>
+		{#if !sites.length}
+			<p class="faint small">
+				Сайт уже работает на другом вашем компьютере? Включите там «Настройки → Сервер → Несколько
+				компьютеров» и установите здесь тот же облачный диск — сайт появится на этой странице.
+			</p>
+		{/if}
 		<input
 			bind:this={backupFile}
 			type="file"
@@ -225,6 +305,39 @@
 {/if}
 
 <style>
+	.found {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		margin-bottom: var(--s5);
+		padding: var(--s4);
+		border: 1px solid var(--accent);
+		border-radius: var(--r);
+		background: var(--accent-soft);
+	}
+	.found-head {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin: 0;
+	}
+	.found p {
+		margin: 0;
+	}
+	.site {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 10px 12px;
+		border-radius: var(--r);
+		background: var(--surface);
+	}
+	.site .info {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
 	.restore {
 		display: flex;
 		flex-direction: column;

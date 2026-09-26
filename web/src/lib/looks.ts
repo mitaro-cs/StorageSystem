@@ -1,4 +1,5 @@
 import { appIcon, iconSrc, type AppIcon } from './appIcon.svelte';
+import type { Palette } from './theme';
 
 /**
  * Фон страниц (Профиль → Оформление): градиенты и узоры подстраиваются под светлую и тёмную тему,
@@ -99,6 +100,44 @@ export const ICONS = [
 ] as const;
 
 const ICON_KEY = 'gb-icon';
+const MATCH_KEY = 'gb-icon-match';
+
+/**
+ * Оформление под значок: у каждого значка — своя цветовая тема (у тёмного — ещё и тёмный режим).
+ * Выбрали значок — интерфейс в его цветах, выбрали цвет — значок того же цвета. Связь можно
+ * выключить.
+ */
+export const ICON_PALETTE: Record<AppIcon, Palette> = {
+	light: 'classic',
+	dark: 'graphite',
+	ocean: 'ocean',
+	forest: 'forest',
+	sunset: 'sunset',
+	grape: 'grape'
+};
+
+/** Значок под цвет темы (у «Классики» и «Графита» — светлый и тёмный). */
+export function iconFor(palette: Palette): AppIcon {
+	const hit = (Object.keys(ICON_PALETTE) as AppIcon[]).find((i) => ICON_PALETTE[i] === palette);
+	return hit ?? 'light';
+}
+
+export function iconMatch(): boolean {
+	try {
+		return localStorage.getItem(MATCH_KEY) !== '0';
+	} catch {
+		return true;
+	}
+}
+
+export function setIconMatch(on: boolean) {
+	try {
+		if (on) localStorage.removeItem(MATCH_KEY);
+		else localStorage.setItem(MATCH_KEY, '0');
+	} catch {
+		/* приватный режим — просто не запоминаем */
+	}
+}
 
 export function isAppIcon(v: unknown): v is AppIcon {
 	return ICONS.some((i) => i.id === v);

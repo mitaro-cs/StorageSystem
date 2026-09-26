@@ -1,12 +1,16 @@
 <script lang="ts">
 	import AccessPanel from './AccessPanel.svelte';
 	import BackupsPanel from './BackupsPanel.svelte';
+	import HostsPanel from './HostsPanel.svelte';
 	import StatusPanel from './StatusPanel.svelte';
 </script>
 
 <!-- Всё про сам сервер: как до него добраться, копии данных и его состояние. -->
 <h2 class="head">Доступ для группы</h2>
 <AccessPanel />
+
+<!-- Заголовок у раздела свой: его нет, если сайт не в приложении хоста. -->
+<HostsPanel />
 
 <h2 class="head">Резервные копии</h2>
 <BackupsPanel />

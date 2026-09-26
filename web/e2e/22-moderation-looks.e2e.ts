@@ -86,6 +86,11 @@ test('оформление: новые стили, фон и значок мен
 		'href',
 		'/manifest-ocean.webmanifest'
 	);
+	// Оформление под значок: интерфейс в его цветах.
+	await expect(html).toHaveAttribute('data-palette', 'ocean');
+	await expect(
+		page.getByRole('radiogroup', { name: 'Цвет' }).getByRole('radio', { name: 'Океан' })
+	).toHaveAttribute('aria-checked', 'true');
 
 	// После перезагрузки — то же, ещё до отрисовки интерфейса (скрипт в app.html).
 	await page.reload();
@@ -109,5 +114,6 @@ test('оформление: новые стили, фон и значок мен
 		.getByRole('radio', { name: 'Светлый' })
 		.click();
 	await expect(html).not.toHaveAttribute('data-bg', /.+/);
+	await expect(html).not.toHaveAttribute('data-palette', /.+/);
 	expect(errors).toEqual([]);
 });

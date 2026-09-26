@@ -40,7 +40,9 @@
 		'news.hide': 'скрыл новость',
 		'homework.create': 'опубликовал задание',
 		'homework.delete': 'удалил задание',
-		'comment.delete': 'удалил комментарий'
+		'comment.delete': 'удалил комментарий',
+		'hosts.enable': 'включил работу на нескольких компьютерах',
+		'hosts.disable': 'выключил работу на нескольких компьютерах'
 	};
 
 	async function load(before?: number) {
