@@ -158,6 +158,17 @@ public class DesktopBridge {
     return restart.get();
   }
 
+  private volatile boolean updating;
+
+  /** Оболочка останавливает сервер, чтобы поставить обновление, — он скоро вернётся. */
+  public void markUpdating() {
+    updating = true;
+  }
+
+  public boolean updating() {
+    return updating;
+  }
+
   public void onRestart(Runnable r) {
     this.onRestart = r;
   }

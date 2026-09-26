@@ -22,6 +22,10 @@ class BackupIT extends IntegrationTest {
   @Test
   void createDownloadAndStageRestore() throws IOException {
     ApiClient a = admin();
+    // Вход в CloudPub едет вместе с копией: на новом компьютере адрес сайта останется прежним.
+    Path cloudpub = props.toolsDir().resolve("cloudpub/client.toml");
+    Files.createDirectories(cloudpub.getParent());
+    Files.writeString(cloudpub, "token = \"test\"\n");
     var created = a.post("/api/admin/backups", Map.of());
     assertThat(created.status()).as(created.body()).isEqualTo(200);
     String name = created.json().get("name").asString();
@@ -38,7 +42,8 @@ class BackupIT extends IntegrationTest {
         entries.add(e.getName());
       }
     }
-    assertThat(entries).contains("manifest.json", "groupbase.db", "secrets/app.key");
+    assertThat(entries)
+        .contains("manifest.json", "groupbase.db", "secrets/app.key", "tools/cloudpub/client.toml");
 
     // На обычном сервере восстановление ставится в очередь до перезапуска.
     var staged = a.post("/api/admin/backups/" + name + "/restore", Map.of());
@@ -53,6 +58,7 @@ class BackupIT extends IntegrationTest {
     Files.copy(pending, other.resolve("pending.zip"));
     Path aside = BackupService.restore(other.resolve("pending.zip"), other, m -> {});
     assertThat(other.resolve("secrets/app.key")).exists();
+    assertThat(other.resolve("tools/cloudpub/client.toml")).hasContent("token = \"test\"");
     assertThat(Files.size(other.resolve("groupbase.db"))).isGreaterThan(100);
     assertThat(Files.readString(aside.resolve("groupbase.db"))).isEqualTo("старая база");
     Files.delete(pending);
@@ -63,6 +69,23 @@ class BackupIT extends IntegrationTest {
     ApiClient a = admin();
     var bad = a.putRaw("/api/admin/backups/restore", "not a zip".getBytes());
     assertThat(bad.status()).isEqualTo(400);
+    assertThat(bad.json().get("message").asString()).startsWith("Это не архив ZIP");
+
+    // Частая путаница: выгрузка группы (для чтения) вместо копии — объясняем, что нужно.
+    java.io.ByteArrayOutputStream export = new java.io.ByteArrayOutputStream();
+    try (ZipOutputStream z = new ZipOutputStream(export)) {
+      z.putNextEntry(new ZipEntry("Предметы/Физика/О предмете.md"));
+      z.write("# Физика".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      z.closeEntry();
+      z.putNextEntry(new ZipEntry("data.json"));
+      z.write("{}".getBytes());
+      z.closeEntry();
+    }
+    var wrong = a.putRaw("/api/admin/backups/restore", export.toByteArray());
+    assertThat(wrong.status()).isEqualTo(400);
+    assertThat(wrong.json().get("message").asString())
+        .contains("выгрузка группы")
+        .contains("Резервные копии");
 
     // Копия от более новой версии: схема выше, чем знает эта программа.
     java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();

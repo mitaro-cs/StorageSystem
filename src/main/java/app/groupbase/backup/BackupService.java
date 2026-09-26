@@ -53,6 +53,7 @@ public class BackupService {
   public static final String CLOUD_SUBDIR = "groupbase-backups";
 
   static final String DB = "groupbase.db";
+  static final String CLOUDPUB = "tools/cloudpub/client.toml";
   static final String MANIFEST = "manifest.json";
   static final int FORMAT = 1;
   private static final DateTimeFormatter NAME = DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss");
@@ -165,7 +166,8 @@ public class BackupService {
 
   /**
    * Бэкап прямо в поток — для скачивания из админки. Ключи шифрования входят в копию: без них файлы
-   * не расшифровать, поэтому копию нужно хранить так же бережно, как сам сервер.
+   * не расшифровать, поэтому копию нужно хранить так же бережно, как сам сервер. Вход в CloudPub —
+   * тоже (на месте он встаёт при восстановлении, а бинарники туннелей не копируются).
    */
   public void write(OutputStream out) throws IOException {
     Path data = props.dataDir();
@@ -183,6 +185,11 @@ public class BackupService {
       addTree(zip, "files", props.filesDir());
       addTree(zip, "avatars", data.resolve("avatars"));
       addTree(zip, "secrets", props.secretsDir());
+      // Вход в CloudPub: с ним на новом компьютере у сайта останется прежний адрес.
+      Path cloudpub = props.toolsDir().resolve("cloudpub").resolve("client.toml");
+      if (Files.isRegularFile(cloudpub)) {
+        add(zip, CLOUDPUB, cloudpub);
+      }
       zip.finish();
       zip.flush();
     } finally {
@@ -268,15 +275,53 @@ public class BackupService {
 
   // ---------- восстановление (сервер остановлен) ----------
 
+  /** Где взять правильный файл — для сообщений об ошибке. */
+  static final String WHERE =
+      "Нужен файл groupbase-ГГГГ-ММ-ДД-….zip: на прежнем компьютере — «Настройки → Сервер →"
+          + " Резервные копии», кнопка скачивания у копии.";
+
+  /**
+   * manifest.json из архива. Если это не копия — объясняем, что именно выбрали: чаще всего это
+   * выгрузка группы (она для чтения, данных сайта в ней нет) или вообще не архив.
+   */
   public static JsonNode readManifest(Path zip) throws IOException {
+    boolean any = false;
+    boolean export = false;
     try (ZipInputStream in = new ZipInputStream(Files.newInputStream(zip))) {
       for (ZipEntry e; (e = in.getNextEntry()) != null; ) {
-        if (e.getName().equals(MANIFEST)) {
+        any = true;
+        String n = e.getName();
+        if (n.equals(MANIFEST)) {
           return JSON.readTree(in.readAllBytes());
         }
+        if (n.equals("data.json")
+            || n.startsWith("Предметы/")
+            || n.startsWith("Новости/")
+            || n.startsWith("Мои публикации/")) {
+          export = true;
+        }
       }
+    } catch (java.util.zip.ZipException | IllegalArgumentException e) {
+      throw new IOException("Это не архив ZIP. " + WHERE, e);
     }
-    throw new IOException("Это не бэкап groupbase: нет " + MANIFEST);
+    if (!any) {
+      throw new IOException("Это не архив ZIP. " + WHERE);
+    }
+    if (export) {
+      throw new IOException(
+          "Это выгрузка группы (архив для чтения), а не резервная копия сайта. " + WHERE);
+    }
+    throw new IOException(
+        "Это не резервная копия groupbase: в архиве нет " + MANIFEST + ". " + WHERE);
+  }
+
+  /** Снимок для других компьютеров хоста — не копия: его берут сами компьютеры из общей папки. */
+  public static void requireBackup(JsonNode manifest) throws IOException {
+    if ("site-snapshot".equals(manifest.path("kind").asString(""))) {
+      throw new IOException(
+          "Это снимок для работы на нескольких компьютерах — его берут сами компьютеры хоста. "
+              + WHERE);
+    }
   }
 
   /** Номер последней миграции, которую знает эта версия программы. */

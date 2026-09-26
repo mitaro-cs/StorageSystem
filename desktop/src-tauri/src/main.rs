@@ -576,6 +576,8 @@ fn on_event(app: &AppHandle, v: &Value) {
         "enter" => navigate(app, &text("url")),
         "access" => {
             let url = text("url");
+            // Сайт работает на другом компьютере хоста — сервер присылает, что написать в меню.
+            let label = text("label");
             let st = app.state::<App>();
             st.server.lock().unwrap().public = if url.is_empty() {
                 None
@@ -584,10 +586,12 @@ fn on_event(app: &AppHandle, v: &Value) {
             };
             if let Some(item) = st.copy_item.lock().unwrap().as_ref() {
                 let _ = item.set_enabled(!url.is_empty());
-                let _ = item.set_text(if url.is_empty() {
-                    "Доступ для группы выключен".to_string()
-                } else {
+                let _ = item.set_text(if !url.is_empty() {
                     format!("Скопировать ссылку: {}", short(&url))
+                } else if !label.is_empty() {
+                    label
+                } else {
+                    "Доступ для группы выключен".to_string()
                 });
             };
         }
@@ -1012,12 +1016,14 @@ fn send_enter(app: &AppHandle) {
     send(&mut server, "enter");
 }
 
-/// Остановить сервер и дождаться (до 15 секунд), не закрывая приложение.
+/// Остановить сервер ради обновления и дождаться (до 15 секунд), не закрывая приложение.
 fn stop_server(app: &AppHandle) {
     let child = {
         let st = app.state::<App>();
         let mut server = st.server.lock().unwrap();
         server.quitting = true;
+        // Сервер скоро вернётся: другой компьютер хоста не должен забирать сайт на эти полминуты.
+        send(&mut server, "updating");
         send(&mut server, "quit");
         server.stdin = None;
         server.child.clone()

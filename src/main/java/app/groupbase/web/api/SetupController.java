@@ -3,11 +3,13 @@ package app.groupbase.web.api;
 import app.groupbase.accounts.GroupService;
 import app.groupbase.accounts.SetupService;
 import app.groupbase.backup.RestoreStager;
+import app.groupbase.hosts.HostService;
 import app.groupbase.web.ApiException;
 import app.groupbase.web.Public;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,14 +33,47 @@ class SetupController {
       String displayName,
       String password) {}
 
+  record JoinBody(String path) {}
+
   private final SetupService setup;
   private final Http http;
   private final RestoreStager restore;
+  private final HostService hosts;
 
-  SetupController(SetupService setup, Http http, RestoreStager restore) {
+  SetupController(SetupService setup, Http http, RestoreStager restore, HostService hosts) {
     this.setup = setup;
     this.http = http;
     this.restore = restore;
+    this.hosts = hosts;
+  }
+
+  /**
+   * Первый запуск на втором компьютере хоста: сайты, которые уже лежат в облачных папках этого
+   * компьютера (их сохранил туда другой компьютер).
+   */
+  @GetMapping("/sites")
+  List<HostService.Found> sites(@RequestParam String code) {
+    setup.checkCode(code);
+    if (!setup.needed()) {
+      throw ApiException.conflict("already_setup", "Сайт уже настроен");
+    }
+    return hosts.sites();
+  }
+
+  /** Подключить этот компьютер к сайту из облачной папки: данные возьмутся при перезапуске. */
+  @PostMapping("/join")
+  RestoreStager.Result join(@RequestParam String code, @RequestBody JoinBody b) {
+    setup.checkCode(code);
+    if (!setup.needed()) {
+      throw ApiException.conflict("already_setup", "Сайт уже настроен");
+    }
+    try {
+      String name = hosts.join(b.path());
+      return new RestoreStager.Result(
+          "restarting", "Берём данные сайта «" + name + "» и перезапускаемся…");
+    } catch (HostService.Problem e) {
+      throw ApiException.badRequest(e.getMessage());
+    }
   }
 
   /**

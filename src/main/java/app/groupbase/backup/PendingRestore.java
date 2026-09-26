@@ -23,7 +23,9 @@ public final class PendingRestore {
 
   /** Принимает архив: проверяет, что это бэкап groupbase, и ставит в очередь. */
   public static void stage(Path zip, Path dataDir) throws IOException {
-    BackupService.check(BackupService.readManifest(zip));
+    tools.jackson.databind.JsonNode manifest = BackupService.readManifest(zip);
+    BackupService.requireBackup(manifest);
+    BackupService.check(manifest);
     Path target = file(dataDir);
     Files.createDirectories(target.getParent());
     Files.copy(zip, target, StandardCopyOption.REPLACE_EXISTING);

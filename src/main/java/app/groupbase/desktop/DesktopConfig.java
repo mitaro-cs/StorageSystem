@@ -64,6 +64,17 @@ public final class DesktopConfig {
     save();
   }
 
+  /**
+   * Порт, на котором сайт работал на другом компьютере хоста: адрес в CloudPub ведёт на него.
+   * Берём, если он свободен; иначе остаётся прежний.
+   */
+  public void prefer(int p) throws IOException {
+    if (p != port && p >= 1024 && p <= 65535 && free(p)) {
+      port = p;
+      save();
+    }
+  }
+
   /** Сохранённый порт, если он свободен; иначе любой свободный — и он запоминается. */
   public int choosePort() throws IOException {
     if (port < 1024 || port > 65535 || !free(port)) {

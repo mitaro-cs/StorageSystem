@@ -2,6 +2,7 @@ package app.groupbase.cli;
 
 import app.groupbase.desktop.DesktopBridge;
 import app.groupbase.desktop.DesktopConfig;
+import app.groupbase.hosts.HostSwitch;
 import app.groupbase.store.DataDirLock;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -26,8 +27,9 @@ import picocli.CommandLine.Option;
  * <ul>
  *   <li>stdout — события {@code @gb {"event": ...}}: ready (адрес и ссылка входа для окна), enter,
  *       public-url, restart, error;
- *   <li>stdin — команды построчно: {@code enter} (новая ссылка входа), {@code quit}. Конец stdin —
- *       оболочка закрылась: сервер тоже завершается.
+ *   <li>stdin — команды построчно: {@code enter} (новая ссылка входа), {@code updating} (сейчас
+ *       остановят ради обновления), {@code quit}. Конец stdin — оболочка закрылась: сервер тоже
+ *       завершается.
  * </ul>
  *
  * Код выхода {@value #RESTART} — «перезапусти меня» (после восстановления из копии или смены сети).
@@ -71,7 +73,13 @@ public class DesktopCommand implements Callable<Integer> {
         }
         Thread.sleep(500);
       }
+      // Сайт на нескольких компьютерах: закрыли на другом — берём его данные до старта сервера.
+      int sitePort = HostSwitch.prepare(data, msg -> out.event("status", Map.of("message", msg)));
       DesktopConfig net = DesktopConfig.load(data);
+      if (sitePort > 0) {
+        // Адрес в CloudPub ведёт на порт прежнего компьютера — по возможности тот же.
+        net.prefer(sitePort);
+      }
       port = net.choosePort();
       Map<String, Object> props = new LinkedHashMap<>();
       props.put("groupbase.data-dir", data.toAbsolutePath().toString());
@@ -91,13 +99,19 @@ public class DesktopCommand implements Callable<Integer> {
     ctx.addApplicationListener((ApplicationListener<ContextClosedEvent>) e -> done.countDown());
     Thread.ofPlatform().daemon().name("desktop-stdin").start(() -> readCommands(bridge, done));
 
-    bridge.event(
-        "ready",
-        Map.of(
-            "url", bridge.localUrl(),
-            "enter", bridge.enterUrl(),
-            "version", Main.version(),
-            "port", port));
+    if (bridge.restartRequested()) {
+      // Перезапуск попросили ещё во время запуска (сайт взяли с другого компьютера) — окно не
+      // открываем, сразу на второй круг.
+      done.countDown();
+    } else {
+      bridge.event(
+          "ready",
+          Map.of(
+              "url", bridge.localUrl(),
+              "enter", bridge.enterUrl(),
+              "version", Main.version(),
+              "port", port));
+    }
     done.await();
     int code = bridge.restartRequested() ? RESTART : 0;
     // Сервер не должен пережить оболочку: если остановка зависла, через 25 секунд — выход.
@@ -129,6 +143,11 @@ public class DesktopCommand implements Callable<Integer> {
         String cmd = line.strip();
         if (cmd.startsWith("update-available")) {
           bridge.setAvailableUpdate(cmd.substring("update-available".length()));
+          continue;
+        }
+        if (cmd.equals("updating")) {
+          // Следом придёт quit: сервер остановят ради обновления, и он скоро вернётся.
+          bridge.markUpdating();
           continue;
         }
         switch (cmd) {

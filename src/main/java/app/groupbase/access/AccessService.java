@@ -179,6 +179,12 @@ public class AccessService {
   private int failures;
   private ScheduledFuture<?> retry;
 
+  /**
+   * Почему туннель не поднимается: сайт сейчас работает на другом компьютере хоста (см. {@link
+   * app.groupbase.hosts.HostService}). null — работаем как обычно.
+   */
+  private String suspended;
+
   public AccessService(
       SettingsStore settings,
       Secrets secrets,
@@ -214,12 +220,14 @@ public class AccessService {
   public synchronized View view() {
     Mode mode = mode();
     State shown =
-        switch (mode) {
-          case OFF -> State.OFF;
-          case LAN, MANUAL -> State.ONLINE;
-          case FXTUNNEL -> token() == null ? State.NEEDS_LOGIN : state;
-          case CLOUDPUB -> cloudpub.loggedIn() ? state : State.NEEDS_LOGIN;
-        };
+        suspended != null
+            ? State.OFF
+            : switch (mode) {
+              case OFF -> State.OFF;
+              case LAN, MANUAL -> State.ONLINE;
+              case FXTUNNEL -> token() == null ? State.NEEDS_LOGIN : state;
+              case CLOUDPUB -> cloudpub.loggedIn() ? state : State.NEEDS_LOGIN;
+            };
     return new View(
         mode.id(),
         shown.id(),
@@ -253,7 +261,9 @@ public class AccessService {
       case FXTUNNEL -> {
         String sub = settings.get(FX_SUBDOMAIN).orElse("");
         publicUrl.set(fxUrl(sub));
-        if (token() == null) {
+        if (suspended != null) {
+          setState(State.OFF, suspended);
+        } else if (token() == null) {
           setState(State.NEEDS_LOGIN, null);
         } else {
           start();
@@ -261,7 +271,9 @@ public class AccessService {
       }
       case CLOUDPUB -> {
         publicUrl.set(settings.get(CP_URL).orElse(""));
-        if (cloudpub.loggedIn()) {
+        if (suspended != null) {
+          setState(State.OFF, suspended);
+        } else if (cloudpub.loggedIn()) {
           start();
         } else {
           setState(State.NEEDS_LOGIN, null);
@@ -279,6 +291,41 @@ public class AccessService {
       case OFF -> publicUrl.set("");
     }
     announce();
+  }
+
+  /**
+   * Сайт работает на другом компьютере хоста: туннель выключить и не поднимать, пока не {@link
+   * #resume()}. Адрес сайта остаётся известен — по нему проверяют, кто сейчас отвечает.
+   */
+  public synchronized void suspend(String why) {
+    String reason = why == null || why.isBlank() ? "Сайт работает на другом компьютере" : why;
+    if (reason.equals(suspended)) {
+      return;
+    }
+    boolean was = suspended != null;
+    suspended = reason;
+    if (!was) {
+      stopTunnel();
+    }
+    setState(State.OFF, reason);
+    announce();
+  }
+
+  /** Сайт снова работает здесь — туннель как обычно. */
+  public synchronized void resume() {
+    if (suspended == null) {
+      return;
+    }
+    suspended = null;
+    setState(State.OFF, null);
+    if (tunnel(mode()) && !publicUrl.fixed()) {
+      start();
+    }
+    announce();
+  }
+
+  public synchronized boolean suspended() {
+    return suspended != null;
   }
 
   // ---------- режимы ----------
@@ -603,6 +650,10 @@ public class AccessService {
 
   private synchronized void start() {
     stopTunnel();
+    if (suspended != null) {
+      setState(State.OFF, suspended);
+      return;
+    }
     SpecSource source = source();
     if (source == null) {
       return;
@@ -874,8 +925,12 @@ public class AccessService {
   /** Оболочке приложения — адрес для пункта «Скопировать ссылку» и состояние. */
   private void announce() {
     Map<String, Object> m = new LinkedHashMap<>();
-    m.put("url", publicUrl.get().orElse(""));
+    // На другом компьютере хоста ссылку в меню не даём: сайт отвечает не отсюда.
+    m.put("url", suspended != null ? "" : publicUrl.get().orElse(""));
     m.put("state", view().state());
+    if (suspended != null) {
+      m.put("label", "Сайт работает на другом компьютере");
+    }
     bridge.event("access", m);
   }
 

@@ -1,5 +1,6 @@
 package app.groupbase.backup;
 
+import app.groupbase.hosts.HostService;
 import app.groupbase.store.UserStore;
 import java.time.Clock;
 import org.slf4j.Logger;
@@ -17,18 +18,20 @@ class BackupJob {
 
   private final BackupService backups;
   private final UserStore users;
+  private final HostService hosts;
   private final Clock clock;
 
-  BackupJob(BackupService backups, UserStore users, Clock clock) {
+  BackupJob(BackupService backups, UserStore users, HostService hosts, Clock clock) {
     this.backups = backups;
     this.users = users;
+    this.hosts = hosts;
     this.clock = clock;
   }
 
   @Scheduled(initialDelayString = "PT3M", fixedDelayString = "PT20M")
   void tick() {
-    // Пока инстанс не настроен, копировать нечего.
-    if (users.count() == 0 || !backups.due(clock.millis())) {
+    // Пока инстанс не настроен, копировать нечего; сайт на другом компьютере — здесь данные старые.
+    if (users.count() == 0 || !hosts.serving() || !backups.due(clock.millis())) {
       return;
     }
     try {
