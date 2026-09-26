@@ -1,11 +1,11 @@
-import { get } from './api';
+import { get, type RequestOptions } from './api';
 import type { Subject } from './types';
 
 /** Предметы для боковой панели и выпадающих списков; обновляются после изменений. */
 export const subjects = $state<{ list: Subject[]; loaded: boolean }>({ list: [], loaded: false });
 
-export async function loadSubjects(): Promise<Subject[]> {
-	subjects.list = await get<Subject[]>('/api/subjects');
+export async function loadSubjects(opts?: RequestOptions): Promise<Subject[]> {
+	subjects.list = await get<Subject[]>('/api/subjects', opts);
 	subjects.loaded = true;
 	return subjects.list;
 }

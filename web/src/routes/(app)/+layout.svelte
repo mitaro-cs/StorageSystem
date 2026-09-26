@@ -10,12 +10,12 @@
 	import { viewer } from '$lib/files/viewer.svelte';
 	import { forgetServiceWorker, initPwa, pwa, registerServiceWorker } from '$lib/pwa.svelte';
 	import { startBell } from '$lib/notify.svelte';
-	import { ApiError, request } from '$lib/api';
+	import { ApiError, hasFresh, request } from '$lib/api';
 	import { toast } from '$lib/toasts.svelte';
 	import { flushOutbox, initOffline, offline, syncNow } from '$lib/offline/engine';
 	import { rememberAccount } from '$lib/accounts';
-	import { session } from '$lib/session.svelte';
-	import { onMount } from 'svelte';
+	import { loadMe, session } from '$lib/session.svelte';
+	import { onMount, untrack } from 'svelte';
 	import { slide } from '$lib/motion';
 	import { CloudOff, CloudUpload, WifiOff } from '@lucide/svelte';
 
@@ -72,6 +72,14 @@
 				avatar: u.avatar
 			});
 		}
+	});
+
+	// Профиль показан из копии на устройстве (сеть была медленной), а свежий уже пришёл — берём его.
+	$effect(() => {
+		void offline.version;
+		untrack(() => {
+			if (hasFresh('/api/me')) loadMe().catch(() => {});
+		});
 	});
 
 	// Сервер группы недоступен, а интернет есть (выключен компьютер хоста): раз в 30 секунд

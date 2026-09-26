@@ -103,6 +103,12 @@ function changed() {
 	offline.version++;
 }
 
+/** Есть ли копия на устройстве: хоть одна синхронизация прошла (до неё копия пустая). */
+export async function hasCopy(): Promise<boolean> {
+	if (offline.lastSync > 0) return true;
+	return ((await getMeta<number>('lastSync')) ?? 0) > 0;
+}
+
 /** Ответ на GET из копии; undefined — без сети этого нет. */
 export async function resolveLocal(path: string): Promise<unknown> {
 	try {

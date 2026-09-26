@@ -4,10 +4,17 @@ import { loadMe } from '$lib/session.svelte';
 import { loadSubjects } from '$lib/data.svelte';
 
 export const load = async ({ fetch, url }) => {
+	// Предметы — вместе с профилем, а не после: на телефоне через туннель каждый запрос — задержка.
+	// При 401 на вход отправляет запрос профиля (или на первичную настройку).
+	const subjects = loadSubjects({ quiet401: true }).then(
+		() => null,
+		(e: unknown) => e
+	);
 	try {
 		const me = await loadMe(fetch);
 		if (me.restriction) redirect(307, '/security');
-		await loadSubjects();
+		const failed = await subjects;
+		if (failed) throw failed;
 		return { me };
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 401) {

@@ -21,6 +21,20 @@ test('без интернета: читать, отмечать, коммент�
 		for (let i = 0; i < 50 && !navigator.serviceWorker.controller; i++)
 			await new Promise((r) => setTimeout(r, 100));
 	});
+	// Код всех разделов service worker докачивает фоном после первого экрана — дождёмся метки
+	// «сохранено целиком».
+	await expect
+		.poll(
+			() =>
+				page.evaluate(async () => {
+					for (const k of await caches.keys())
+						if (k.startsWith('shell-') && (await (await caches.open(k)).match('/__complete')))
+							return true;
+					return false;
+				}),
+			{ timeout: 30_000 }
+		)
+		.toBe(true);
 
 	// Файлы материалов скачиваются на устройство фоном после синхронизации — дождёмся.
 	await expect

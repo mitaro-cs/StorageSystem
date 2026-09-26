@@ -1,6 +1,16 @@
 import { goto } from '$app/navigation';
+import { untrack } from 'svelte';
 import { pwa } from './pwa.svelte';
-import { enabled as offlineEnabled, enqueue, queueable, resolveLocal } from './offline/engine';
+import { dropEarly, takeEarly } from './early';
+import { within } from './race';
+import {
+	enabled as offlineEnabled,
+	enqueue,
+	hasCopy,
+	offline,
+	queueable,
+	resolveLocal
+} from './offline/engine';
 
 export class ApiError extends Error {
 	constructor(
@@ -40,6 +50,24 @@ export interface RequestOptions {
 	fetch?: Fetch;
 	/** Не перенаправлять на вход при 401 (страницы входа и регистрации). */
 	anonymous?: boolean;
+	/** Не перенаправлять на вход при 401, а в остальном как обычно: вход решает другой запрос. */
+	quiet401?: boolean;
+}
+
+/**
+ * Слабая сеть: чтение, на которое есть ответ в копии на устройстве, ждём не дольше этого — дальше
+ * показываем копию, а свежий ответ приходит следом и обновляет страницу.
+ */
+const SLOW_MS = 1500;
+/** После своего изменения копию не показываем: в ней его ещё нет. */
+const AFTER_WRITE_MS = 10_000;
+let lastWrite = 0;
+/** Свежие ответы, пришедшие позже копии: страница перечитает себя и получит их без запроса. */
+const fresh = new Map<string, { data: unknown; at: number }>();
+
+/** Есть свежий ответ на этот запрос, пришедший после показанной копии. */
+export function hasFresh(path: string): boolean {
+	return fresh.has(path);
 }
 
 /** Запрос к API по сети: JSON, CSRF для мутаций, ошибки → ApiError с текстом по-русски. */
@@ -55,15 +83,23 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 		body = JSON.stringify(opts.body);
 	}
 	// Чтение без ответа дольше 10 секунд считаем отсутствием сети: покажем сохранённое. Если сервер
-	// уже недоступен, ждём меньше — чтобы сохранённое открывалось сразу.
+	// уже недоступен, ждём меньше — чтобы сохранённое открывалось сразу. untrack: запрос из $effect
+	// не должен зависеть от состояния сети — иначе страница перечитывает себя при каждом его изменении.
+	const wait = untrack(() => pwa.offline) ? 3_000 : 10_000;
 	const signal =
 		opts.signal ??
 		(method === 'GET' && typeof AbortSignal.timeout === 'function'
-			? AbortSignal.timeout(pwa.offline ? 3_000 : 10_000)
+			? AbortSignal.timeout(wait)
 			: undefined);
+	// Первый экран: app.html уже отправил этот запрос, пока грузился код.
+	const early = method === 'GET' && !opts.signal ? takeEarly(path) : undefined;
 	let res: Response;
 	try {
-		res = await f(path, { method, headers, body, signal, credentials: 'same-origin' });
+		const got = early ? await within(early, wait) : null;
+		if (early && got === null) throw new DOMException('Сервер не ответил', 'TimeoutError');
+		res = got?.ok
+			? got.value
+			: await f(path, { method, headers, body, signal, credentials: 'same-origin' });
 	} catch (e) {
 		if ((e as Error).name === 'AbortError' && opts.signal?.aborted) throw e;
 		throw new ApiError(0, 'network', 'Нет связи с сервером. Проверьте интернет');
@@ -74,10 +110,12 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 		throw new ApiError(0, 'network', 'Сервер группы сейчас выключен — попробуйте позже');
 	}
 	pwa.offline = false;
+	if (res.status === 401) dropEarly();
+	if (method !== 'GET' && res.ok) lastWrite = Date.now();
 	const isJson = res.headers.get('Content-Type')?.startsWith('application/json');
 	const data = isJson ? await res.json() : null;
 	if (!res.ok) {
-		if (res.status === 401 && !opts.anonymous && typeof window !== 'undefined') {
+		if (res.status === 401 && !opts.anonymous && !opts.quiet401 && typeof window !== 'undefined') {
 			const next = location.pathname + location.search;
 			await goto(`/login?next=${encodeURIComponent(next)}`, { replaceState: true });
 		}
@@ -97,16 +135,48 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
  */
 export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 	const method = opts.method ?? (opts.body !== undefined || opts.form ? 'POST' : 'GET');
-	const local = !opts.anonymous && !opts.form && offlineEnabled();
+	const local = !opts.anonymous && !opts.form && untrack(offlineEnabled);
 	// Объекты, созданные без сети, есть только на устройстве (временный отрицательный id).
 	if (local && (!navigator.onLine || /\/-\d+(\/|$|\?)/.test(path)))
 		return fallback<T>(method, path, opts.body);
+	const later = method === 'GET' ? fresh.get(path) : undefined;
+	if (later) {
+		fresh.delete(path);
+		if (Date.now() - later.at < 30_000) return later.data as T;
+	}
+	const net = request<T>(path, opts);
+	if (local && method === 'GET' && !opts.signal && Date.now() - lastWrite > AFTER_WRITE_MS) {
+		const quick = await within(net, SLOW_MS);
+		const copy = quick === null ? await localCopy(path) : undefined;
+		if (copy !== undefined) {
+			net.then(
+				(data) => {
+					if (JSON.stringify(data) === JSON.stringify(copy)) return;
+					fresh.set(path, { data, at: Date.now() });
+					offline.version++;
+				},
+				() => {
+					/* сеть так и не ответила — копия уже на экране */
+				}
+			);
+			return copy as T;
+		}
+	}
 	try {
-		return await request<T>(path, opts);
+		return await net;
 	} catch (e) {
 		if (local && e instanceof ApiError && e.code === 'network')
 			return fallback<T>(method, path, opts.body);
 		throw e;
+	}
+}
+
+/** Ответ из копии на устройстве, если она есть и знает этот запрос. */
+async function localCopy(path: string): Promise<unknown> {
+	try {
+		return (await hasCopy()) ? await resolveLocal(path) : undefined;
+	} catch {
+		return undefined;
 	}
 }
 

@@ -11,38 +11,108 @@ const DATA = 'data-v1';
 /** Файлы материалов: открытые и скачанные заранее (см. lib/offline/files.ts). */
 const FILES = 'files-v1';
 const INDEX = '/index.html';
+/** Метка в кеше оболочки: все файлы этой версии сохранены — приложение открывается без сети. */
+const COMPLETE = '/__complete';
 
-/** Оболочка приложения: код, стили, шрифты, иконки. Предсжатые копии не нужны. */
-const ASSETS = [...build, ...files.filter((f) => !/\.(br|gz)$/.test(f)), INDEX];
+/** Статика (шрифты, иконки, манифест). Предсжатые копии не нужны. */
+const STATIC = files.filter((f) => !/\.(br|gz)$/.test(f));
+/** Оболочка приложения: код, стили, статика. */
+const ASSETS = new Set([...build, ...STATIC, INDEX]);
 /**
  * Просмотр PDF (pdf.js, ~2 МБ) нужен не всем и не каждый день: его не качаем при каждом обновлении
  * приложения, а сохраняем при первом открытии PDF — дальше он работает и без сети.
  */
 const LAZY = /pdf/i;
-const PRECACHE = ASSETS.filter((a) => !LAZY.test(a));
+/**
+ * При установке — только то, без чего приложение не открыть: страница, шрифты, иконки. Код разделов
+ * сохраняется, когда его загружают страницы, а остальное — фоном, по два файла, когда первый экран
+ * уже открыт (warm). Раньше при установке качались сотни файлов разом: на телефоне через туннель
+ * это забивало связь, и всё, что человек делал в первые минуты, стояло в очереди за ними.
+ */
+const CORE = [INDEX, ...STATIC.filter((a) => !LAZY.test(a) && !/\.txt$/.test(a))];
+const WARM = build.filter((a) => !LAZY.test(a));
+/** Код с хешем в имени не меняется: то, что уже скачано прежней версией, берём из её кеша. */
+const IMMUTABLE = '/_app/immutable/';
 
 sw.addEventListener('install', (event) => {
-	event.waitUntil(caches.open(SHELL).then((c) => c.addAll(PRECACHE)));
+	event.waitUntil(
+		caches.open(SHELL).then(async (cache) => {
+			await reuse(cache);
+			await cache.addAll(CORE);
+		})
+	);
 	sw.skipWaiting();
 });
+
+/** Неизменные файлы новой версии, которые уже есть в кеше прежней, — копируем без сети. */
+async function reuse(cache: Cache) {
+	const wanted = new Set(build.filter((a) => a.startsWith(IMMUTABLE)));
+	for (const name of await caches.keys()) {
+		if (!name.startsWith('shell-') || name === SHELL) continue;
+		const prev = await caches.open(name);
+		for (const req of await prev.keys()) {
+			const path = new URL(req.url).pathname;
+			if (!wanted.has(path)) continue;
+			const res = await prev.match(req);
+			if (res) await cache.put(path, res);
+			wanted.delete(path);
+		}
+	}
+}
 
 sw.addEventListener('activate', (event) => {
 	event.waitUntil(
 		caches
 			.keys()
-			.then((keys) =>
-				Promise.all(
-					keys.filter((k) => ![SHELL, DATA, FILES].includes(k)).map((k) => caches.delete(k))
-				)
-			)
+			.then((keys) => {
+				// Прежнюю оболочку держим до следующего обновления: открытая старая страница ещё может
+				// догружать свой код.
+				const previous = keys.filter((k) => k.startsWith('shell-') && k !== SHELL).slice(-1);
+				const keep = new Set([SHELL, DATA, FILES, ...previous]);
+				return Promise.all(keys.filter((k) => !keep.has(k)).map((k) => caches.delete(k)));
+			})
 			.then(() => sw.clients.claim())
 	);
 });
+
+/** Докачать остальную оболочку фоном — по два файла, чтобы не мешать самому приложению. */
+let warming: Promise<void> | null = null;
+
+async function warm() {
+	const cache = await caches.open(SHELL);
+	if (await cache.match(COMPLETE)) return;
+	await reuse(cache);
+	const have = new Set((await cache.keys()).map((r) => new URL(r.url).pathname));
+	const todo = WARM.filter((a) => !have.has(a));
+	let next = 0;
+	let broken = false;
+	const worker = async () => {
+		while (!broken && next < todo.length) {
+			const path = todo[next++];
+			try {
+				const res = await fetch(path);
+				// Сервер выключен (ответ туннеля) или ошибка — докачаем в следующий раз.
+				if (!res.ok || !fromServer(res)) broken = true;
+				else await cache.put(path, res);
+			} catch {
+				broken = true;
+			}
+		}
+	};
+	await Promise.all([worker(), worker()]);
+	if (!broken) await cache.put(COMPLETE, new Response(version));
+}
 
 /** При выходе из аккаунта сохранённые данные удаляются с устройства. */
 sw.addEventListener('message', (event) => {
 	if (event.data === 'logout')
 		event.waitUntil(Promise.all([caches.delete(DATA), caches.delete(FILES)]));
+	if (event.data === 'warm') {
+		warming ??= warm()
+			.catch(() => {})
+			.finally(() => (warming = null));
+		event.waitUntil(warming);
+	}
 });
 
 /**
@@ -61,17 +131,59 @@ async function fileFirst(req: Request, path: string): Promise<Response> {
 	return res;
 }
 
-/** Страница: из сети, а если сервер недоступен — оболочка приложения из кеша. */
+/**
+ * Файл оболочки: из кеша этой версии, код с хешем в имени — из кеша любой версии, иначе из сети — и
+ * сохраняем для следующего раза. Статику (иконки, шрифты) — только своей версии: её имя не меняется.
+ */
+async function asset(req: Request, path: string): Promise<Response> {
+	const shell = await caches.open(SHELL);
+	const hit =
+		(await shell.match(path)) ??
+		(path.startsWith(IMMUTABLE) ? await caches.match(path) : undefined);
+	if (hit) return hit;
+	const res = await fetch(req);
+	if (res.ok && res.status === 200 && fromServer(res) && (ASSETS.has(path) || LAZY.test(path)))
+		shell.put(path, res.clone());
+	return res;
+}
+
+/**
+ * Страница. Когда вся оболочка этой версии сохранена — сразу из кеша: приложение открывается без
+ * ожидания сети (через туннель это заметная задержка), а новая версия приходит со следующим service
+ * worker. Пока сохранено не всё — из сети, а без неё — сохранённая.
+ */
+let complete = false;
+
 async function page(req: Request): Promise<Response> {
+	// Только своя версия: в кеше прежней лежит прежняя страница, с ней обновление не пришло бы.
+	const shell = await caches.open(SHELL);
+	complete ||= !!(await shell.match(COMPLETE));
+	const saved = complete ? await shell.match(INDEX) : undefined;
+	if (saved) return saved;
 	try {
 		const res = await fetch(req);
 		// Перенаправление приходит «непрозрачным» — заголовков не видно, но это ответ сервера, и
 		// браузер сам пойдёт по нему. Подменить его оболочкой — значит зациклить переход.
 		if (res.type === 'opaqueredirect' || fromServer(res)) return res;
-		return (await caches.match(INDEX)) ?? res;
+		return (await savedPage(shell)) ?? res;
 	} catch {
-		return (await caches.match(INDEX)) ?? Response.error();
+		return (await savedPage(shell)) ?? Response.error();
 	}
+}
+
+/**
+ * Сервер недоступен, а эта версия ещё не сохранена целиком (только что обновилась): прежняя версия,
+ * у которой в кеше весь код, откроется, а новая — нет.
+ */
+async function savedPage(shell: Cache): Promise<Response | undefined> {
+	if (!complete) {
+		for (const name of (await caches.keys()).reverse()) {
+			if (!name.startsWith('shell-') || name === SHELL) continue;
+			const prev = await caches.open(name);
+			if (await prev.match(COMPLETE)) return prev.match(INDEX);
+		}
+	}
+	return shell.match(INDEX);
 }
 
 sw.addEventListener('fetch', (event) => {
@@ -85,20 +197,9 @@ sw.addEventListener('fetch', (event) => {
 		if (!url.pathname.startsWith('/api/')) event.respondWith(page(req));
 		return;
 	}
-	if (ASSETS.includes(url.pathname)) {
-		event.respondWith(
-			caches.match(url.pathname).then(
-				(hit) =>
-					hit ??
-					fetch(req).then((res) => {
-						if (res.ok && LAZY.test(url.pathname)) {
-							const copy = res.clone();
-							caches.open(SHELL).then((c) => c.put(url.pathname, copy));
-						}
-						return res;
-					})
-			)
-		);
+	// Код прежней версии тоже ищем в кеше: открытая до обновления страница догружает свой.
+	if (ASSETS.has(url.pathname) || url.pathname.startsWith(IMMUTABLE)) {
+		event.respondWith(asset(req, url.pathname));
 		return;
 	}
 	if (url.pathname.startsWith('/api/avatars/')) {

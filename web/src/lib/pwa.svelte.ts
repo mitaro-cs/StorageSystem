@@ -36,9 +36,23 @@ export async function install() {
 /** Service worker: офлайн-режим и push. Регистрирует интерфейс сам — и не в окне хоста. */
 export function registerServiceWorker() {
 	if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-	navigator.serviceWorker
-		.register('/service-worker.js', { type: dev ? 'module' : 'classic' })
+	const sw = navigator.serviceWorker;
+	sw.register('/service-worker.js', { type: dev ? 'module' : 'classic' })
+		.then(() => sw.ready)
+		.then((reg) => warmLater(() => reg.active))
 		.catch(() => {});
+	// Пришла новая версия — докачать и её.
+	sw.addEventListener('controllerchange', () => warmLater(() => sw.controller));
+}
+
+/**
+ * Остальные файлы приложения service worker докачивает фоном — когда первый экран уже открыт,
+ * чтобы его запросы не стояли в очереди за сотней файлов.
+ */
+function warmLater(worker: () => ServiceWorker | null | undefined) {
+	const go = () => setTimeout(() => worker()?.postMessage('warm'), 2000);
+	if (document.readyState === 'complete') go();
+	else addEventListener('load', go, { once: true });
 }
 
 /**

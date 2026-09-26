@@ -4,6 +4,7 @@
 	import { Plus, Search, ArrowRight, CalendarCheck, TriangleAlert, Send } from '@lucide/svelte';
 	import { get } from '$lib/api';
 	import { peek, put } from '$lib/cache';
+	import { TODAY_KEY } from '$lib/early';
 	import { untrack } from 'svelte';
 	import { can, currentGroup, groups, isMulti, session } from '$lib/session.svelte';
 	import { fmtDate, fmtWeekday, fmtWeekdayShort, plural, relativeDay } from '$lib/format';
@@ -27,7 +28,14 @@
 	const now = Date.now();
 
 	async function load(group: number | null) {
-		data = put(`today:${group}`, await get<Today>(`/api/today${group ? `?group=${group}` : ''}`));
+		const url = `/api/today${group ? `?group=${group}` : ''}`;
+		// При следующем запуске app.html запросит «Сегодня» сразу, вместе с профилем.
+		try {
+			localStorage.setItem(TODAY_KEY, url);
+		} catch {
+			/* не запоминаем */
+		}
+		data = put(`today:${group}`, await get<Today>(url));
 	}
 
 	$effect(() => {
