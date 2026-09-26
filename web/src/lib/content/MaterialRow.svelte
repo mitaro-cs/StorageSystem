@@ -16,6 +16,7 @@
 	}: { m: Material; actions?: MenuItem[]; showSubject?: boolean } = $props();
 </script>
 
+<!-- Вся строка — ссылка на материал; «Открыть», ссылка наружу и меню — поверх неё. -->
 <div class="list-row mrow" class:dim={m.hidden}>
 	<FileIcon mime={m.file?.mime} link={m.kind === 'link'} />
 	<div class="main">
@@ -62,7 +63,27 @@
 
 <style>
 	.mrow {
+		position: relative;
+		cursor: pointer;
 		transition: background-color var(--dur) var(--ease);
+	}
+	.title::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+	}
+	.title:focus-visible {
+		outline: none;
+	}
+	.mrow:has(.title:focus-visible) {
+		outline: 2px solid var(--focus);
+		outline-offset: -2px;
+	}
+	.mrow > :global(.menu),
+	.ext {
+		position: relative;
+		z-index: 2;
 	}
 	.mrow:hover {
 		background: color-mix(in srgb, var(--surface-2) 50%, var(--surface));
@@ -103,10 +124,6 @@
 		transition:
 			background-color var(--dur) var(--ease),
 			color var(--dur) var(--ease);
-	}
-	.ext:hover {
-		background: var(--surface-2);
-		color: var(--text);
 	}
 	.ext:hover {
 		background: var(--surface-2);

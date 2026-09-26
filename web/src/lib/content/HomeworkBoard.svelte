@@ -19,7 +19,12 @@
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 
-	let { subjectId = null, title = true }: { subjectId?: number | null; title?: boolean } = $props();
+	// compose={false} — кнопка «+ Задание» уже есть рядом (на странице предмета — в его панели).
+	let {
+		subjectId = null,
+		title = true,
+		compose = true
+	}: { subjectId?: number | null; title?: boolean; compose?: boolean } = $props();
 
 	type View = 'week' | 'calendar' | 'overdue' | 'all';
 	let view = $state<View>(untrack(() => subjectId) === null ? 'week' : 'all');
@@ -114,7 +119,7 @@
 			{/if}
 		</div>
 	</div>
-{:else if can('publish_homework')}
+{:else if compose && can('publish_homework')}
 	<div class="row sub-actions">
 		<span class="spacer"></span><Button size="s" onclick={() => (composer = true)}
 			><Plus size={16} /> Задание</Button

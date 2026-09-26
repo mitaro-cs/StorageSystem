@@ -17,13 +17,16 @@
 	const soon = $derived(!item.done && !overdue && item.dueAt - now < 24 * 3600 * 1000);
 </script>
 
+<!-- Вся строка — ссылка на задание (растянутая ссылка названия); кружок «сделано» — поверх неё. -->
 <div class="hw" class:done={item.done} style:--subject={item.subject?.color}>
-	<DoneToggle done={item.done} label={item.title} onchange={(v) => ontoggle(item, v)} />
+	<span class="toggle"
+		><DoneToggle done={item.done} label={item.title} onchange={(v) => ontoggle(item, v)} /></span
+	>
 	<div class="main">
 		<a href="/homework/{item.id}" class="title">{item.title}</a>
 		<div class="meta">
 			<KindBadge kind={item.kind} compact />
-			<SubjectTag {...item.subject} />
+			<SubjectTag {...item.subject} link={false} />
 			{#if item.place}<span class="faint small row place"
 					><MapPin size={13} /><span class="ellipsis">{item.place}</span></span
 				>{/if}
@@ -45,13 +48,34 @@
 
 <style>
 	.hw {
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: 14px;
 		padding: 14px var(--s4);
 		min-height: 68px;
 		background: var(--surface);
+		cursor: pointer;
 		transition: background-color var(--dur) var(--ease);
+	}
+	/* Нажатие в любом месте строки открывает задание. */
+	.title::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+	}
+	.title:focus-visible {
+		outline: none;
+	}
+	.hw:has(.title:focus-visible) {
+		outline: 2px solid var(--focus);
+		outline-offset: -2px;
+	}
+	.toggle {
+		position: relative;
+		z-index: 2;
+		display: flex;
 	}
 	.hw:hover {
 		background: color-mix(in srgb, var(--surface-2) 50%, var(--surface));

@@ -15,7 +15,9 @@
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 
-	let { subjectId = null }: { subjectId?: number | null } = $props();
+	// compose={false} — кнопка «+ Новость» уже есть рядом (на странице предмета — в его панели).
+	let { subjectId = null, compose = true }: { subjectId?: number | null; compose?: boolean } =
+		$props();
 
 	const key = () => `news:${session.groupId}:${subjectId}`;
 	const cached = untrack(() => peek<NewsPage>(key()));
@@ -102,7 +104,7 @@
 			>
 		{/if}
 	</div>
-{:else if can('publish_news')}
+{:else if compose && can('publish_news')}
 	<div class="row sub-actions">
 		<span class="spacer"></span>
 		<Button size="s" onclick={() => ((editing = null), (composer = true))}

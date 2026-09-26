@@ -73,8 +73,7 @@ test('иконка предмета: подбирается по названи�
 		.getByRole('link', { name: /Математический анализ/ })
 		.first()
 		.click();
-	await page.getByRole('button', { name: 'Действия' }).click();
-	await page.getByRole('menuitem', { name: 'Изменить' }).click();
+	await page.getByRole('button', { name: 'Изменить предмет' }).click();
 	const dialog = page.getByRole('dialog');
 	await expect(dialog.getByText('По названию: Математика')).toBeVisible();
 	await dialog.getByRole('button', { name: 'Выбрать' }).click();

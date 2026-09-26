@@ -115,3 +115,32 @@ test('палитра: «?» показывает горячие клавиши; 
 		.click();
 	await expect(card).toHaveCount(0);
 });
+
+test('строка задания открывается нажатием в любом месте; в предмете — панель действий', async ({
+	page
+}) => {
+	const errors = watchConsole(page);
+	await login(page, ADMIN);
+	await page.goto('/homework');
+	const row = page.locator('.hw', { hasText: 'Типовой расчёт №1' }).first();
+	const box = (await row.boundingBox())!;
+	// Не по названию — у правого края строки, где срок.
+	await row.click({ position: { x: box.width - 24, y: box.height / 2 } });
+	await expect(page).toHaveURL(/\/homework\/\d+$/);
+
+	// Добавить задание прямо со страницы предмета — без поиска кнопки во вкладках.
+	await page.goto('/subjects');
+	await page
+		.getByRole('link', { name: /Математический анализ/ })
+		.first()
+		.click();
+	const bar = page.getByRole('toolbar', { name: 'Действия с предметом' });
+	await expect(bar.getByRole('button', { name: 'Изменить предмет' })).toBeVisible();
+	await bar.getByRole('button', { name: 'Задание' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Новое задание' });
+	await dialog.getByLabel('Что сделать').fill('Задача из панели предмета');
+	await dialog.getByRole('button', { name: 'Опубликовать' }).click();
+	await expect(page).toHaveURL(/tab=homework/);
+	await expect(page.getByRole('link', { name: 'Задача из панели предмета' })).toBeVisible();
+	expect(errors).toEqual([]);
+});

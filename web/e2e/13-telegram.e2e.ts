@@ -29,8 +29,7 @@ test('чаты Telegram: закрепить на главной и у предм
 		.getByRole('link', { name: /Математический анализ/ })
 		.first()
 		.click();
-	await page.getByRole('button', { name: 'Действия' }).click();
-	await page.getByRole('menuitem', { name: 'Изменить' }).click();
+	await page.getByRole('button', { name: 'Изменить предмет' }).click();
 	await page.getByLabel('Чат предмета в Telegram').fill('t.me/matan_bin2509');
 	await page.getByRole('button', { name: 'Сохранить' }).click();
 	await expect(page.getByRole('link', { name: 'Чат предмета' })).toHaveAttribute(

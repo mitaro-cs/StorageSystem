@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { EyeOff, Pin, PinOff, Send, Users } from '@lucide/svelte';
+	import { Archive, EyeOff, Pencil, Pin, PinOff, Plus, Send, Upload, Users } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { get, post, put } from '$lib/api';
 	import { loadSubjects, sortedSubjects } from '$lib/data.svelte';
-	import { plural } from '$lib/format';
-	import { session } from '$lib/session.svelte';
+	import { can, session } from '$lib/session.svelte';
 	import { track } from '$lib/recent';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import type { Subject } from '$lib/types';
@@ -25,6 +24,12 @@
 	let share = $state(false);
 	let directory = $state<{ id: number; name: string; university: string }[]>([]);
 	let shareTo = $state<number | null>(null);
+	// Добавить прямо отсюда: задание, новость, файл — без поиска кнопки во вкладках.
+	let hwOpen = $state(false);
+	let newsOpen = $state(false);
+	let fileOpen = $state(false);
+	// После добавления вкладка перезагружается (номер меняется — {#key} пересоздаёт её).
+	let refresh = $state(0);
 
 	const id = $derived(Number(page.params.id));
 	const tab = $derived(page.url.searchParams.get('tab') ?? 'feed');
@@ -112,11 +117,29 @@
 		}
 	}
 
+	// Что можно в этом предмете: права — в любой из его групп.
+	const inGroups = (perm: Parameters<typeof can>[0]) =>
+		!!subject?.groups.some((g) => can(perm, g.id));
+	const canHomework = $derived(inGroups('publish_homework'));
+	const canNews = $derived(inGroups('publish_news'));
+	const canUpload = $derived(inGroups('upload_materials'));
+	const canFiles = $derived(canUpload || inGroups('suggest_materials'));
+
+	/** Добавили — открываем вкладку, где это видно, и обновляем её. */
+	function added(tab: 'feed' | 'homework' | 'materials') {
+		refresh++;
+		goto(`/subjects/${id}${tab === 'feed' ? '' : `?tab=${tab}`}`, {
+			replaceState: true,
+			noScroll: true,
+			keepFocus: true
+		});
+	}
+
+	// Редкое — в меню «…»: общий предмет, архив, «не мой предмет».
 	const actions = $derived.by((): MenuItem[] => {
 		if (!subject) return [];
 		const s = subject;
 		const out: MenuItem[] = [];
-		if (s.can.edit) out.push({ label: 'Изменить', onclick: () => (editor = true) });
 		out.push(
 			s.mine === false
 				? { label: 'Мой предмет — вернуть в списки', onclick: () => setMine(true) }
@@ -160,17 +183,7 @@
 {:else if !subject}
 	<Skeleton lines={4} />
 {:else}
-	<BackBar href="/subjects" label="Предметы">
-		<button
-			class="circle"
-			onclick={togglePin}
-			aria-label={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
-			title={subject.pinned ? 'Открепить' : 'Закрепить'}
-		>
-			{#if subject.pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
-		</button>
-		<Menu items={actions} />
-	</BackBar>
+	<BackBar href="/subjects" label="Предметы" />
 
 	{#if others.length > 1}
 		<nav class="strip" aria-label="Другие предметы" bind:this={strip}>
@@ -225,11 +238,8 @@
 			<h1>{subject.name}</h1>
 			<span class="sub">{subject.teacher || 'Преподаватель не указан'}</span>
 			<span class="facts">
-				<span
-					><Users size={15} />
-					<span class="num">{subject.groups.length}</span>
-					{plural(subject.groups.length, ['группа', 'группы', 'групп'])}</span
-				>
+				<span><Users size={15} /> {subject.groups.map((g) => g.name).join(', ')}</span>
+				{#if subject.archived}<span><Archive size={15} /> в архиве</span>{/if}
 				{#if subject.pinned}<span><Pin size={15} /> закреплён</span>{/if}
 			</span>
 			{#if subject.chatUrl}
@@ -240,20 +250,42 @@
 		</div>
 	</header>
 
-	<dl class="kv info">
-		<div>
-			<dt>Преподаватель</dt>
-			<dd>{subject.teacher || '—'}</dd>
-		</div>
-		<div>
-			<dt>{subject.groups.length > 1 ? 'Общий для групп' : 'Группа'}</dt>
-			<dd>{subject.groups.map((g) => g.name).join(', ')}</dd>
-		</div>
-		<div>
-			<dt>Статус</dt>
-			<dd>{subject.archived ? 'В архиве' : 'Идёт'}</dd>
-		</div>
-	</dl>
+	<!-- Управление предметом — одной строкой: добавить, закрепить, изменить, остальное — в «…». -->
+	<div class="toolbar" role="toolbar" aria-label="Действия с предметом">
+		{#if canHomework}
+			<Button size="s" variant="primary" onclick={() => (hwOpen = true)}
+				><Plus size={16} /> Задание</Button
+			>
+		{/if}
+		{#if canNews}
+			<Button size="s" onclick={() => (newsOpen = true)}><Plus size={16} /> Новость</Button>
+		{/if}
+		{#if canFiles}
+			<Button size="s" onclick={() => (fileOpen = true)}
+				><Upload size={16} /> {canUpload ? 'Загрузить файл' : 'Предложить файл'}</Button
+			>
+		{/if}
+		<span class="spacer"></span>
+		<button
+			class="circle"
+			onclick={togglePin}
+			aria-label={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
+			title={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
+			aria-pressed={subject.pinned}
+		>
+			{#if subject.pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
+		</button>
+		{#if subject.can.edit}
+			<button
+				class="circle"
+				onclick={() => (editor = true)}
+				aria-label="Изменить предмет"
+				title="Изменить: название, преподаватель, цвет, иконка, фон, чат"
+				><Pencil size={17} /></button
+			>
+		{/if}
+		<Menu items={actions} label="Ещё действия с предметом" />
+	</div>
 
 	<nav class="subtabs" aria-label="Разделы предмета">
 		{#each activeTabs as t (t.label)}
@@ -268,22 +300,47 @@
 	</nav>
 
 	<!-- Вкладки подгружаются при открытии: код ДЗ, материалов и участников не нужен для ленты. -->
-	{#if tab === 'homework'}
-		{#await import('$lib/content/HomeworkBoard.svelte')}<Skeleton lines={4} />{:then m}<m.default
+	{#key refresh}
+		{#if tab === 'homework'}
+			{#await import('$lib/content/HomeworkBoard.svelte')}<Skeleton lines={4} />{:then m}<m.default
+					subjectId={subject.id}
+					title={false}
+					compose={false}
+				/>{/await}
+		{:else if tab === 'materials'}
+			{#await import('$lib/content/MaterialBrowser.svelte')}<Skeleton
+					lines={4}
+				/>{:then m}<m.default subjectId={subject.id} subjectName={subject.name} />{/await}
+		{:else if tab === 'members'}
+			{#await import('$lib/content/MemberList.svelte')}<Skeleton lines={4} />{:then m}<m.default
+					groupIds={subject.groups.map((g) => g.id)}
+				/>{/await}
+		{:else}
+			<NewsFeed subjectId={subject.id} compose={false} />
+		{/if}
+	{/key}
+
+	<!-- Формы добавления грузятся по кнопке. -->
+	{#if hwOpen}
+		{#await import('$lib/content/HomeworkComposer.svelte') then m}
+			<m.default bind:open={hwOpen} subjectId={subject.id} onsaved={() => added('homework')} />
+		{/await}
+	{/if}
+	{#if newsOpen}
+		{#await import('$lib/content/NewsComposer.svelte') then m}
+			<m.default bind:open={newsOpen} subjectId={subject.id} onsaved={() => added('feed')} />
+		{/await}
+	{/if}
+	{#if fileOpen}
+		{#await import('$lib/content/MaterialAdd.svelte') then m}
+			<m.default
+				bind:open={fileOpen}
 				subjectId={subject.id}
-				title={false}
-			/>{/await}
-	{:else if tab === 'materials'}
-		{#await import('$lib/content/MaterialBrowser.svelte')}<Skeleton lines={4} />{:then m}<m.default
-				subjectId={subject.id}
-				subjectName={subject.name}
-			/>{/await}
-	{:else if tab === 'members'}
-		{#await import('$lib/content/MemberList.svelte')}<Skeleton lines={4} />{:then m}<m.default
-				groupIds={subject.groups.map((g) => g.id)}
-			/>{/await}
-	{:else}
-		<NewsFeed subjectId={subject.id} />
+				folderId={null}
+				suggest={!canUpload}
+				onsaved={() => added('materials')}
+			/>
+		{/await}
 	{/if}
 
 	{#if editor}
@@ -399,10 +456,12 @@
 		min-width: 0;
 		padding: 6px 4px 2px 0;
 	}
+	/* Длинное название переносится по словам и ровными строками, без «Груп-па». */
 	.hero h1 {
 		font-size: clamp(21px, 4.6vw, 28px);
 		overflow-wrap: break-word;
-		hyphens: auto;
+		hyphens: manual;
+		text-wrap: balance;
 	}
 	/* Узкий телефон: картинка — полосой сверху, название — во всю ширину, без разрывов слов. */
 	@media (max-width: 520px) {
@@ -462,8 +521,17 @@
 	.facts > span + span {
 		border-left: 1px solid color-mix(in srgb, var(--inverse-muted) 40%, transparent);
 	}
-	.info {
-		margin-bottom: var(--s4);
+	.toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+		margin: var(--s3) 0 var(--s4);
+	}
+	.toolbar .circle[aria-pressed='true'] {
+		background: var(--accent-soft);
+		border-color: var(--accent);
+		color: var(--accent);
 	}
 	.subtabs {
 		display: flex;
