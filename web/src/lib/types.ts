@@ -63,6 +63,8 @@ export interface Me {
 		totpEnabled: boolean;
 		/** Режим управления: false — кнопки администратора и старосты скрыты. */
 		manageMode: boolean;
+		/** Знакомство с сайтом уже показано (у серверов до 0.4.8 поля нет — не показываем). */
+		onboarded?: boolean;
 	};
 	restriction: 'password_change_required' | 'totp_setup_required' | null;
 	instance: {
@@ -107,6 +109,8 @@ export interface Subject {
 	avatar: string | null;
 	/** Иконка из набора ($lib/subjectIcons); null — подбирается по названию. */
 	icon: string | null;
+	/** Фон карточки — широкая картинка вместо иконки (у серверов до 0.4.8 поля нет). */
+	cover?: string | null;
 	/** Чат предмета в Telegram (https://t.me/…). */
 	chatUrl: string | null;
 	archived: boolean;
@@ -188,6 +192,8 @@ export interface Comment {
 	createdAt: number;
 	hidden: boolean;
 	canDelete: boolean;
+	/** Скрыть и вернуть может модератор (у серверов до 0.4.8 поля нет). */
+	canHide?: boolean;
 	/** Создано без сети и ещё не отправлено на сервер. */
 	pending?: boolean;
 }
@@ -365,4 +371,47 @@ export interface NotificationSettings {
 	devices: PushDevice[];
 	pushEnabled: boolean;
 	publicKey: string;
+}
+
+// ---------- модерация ----------
+
+export type ModType = 'post' | 'homework' | 'material' | 'comment';
+
+/** Новость, задание, материал или комментарий в «Модерации». */
+export interface ModTarget {
+	type: ModType;
+	id: number;
+	/** Заголовок; у комментария — того, к чему он. */
+	title: string;
+	/** Начало текста одной строкой. */
+	text: string;
+	author: Person;
+	createdAt: number;
+	hidden: boolean;
+	href: string;
+	groups: number[];
+	/** У комментария — к чему он. */
+	parentType: Exclude<ModType, 'comment'> | null;
+}
+
+export interface ModReport {
+	target: ModTarget;
+	count: number;
+	reasons: string[];
+	lastAt: number;
+}
+
+export interface ModSummary {
+	pending: number;
+	reports: number;
+}
+
+export interface ModLogEntry {
+	id: number;
+	at: number;
+	actorName: string | null;
+	action: string;
+	targetType: ModType | null;
+	targetId: number | null;
+	title: string | null;
 }

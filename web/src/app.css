@@ -323,6 +323,201 @@
 	}
 }
 
+/* Контур: без теней — тонкая рамка, карточка чуть прозрачнее страницы. */
+:root[data-style='outline'] .card:not(.urgent) {
+	background-color: color-mix(in srgb, var(--surface) 60%, transparent);
+	box-shadow: inset 0 0 0 1.5px var(--border-strong);
+}
+
+/* Неон: светящаяся кромка в цвет темы, у новостей и заданий — в цвет предмета. */
+:root[data-style='neon'] .card:not(.urgent) {
+	--glow: color-mix(in srgb, var(--subject, var(--accent)) 80%, transparent);
+	border: 1px solid transparent;
+	background:
+		linear-gradient(var(--surface), var(--surface)) padding-box,
+		linear-gradient(
+				135deg,
+				var(--glow),
+				color-mix(in srgb, var(--accent) 45%, #ff4fd8) 55%,
+				color-mix(in srgb, var(--accent) 35%, #33d6ff)
+			)
+			border-box;
+	box-shadow: 0 12px 32px -20px var(--glow);
+}
+:root[data-style='neon'] body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+	background:
+		radial-gradient(40% 30% at 85% 0%, color-mix(in srgb, #ff4fd8 16%, transparent), transparent),
+		radial-gradient(45% 35% at 0% 100%, color-mix(in srgb, #33d6ff 14%, transparent), transparent);
+}
+
+/* Бумага: тёплый тон, лёгкое зерно, мягкие тени и заголовки с засечками. */
+:root[data-style='paper'] {
+	--bg: #f3eee3;
+	--surface: #fffdf7;
+	--surface-2: #f6f0e3;
+	--surface-3: #ebe2cf;
+	--border: #e5dac4;
+	--border-strong: #d6c9ae;
+}
+:root[data-style='paper'] body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+	opacity: 0.4;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .27 0 0 0 0 .15 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:root[data-style='paper'] .card:not(.urgent) {
+	box-shadow:
+		0 1px 0 rgb(90 64 20 / 0.06),
+		0 12px 26px -20px rgb(90 64 20 / 0.5);
+}
+:root[data-style='paper'] :is(h1, h2, h3) {
+	font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+	letter-spacing: -0.01em;
+}
+
+/* Комикс: жирный контур и сдвинутая «печатная» тень; на компьютере карточка подпрыгивает. */
+:root[data-style='comic'] .card:not(.urgent) {
+	box-shadow:
+		inset 0 0 0 2px var(--text),
+		5px 5px 0 var(--text);
+	transition:
+		transform 160ms var(--ease),
+		box-shadow 160ms var(--ease);
+}
+@media (hover: hover) {
+	:root[data-style='comic'] .card:not(.urgent):hover {
+		transform: translate(-2px, -2px);
+		box-shadow:
+			inset 0 0 0 2px var(--text),
+			7px 7px 0 var(--text);
+	}
+}
+
+/* Стили в тёмной теме. */
+:root[data-theme='dark'][data-style='neon'] .card:not(.urgent) {
+	box-shadow:
+		0 0 22px -8px var(--glow),
+		0 16px 40px -22px var(--glow);
+}
+:root[data-theme='dark'][data-style='paper'] {
+	--bg: #14110c;
+	--surface: #1f1b15;
+	--surface-2: #28231b;
+	--surface-3: #332c21;
+	--border: #2d271d;
+	--border-strong: #3e3628;
+}
+:root[data-theme='dark'][data-style='paper'] body::before {
+	opacity: 0.18;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light'])[data-style='neon'] .card:not(.urgent) {
+		box-shadow:
+			0 0 22px -8px var(--glow),
+			0 16px 40px -22px var(--glow);
+	}
+	:root:not([data-theme='light'])[data-style='paper'] {
+		--bg: #14110c;
+		--surface: #1f1b15;
+		--surface-2: #28231b;
+		--surface-3: #332c21;
+		--border: #2d271d;
+		--border-strong: #3e3628;
+	}
+	:root:not([data-theme='light'])[data-style='paper'] body::before {
+		opacity: 0.18;
+	}
+}
+
+/* ---------- Фон страниц (Профиль → Оформление → Фон, lib/theme.ts BACKGROUNDS) ----------
+   Слой под всем, неподвижный: при прокрутке не перерисовывается. Цвета узоров — от цвета текста,
+   поэтому подходят и к светлой, и к тёмной теме. Своя картинка — под вуалью цвета страницы. */
+:root[data-bg]::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: -2;
+	pointer-events: none;
+}
+:root[data-bg='aurora']::before {
+	background:
+		radial-gradient(55% 45% at 10% 10%, rgb(124 92 255 / 0.42), transparent 70%),
+		radial-gradient(50% 45% at 95% 25%, rgb(56 189 170 / 0.38), transparent 70%),
+		radial-gradient(60% 50% at 50% 105%, rgb(59 130 246 / 0.34), transparent 72%);
+}
+:root[data-bg='sunset']::before {
+	background:
+		radial-gradient(60% 50% at 0% 0%, rgb(255 159 67 / 0.45), transparent 70%),
+		radial-gradient(55% 50% at 100% 30%, rgb(238 77 126 / 0.38), transparent 70%),
+		radial-gradient(60% 50% at 40% 110%, rgb(168 107 255 / 0.32), transparent 72%);
+}
+:root[data-bg='ocean']::before {
+	background:
+		radial-gradient(60% 50% at 100% 0%, rgb(47 128 255 / 0.42), transparent 70%),
+		radial-gradient(55% 45% at 0% 60%, rgb(34 211 238 / 0.32), transparent 70%),
+		radial-gradient(60% 50% at 70% 110%, rgb(18 56 168 / 0.36), transparent 72%);
+}
+:root[data-bg='mint']::before {
+	background:
+		radial-gradient(60% 50% at 0% 0%, rgb(47 182 124 / 0.4), transparent 70%),
+		radial-gradient(55% 45% at 100% 45%, rgb(163 230 53 / 0.28), transparent 70%),
+		radial-gradient(60% 50% at 30% 110%, rgb(20 184 166 / 0.34), transparent 72%);
+}
+:root[data-bg='grid']::before {
+	--line: color-mix(in srgb, var(--text) 9%, transparent);
+	background:
+		linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 24px 24px,
+		linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 24px 24px;
+}
+:root[data-bg='dots']::before {
+	background: radial-gradient(
+			circle,
+			color-mix(in srgb, var(--text) 20%, transparent) 1.2px,
+			transparent 1.6px
+		)
+		0 0 / 20px 20px;
+}
+:root[data-bg='lines']::before {
+	--line: color-mix(in srgb, #2f80ff 22%, transparent);
+	background:
+		linear-gradient(90deg, transparent 38px, rgb(238 77 126 / 0.35) 38px 40px, transparent 40px),
+		linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 30px;
+}
+:root[data-bg='custom']::before {
+	inset: -24px;
+	background:
+		linear-gradient(
+			color-mix(in srgb, var(--bg) 55%, transparent),
+			color-mix(in srgb, var(--bg) 70%, transparent)
+		),
+		var(--bg-image) center / cover no-repeat;
+	filter: blur(2px);
+}
+
+/* Приложение проявляется вместе с уходом заставки: чуть приближается из глубины. */
+:root.revealing :is(.shell, main.auth) {
+	animation: reveal-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes reveal-in {
+	from {
+		transform: scale(0.96);
+		opacity: 0.3;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	:root.revealing :is(.shell, main.auth) {
+		animation: none;
+	}
+}
+
 /* Плавная смена темы — только в момент переключения, чтобы не мигало при загрузке. */
 :root.theme-switching,
 :root.theme-switching * {

@@ -5,7 +5,8 @@
 	import { Paperclip, MessageCircle, Check, RotateCcw, Clock } from '@lucide/svelte';
 	import { del, get, put } from '$lib/api';
 	import { fmtAgo, fmtDue, fmtSize, plural, relativeDay } from '$lib/format';
-	import { can, isMulti } from '$lib/session.svelte';
+	import { can, isMulti, session } from '$lib/session.svelte';
+	import { report } from '$lib/content/moderate';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import type { Homework } from '$lib/types';
 	import { toggleDone } from '$lib/content/homework';
@@ -63,6 +64,8 @@
 					}
 				}
 			});
+		if (!h.can.hide && h.author.id !== session.me?.user.id && h.id > 0)
+			out.push({ label: 'Пожаловаться', onclick: () => report('homework', h.id) });
 		if (h.can.delete)
 			out.push({
 				label: 'Удалить',

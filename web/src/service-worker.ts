@@ -29,7 +29,12 @@ const LAZY = /pdf/i;
  * уже открыт (warm). Раньше при установке качались сотни файлов разом: на телефоне через туннель
  * это забивало связь, и всё, что человек делал в первые минуты, стояло в очереди за ними.
  */
-const CORE = [INDEX, ...STATIC.filter((a) => !LAZY.test(a) && !/\.txt$/.test(a))];
+/** Варианты значка (Профиль → Оформление → Значок) нужны не всем — только по запросу. */
+const OPTIONAL = /^\/(icons\/v\/|manifest-)/;
+const CORE = [
+	INDEX,
+	...STATIC.filter((a) => !LAZY.test(a) && !/\.txt$/.test(a) && !OPTIONAL.test(a))
+];
 const WARM = build.filter((a) => !LAZY.test(a));
 /** Код с хешем в имени не меняется: то, что уже скачано прежней версией, берём из её кеша. */
 const IMMUTABLE = '/_app/immutable/';
@@ -135,8 +140,23 @@ async function fileFirst(req: Request, path: string): Promise<Response> {
  * Файл оболочки: из кеша этой версии, код с хешем в имени — из кеша любой версии, иначе из сети — и
  * сохраняем для следующего раза. Статику (иконки, шрифты) — только своей версии: её имя не меняется.
  */
-async function asset(req: Request, path: string): Promise<Response> {
+async function asset(req: Request, url: URL): Promise<Response> {
+	const path = url.pathname;
 	const shell = await caches.open(SHELL);
+	// Иконки с меткой версии (?v=3) — из сети: так новая картинка приходит, даже если под тем же
+	// именем в кеше лежит старая. Без сети — из кеша.
+	if (url.search && !path.startsWith(IMMUTABLE)) {
+		try {
+			const res = await fetch(req);
+			if (res.ok && fromServer(res)) {
+				shell.put(path, res.clone());
+				return res;
+			}
+		} catch {
+			/* сети нет */
+		}
+		return (await shell.match(path)) ?? (await caches.match(path)) ?? Response.error();
+	}
 	const hit =
 		(await shell.match(path)) ??
 		(path.startsWith(IMMUTABLE) ? await caches.match(path) : undefined);
@@ -199,7 +219,7 @@ sw.addEventListener('fetch', (event) => {
 	}
 	// Код прежней версии тоже ищем в кеше: открытая до обновления страница догружает свой.
 	if (ASSETS.has(url.pathname) || url.pathname.startsWith(IMMUTABLE)) {
-		event.respondWith(asset(req, url.pathname));
+		event.respondWith(asset(req, url));
 		return;
 	}
 	if (url.pathname.startsWith('/api/avatars/')) {
@@ -232,8 +252,8 @@ sw.addEventListener('push', (event) => {
 			sw.registration.showNotification(data.title || 'groupbase', {
 				body: data.body ?? '',
 				tag: data.tag,
-				icon: '/icons/icon-192.png?v=2',
-				badge: '/icons/badge-96.png?v=2',
+				icon: '/icons/icon-192.png?v=3',
+				badge: '/icons/badge-96.png?v=3',
 				lang: 'ru',
 				data: { url: data.url ?? '/' }
 			}),

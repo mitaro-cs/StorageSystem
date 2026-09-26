@@ -16,6 +16,7 @@
 		m: '/materials',
 		s: '/subjects',
 		u: '/members',
+		r: '/moderation',
 		o: '/settings',
 		p: '/profile',
 		b: '/notifications'
@@ -47,7 +48,13 @@
 		// Состояние берём из DOM: событие close у диалога приходит с задержкой.
 		if (document.querySelector('dialog[open]')) return;
 		const now = Date.now();
-		if (pendingG && now - pendingG < 1200 && jumps[e.key] && (e.key !== 'o' || hasSettings())) {
+		if (
+			pendingG &&
+			now - pendingG < 1200 &&
+			jumps[e.key] &&
+			(e.key !== 'o' || hasSettings()) &&
+			(e.key !== 'r' || can('moderate_content'))
+		) {
 			pendingG = 0;
 			e.preventDefault();
 			goto(jumps[e.key]);
@@ -77,12 +84,17 @@
 		['g n', 'Новости'],
 		['g s', 'Предметы'],
 		['g u', 'Участники'],
+		['g r', 'Модерация'],
 		['g o', 'Настройки'],
 		['g p', 'Профиль'],
 		['g b', 'Уведомления'],
 		['?', 'Эта подсказка']
 	];
-	const rows = $derived(allRows.filter(([k]) => k !== 'g o' || hasSettings()));
+	const rows = $derived(
+		allRows.filter(
+			([k]) => (k !== 'g o' || hasSettings()) && (k !== 'g r' || can('moderate_content'))
+		)
+	);
 </script>
 
 <svelte:window {onkeydown} />

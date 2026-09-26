@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { fly } from '$lib/motion';
 	import { cachedBackground, loadBackground, parseBackground } from '$lib/appearance';
+	import { appIcon, iconSrc } from '$lib/appIcon.svelte';
 
 	let { children } = $props();
 
@@ -23,7 +24,7 @@
 >
 	<div class="brand" aria-hidden="true">
 		<!-- Логотип: та же картинка, что значок во вкладке. -->
-		<img src="/favicon.svg" alt="" width="36" height="36" />
+		<img src={iconSrc(appIcon.id)} alt="" width="36" height="36" />
 		<span>groupbase</span>
 	</div>
 	<div class="card panel" in:fly={{ y: 12 }}>

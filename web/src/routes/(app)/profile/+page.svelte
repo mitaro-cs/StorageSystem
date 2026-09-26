@@ -40,13 +40,14 @@
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
-	import PasswordFields from '$lib/auth/PasswordFields.svelte';
 	import { forgetOfflineData, install, pwa } from '$lib/pwa.svelte';
 	import { clearCache } from '$lib/cache';
 	import { clearRecent } from '$lib/recent';
 	import { ask, askText } from '$lib/ui/ask.svelte';
 	import { copy } from '$lib/copy';
 	import { sessionNavVisible } from '$lib/content/session';
+	import { canModerate, moderation } from '$lib/moderation.svelte';
+	import { welcome } from '$lib/onboarding.svelte';
 
 	const me = $derived(session.me!);
 	// «Сессия» — как в боковой панели компьютера: около сессии или по выбору старосты.
@@ -263,6 +264,12 @@
 <!-- На телефоне: разделы, которых нет в нижней панели (новости и предметы — в ней). -->
 <nav class="quick mobile" aria-label="Разделы">
 	<a href="/members"><Users size={18} /> <span>{t.nav.members}</span></a>
+	{#if canModerate()}<a href="/moderation"
+			><ShieldCheck size={18} />
+			<span>{t.nav.moderation}</span>{#if moderation.reports + moderation.pending}<b
+					class="count num">{moderation.reports + moderation.pending}</b
+				>{/if}</a
+		>{/if}
 	{#if showSession}<a href="/session"><GraduationCap size={18} /> <span>{t.nav.session}</span></a
 		>{/if}
 	<a href="/notifications"><Bell size={18} /> <span>{t.nav.notifications}</span></a>
@@ -362,7 +369,10 @@
 				/>
 			</div>
 		{/if}
-		<PasswordFields bind:password bind:confirm />
+		<!-- Поля нового пароля с «Придумать за меня» (словарь) — отдельным кусочком. -->
+		{#await import('$lib/auth/PasswordFields.svelte') then m}
+			<m.default bind:password bind:confirm />
+		{/await}
 		<div><Button type="submit">Сменить пароль</Button></div>
 	</form>
 </section>
@@ -451,7 +461,10 @@
 		<Button variant="danger" onclick={() => (deleteOpen = true)}>Удалить аккаунт</Button>
 	</div>
 	<p class="faint small">
-		groupbase {me.instance.version}{#if isAdmin()}
+		<button class="linklike" onclick={() => (welcome.open = true)}
+			>Как пользоваться groupbase</button
+		>
+		· <span>groupbase {me.instance.version}</span>{#if isAdmin()}
 			· <a href="/settings?tab=updates">проверить обновления</a>{/if}
 	</p>
 </section>
@@ -659,6 +672,18 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+	.quick .count {
+		margin-left: auto;
+		min-width: 22px;
+		height: 22px;
+		padding: 0 6px;
+		border-radius: 11px;
+		background: var(--amber);
+		color: var(--bg);
+		font-size: 12px;
+		line-height: 22px;
+		text-align: center;
 	}
 	@media (min-width: 900px) {
 		.mobile {

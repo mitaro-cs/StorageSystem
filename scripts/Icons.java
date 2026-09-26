@@ -44,6 +44,10 @@ public class Icons {
       layer(logo, 1024, new File(layers, "logo.png"));
       return;
     }
+    if (args.length > 0 && args[0].equals("variants")) {
+      variants(logo, new File("web/static"));
+      return;
+    }
     File dir = new File(args.length > 0 ? args[0] : "web/static/icons");
     dir.mkdirs();
     for (int size : new int[] {180, 192, 512}) {
@@ -52,6 +56,81 @@ public class Icons {
     // maskable: всё важное — в круге 80% от центра, остальное система может обрезать.
     icon(logo, 512, 0.9, new File(dir, "maskable-512.png"));
     badge(logo, 96, new File(dir, "badge-96.png"));
+  }
+
+  /**
+   * Вариант значка на выбор (Профиль → Оформление → Значок): плитка цветом или градиентом, логотип
+   * белый, сетка и зазоры — цвета плитки. «Светлый» — это обычные icons/icon-*.png.
+   */
+  record Variant(String id, Color from, Color to, Color ink) {}
+
+  static final Variant[] VARIANTS = {
+    new Variant("dark", new Color(0x2a2a2e), new Color(0x0c0c0e), Color.WHITE),
+    new Variant("ocean", new Color(0x2f80ff), new Color(0x1238a8), Color.WHITE),
+    new Variant("forest", new Color(0x2fb67c), new Color(0x11663f), Color.WHITE),
+    new Variant("sunset", new Color(0xff9f43), new Color(0xee4d7e), Color.WHITE),
+    new Variant("grape", new Color(0xa86bff), new Color(0x5a22c9), Color.WHITE)
+  };
+
+  /** Для каждого варианта: SVG для вкладки, PNG для экрана «Домой» и свой манифест. */
+  static void variants(Logo logo, File statics) throws Exception {
+    File dir = new File(statics, "icons/v");
+    dir.mkdirs();
+    String svg = Files.readString(new File(statics, "favicon.svg").toPath());
+    String manifest = Files.readString(new File(statics, "manifest.webmanifest").toPath());
+    for (Variant v : VARIANTS) {
+      Files.writeString(new File(dir, v.id() + ".svg").toPath(), variantSvg(svg, v));
+      for (int size : new int[] {180, 192, 512}) {
+        variantPng(logo, v, size, 1, new File(dir, v.id() + "-" + size + ".png"));
+      }
+      variantPng(logo, v, 512, 0.9, new File(dir, v.id() + "-maskable-512.png"));
+      Files.writeString(
+          new File(statics, "manifest-" + v.id() + ".webmanifest").toPath(),
+          manifest
+              .replaceAll("/icons/icon-(\\d+)\\.png", "/icons/v/" + v.id() + "-$1.png")
+              .replace("/icons/maskable-512.png", "/icons/v/" + v.id() + "-maskable-512.png"));
+    }
+  }
+
+  static String hex(Color c) {
+    return String.format("#%06x", c.getRGB() & 0xffffff);
+  }
+
+  /** favicon.svg в цветах варианта: плитка — градиент, «дыры» (сетка, зазор, глаз) — тоже он. */
+  static String variantSvg(String svg, Variant v) {
+    String defs =
+        "<defs><linearGradient id=\"tile\" gradientUnits=\"userSpaceOnUse\" x1=\"66\" y1=\"72\""
+            + " x2=\"666\" y2=\"672\"><stop offset=\"0\" stop-color=\""
+            + hex(v.from())
+            + "\"/><stop offset=\"1\" stop-color=\""
+            + hex(v.to())
+            + "\"/></linearGradient></defs>";
+    String ink = String.format("#%06x", logoInk(svg));
+    return svg.replaceFirst("(<svg[^>]*>)", "$1\n" + defs)
+        .replace("\"" + ink + "\"", "\"" + hex(v.ink()) + "\"")
+        .replace("\"#fff\"", "\"url(#tile)\"");
+  }
+
+  static int logoInk(String svg) {
+    Matcher m = Pattern.compile("id=\"globe\"[^>]* fill=\"#([0-9a-f]{6})\"").matcher(svg);
+    if (!m.find()) {
+      throw new IllegalStateException("В favicon.svg нет цвета глобуса");
+    }
+    return Integer.parseInt(m.group(1), 16);
+  }
+
+  static void variantPng(Logo logo, Variant v, int size, double scale, File out) throws Exception {
+    BufferedImage img = canvas(size);
+    Graphics2D g = graphics(img);
+    g.setPaint(new java.awt.GradientPaint(0, 0, v.from(), size, size, v.to()));
+    g.fillRect(0, 0, size, size);
+    double s = size / SIDE * scale;
+    g.translate((size - SIDE * s) / 2, (size - SIDE * s) / 2);
+    g.scale(s, s);
+    g.setColor(v.ink());
+    g.fill(silhouette(logo, logo.line(), logo.gap()));
+    g.dispose();
+    ImageIO.write(img, "png", out);
   }
 
   /** Квадрат с белым фоном, логотип как в оригинале (scale 1) или уменьшенный к центру. */

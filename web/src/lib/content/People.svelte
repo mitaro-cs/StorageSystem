@@ -5,11 +5,9 @@
 	import { can, currentGroup, groups, loadMe, session } from '$lib/session.svelte';
 	import type { Member } from '$lib/types';
 	import MemberList from './MemberList.svelte';
-	import AddPeople from './AddPeople.svelte';
 	import { memberActions } from './memberActions';
 	import Modal from '$lib/ui/Modal.svelte';
 	import Button from '$lib/ui/Button.svelte';
-	import QrCode from '$lib/ui/QrCode.svelte';
 
 	// Все люди группы (или всех групп) с ролями и управлением: раздел «Участники» и кабинет
 	// старосты и администратора.
@@ -73,8 +71,11 @@
 	/>
 </div>
 
-{#if addGroup}
-	<AddPeople bind:open={adding} groupId={addGroup.id} onadded={() => reload++} />
+<!-- Добавление людей и QR-код — редкие: их код грузится при открытии. -->
+{#if addGroup && adding}
+	{#await import('./AddPeople.svelte') then m}
+		<m.default bind:open={adding} groupId={addGroup.id} onadded={() => reload++} />
+	{/await}
 {/if}
 
 <Modal open={reset !== null} title="Сброс пароля" onclose={() => (reset = null)}>
@@ -83,7 +84,9 @@
 		лично. Она одноразовая и действует 7 дней; старые сессии пользователя закроются.
 	</p>
 	{#if reset}<div class="qr">
-			<QrCode value={reset.link} label="QR-код для сброса пароля" />
+			{#await import('$lib/ui/QrCode.svelte') then m}
+				<m.default value={reset.link} label="QR-код для сброса пароля" />
+			{/await}
 		</div>{/if}
 	<div class="linkbox"><code>{reset?.link}</code></div>
 	{#snippet footer()}

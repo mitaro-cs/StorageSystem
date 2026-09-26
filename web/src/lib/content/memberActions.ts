@@ -54,7 +54,7 @@ export function memberActions(m: Member, groupId: number, hooks: MemberHooks): M
 		};
 		if (m.instanceRole !== 'admin')
 			out.push({
-				label: 'Сделать администратором сайта',
+				label: 'Сделать администратором',
 				onclick: setSite(
 					'admin',
 					self ? 'Роль изменена' : 'Назначен администратором. Ему нужно войти заново',
@@ -65,10 +65,10 @@ export function memberActions(m: Member, groupId: number, hooks: MemberHooks): M
 			});
 		if (m.instanceRole !== 'moderator')
 			out.push({
-				label: 'Сделать модератором сайта',
+				label: 'Сделать модератором',
 				onclick: setSite(
 					'moderator',
-					self ? 'Теперь вы модератор сайта' : 'Назначен модератором',
+					self ? 'Теперь вы модератор' : 'Назначен модератором',
 					self ? 'Снять с себя роль администратора и стать модератором?' : undefined
 				)
 			});

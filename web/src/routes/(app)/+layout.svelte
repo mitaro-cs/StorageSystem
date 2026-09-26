@@ -10,6 +10,7 @@
 	import { viewer } from '$lib/files/viewer.svelte';
 	import { forgetServiceWorker, initPwa, pwa, registerServiceWorker } from '$lib/pwa.svelte';
 	import { startBell } from '$lib/notify.svelte';
+	import { needsWelcome, welcome } from '$lib/onboarding.svelte';
 	import { ApiError, hasFresh, request } from '$lib/api';
 	import { toast } from '$lib/toasts.svelte';
 	import { flushOutbox, initOffline, offline, syncNow } from '$lib/offline/engine';
@@ -27,6 +28,31 @@
 	let collapsed = $state(false);
 	onMount(initPwa);
 	onMount(startBell);
+	// Новые комментарии, новости и задания появляются сами — без перезагрузки страницы.
+	onMount(() => {
+		if (!session.me) return;
+		let stop: (() => void) | undefined;
+		let gone = false;
+		import('$lib/live').then((m) => {
+			if (!gone) stop = m.startLive();
+		});
+		return () => {
+			gone = true;
+			stop?.();
+		};
+	});
+	// Только что зарегистрировался — знакомство с сайтом, когда заставка уже ушла.
+	onMount(() => {
+		if (!needsWelcome()) return;
+		let id: ReturnType<typeof setTimeout> | undefined;
+		const show = () => (id = setTimeout(() => (welcome.open = true), 350));
+		if (document.getElementById('splash')) addEventListener('gb:splash-gone', show, { once: true });
+		else show();
+		return () => {
+			clearTimeout(id);
+			removeEventListener('gb:splash-gone', show);
+		};
+	});
 	// iPhone: нижняя панель не уезжает вверх после клавиатуры (ошибка iOS 26–27). Код нужен только
 	// установленному приложению на iPhone и iPad — грузится отдельно.
 	onMount(() => {
@@ -129,7 +155,7 @@
 		{/if}
 		<main id="content" tabindex="-1">
 			{#key page.url.pathname}
-				<div class="page" in:fly={{ y: 6, duration: 180 }}>
+				<div class="page" in:fly={{ y: 14, duration: 300 }}>
 					{@render children()}
 				</div>
 			{/key}
@@ -139,6 +165,10 @@
 </div>
 {#if paletteWanted}
 	{#await import('$lib/shell/CommandPalette.svelte') then m}<m.default />{/await}
+{/if}
+<!-- Знакомство: код грузится, только когда окно нужно. -->
+{#if welcome.open}
+	{#await import('$lib/Welcome.svelte') then m}<m.default />{/await}
 {/if}
 <Hotkeys />
 <SwipeBack />

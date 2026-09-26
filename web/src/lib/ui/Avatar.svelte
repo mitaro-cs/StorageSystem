@@ -26,6 +26,8 @@
 		hueFor(id + (kind === 'group' ? 1_000_003 : kind === 'subject' ? 2_000_029 : 0))
 	);
 	const src = $derived(avatar ? `/api/avatars/${avatar}-${size > 64 ? 256 : 64}.webp` : null);
+	// Файла картинки нет (восстановили копию без неё) — буквы на цвете, а не «битая» картинка.
+	let broken = $state<string | null>(null);
 	const letters = $derived(initials(name || '?'));
 </script>
 
@@ -39,8 +41,16 @@
 	role="img"
 	aria-label={name}
 >
-	{#if src}
-		<img {src} alt="" width={size} height={size} loading="lazy" decoding="async" />
+	{#if src && broken !== src}
+		<img
+			{src}
+			alt=""
+			width={size}
+			height={size}
+			loading="lazy"
+			decoding="async"
+			onerror={() => (broken = src)}
+		/>
 	{:else}
 		<svg viewBox="0 0 40 40" aria-hidden="true">
 			<rect width="40" height="40" class="bg" />

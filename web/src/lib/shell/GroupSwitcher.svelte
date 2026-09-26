@@ -2,7 +2,7 @@
 	import { t } from '$lib/i18n/ru';
 	import { groups, isMulti, selectGroup, session } from '$lib/session.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
-	import { Layers } from '@lucide/svelte';
+	import { appIcon, iconSrc } from '$lib/appIcon.svelte';
 
 	let { compact = false }: { compact?: boolean } = $props();
 </script>
@@ -16,7 +16,8 @@
 			title={t.nav.allGroups}
 			onclick={() => selectGroup(null)}
 		>
-			<span class="ring"><Layers size={16} /></span>
+			<!-- «Все группы» — логотип сайта -->
+			<span class="ring"><img src={iconSrc(appIcon.id)} alt="" width="32" height="32" /></span>
 		</button>
 		{#each groups() as g (g.id)}
 			<button
@@ -63,9 +64,8 @@
 	.g[aria-checked='true'] .ring {
 		border-color: var(--accent);
 	}
-	.all .ring {
-		background: var(--surface-2);
-		color: var(--text-2);
+	.all .ring img {
+		border-radius: 9px;
 	}
 	.all .ring {
 		width: 40px;

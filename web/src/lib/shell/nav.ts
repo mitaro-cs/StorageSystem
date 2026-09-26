@@ -7,6 +7,7 @@ import {
 	House,
 	Newspaper,
 	Settings,
+	ShieldCheck,
 	UserRound,
 	Users
 } from '@lucide/svelte';
@@ -20,6 +21,7 @@ export const mainNav = [
 	{ href: '/materials', label: t.nav.materials, icon: FolderOpen, key: 'm' },
 	{ href: '/subjects', label: t.nav.subjects, icon: BookOpen, key: 's' },
 	{ href: '/members', label: t.nav.members, icon: Users, key: 'u' },
+	{ href: '/moderation', label: t.nav.moderation, icon: ShieldCheck, key: 'r' },
 	{ href: '/notifications', label: t.nav.notifications, icon: Bell, key: 'b' },
 	{ href: '/settings', label: t.nav.settings, icon: Settings, key: 'o' }
 ];

@@ -7,6 +7,7 @@
 		CalendarCheck,
 		FileClock,
 		FileText,
+		Flag,
 		Newspaper,
 		Sun
 	} from '@lucide/svelte';
@@ -25,6 +26,7 @@
 		news: Newspaper,
 		material: FileText,
 		material_pending: FileClock,
+		report: Flag,
 		reminder: AlarmClock,
 		digest: Sun,
 		test: Bell

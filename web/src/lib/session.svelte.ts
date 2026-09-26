@@ -151,5 +151,9 @@ export function hasSettings(): boolean {
 
 /** Навигация без «Настроек» для тех, кому там нечего делать. */
 export function visibleNav<T extends { href: string }>(items: T[]): T[] {
-	return hasSettings() ? items : items.filter((i) => i.href !== '/settings');
+	return items.filter(
+		(i) =>
+			(i.href !== '/settings' || hasSettings()) &&
+			(i.href !== '/moderation' || can('moderate_content'))
+	);
 }

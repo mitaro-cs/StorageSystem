@@ -19,6 +19,8 @@
 	import SubjectList from './SubjectList.svelte';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import { isActive, mainNav } from './nav';
+	import { canModerate, moderation, refreshModeration } from '$lib/moderation.svelte';
+	import { appIcon, iconSrc } from '$lib/appIcon.svelte';
 	import { sessionNavVisible } from '$lib/content/session';
 
 	let { collapsed = $bindable(false) }: { collapsed?: boolean } = $props();
@@ -41,6 +43,13 @@
 	}
 
 	const group = $derived(currentGroup());
+	// Жалобы и материалы на проверке — число у «Модерации»; обновляется и живыми обновлениями.
+	const waiting = $derived(canModerate() ? moderation.reports + moderation.pending : 0);
+	onMount(() => {
+		refreshModeration();
+		const id = setInterval(refreshModeration, 5 * 60_000);
+		return () => clearInterval(id);
+	});
 	// «Сессия» — только когда её показывает староста (или около сессии); в режиме «все группы» —
 	// если она нужна хоть одной группе.
 	const showSession = $derived(
@@ -66,15 +75,32 @@
 
 <aside class="sidebar" class:collapsed aria-label="Навигация">
 	<div class="top">
-		{#if !collapsed}
-			<GroupSwitcher />
-			<div class="title">
-				<strong>{title}</strong>
-				{#if group?.university}<span class="faint small"
-						>{group.university}{group.course ? `, ${group.course} курс` : ''}</span
-					>{/if}
-			</div>
-		{/if}
+		{#if !collapsed}<GroupSwitcher />{/if}
+		<!-- Иконка группы (её картинка или буквы на цвете), у «Всех групп» — логотип сайта. -->
+		<div class="title" class:only-mark={collapsed}>
+			<span class="mark" title={collapsed ? title : undefined}>
+				{#if group}
+					<Avatar
+						id={group.id}
+						name={group.name}
+						avatar={group.avatar}
+						size={40}
+						kind="group"
+						square
+					/>
+				{:else}
+					<img src={iconSrc(appIcon.id)} alt="" width="40" height="40" />
+				{/if}
+			</span>
+			{#if !collapsed}
+				<span class="names">
+					<strong>{title}</strong>
+					{#if group?.university}<span class="faint small"
+							>{group.university}{group.course ? `, ${group.course} курс` : ''}</span
+						>{/if}
+				</span>
+			{/if}
+		</div>
 	</div>
 
 	<button class="finder" onclick={() => openPalette()} title="Командная палитра (Ctrl/⌘+K)">
@@ -93,6 +119,10 @@
 			>
 				<Icon size={19} strokeWidth={1.8} />
 				{#if !collapsed}<span class="label-text">{item.label}</span>{/if}
+				{#if item.href === '/moderation' && waiting}<span
+						class="badge num"
+						title="Ждёт модератора: {waiting}">{waiting}</span
+					>{/if}
 			</a>
 		{/each}
 	</nav>
@@ -179,12 +209,77 @@
 	}
 	.title {
 		display: flex;
+		align-items: center;
+		gap: 12px;
+		min-width: 0;
+	}
+	.names {
+		display: flex;
 		flex-direction: column;
+		min-width: 0;
 		line-height: 1.3;
 	}
-	.title strong {
+	.names strong {
 		font-size: 20px;
 		letter-spacing: -0.025em;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.names .small {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.mark {
+		flex: none;
+		display: grid;
+		width: 40px;
+		height: 40px;
+		border-radius: 12px;
+		overflow: hidden;
+		box-shadow:
+			0 0 0 1px var(--border),
+			0 4px 12px -6px rgb(0 0 0 / 0.35);
+		transition: transform 220ms var(--ease);
+	}
+	.mark img {
+		width: 100%;
+		height: 100%;
+	}
+	.title:hover .mark {
+		transform: rotate(-4deg) scale(1.04);
+	}
+	.only-mark {
+		justify-content: center;
+	}
+	.badge {
+		min-width: 22px;
+		height: 22px;
+		padding: 0 6px;
+		border-radius: 11px;
+		background: var(--amber);
+		color: var(--bg);
+		font-size: 12px;
+		font-weight: 700;
+		line-height: 22px;
+		text-align: center;
+		animation: badge-pop 320ms cubic-bezier(0.3, 1.6, 0.5, 1);
+	}
+	.collapsed .badge {
+		position: absolute;
+		top: 2px;
+		right: 2px;
+		min-width: 18px;
+		height: 18px;
+		padding: 0 4px;
+		font-size: 10.5px;
+		line-height: 18px;
+	}
+	@keyframes badge-pop {
+		from {
+			transform: scale(0.3);
+		}
 	}
 	/* Поиск-пилюля, как «Search» на макете */
 	.finder {

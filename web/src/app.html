@@ -11,10 +11,11 @@
 		<meta name="color-scheme" content="light dark" />
 		<meta name="theme-color" content="#f1f2f4" media="(prefers-color-scheme: light)" />
 		<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
-		<!-- ?v=2 — новый логотип: иконки кешируются на месяц, новый адрес загружает их заново. -->
-		<link rel="icon" href="%sveltekit.assets%/favicon.svg?v=2" type="image/svg+xml" />
+		<!-- ?v=3 — иконки кешируются на месяц (и в браузере, и старыми service worker), новый адрес
+		     загружает их заново. Выбранный значок (lib/theme.ts ICONS) ставит скрипт ниже. -->
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg?v=3" type="image/svg+xml" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
-		<link rel="apple-touch-icon" href="%sveltekit.assets%/icons/icon-180.png?v=2" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/icons/icon-180.png?v=3" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<link
@@ -34,8 +35,26 @@
 					document.documentElement.setAttribute('data-palette', p);
 				// Стиль карточек и фона (Профиль → Оформление): «Обычный» — без атрибута.
 				var st = localStorage.getItem('gb-style');
-				if (/^(depth|glass|tint)$/.test(st || ''))
+				if (/^(depth|glass|tint|outline|neon|paper|comic)$/.test(st || ''))
 					document.documentElement.setAttribute('data-style', st);
+				// Фон страниц: узор или своя картинка (Профиль → Оформление → Фон).
+				var bg = localStorage.getItem('gb-bg');
+				var img = bg === 'custom' && localStorage.getItem('gb-bg-image');
+				if (/^(aurora|sunset|ocean|mint|grid|dots|lines)$/.test(bg || '') || img) {
+					document.documentElement.setAttribute('data-bg', bg);
+					if (img) document.documentElement.style.setProperty('--bg-image', 'url("' + img + '")');
+				}
+				// Значок во вкладке и для установки на экран «Домой».
+				var ic = localStorage.getItem('gb-icon');
+				if (/^(dark|ocean|forest|sunset|grape)$/.test(ic || '')) {
+					var set = function (rel, href) {
+						var l = document.querySelector('link[rel="' + rel + '"]');
+						if (l) l.setAttribute('href', href);
+					};
+					set('icon', '/icons/v/' + ic + '.svg?v=3');
+					set('apple-touch-icon', '/icons/v/' + ic + '-180.png?v=3');
+					set('manifest', '/manifest-' + ic + '.webmanifest');
+				}
 			} catch (e) {}
 			// Данные первого экрана — сразу, пока грузится код интерфейса: через туннель каждый
 			// запрос — задержка, а так они идут параллельно (lib/early.ts забирает ответы).
@@ -71,6 +90,13 @@
 		     (routes/+layout.svelte), когда интерфейс готов. -->
 		<div id="splash" aria-hidden="true">
 			<style>
+				/* Уход заставки: из середины раскрывается круг, в нём проявляется приложение, а плитка
+				   логотипа приближается и тает. Без @property (старые браузеры) — просто растворяется. */
+				@property --hole {
+					syntax: '<length>';
+					inherits: false;
+					initial-value: 0px;
+				}
 				#splash {
 					--sp-bg: #f1f2f4;
 					--sp-fg: #0d0d0f;
@@ -82,9 +108,20 @@
 					place-items: center;
 					background: var(--sp-bg);
 					color: var(--sp-fg);
+					-webkit-mask: radial-gradient(
+						circle at 50% 46%,
+						transparent var(--hole),
+						#000 calc(var(--hole) + 1px)
+					);
+					mask: radial-gradient(
+						circle at 50% 46%,
+						transparent var(--hole),
+						#000 calc(var(--hole) + 1px)
+					);
 					transition:
-						opacity 380ms ease,
-						visibility 0s 380ms;
+						--hole 680ms cubic-bezier(0.65, 0, 0.25, 1),
+						opacity 420ms ease 260ms,
+						visibility 0s 700ms;
 				}
 				:root[data-theme='dark'] #splash {
 					--sp-bg: #000;
@@ -99,6 +136,7 @@
 					}
 				}
 				#splash.gone {
+					--hole: 150vmax;
 					opacity: 0;
 					visibility: hidden;
 					pointer-events: none;
@@ -108,10 +146,13 @@
 					flex-direction: column;
 					align-items: center;
 					gap: 10px;
-					transition: transform 380ms cubic-bezier(0.2, 0.8, 0.2, 1);
+					transition:
+						transform 560ms cubic-bezier(0.5, 0, 0.2, 1),
+						opacity 360ms ease 120ms;
 				}
 				#splash.gone .sp {
-					transform: scale(1.08);
+					transform: scale(1.7);
+					opacity: 0;
 				}
 				#splash svg {
 					width: 132px;

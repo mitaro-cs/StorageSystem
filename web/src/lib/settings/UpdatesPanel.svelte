@@ -6,6 +6,7 @@
 	import { session } from '$lib/session.svelte';
 	import { toastError } from '$lib/toasts.svelte';
 	import Button from '$lib/ui/Button.svelte';
+	import { appIcon, iconSrc } from '$lib/appIcon.svelte';
 	import UpdateCard from './server/UpdateCard.svelte';
 	import type { Status } from './server/types';
 
@@ -68,7 +69,7 @@
 </script>
 
 <section class="card ver">
-	<img class="mark" src="/favicon.svg?v=2" alt="" width="56" height="56" />
+	<img class="mark" src={iconSrc(appIcon.id)} alt="" width="56" height="56" />
 	<div class="txt">
 		<span class="small muted">Установлена версия</span>
 		<strong class="num">groupbase {version}</strong>

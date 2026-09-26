@@ -3,6 +3,8 @@ import { toast, toastError } from '$lib/toasts.svelte';
 import type { Material } from '$lib/types';
 import type { MenuItem } from '$lib/ui/Menu.svelte';
 import { ask } from '$lib/ui/ask.svelte';
+import { report } from '$lib/content/moderate';
+import { session } from '$lib/session.svelte';
 
 export function materialActions(m: Material, changed: () => void): MenuItem[] {
 	const out: MenuItem[] = [];
@@ -32,6 +34,13 @@ export function materialActions(m: Material, changed: () => void): MenuItem[] {
 				: { label: 'Скрыть', onclick: act('hide', 'Материал скрыт') }
 		);
 	}
+	if (
+		!m.can.moderate &&
+		m.author.id !== session.me?.user.id &&
+		m.id > 0 &&
+		m.status === 'published'
+	)
+		out.push({ label: 'Пожаловаться', onclick: () => report('material', m.id) });
 	if (m.can.delete) {
 		out.push({
 			label: 'Удалить',

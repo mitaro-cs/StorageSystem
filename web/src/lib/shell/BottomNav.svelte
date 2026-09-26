@@ -114,10 +114,19 @@
 	}
 	a.on .icon {
 		color: #0d0d0f;
+		animation: nav-pop 460ms cubic-bezier(0.3, 1.7, 0.5, 1);
+	}
+	@keyframes nav-pop {
+		30% {
+			transform: scale(0.82);
+		}
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.pill {
 			transition: none;
+		}
+		a.on .icon {
+			animation: none;
 		}
 	}
 </style>

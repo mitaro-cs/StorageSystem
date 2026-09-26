@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { CloudOff } from '@lucide/svelte';
+	import { CloudOff, EyeOff } from '@lucide/svelte';
 	import { offline } from '$lib/offline/engine';
-	import { del, get, post } from '$lib/api';
+	import { del, get, post, put as putApi } from '$lib/api';
 	import { fmtAgo } from '$lib/format';
 	import { shortNames } from '$lib/names';
 	import { peek, put } from '$lib/cache';
-	import { currentGroup, groups } from '$lib/session.svelte';
+	import { currentGroup, groups, session } from '$lib/session.svelte';
+	import { report } from '$lib/content/moderate';
 	import { fly, slide } from '$lib/motion';
 	import { toastError } from '$lib/toasts.svelte';
 	import type { Comment, Member } from '$lib/types';
@@ -63,6 +64,16 @@
 		}
 	}
 
+	/** Скрыть или вернуть (модератор): скрытый видят только модераторы и автор. */
+	async function toggleHidden(c: Comment) {
+		try {
+			await putApi(`/api/comments/${c.id}/hidden`, { value: !c.hidden });
+			c.hidden = !c.hidden;
+		} catch (err) {
+			toastError(err);
+		}
+	}
+
 	async function remove(c: Comment) {
 		try {
 			await del(`/api/comments/${c.id}`);
@@ -87,12 +98,24 @@
 						title="Создано без сети — уйдёт на сервер, когда появится интернет"
 						><CloudOff size={12} /> ждёт отправки</span
 					>{/if}
+				{#if c.hidden}<span class="chip" title="Видят только модераторы и автор"
+						><EyeOff size={12} /> скрыт</span
+					>{/if}
 				<span class="spacer"></span>
+				{#if c.canHide}
+					<button class="link small" onclick={() => toggleHidden(c)}
+						>{c.hidden ? 'Вернуть' : 'Скрыть'}</button
+					>
+				{/if}
 				{#if c.canDelete}
 					<button class="link small" onclick={() => remove(c)}>Удалить</button>
+				{:else if c.id > 0 && c.author.id !== session.me?.user.id}
+					<button class="link small faint" onclick={() => report('comment', c.id)}
+						>Пожаловаться</button
+					>
 				{/if}
 			</div>
-			<Prose html={c.bodyHtml} class="text" />
+			<Prose html={c.bodyHtml} class="text {c.hidden ? 'dim' : ''}" />
 		</div>
 	{/each}
 	{#if canComment}
@@ -139,6 +162,12 @@
 	}
 	.comment :global(.text) {
 		padding-left: 32px;
+	}
+	.comment :global(.text.dim) {
+		opacity: 0.6;
+	}
+	.head {
+		flex-wrap: wrap;
 	}
 	.head {
 		display: flex;

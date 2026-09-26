@@ -65,7 +65,7 @@
 		width: min(760px, calc(100vw - 32px));
 	}
 	dialog[open] {
-		animation: pop 200ms var(--ease);
+		animation: pop 340ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
 	}
 	dialog::backdrop {
 		background: var(--overlay);
@@ -123,7 +123,7 @@
 			max-height: 92dvh;
 		}
 		dialog[open] {
-			animation: sheet 240ms var(--ease);
+			animation: sheet 380ms cubic-bezier(0.2, 0.9, 0.25, 1.04);
 		}
 		footer {
 			padding-bottom: calc(12px + env(safe-area-inset-bottom));
@@ -132,13 +132,12 @@
 	@keyframes pop {
 		from {
 			opacity: 0;
-			transform: translateY(8px) scale(0.98);
+			transform: translateY(14px) scale(0.95);
 		}
 	}
 	@keyframes sheet {
 		from {
-			transform: translateY(40%);
-			opacity: 0.4;
+			transform: translateY(100%);
 		}
 	}
 	@keyframes fade-in {

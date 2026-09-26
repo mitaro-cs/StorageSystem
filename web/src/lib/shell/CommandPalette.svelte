@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import {
+		Users,
 		BookOpen,
 		CalendarCheck,
 		CornerDownLeft,
 		FileText,
-		Layers,
 		Moon,
 		Plus,
 		Search,
@@ -142,7 +142,7 @@
 					group: 'Группы',
 					label: g.name,
 					hint: 'переключиться',
-					icon: Layers,
+					icon: Users,
 					run: () => {
 						selectGroup(g.id);
 						palette.open = false;

@@ -10,6 +10,7 @@ export const ru = {
 		materials: 'Файлы',
 		subjects: 'Предметы',
 		members: 'Участники',
+		moderation: 'Модерация',
 		search: 'Поиск',
 		notifications: 'Уведомления',
 		profile: 'Профиль',
@@ -20,8 +21,8 @@ export const ru = {
 		expand: 'Развернуть панель'
 	},
 	roles: {
-		admin: 'Администратор сайта',
-		moderator: 'Модератор сайта',
+		admin: 'Администратор',
+		moderator: 'Модератор',
 		headman: 'Староста',
 		deputy: 'Зам старосты',
 		student: 'Студент'

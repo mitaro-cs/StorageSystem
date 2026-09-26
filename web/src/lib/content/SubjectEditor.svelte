@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { patch, post } from '$lib/api';
+	import { del, patch, post } from '$lib/api';
+	import { ImagePlus, Trash2 } from '@lucide/svelte';
+	import SubjectArt from '$lib/ui/SubjectArt.svelte';
 	import { toast } from '$lib/toasts.svelte';
 	import type { Subject } from '$lib/types';
 	import Modal from '$lib/ui/Modal.svelte';
@@ -51,6 +53,50 @@
 	let error = $state('');
 	let busy = $state(false);
 	let cropper = $state(false);
+	/** Фон карточки: широкая картинка вместо иконки. */
+	let cover = $state<string | null>(null);
+	let coverBusy = $state(false);
+	let coverInput: HTMLInputElement | undefined = $state();
+
+	async function uploadCover(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file || !edit) return;
+		coverBusy = true;
+		error = '';
+		try {
+			const csrf = document.cookie.match(/(?:^|;\s*)(?:__Host-)?gb_csrf=([^;]+)/)?.[1] ?? '';
+			const r = await fetch(`/api/subjects/${edit.id}/cover`, {
+				method: 'PUT',
+				body: file,
+				headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/octet-stream' }
+			});
+			const data = await r.json();
+			if (!r.ok) throw new Error(data.message ?? 'Не удалось загрузить картинку');
+			cover = data.cover;
+			onsaved({ ...edit, cover });
+			toast('Фон поставлен', 'ok');
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Не удалось загрузить картинку';
+		} finally {
+			coverBusy = false;
+		}
+	}
+
+	async function removeCover() {
+		if (!edit) return;
+		coverBusy = true;
+		try {
+			await del(`/api/subjects/${edit.id}/cover`);
+			cover = null;
+			onsaved({ ...edit, cover: null });
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Ошибка';
+		} finally {
+			coverBusy = false;
+		}
+	}
 
 	$effect(() => {
 		if (!open) return;
@@ -59,6 +105,7 @@
 		chatUrl = edit?.chatUrl ?? '';
 		color = edit?.color ?? palette[Math.floor(Math.random() * 8)];
 		icon = edit?.icon ?? null;
+		cover = edit?.cover ?? null;
 		iconQuery = '';
 		pickerOpen = false;
 		error = '';
@@ -97,6 +144,42 @@
 
 <Modal bind:open title={edit ? 'Предмет' : 'Новый предмет'}>
 	<form id="subject-form" class="stack form" onsubmit={save}>
+		<!-- Фон карточки: картинка вместо иконки — на плитках предмета и в его шапке. -->
+		{#if edit}
+			<div class="cover-edit">
+				<button
+					type="button"
+					class="cover-pick"
+					onclick={() => coverInput?.click()}
+					disabled={coverBusy}
+					aria-label={cover ? 'Заменить фон карточки' : 'Поставить фон карточки'}
+				>
+					<SubjectArt id={edit.id} name={name || edit.name} {color} {icon} {cover} class="fill" />
+					<span class="cover-hint">
+						<ImagePlus size={18} />
+						{cover ? 'Заменить фон' : 'Поставить фон вместо иконки'}
+					</span>
+				</button>
+				{#if cover}
+					<Button size="s" variant="ghost" onclick={removeCover} disabled={coverBusy}
+						><Trash2 size={15} /> Убрать фон</Button
+					>
+				{/if}
+				<input
+					bind:this={coverInput}
+					class="sr-only"
+					type="file"
+					accept="image/png,image/jpeg,image/webp"
+					tabindex="-1"
+					aria-hidden="true"
+					onchange={uploadCover}
+				/>
+			</div>
+		{:else}
+			<p class="faint small">
+				Фон карточки — картинку вместо иконки — можно поставить после создания.
+			</p>
+		{/if}
 		<div>
 			<label class="label" for="s-name">Название</label>
 			<input
@@ -242,6 +325,48 @@
 <style>
 	.form {
 		gap: var(--s4);
+	}
+	.cover-edit {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+	.cover-pick {
+		position: relative;
+		width: 100%;
+		aspect-ratio: 16 / 7;
+		padding: 0;
+		border: 0;
+		border-radius: var(--r);
+		overflow: hidden;
+		background: transparent;
+		cursor: pointer;
+	}
+	.cover-pick :global(.fill) {
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+	}
+	.cover-hint {
+		position: absolute;
+		left: 10px;
+		bottom: 10px;
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 12px;
+		border-radius: var(--r-full);
+		background: rgb(0 0 0 / 0.6);
+		color: #fff;
+		font-size: 13.5px;
+		font-weight: 600;
+		-webkit-backdrop-filter: blur(8px);
+		backdrop-filter: blur(8px);
+		transition: transform 180ms var(--ease);
+	}
+	.cover-pick:hover .cover-hint {
+		transform: translateY(-2px);
 	}
 	.icons {
 		border: 0;

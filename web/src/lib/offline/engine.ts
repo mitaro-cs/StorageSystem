@@ -14,7 +14,7 @@ import type {
 import { uploadFile } from '$lib/upload';
 import { all, dropDb, getMeta, one, openDb, setMeta, supported, write, lastUser } from './idb';
 import type { StoreName } from './idb';
-import { NotFound, resolve, type FolderRef, type Snapshot } from './local';
+import type { FolderRef, Snapshot } from './local';
 import { forgetFiles, prefetchFiles, requestPersistence } from './files';
 import { KINDS, type HomeworkKind } from '$lib/content/kinds';
 import { offline } from './state.svelte';
@@ -109,8 +109,12 @@ export async function hasCopy(): Promise<boolean> {
 	return ((await getMeta<number>('lastSync')) ?? 0) > 0;
 }
 
-/** Ответ на GET из копии; undefined — без сети этого нет. */
+/**
+ * Ответ на GET из копии; undefined — без сети этого нет. Разбор запросов (local.ts, с поиском) нужен
+ * только без сети или при медленной — грузится тогда же, а не на каждой странице.
+ */
 export async function resolveLocal(path: string): Promise<unknown> {
+	const { NotFound, resolve } = await import('./local');
 	try {
 		return resolve(path, await snapshot());
 	} catch (e) {
@@ -131,6 +135,8 @@ export async function initOffline(me: Me) {
 	}
 	await setMeta('me', plain(me));
 	offline.ready = true;
+	// Разбор запросов по копии понадобится без сети — загрузим его, пока сеть есть.
+	import('./local').catch(() => {});
 	offline.lastSync = (await getMeta<number>('lastSync')) ?? 0;
 	offline.pending = (await all('outbox')).length;
 	requestPersistence();
