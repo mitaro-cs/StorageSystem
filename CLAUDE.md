@@ -136,6 +136,14 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
 - Проверять на одной машине двумя серверами можно (`GROUPBASE_HOSTS_CLOUD_ROOT`), но окна
   нужно открывать по очереди: cookie не различают порты, и страница ожидания одного сервера стирает
   сессию другого.
+- Перенос по коду (без облачной папки): `TransferService` (код 12 знаков на 15 минут, 5 ошибок —
+  код сгорел; отдаёт ту же копию, что `BackupService.write`, пока идёт — `HostService.lockWrites`:
+  изменения отвечают 503 `moving`), `TransferClient` (новый компьютер: CSRF-cookie с
+  `/api/health`, `POST /api/host/transfer` → zip, `/transfer/confirm`; http — только в локальной
+  сети), `TransferController` (`/api/host/transfer/code` — администратор, `/api/host/transfer` и
+  `/confirm` — без входа, по коду; `/api/host/pull` — с этого компьютера). На первом запуске —
+  `POST /api/setup/transfer?code=` (код настройки). После подтверждения старый компьютер — роль
+  `moved` (`hosts.properties: moved`, переживает перезапуск; `POST /api/host/return` — вернуть).
 
 ## Интерфейс: что где
 
@@ -143,7 +151,12 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
 - Просмотр файлов — `lib/files/FileViewer.svelte` (`openFiles()` из `viewer.svelte.ts`), PDF через
   pdf.js (`PdfView.svelte`, воркер кешируется лениво — см. `LAZY` в service-worker).
 - Фон входа — `lib/appearance.ts` + классы `.login-bg-*` в `app.css`; сервер — `avatars/LoginBackground`.
-- Разделы настроек и профиля оформляются `ui/SectionHead.svelte`; ничего не должно быть шире экрана
+- Свои настройки — `/profile` (шестерёнка у имени в боковой панели; на телефоне — «Профиль»):
+  разделы «Аккаунт» (`lib/profile/AccountPanel`, `SecurityPanel`, `DataPanel`) и «Приложение»
+  (`ThemePicker`, `settings/NotificationSettings`, `settings/OfflineSettings`, `profile/AppPanel`),
+  `?tab=…`; старые ссылки `/profile#notifications` переводятся сами. Управление группой и сайтом —
+  `/settings`, в интерфейсе **«Управление»**. Карточки разделов — класс `.card.pane` (и
+  `.pane-title`), заголовки разделов — `ui/SectionHead.svelte`; ничего не должно быть шире экрана
   телефона (e2e `14-files-people` проверяет `scrollWidth`).
 - Типы заданий — `lib/content/kinds.ts` (`homework.kind`: homework, lab, test, credit, exam; у зачёта
   и экзамена есть `place`). Режим «Сессия» — `lib/content/session.ts` (расчёты), страница
@@ -158,19 +171,25 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
 - Меню действий (`ui/Menu.svelte`) открывается в верхнем слое (Popover API) и ставится расчётом
   `ui/menuPlace.ts`: у нижнего края — вверх, всегда целиком на экране, при прокрутке едет за кнопкой.
   Не возвращать `position: absolute` внутри карточек с `overflow: hidden` — меню обрезалось.
-- Темы: режим — `data-theme` (lib/theme.ts), цвет — `data-palette` на `<html>`. В app.css базовые
-  токены берут `var(--pal-…)` (светлый) и `var(--pald-…)` (тёмный) с запасным значением «Классики»,
-  палитра задаёт только их. Применяется до отрисовки скриптом в app.html, выбор — `shell/ThemePicker`.
-- «Настройки» в навигации — только если `hasSettings()` (session.svelte.ts); навигацию фильтрует
+- Темы: режим — `data-theme` (lib/theme.ts). Цвет — `lib/colors.ts`: оттенок и насыщенность →
+  переменные `--pal-…` (светлый) и `--pald-…` (тёмный) и `--mesh-1..3` через OKLCH (с уменьшением
+  насыщенности до видимого цвета), inline-стилем на `<html>` + атрибут `data-accent`. В app.css
+  базовые токены берут их с запасным значением «Классики» («Чернила» — без переменных). Готовая
+  строка — `gb-accent-css` в localStorage, её ставит скрипт в app.html до отрисовки (только
+  `--имя:#цвет`). Прежние `gb-palette` переводятся в цвет при старте (`migrateAccent`).
+- «Управление» в навигации — только если `hasSettings()` (session.svelte.ts; `view_audit` не
+  считается — модератору пункт не нужен, его журнал в «Модерации»); навигацию фильтрует
   `visibleNav()`. В боковой панели нет «Файлов» и «Уведомлений» (колокольчик — на «Сегодня»),
   «Сессия» — по `sessionNavVisible()` (lib/content/session.ts, `study_groups.session_nav`: auto —
-  около сессии по датам, show, hide; выбирает староста в «Настройки → Семестр»). Палитра ⌘K и
-  горячие клавиши знают все разделы.
-- Стиль оформления — `data-style` на `<html>` (lib/theme.ts `STYLES`: depth, glass, tint; «Обычный»
-  — без атрибута), правила — в app.css и в NewsCard/HomeworkRow (цвет предмета — `--subject`).
-  Каждый выбирает себе; по умолчанию вид не меняется.
-- Оформление под значок: `looks.ts` `ICON_PALETTE` (значок ↔ палитра, тёмный значок — ещё и тёмный
-  режим), переключатель `gb-icon-match` в localStorage (по умолчанию включено).
+  около сессии по датам, show, hide; выбирает староста в «Управление → Семестр»). Палитра (Ctrl K,
+  на Mac ⌘K — `lib/platform.ts shortcut()`) и горячие клавиши знают все разделы; «?» в пустой
+  палитре — окно «Горячие клавиши» (`palette.help`).
+- «Режим управления» переключает только администратор сайта (`canToggleManage()`); у остальных
+  `manageMode()` всегда true, даже если на сервере сохранено «выключен».
+- Дизайн — `data-style` на `<html>` (lib/theme.ts `STYLES`, ровно пять: plain «Классика» без
+  атрибута, glass, depth, neon «Сияние», paper), правила — в app.css (`:root[data-style]`, слой
+  `body::before`); у `.card` и `.list`. Старые значения (tint, outline, comic) просто не
+  применяются. «Оформление под значок» убрано по просьбе владельца.
 - Блокировать, исключать и удалять людей (`block_users`) могут только администратор и староста —
   у модератора этого права нет (Rbac.MODERATOR). В интерфейсе роли — «Администратор» и
   «Модератор», без «сайта».
@@ -189,6 +208,28 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   плагин диалогов Tauri подменяет `confirm()` асинхронным — проверка получала «да». Вместо них —
   `ask()` и `askText()` из `lib/ui/ask.svelte.ts` (окно `ui/Dialogs.svelte` грузится при первом
   вопросе).
+- `ui/Modal.svelte`: у окон с вводом — `dirty` (и `dirtyText`): клик мимо окна, Esc и крестик
+  сначала спрашивают «Закрыть без сохранения?»; клик считается «мимо», только если и нажатие было
+  на затемнении (выделение текста с выходом за окно его не закрывает).
+- Короткие тексты с предлогами — через `lib/typo.ts` (неразрывные пробелы после «в», «с», «на» и
+  перед тире).
+- Журнал действий — `lib/settings/Audit.svelte` + подписи `settings/auditLabels.ts` (новое действие
+  в `audit.log` — добавьте подпись; без неё — общая фраза по разделу). Название записи — из
+  `details` (`title`, `name`, `text`).
+- «Не мой предмет» (подгруппы): таблица `subject_hidden`, `PUT /api/subjects/{id}/mine`, поле
+  `Subject.mine`. Скрытое не попадает в общие списки заданий, новостей, недавних материалов
+  (сервер — при `subject == null`; офлайн-копия — `offline/local.ts notMine`) и в уведомления
+  (`Notifier.followers`, `Reminders`). Выбор подгруппы — `lib/content/subgroups.ts` (номер
+  подгруппы в названии: «№1», «1 подгруппа», «(2)») и карточка `SubgroupChoice` на «Сегодня» и в
+  «Предметах»; «Хожу на все» — localStorage `gb-subgroups-ok`.
+- Фото и файлы в новостях: `post_attachments`, `NewsService.setAttachments` (файл — свой и нигде не
+  прикреплён: `MaterialService.used`), читать файл может тот, кто видит новость
+  (`MaterialService.canRead`), в карточке — `content/NewsFiles.svelte` (лениво). `DropZone shrink`
+  уменьшает фото до 2048 точек перед отправкой. «Загрузить файл» — `content/UploadPicker.svelte`,
+  одно окно на приложение в макете (`palette.upload`).
+- Большие мониторы: с 1440 и 1920 px — шире `--content` и `--sidebar`, крупнее текст (app.css);
+  «Сегодня» (`.dash`) и лента новостей — в две колонки; новость и задание целиком — узкой колонкой
+  (`main.narrow`).
 - Скорость на телефоне (туннель — HTTP/1.1, по 6 запросов за раз): код обоих макетов со всем, что
   они импортируют, — одним файлом (`shell`), наше общее для 6+ страниц — ещё одним (`common`,
   `vite.config.ts`); `app.html` сразу запрашивает `/api/me`, `/api/subjects` и «Сегодня» (адрес — в
@@ -203,7 +244,7 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   страница догружает свой код); статику и страницу берём только из кеша своей версии.
 - На телефоне нижняя панель — те же разделы, что в боковой (`bottomNav`: Сегодня, Новости, ДЗ,
   Предметы, Профиль), поиск — в `MobileBar`, участники, сессия, уведомления и настройки — в профиле.
-- «Настройки → Версия и обновления» (`lib/settings/UpdatesPanel.svelte`, `POST
+- «Управление → Версия и обновления» (`lib/settings/UpdatesPanel.svelte`, `POST
   /api/admin/update-check`): GitHub сразу (`UpdateCheck.checkNow`, ответ с причиной ошибки), в
   приложении хоста — ещё и оболочка. В e2e проверка выключена (`GROUPBASE_UPDATE_CHECK=false`).
 - «Модерация» (`routes/(app)/moderation`, пакет `moderation`, `/api/moderation/*`): жалобы (таблица
@@ -219,11 +260,10 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   Фронт — `lib/live.ts` (грузится отдельно): пока вкладка видна, по событию — `syncNow()` или
   `offline.version++`; нет «hello» за 8 с (туннель копит ответ) — опрос раз в 20 с. `LiveUpdates` —
   `SmartLifecycle`: закрывает соединения до «вежливой» остановки Tomcat (иначе ждала бы до 20 с).
-- Оформление на устройстве (`lib/looks.ts`, выбор — `shell/ThemePicker`): фон страниц — `data-bg`
-  на `<html>` и слой `:root[data-bg]::before` в app.css (своя картинка — `--bg-image`, data: URL в
-  localStorage), значок — `lib/appIcon.svelte.ts` (варианты — `java scripts/Icons.java variants`:
-  `static/icons/v/*`, `manifest-*.webmanifest`). Стили `outline`, `neon`, `paper`, `comic` — в app.css.
-  Всё применяет скрипт в app.html до отрисовки.
+- Оформление на устройстве (`lib/looks.ts`, выбор — `shell/ThemePicker`): своя картинка на фоне —
+  `data-bg="custom"` на `<html>` и слой `:root[data-bg]::before` в app.css (`--bg-image`, data: URL
+  в localStorage), значок — `lib/appIcon.svelte.ts` (варианты — `java scripts/Icons.java variants`:
+  `static/icons/v/*`, `manifest-*.webmanifest`). Всё применяет скрипт в app.html до отрисовки.
 - Фон карточки предмета: `subjects.cover`, `AvatarService.storeCover` (16:9, 1280 и 480, WebP),
   `PUT/DELETE /api/subjects/{id}/cover`; `SubjectArt` показывает его вместо иконки.
 - Знакомство после регистрации: `users.onboarded_at` (у прежних — заполнено миграцией),
