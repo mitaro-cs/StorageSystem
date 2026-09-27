@@ -9,6 +9,7 @@ import app.groupbase.content.HomeworkService;
 import app.groupbase.content.MaterialService;
 import app.groupbase.content.NewsService;
 import app.groupbase.content.SubjectService;
+import app.groupbase.schedule.LessonService;
 import app.groupbase.store.Member;
 import app.groupbase.web.ApiException;
 import java.time.Clock;
@@ -62,7 +63,9 @@ public class SyncService {
       Delta<HomeworkService.Item> homework,
       Delta<MaterialService.Item> materials,
       Delta<MaterialService.FolderRef> folders,
-      List<Comments> comments) {}
+      List<Comments> comments,
+      // Пары расписания (с 0.4.12).
+      Delta<LessonService.Lesson> lessons) {}
 
   private record Change(String kind, long ref) {}
 
@@ -74,6 +77,7 @@ public class SyncService {
   private final SubjectService subjects;
   private final CommentService comments;
   private final GroupService groups;
+  private final LessonService lessons;
   private final Clock clock;
 
   public SyncService(
@@ -85,6 +89,7 @@ public class SyncService {
       SubjectService subjects,
       CommentService comments,
       GroupService groups,
+      LessonService lessons,
       Clock clock) {
     this.db = db;
     this.access = access;
@@ -94,6 +99,7 @@ public class SyncService {
     this.subjects = subjects;
     this.comments = comments;
     this.groups = groups;
+    this.lessons = lessons;
     this.clock = clock;
   }
 
@@ -152,13 +158,15 @@ public class SyncService {
           new Delta<>(h, List.of()),
           new Delta<>(m, List.of()),
           new Delta<>(materials.visibleFolders(actor, null), List.of()),
-          c);
+          c,
+          new Delta<>(lessons.visible(actor, null, since), List.of()));
     }
 
     Set<Long> postIds = new LinkedHashSet<>();
     Set<Long> hwIds = new LinkedHashSet<>();
     Set<Long> matIds = new LinkedHashSet<>();
     Set<Long> folderIds = new LinkedHashSet<>();
+    Set<Long> lessonIds = new LinkedHashSet<>();
     Map<Parent, Set<Long>> commentParents = new LinkedHashMap<>();
     for (Change ch : changes) {
       switch (ch.kind()) {
@@ -166,6 +174,7 @@ public class SyncService {
         case "homework" -> hwIds.add(ch.ref());
         case "material" -> matIds.add(ch.ref());
         case "folder" -> folderIds.add(ch.ref());
+        case "lesson" -> lessonIds.add(ch.ref());
         case "comments:post" ->
             commentParents.computeIfAbsent(Parent.POST, k -> new LinkedHashSet<>()).add(ch.ref());
         case "comments:homework" ->
@@ -205,6 +214,11 @@ public class SyncService {
                 MaterialService.FolderRef::id),
             FOREIGN_FOLDERS,
             scope);
+    var l =
+        hideForeign(
+            delta(lessonIds, ids -> lessons.visible(actor, ids, 0), LessonService.Lesson::id),
+            FOREIGN_LESSONS,
+            scope);
     // Комментарии — только для объектов, которые пользователь видит; невидимые уже в delete.
     Map<Parent, Set<Long>> visibleParents =
         Map.of(
@@ -217,7 +231,7 @@ public class SyncService {
             idSet.stream()
                 .filter(visibleParents.get(parent)::contains)
                 .forEach(id -> c.add(list(actor, parent, id))));
-    return new Result(cursor, false, clock.millis(), subjectList, memberMap, n, h, m, f, c);
+    return new Result(cursor, false, clock.millis(), subjectList, memberMap, n, h, m, f, c, l);
   }
 
   private Comments list(Actor actor, Parent parent, long id) {
@@ -265,6 +279,9 @@ public class SyncService {
       "SELECT f.id FROM folders f WHERE f.id IN (:ids) AND NOT EXISTS ("
           + "SELECT 1 FROM subject_groups sg WHERE sg.subject_id = f.subject_id"
           + " AND sg.group_id IN (:g))";
+
+  private static final String FOREIGN_LESSONS =
+      "SELECT l.id FROM lessons l WHERE l.id IN (:ids) AND l.group_id NOT IN (:g)";
 
   private <T> Delta<T> hideForeign(Delta<T> d, String foreignSql, List<Long> scope) {
     if (d.delete().isEmpty()) {

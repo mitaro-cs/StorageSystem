@@ -31,8 +31,24 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class MaterialService {
 
+  /**
+   * @param lessonId пара из расписания («слайды этой лекции»); при изменении null — не менять, 0 —
+   *     отвязать
+   */
   public record Input(
-      String kind, String title, String description, String url, Long fileId, Long folderId) {}
+      String kind,
+      String title,
+      String description,
+      String url,
+      Long fileId,
+      Long folderId,
+      Long lessonId) {
+
+    public Input(
+        String kind, String title, String description, String url, Long fileId, Long folderId) {
+      this(kind, title, description, url, fileId, folderId, null);
+    }
+  }
 
   public record FolderInput(String name, Long parentId) {}
 
@@ -56,7 +72,9 @@ public class MaterialService {
       boolean hidden,
       long createdAt,
       int comments,
-      Can can) {}
+      Can can,
+      // Пара из расписания, к которой материал; null — просто в предмете.
+      Long lessonId) {}
 
   public record Folder(long id, Long parentId, String name, int count) {}
 
@@ -89,7 +107,8 @@ public class MaterialService {
       String status,
       boolean hidden,
       long createdAt,
-      int comments) {}
+      int comments,
+      Long lessonId) {}
 
   private final JdbcClient db;
   private final SubjectService subjects;
@@ -158,7 +177,8 @@ public class MaterialService {
                     rs.getString("status"),
                     Rows.bool(rs, "hidden"),
                     rs.getLong("created_at"),
-                    rs.getInt("comment_count")))
+                    rs.getInt("comment_count"),
+                    Rows.longOrNull(rs, "lesson_id")))
         .list();
   }
 
@@ -236,6 +256,30 @@ public class MaterialService {
       where += " AND m.id IN (:ids)";
     }
     return views(actor, query(where + " ORDER BY m.id", p));
+  }
+
+  /** Материалы пары из расписания: опубликованные, свои на проверке, у модератора — все. */
+  public List<Item> byLesson(Actor actor, long lessonId) {
+    List<Long> scope = access.visibleGroups(actor);
+    if (scope.isEmpty()) {
+      return List.of();
+    }
+    Map<String, Object> p = new HashMap<>();
+    p.put("g", scope);
+    p.put("mod", Targets.nonEmpty(access.groupsWith(actor, Permission.MODERATE_CONTENT, scope)));
+    p.put("uid", actor.id());
+    p.put("lesson", lessonId);
+    return views(
+        actor,
+        query(
+            """
+            m.lesson_id = :lesson AND m.status != 'rejected'
+            AND EXISTS (SELECT 1 FROM subject_groups sg WHERE sg.subject_id = m.subject_id AND sg.group_id IN (:g))
+            AND ((m.status = 'published' AND m.hidden = 0) OR m.author_id = :uid OR EXISTS (
+              SELECT 1 FROM subject_groups sg2 WHERE sg2.subject_id = m.subject_id AND sg2.group_id IN (:mod)))
+            ORDER BY m.created_at, m.id
+            """,
+            p));
   }
 
   /** Папка для офлайн-копии: без счётчика, его считает клиент. */
@@ -351,6 +395,10 @@ public class MaterialService {
     if (in.folderId() != null) {
       requireFolder(subjectId, in.folderId());
     }
+    Long lesson = in.lessonId() == null || in.lessonId() == 0 ? null : in.lessonId();
+    if (lesson != null) {
+      LessonRef.check(db, access, actor, lesson, subjectId);
+    }
     String kind = in.kind() == null ? "" : in.kind().toLowerCase(Locale.ROOT);
     String title = in.title() == null ? "" : in.title().strip();
     String url = null;
@@ -389,8 +437,8 @@ public class MaterialService {
         db.sql(
                 """
                 INSERT INTO materials (subject_id, folder_id, kind, title, description, url, file_id,
-                                       author_id, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                                       author_id, status, lesson_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """)
             .params(
                 subjectId,
@@ -402,6 +450,7 @@ public class MaterialService {
                 fileId,
                 actor.id(),
                 status,
+                lesson,
                 now,
                 now)
             .query(Long.class)
@@ -435,10 +484,17 @@ public class MaterialService {
     if (folder != null) {
       requireFolder(r.subjectId(), folder);
     }
+    Long lesson = r.lessonId();
+    if (in.lessonId() != null) {
+      lesson = in.lessonId() == 0 ? null : in.lessonId();
+      if (lesson != null) {
+        LessonRef.check(db, access, actor, lesson, r.subjectId());
+      }
+    }
     db.sql(
-            "UPDATE materials SET title = ?, description = ?, folder_id = ?, updated_at = ?"
-                + " WHERE id = ?")
-        .params(title, description, folder, clock.millis(), id)
+            "UPDATE materials SET title = ?, description = ?, folder_id = ?, lesson_id = ?,"
+                + " updated_at = ? WHERE id = ?")
+        .params(title, description, folder, lesson, clock.millis(), id)
         .update();
     return get(actor, id);
   }
@@ -528,9 +584,16 @@ public class MaterialService {
     long subjectId = folderSubject(folderId);
     subjects.visible(actor, subjectId);
     List<Long> groups = subjectStore.groupIds(subjectId);
-    if (!access.can(actor, Permission.MODERATE_CONTENT, groups)
-        && !access.can(actor, Permission.UPLOAD_MATERIALS, groups)) {
-      throw ApiException.forbidden();
+    if (!access.can(actor, Permission.MODERATE_CONTENT, groups)) {
+      if (!access.can(actor, Permission.UPLOAD_MATERIALS, groups)) {
+        throw ApiException.forbidden();
+      }
+      // Выкладывать могут все (с 0.4.12), а удалить папку с чужими файлами — только модератор
+      // или староста: как и сами чужие файлы по одному.
+      if (hasOthersMaterials(folderId, actor.id())) {
+        throw ApiException.forbidden(
+            "В папке есть файлы других людей — удалить её может староста или модератор");
+      }
     }
     List<Long> fileIds =
         db.sql(
@@ -548,6 +611,20 @@ public class MaterialService {
       files.find(f).ifPresent(files::delete);
     }
     audit.log(actor, groups.getFirst(), "folder.delete", "folder", folderId);
+  }
+
+  /** В папке (с вложенными) есть материалы не этого автора. */
+  private boolean hasOthersMaterials(long folderId, long userId) {
+    return db.sql(
+            """
+            WITH RECURSIVE tree(id) AS (
+              SELECT ? UNION ALL SELECT f.id FROM folders f JOIN tree t ON f.parent_id = t.id)
+            SELECT EXISTS (SELECT 1 FROM materials m WHERE m.folder_id IN (SELECT id FROM tree)
+              AND (m.author_id IS NULL OR m.author_id != ?))
+            """)
+        .params(folderId, userId)
+        .query(Boolean.class)
+        .single();
   }
 
   private long folderSubject(long folderId) {
@@ -701,7 +778,8 @@ public class MaterialService {
               r.hidden(),
               r.createdAt(),
               r.comments(),
-              new Can(isAuthor(actor, r) || mod, isAuthor(actor, r) || mod, mod)));
+              new Can(isAuthor(actor, r) || mod, isAuthor(actor, r) || mod, mod),
+              r.lessonId()));
     }
     return out;
   }

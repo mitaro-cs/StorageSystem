@@ -9,6 +9,8 @@ import app.groupbase.store.People;
 import app.groupbase.store.Person;
 import app.groupbase.store.Rows;
 import app.groupbase.web.ApiException;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -75,6 +77,8 @@ public class HomeworkService {
    * @param difficulty сложность 1–3; при изменении null — не менять, 0 — убрать
    * @param kind homework, lab, test, credit, exam; null — домашнее (при изменении — не менять)
    * @param place аудитория или ссылка; при изменении null — не менять
+   * @param lessonId пара из расписания, к которой задание; при изменении null — не менять, 0 —
+   *     отвязать
    */
   public record Input(
       Long subjectId,
@@ -85,7 +89,22 @@ public class HomeworkService {
       List<Long> attachments,
       Integer difficulty,
       String kind,
-      String place) {}
+      String place,
+      Long lessonId) {
+
+    public Input(
+        Long subjectId,
+        String title,
+        String body,
+        Long dueAt,
+        List<Long> groupIds,
+        List<Long> attachments,
+        Integer difficulty,
+        String kind,
+        String place) {
+      this(subjectId, title, body, dueAt, groupIds, attachments, difficulty, kind, place, null);
+    }
+  }
 
   public record Can(boolean edit, boolean delete, boolean hide) {}
 
@@ -107,7 +126,9 @@ public class HomeworkService {
       List<SubjectStore.GroupRef> groups,
       int comments,
       List<MaterialService.FileInfo> attachments,
-      Can can) {}
+      Can can,
+      // Пара из расписания, к которой задание; null — просто срок.
+      LessonRef lesson) {}
 
   public record Published(
       long id,
@@ -137,7 +158,8 @@ public class HomeworkService {
       long createdAt,
       long updatedAt,
       boolean done,
-      int comments) {}
+      int comments,
+      LessonRef lesson) {}
 
   private static final long DAY = 24L * 60 * 60 * 1000;
   static final long EXAMS_BEFORE = 45 * DAY;
@@ -183,8 +205,11 @@ public class HomeworkService {
         EXISTS (SELECT 1 FROM homework_done d
           WHERE d.homework_id = h.id AND d.user_id = :uid) AS done,
         (SELECT count(*) FROM comments c
-          WHERE c.target_type = 'homework' AND c.target_id = h.id AND c.hidden = 0) AS comment_count
+          WHERE c.target_type = 'homework' AND c.target_id = h.id AND c.hidden = 0) AS comment_count,
+        l.starts_at AS lesson_start, l.ends_at AS lesson_end, l.kind AS lesson_kind,
+        l.place AS lesson_place
       FROM homework h JOIN subjects s ON s.id = h.subject_id
+      LEFT JOIN lessons l ON l.id = h.lesson_id
       """;
 
   private List<Row> query(String where, Map<String, Object> params) {
@@ -211,8 +236,23 @@ public class HomeworkService {
                     rs.getLong("created_at"),
                     rs.getLong("updated_at"),
                     Rows.bool(rs, "done"),
-                    rs.getInt("comment_count")))
+                    rs.getInt("comment_count"),
+                    lesson(rs)))
         .list();
+  }
+
+  private static LessonRef lesson(ResultSet rs) throws SQLException {
+    Long id = Rows.longOrNull(rs, "lesson_id");
+    Long start = Rows.longOrNull(rs, "lesson_start");
+    if (id == null || start == null) {
+      return null;
+    }
+    return new LessonRef(
+        id,
+        start,
+        rs.getLong("lesson_end"),
+        rs.getString("lesson_kind"),
+        rs.getString("lesson_place"));
   }
 
   public long startOfToday() {
@@ -313,6 +353,30 @@ public class HomeworkService {
     return views(actor, query(where + " ORDER BY h.id", p));
   }
 
+  /** Задания к паре из расписания — те, что человеку видны. */
+  public List<Item> byLesson(Actor actor, long lessonId) {
+    List<Long> scope = access.visibleGroups(actor);
+    if (scope.isEmpty()) {
+      return List.of();
+    }
+    Map<String, Object> p = new HashMap<>();
+    p.put("g", scope);
+    p.put("mod", Targets.nonEmpty(access.groupsWith(actor, Permission.MODERATE_CONTENT, scope)));
+    p.put("uid", actor.id());
+    p.put("lesson", lessonId);
+    return views(
+        actor,
+        query(
+            """
+            h.lesson_id = :lesson
+            AND EXISTS (SELECT 1 FROM homework_targets t WHERE t.homework_id = h.id AND t.group_id IN (:g))
+            AND (h.hidden = 0 OR h.author_id = :uid OR EXISTS (
+              SELECT 1 FROM homework_targets t2 WHERE t2.homework_id = h.id AND t2.group_id IN (:mod)))
+            ORDER BY h.due_at, h.id
+            """,
+            p));
+  }
+
   public Item get(Actor actor, long id) {
     Row r = row(actor, id);
     List<Long> t = targets.of(Targets.Kind.HOMEWORK, id);
@@ -344,13 +408,17 @@ public class HomeworkService {
     String place = place(in.place());
     Set<Long> to =
         audience.resolve(actor, in.subjectId(), in.groupIds(), Permission.PUBLISH_HOMEWORK);
+    Long lesson = in.lessonId() == null || in.lessonId() == 0 ? null : in.lessonId();
+    if (lesson != null) {
+      LessonRef.check(db, access, actor, lesson, in.subjectId());
+    }
     long now = clock.millis();
     long id =
         db.sql(
                 """
                 INSERT INTO homework (subject_id, author_id, title, body_md, body_html, due_at,
-                                      difficulty, kind, place, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                                      difficulty, kind, place, lesson_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """)
             .params(
                 in.subjectId(),
@@ -362,6 +430,7 @@ public class HomeworkService {
                 difficulty,
                 kind.id(),
                 place,
+                lesson,
                 now,
                 now)
             .query(Long.class)
@@ -391,11 +460,28 @@ public class HomeworkService {
     Integer difficulty = in.difficulty() == null ? r.difficulty() : difficulty(in.difficulty());
     Kind kind = in.kind() == null || in.kind().isBlank() ? r.kind() : Kind.of(in.kind());
     String place = in.place() == null ? r.place() : place(in.place());
+    Long lesson = r.lesson() == null ? null : r.lesson().id();
+    if (in.lessonId() != null) {
+      lesson = in.lessonId() == 0 ? null : in.lessonId();
+      if (lesson != null) {
+        LessonRef.check(db, access, actor, lesson, r.subjectId());
+      }
+    }
     db.sql(
             "UPDATE homework SET title = ?, body_md = ?, body_html = ?, due_at = ?,"
-                + " difficulty = ?, kind = ?, place = ?, updated_at = ? WHERE id = ?")
+                + " difficulty = ?, kind = ?, place = ?, lesson_id = ?, updated_at = ?"
+                + " WHERE id = ?")
         .params(
-            title, md, Markdown.render(md), due, difficulty, kind.id(), place, clock.millis(), id)
+            title,
+            md,
+            Markdown.render(md),
+            due,
+            difficulty,
+            kind.id(),
+            place,
+            lesson,
+            clock.millis(),
+            id)
         .update();
     if (in.groupIds() != null && !in.groupIds().isEmpty()) {
       Set<Long> to =
@@ -544,7 +630,8 @@ public class HomeworkService {
                   .toList(),
               r.comments(),
               files.getOrDefault(r.id(), List.of()),
-              new Can(canEdit(actor, r, tg), isAuthor(actor, r) || mod, mod)));
+              new Can(canEdit(actor, r, tg), isAuthor(actor, r) || mod, mod),
+              r.lesson()));
     }
     return out;
   }

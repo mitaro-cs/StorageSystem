@@ -47,7 +47,9 @@ public class SubjectService {
       // Предмет этого человека; false — скрыл у себя как предмет другой подгруппы.
       boolean mine,
       List<SubjectStore.GroupRef> groups,
-      Can can) {}
+      Can can,
+      // Пар в расписании (в группах, которые видит человек): есть — у предмета вкладка «Пары».
+      int lessons) {}
 
   public record Can(boolean edit, boolean share) {}
 
@@ -75,11 +77,21 @@ public class SubjectService {
 
   public List<SubjectView> list(Actor actor, Long onlyGroup) {
     List<SubjectStore.Row> rows = subjects.visible(access.scope(actor, onlyGroup));
-    var groupMap = subjects.groupsOf(rows.stream().map(SubjectStore.Row::id).toList());
+    List<Long> ids = rows.stream().map(SubjectStore.Row::id).toList();
+    var groupMap = subjects.groupsOf(ids);
     Set<Long> pins = subjects.pinned(actor.id());
     Set<Long> hidden = subjects.hidden(actor.id());
+    Map<Long, Integer> lessons = subjects.lessonCounts(ids, access.visibleGroups(actor));
     return rows.stream()
-        .map(r -> view(actor, r, groupMap.getOrDefault(r.id(), List.of()), pins, hidden))
+        .map(
+            r ->
+                view(
+                    actor,
+                    r,
+                    groupMap.getOrDefault(r.id(), List.of()),
+                    pins,
+                    hidden,
+                    lessons.getOrDefault(r.id(), 0)))
         .toList();
   }
 
@@ -90,7 +102,8 @@ public class SubjectService {
         r,
         subjects.groupsOf(List.of(id)).getOrDefault(id, List.of()),
         subjects.pinned(actor.id()),
-        subjects.hidden(actor.id()));
+        subjects.hidden(actor.id()),
+        subjects.lessonCounts(List.of(id), access.visibleGroups(actor)).getOrDefault(id, 0));
   }
 
   /** Предмет, видимый пользователю, иначе 404 (не раскрываем существование). */
@@ -105,7 +118,8 @@ public class SubjectService {
       SubjectStore.Row r,
       List<SubjectStore.GroupRef> gs,
       Set<Long> pins,
-      Set<Long> hidden) {
+      Set<Long> hidden,
+      int lessons) {
     List<Long> ids = gs.stream().map(SubjectStore.GroupRef::id).toList();
     return new SubjectView(
         r.id(),
@@ -122,7 +136,8 @@ public class SubjectService {
         gs,
         new Can(
             access.can(actor, Permission.MANAGE_SUBJECTS, ids),
-            access.can(actor, Permission.SHARE_SUBJECTS, ids)));
+            access.can(actor, Permission.SHARE_SUBJECTS, ids)),
+        lessons);
   }
 
   @Transactional

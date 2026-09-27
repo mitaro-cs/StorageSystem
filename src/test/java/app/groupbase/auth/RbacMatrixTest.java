@@ -14,12 +14,13 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Каждая ячейка таблицы прав из требований. ⚙-ячейки по умолчанию выключены и должны быть
- * настраиваемыми; остальные — не настраиваемыми.
+ * Каждая ячейка таблицы прав из требований. ⚙-ячейки настраиваемые: «c» — выключена по умолчанию,
+ * «C» — включена (задания и материалы у студентов); остальные — не настраиваемые.
  */
 class RbacMatrixTest {
 
-  // Столбцы: admin, moderator, headman, deputy, student. 'y' — да, '-' — нет, 'c' — ⚙ (выкл.).
+  // Столбцы: admin, moderator, headman, deputy, student. 'y' — да, '-' — нет, 'c' — ⚙ (выкл.),
+  // 'C' — ⚙ (вкл.).
   private static final Object[][] TABLE = {
     {MANAGE_INSTANCE, "y----"},
     {ASSIGN_MODERATOR, "y----"},
@@ -32,9 +33,10 @@ class RbacMatrixTest {
     {MANAGE_SUBJECTS, "y-yc-"},
     {SHARE_SUBJECTS, "y-y--"},
     {PUBLISH_NEWS, "yyyy-"},
-    {PUBLISH_HOMEWORK, "y-yy-"},
-    {UPLOAD_MATERIALS, "y-yy-"},
+    {PUBLISH_HOMEWORK, "yyyyC"},
+    {UPLOAD_MATERIALS, "yyyyC"},
     {SUGGEST_MATERIALS, "y---c"},
+    {MANAGE_SCHEDULE, "yyyyc"},
     {MODERATE_CONTENT, "yyy--"},
     {COMMENT, "yyyyy"},
     {VIEW_AUDIT, "yyy--"},
@@ -78,8 +80,8 @@ class RbacMatrixTest {
         configurable = Rbac.isConfigurable(r, p);
       }
     }
-    assertThat(actual).as("значение по умолчанию").isEqualTo(expected == 'y');
-    assertThat(configurable).as("настраиваемость").isEqualTo(expected == 'c');
+    assertThat(actual).as("значение по умолчанию").isEqualTo(expected == 'y' || expected == 'C');
+    assertThat(configurable).as("настраиваемость").isEqualTo(expected == 'c' || expected == 'C');
   }
 
   @Test

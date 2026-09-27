@@ -108,8 +108,10 @@ class GroupIsolationIT extends IntegrationTest {
                 "/api/groups/" + a + "/permissions",
                 Map.of("role", "student", "permission", "moderate_content", "allowed", true));
     assertThat(r.status()).isEqualTo(400);
+    // ⚙: у замов — аккаунты и предметы; у студентов — задания, материалы (включены), предложения
+    // и расписание (выключены).
     var list = headman.api().get("/api/groups/" + a + "/permissions").json();
-    assertThat(list.size()).isEqualTo(3);
+    assertThat(list.size()).isEqualTo(6);
   }
 
   @Test

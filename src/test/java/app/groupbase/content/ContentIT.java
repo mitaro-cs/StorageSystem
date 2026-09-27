@@ -139,21 +139,25 @@ class ContentIT extends IntegrationTest {
   }
 
   @Test
-  void studentsCannotPublishDeputiesCan() {
+  void studentsPublishHomeworkButNotNewsUnlessHeadmanTurnsItOff() {
     long g = newGroup("Публикации");
+    TestUser headman = newUser(g, "headman");
     TestUser deputy = newUser(g, "deputy");
     TestUser student = newUser(g, "student");
     long s = subject(admin(), g, "Английский");
     long due = clock.millis() + Duration.ofDays(2).toMillis();
+    Map<String, Object> hw = Map.of("subjectId", s, "title", "x", "dueAt", due);
     assertThat(
             student.api().post("/api/news", Map.of("title", "x", "groupIds", List.of(g))).status())
         .isEqualTo(403);
-    assertThat(
-            student
-                .api()
-                .post("/api/homework", Map.of("subjectId", s, "title", "x", "dueAt", due))
-                .status())
-        .isEqualTo(403);
+    // Задания студенты добавляют сами (с 0.4.12); староста может это выключить (⚙).
+    assertThat(student.api().post("/api/homework", hw).status()).isEqualTo(200);
+    headman
+        .api()
+        .put(
+            "/api/groups/" + g + "/permissions",
+            Map.of("role", "student", "permission", "publish_homework", "allowed", false));
+    assertThat(student.api().post("/api/homework", hw).status()).isEqualTo(403);
     assertThat(
             deputy.api().post("/api/news", Map.of("title", "x", "groupIds", List.of(g))).status())
         .isEqualTo(200);

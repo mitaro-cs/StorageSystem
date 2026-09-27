@@ -153,6 +153,26 @@ public class SubjectStore {
     return out;
   }
 
+  /** Сколько пар в расписании у предметов — в группах, которые видит человек. */
+  public Map<Long, Integer> lessonCounts(Collection<Long> subjectIds, Collection<Long> groupIds) {
+    Map<Long, Integer> out = new HashMap<>();
+    if (subjectIds.isEmpty() || groupIds.isEmpty()) {
+      return out;
+    }
+    db.sql(
+            """
+            SELECT subject_id, count(*) FROM lessons
+            WHERE subject_id IN (:ids) AND group_id IN (:g) GROUP BY subject_id
+            """)
+        .param("ids", subjectIds)
+        .param("g", groupIds)
+        .query(
+            rs -> {
+              out.put(rs.getLong(1), rs.getInt(2));
+            });
+    return out;
+  }
+
   public void link(long subjectId, long groupId, long now) {
     db.sql(
             "INSERT INTO subject_groups (subject_id, group_id, linked_at) VALUES (?, ?, ?)"

@@ -28,6 +28,8 @@ public enum Permission {
   UPLOAD_MATERIALS(false),
   /** Загрузка материалов на премодерацию. */
   SUGGEST_MATERIALS(false),
+  /** Расписание пар: загрузить из файла календаря, добавить, изменить, удалить занятие. */
+  MANAGE_SCHEDULE(false),
   /** Удалять и скрывать чужой контент, одобрять материалы. */
   MODERATE_CONTENT(false),
   COMMENT(false),

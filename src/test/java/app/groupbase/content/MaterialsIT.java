@@ -99,7 +99,15 @@ class MaterialsIT extends IntegrationTest {
     Map<String, Object> link =
         Map.of("kind", "link", "url", "https://example.org/lecture", "title", "Запись лекции");
 
-    // ⚙ выключено: студент не может ни загрузить файл, ни предложить ссылку.
+    // Староста выключил студентам «выкладывать» и «задания» (по умолчанию включены), а ⚙
+    // «предлагать» выключено: студент не может ни загрузить файл, ни предложить ссылку.
+    for (String perm : List.of("upload_materials", "publish_homework")) {
+      headman
+          .api()
+          .put(
+              "/api/groups/" + g + "/permissions",
+              Map.of("role", "student", "permission", perm, "allowed", false));
+    }
     assertThat(s1.api().upload("x.pdf", PDF).status()).isEqualTo(403);
     assertThat(s1.api().post("/api/subjects/" + s + "/materials", link).status()).isEqualTo(403);
 
@@ -122,6 +130,60 @@ class MaterialsIT extends IntegrationTest {
         .isEqualTo(200);
     assertThat(s2.api().get("/api/materials/" + id).json().get("status").asString())
         .isEqualTo("published");
+  }
+
+  @Test
+  void studentsAndModeratorsAddHomeworkAndMaterials() {
+    long g = newGroup("Все пишут");
+    TestUser headman = newUser(g, "headman");
+    TestUser s1 = newUser(g, "student");
+    TestUser s2 = newUser(g, "student");
+    TestUser mod = newUser(newGroup("Чужая"), "student");
+    admin().put("/api/admin/users/" + mod.id() + "/instance-role", Map.of("role", "moderator"));
+    // Смена роли завершает сеансы — модератор входит заново.
+    TestUser moderator = new TestUser(mod.id(), mod.username(), login(mod.username(), PASSWORD));
+    long s = subject(g);
+
+    // Студент сам выкладывает файл — сразу, без проверки старостой.
+    long fileId = s1.api().upload("Конспект.pdf", PDF).json().get("id").asLong();
+    var m =
+        s1.api()
+            .post("/api/subjects/" + s + "/materials", Map.of("kind", "file", "fileId", fileId));
+    assertThat(m.status()).as(m.body()).isEqualTo(200);
+    assertThat(m.json().get("status").asString()).isEqualTo("published");
+
+    // И задание, и модератор сайта — тоже.
+    long due = System.currentTimeMillis() + 3 * 86_400_000L;
+    for (TestUser who : List.of(s2, moderator)) {
+      var hw =
+          who.api()
+              .post(
+                  "/api/homework",
+                  Map.of("subjectId", s, "title", "Прочитать главу", "dueAt", due));
+      assertThat(hw.status()).as(hw.body()).isEqualTo(200);
+    }
+
+    // Папку с чужим файлом студент не удалит (файлы одногруппников), свою пустую — удалит.
+    long folder =
+        s2.api()
+            .post("/api/subjects/" + s + "/folders", Map.of("name", "Лекции"))
+            .json()
+            .get("id")
+            .asLong();
+    assertThat(
+            s1.api()
+                .patch("/api/materials/" + m.json().get("id").asLong(), Map.of("folderId", folder))
+                .status())
+        .isEqualTo(200);
+    assertThat(s2.api().delete("/api/folders/" + folder).status()).isEqualTo(403);
+    assertThat(headman.api().delete("/api/folders/" + folder).status()).isEqualTo(200);
+    long own =
+        s2.api()
+            .post("/api/subjects/" + s + "/folders", Map.of("name", "Моё"))
+            .json()
+            .get("id")
+            .asLong();
+    assertThat(s2.api().delete("/api/folders/" + own).status()).isEqualTo(200);
   }
 
   @Test
@@ -154,10 +216,12 @@ class MaterialsIT extends IntegrationTest {
     assertThat(listing.get("path").size()).isEqualTo(2);
     assertThat(listing.get("path").get(0).get("name").asString()).isEqualTo("Лекции");
     assertThat(listing.get("materials").size()).isEqualTo(1);
-    assertThat(listing.get("canUpload").asBoolean()).isFalse();
-    assertThat(
-            student.api().post("/api/subjects/" + s + "/folders", Map.of("name", "Моя")).status())
-        .isEqualTo(403);
+    // Выкладывать и заводить папки студентам можно (с 0.4.12); свою пустую — и удалить.
+    assertThat(listing.get("canUpload").asBoolean()).isTrue();
+    var mine = student.api().post("/api/subjects/" + s + "/folders", Map.of("name", "Моя"));
+    assertThat(mine.status()).isEqualTo(200);
+    assertThat(student.api().delete("/api/folders/" + mine.json().get("id").asLong()).status())
+        .isEqualTo(200);
 
     assertThat(deputy.api().delete("/api/folders/" + lectures).status()).isEqualTo(200);
     assertThat(student.api().get("/api/subjects/" + s + "/materials").json().get("folders").size())
