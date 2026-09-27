@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { patch, post } from '$lib/api';
+	import { get, patch, post, qs } from '$lib/api';
 	import { groupsWith, session } from '$lib/session.svelte';
 	import { subjects } from '$lib/data.svelte';
 	import { fromLocalInput, toLocalInput } from '$lib/format';
 	import { toast } from '$lib/toasts.svelte';
-	import type { FileInfo, Homework } from '$lib/types';
+	import type { FileInfo, Homework, Lesson } from '$lib/types';
 	import DropZone from './DropZone.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
 	import Button from '$lib/ui/Button.svelte';
@@ -20,6 +20,8 @@
 		subjectId?: number | null;
 		/** Тип нового задания: со страницы «Сессия» — сразу экзамен. */
 		initialKind?: HomeworkKind;
+		/** Задание к паре расписания: предмет, группа и срок — от неё. */
+		lesson?: { id: number; startsAt: number; groupId: number; subjectId: number } | null;
 		onsaved: (item: Homework) => void;
 	}
 
@@ -28,6 +30,7 @@
 		edit = null,
 		subjectId = null,
 		initialKind = 'homework',
+		lesson = null,
 		onsaved
 	}: Props = $props();
 
@@ -40,6 +43,9 @@
 	let difficulty = $state<number | null>(null);
 	let kind = $state<HomeworkKind>('homework');
 	let place = $state('');
+	// Пара, к которой задание, и ближайшие пары выбранного предмета — выбрать срок одним нажатием.
+	let lessonId = $state<number | null>(null);
+	let upcoming = $state<{ id: number; startsAt: number }[]>([]);
 	// Срок, который человек не трогал, подстраивается под тип: экзамен — в 9:00, задание — к 23:59.
 	let dueTouched = $state(false);
 	// Вложение ещё грузится — «Опубликовать» ждёт, иначе задание ушло бы без файла.
@@ -87,16 +93,17 @@
 
 	$effect(() => {
 		if (!open) return;
-		subject = edit?.subject.id ?? subjectId ?? subjectOptions[0]?.id ?? null;
+		subject = edit?.subject.id ?? lesson?.subjectId ?? subjectId ?? subjectOptions[0]?.id ?? null;
 		title = edit?.title ?? '';
 		body = edit?.bodyMd ?? '';
 		// Не читаем kind после записи: иначе эффект зависел бы от него и сбрасывал выбор типа.
 		const k = edit?.kind ?? initialKind;
 		kind = k;
 		place = edit?.place ?? '';
-		dueTouched = false;
-		due = edit ? toLocalInput(edit.dueAt) : defaultDue(k);
-		groupIds = edit?.groups.map((g) => g.id) ?? [];
+		dueTouched = !!lesson;
+		due = edit ? toLocalInput(edit.dueAt) : lesson ? toLocalInput(lesson.startsAt) : defaultDue(k);
+		lessonId = edit?.lesson?.id ?? lesson?.id ?? null;
+		groupIds = edit?.groups.map((g) => g.id) ?? (lesson ? [lesson.groupId] : []);
 		files = edit ? [...edit.attachments] : [];
 		difficulty = edit?.difficulty ?? null;
 		error = '';
@@ -110,6 +117,39 @@
 			groupIds = pref !== null && ids.includes(pref) ? [pref] : ids;
 		} else if (kept.length !== groupIds.length) groupIds = kept;
 	});
+
+	// Ближайшие пары предмета (если у него есть расписание) — «К паре: чт, 25 сент., 09:30».
+	$effect(() => {
+		const s = subject;
+		if (!open || !s || !subjects.list.find((x) => x.id === s)?.lessons) {
+			upcoming = [];
+			return;
+		}
+		const from = Date.now() - 2 * 3600_000;
+		get<Lesson[]>(`/api/schedule${qs({ subject: s, from, to: from + 45 * 86_400_000 })}`)
+			.then((list) => {
+				if (subject === s) upcoming = list.slice(0, 4);
+			})
+			.catch(() => (upcoming = []));
+	});
+	const lessonChips = $derived.by(() => {
+		const list = [...upcoming];
+		if (lesson && !list.some((l) => l.id === lesson.id)) list.unshift(lesson);
+		return list;
+	});
+	const chipTime = new Intl.DateTimeFormat('ru-RU', {
+		weekday: 'short',
+		day: 'numeric',
+		month: 'short',
+		hour: '2-digit',
+		minute: '2-digit'
+	});
+
+	function toLesson(l: { id: number; startsAt: number }) {
+		lessonId = l.id;
+		due = toLocalInput(l.startsAt);
+		dueTouched = true;
+	}
 
 	async function save(e: SubmitEvent) {
 		e.preventDefault();
@@ -125,7 +165,8 @@
 				attachments: files.map((f) => f.id),
 				difficulty: difficulty ?? 0,
 				kind,
-				place: isExam(kind) ? place : ''
+				place: isExam(kind) ? place : '',
+				lessonId: lessonId ?? 0
 			};
 			const item = edit
 				? await patch<Homework>(`/api/homework/${edit.id}`, payload)
@@ -163,6 +204,23 @@
 				/>
 			</div>
 		</div>
+		{#if lessonChips.length}
+			<div class="to-lesson" role="group" aria-label="Срок — к паре">
+				<span class="faint small">К паре:</span>
+				{#each lessonChips as l (l.id)}
+					<button
+						type="button"
+						class="pill small num"
+						class:ink={lessonId === l.id}
+						aria-pressed={lessonId === l.id}
+						onclick={() => toLesson(l)}>{chipTime.format(l.startsAt)}</button
+					>
+				{/each}
+				{#if lessonId}<button type="button" class="linklike small" onclick={() => (lessonId = null)}
+						>без пары</button
+					>{/if}
+			</div>
+		{/if}
 		{#if isExam(kind)}
 			<div>
 				<label class="label" for="hw-place">Где <span class="faint">(необязательно)</span></label>
@@ -211,6 +269,18 @@
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: var(--s3);
+	}
+	.to-lesson {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+		margin-top: calc(-1 * var(--s2));
+	}
+	.to-lesson .pill {
+		height: 32px;
+		padding: 0 12px;
+		font-size: 13px;
 	}
 	@media (max-width: 520px) {
 		.grid {

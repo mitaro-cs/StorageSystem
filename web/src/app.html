@@ -38,13 +38,18 @@
 				}
 				// Дизайн (Настройки → Оформление): «Классика» — без атрибута.
 				var st = localStorage.getItem('gb-style');
-				if (/^(glass|depth|neon|paper)$/.test(st || ''))
+				if (/^(glass|depth|neon|paper|aura)$/.test(st || ''))
 					document.documentElement.setAttribute('data-style', st);
-				// Своя картинка на фоне.
+				// Своя картинка на фоне: в своих цветах, приглушённая настолько, насколько выбрали.
 				var img = localStorage.getItem('gb-bg') === 'custom' && localStorage.getItem('gb-bg-image');
 				if (img) {
 					document.documentElement.setAttribute('data-bg', 'custom');
 					document.documentElement.style.setProperty('--bg-image', 'url("' + img + '")');
+					var dim = localStorage.getItem('gb-bg-dim');
+					if (/^\d{1,2}$/.test(dim || '') && +dim <= 80)
+						document.documentElement.style.setProperty('--bg-dim', String(dim / 100));
+					if (localStorage.getItem('gb-bg-blur') === '1')
+						document.documentElement.setAttribute('data-bg-blur', '');
 				}
 				// Значок во вкладке и для установки на экран «Домой».
 				var ic = localStorage.getItem('gb-icon');
@@ -63,7 +68,7 @@
 			try {
 				var path = location.pathname;
 				var app =
-					/^\/(?:$|(?:homework|install|link|materials|members|news|notifications|profile|search|session|settings|subjects)(?:\/|$))/;
+					/^\/(?:$|(?:homework|install|link|materials|members|news|notifications|profile|schedule|search|session|settings|subjects)(?:\/|$))/;
 				if (window.fetch && app.test(path)) {
 					var req = {};
 					var ask = function (u) {

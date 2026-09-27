@@ -4,7 +4,16 @@
 	import { page } from '$app/state';
 	import { Paperclip, MessageCircle, Check, RotateCcw, Clock } from '@lucide/svelte';
 	import { del, get, put } from '$lib/api';
-	import { fmtAgo, fmtDue, fmtSize, plural, relativeDay } from '$lib/format';
+	import {
+		fmtAgo,
+		fmtDate,
+		fmtDue,
+		fmtSize,
+		fmtTime,
+		fmtWeekdayShort,
+		plural,
+		relativeDay
+	} from '$lib/format';
 	import { can, isMulti, session } from '$lib/session.svelte';
 	import { report } from '$lib/content/moderate';
 	import { toast, toastError } from '$lib/toasts.svelte';
@@ -159,6 +168,18 @@
 				<div>
 					<dt>Где</dt>
 					<dd>{item.place}</dd>
+				</div>
+			{/if}
+			{#if item.lesson}
+				<div>
+					<dt>К паре</dt>
+					<dd>
+						<a class="lesson-link num" href="/schedule/{item.lesson.id}"
+							>{fmtWeekdayShort(item.lesson.startsAt)}, {fmtDate(item.lesson.startsAt)}, {fmtTime(
+								item.lesson.startsAt
+							)}{item.lesson.place ? ` · ${item.lesson.place}` : ''}</a
+						>
+					</dd>
 				</div>
 			{/if}
 			<div>
@@ -326,6 +347,10 @@
 	}
 	.facts > span + span {
 		border-left: 1px solid color-mix(in srgb, var(--inverse-muted) 40%, transparent);
+	}
+	.lesson-link {
+		text-decoration: underline;
+		text-decoration-color: var(--border-strong);
 	}
 	.kv dd.ok {
 		color: var(--ok);

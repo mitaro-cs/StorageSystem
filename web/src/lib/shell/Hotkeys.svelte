@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { can, hasSettings } from '$lib/session.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
-	import { shortcut } from '$lib/platform';
+	import { hotkey, shortcut } from '$lib/platform';
 	import { openHelp, openPalette, palette } from './palette.svelte';
 
 	let pendingG = 0;
@@ -12,6 +12,7 @@
 		h: '/',
 		n: '/news',
 		d: '/homework',
+		c: '/schedule',
 		e: '/session',
 		m: '/materials',
 		s: '/subjects',
@@ -38,7 +39,9 @@
 	}
 
 	function onkeydown(e: KeyboardEvent) {
-		if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+		// По физической клавише: при русской раскладке e.key — «л», и Ctrl K не срабатывал.
+		const key = hotkey(e);
+		if ((e.metaKey || e.ctrlKey) && key === 'k') {
 			e.preventDefault();
 			if (palette.open) palette.open = false;
 			else openPalette();
@@ -51,24 +54,24 @@
 		if (
 			pendingG &&
 			now - pendingG < 1200 &&
-			jumps[e.key] &&
-			(e.key !== 'o' || hasSettings()) &&
-			(e.key !== 'r' || can('moderate_content'))
+			jumps[key] &&
+			(key !== 'o' || hasSettings()) &&
+			(key !== 'r' || can('moderate_content'))
 		) {
 			pendingG = 0;
 			e.preventDefault();
-			goto(jumps[e.key]);
+			goto(jumps[key]);
 			return;
 		}
 		pendingG = 0;
-		if (e.key === 'g') pendingG = now;
-		else if (e.key === '/') {
+		if (key === 'g') pendingG = now;
+		else if (key === '/') {
 			e.preventDefault();
 			goto('/search');
-		} else if (e.key === 'n') {
+		} else if (key === 'n') {
 			e.preventDefault();
 			newItem();
-		} else if (e.key === '?') {
+		} else if (key === '?') {
 			openHelp();
 		}
 	}
@@ -79,6 +82,7 @@
 		['n', 'Новая запись (ДЗ или новость)'],
 		['g h', 'Сегодня'],
 		['g d', 'Домашние задания'],
+		['g c', 'Расписание'],
 		['g e', 'Сессия: зачёты и экзамены'],
 		['g m', 'Файлы'],
 		['g n', 'Новости'],

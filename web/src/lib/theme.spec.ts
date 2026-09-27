@@ -3,8 +3,9 @@ import { STYLES, isStyle } from './theme';
 import { PRESETS, accentVars, cssText, oklch } from './colors';
 
 describe('дизайны оформления', () => {
-	it('пять вариантов, первый — «Классика»; у каждого есть название и пояснение', () => {
-		expect(STYLES).toHaveLength(5);
+	it('шесть вариантов, первый — «Классика», последний — «Аура»; у каждого есть пояснение', () => {
+		expect(STYLES).toHaveLength(6);
+		expect(STYLES.at(-1)?.id).toBe('aura');
 		expect(STYLES[0].id).toBe('plain');
 		expect(STYLES[0].label).toBe('Классика');
 		const ids = STYLES.map((s) => s.id);

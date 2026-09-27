@@ -72,12 +72,12 @@ test('модератор сайта видит участников списко
 	await expect(row).not.toContainText('Модератор');
 });
 
-test('дизайн оформления: пять вариантов, сразу меняет вид и запоминается', async ({ page }) => {
+test('дизайн оформления: шесть вариантов, сразу меняет вид и запоминается', async ({ page }) => {
 	await login(page, STUDENT);
 	await page.goto('/profile?tab=appearance');
 	const html = page.locator('html');
 	const designs = page.getByRole('radiogroup', { name: 'Дизайн' });
-	await expect(designs.getByRole('radio')).toHaveCount(5);
+	await expect(designs.getByRole('radio')).toHaveCount(6);
 	await designs.getByRole('radio', { name: 'Стекло' }).click();
 	await expect(html).toHaveAttribute('data-style', 'glass');
 	const blur = () =>

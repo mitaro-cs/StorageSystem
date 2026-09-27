@@ -4,6 +4,7 @@
 	import { onMount, type Component } from 'svelte';
 	import {
 		Bell,
+		CalendarDays,
 		ChevronLeft,
 		ChevronRight,
 		Database,
@@ -143,6 +144,7 @@
 
 		<!-- На телефоне: разделы, которых нет в нижней панели. -->
 		<div class="quick mobile">
+			<a href="/schedule"><CalendarDays size={18} /> <span>{t.nav.schedule}</span></a>
 			<a href="/members"><Users size={18} /> <span>{t.nav.members}</span></a>
 			{#if canModerate()}<a href="/moderation"
 					><ShieldCheck size={18} />

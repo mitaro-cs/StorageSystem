@@ -11,10 +11,19 @@
 		subjectId: number;
 		folderId: number | null;
 		suggest: boolean;
+		/** Материал к паре расписания («слайды этой лекции»). */
+		lessonId?: number | null;
 		onsaved: () => void;
 	}
 
-	let { open = $bindable(), subjectId, folderId, suggest, onsaved }: Props = $props();
+	let {
+		open = $bindable(),
+		subjectId,
+		folderId,
+		suggest,
+		lessonId = null,
+		onsaved
+	}: Props = $props();
 
 	let mode = $state<'file' | 'link'>('file');
 	let files = $state<FileInfo[]>([]);
@@ -46,7 +55,8 @@
 						url,
 						title,
 						description,
-						folderId
+						folderId,
+						lessonId
 					})
 				);
 			} else {
@@ -58,7 +68,8 @@
 							fileId: f.id,
 							title: files.length === 1 ? title : '',
 							description,
-							folderId
+							folderId,
+							lessonId
 						})
 					);
 				}

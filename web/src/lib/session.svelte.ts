@@ -71,6 +71,7 @@ const MANAGE: ReadonlySet<Permission> = new Set<Permission>([
 	'reset_passwords',
 	'manage_subjects',
 	'share_subjects',
+	'manage_schedule',
 	'moderate_content',
 	'view_audit',
 	'manage_permissions',

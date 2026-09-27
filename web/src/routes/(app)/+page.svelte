@@ -180,6 +180,13 @@
 			</div>
 		{/await}
 	{/if}
+	{#if data.lessons?.length}
+		<!-- Пары — только у групп с расписанием: код блока грузится, когда есть что показать. -->
+		{#await import('$lib/schedule/TodayLessons.svelte') then m}<m.default
+				lessons={data.lessons}
+				{now}
+			/>{/await}
+	{/if}
 	{#if next}
 		<div class="block" in:fly={{ y: 10 }}><NextDeadline item={next} {now} /></div>
 	{/if}

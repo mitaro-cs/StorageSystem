@@ -4,6 +4,7 @@ import type {
 	Comment,
 	FileInfo,
 	Homework,
+	Lesson,
 	Material,
 	Me,
 	Member,
@@ -44,6 +45,8 @@ interface SyncResult {
 	materials: Delta<Material>;
 	folders: Delta<FolderRef>;
 	comments: { type: string; id: number; items: Comment[] }[];
+	/** Пары расписания (у серверов до 0.4.12 поля нет). */
+	lessons?: Delta<Lesson>;
 }
 
 interface Op {
@@ -73,7 +76,7 @@ export const enabled = () => supported() && (offline.ready || lastUser() !== nul
 
 export async function snapshot(): Promise<Snapshot> {
 	if (mirror) return mirror;
-	const [me, news, homework, materials, folders, subjects, commentRows, memberRows] =
+	const [me, news, homework, materials, folders, subjects, commentRows, memberRows, lessons] =
 		await Promise.all([
 			getMeta<Me>('me'),
 			all<NewsItem>('news'),
@@ -82,7 +85,8 @@ export async function snapshot(): Promise<Snapshot> {
 			all<FolderRef>('folders'),
 			all<Subject>('subjects'),
 			all<{ key: string; items: Comment[] }>('comments'),
-			all<{ groupId: number; items: Member[] }>('members')
+			all<{ groupId: number; items: Member[] }>('members'),
+			getMeta<Lesson[]>('lessons')
 		]);
 	mirror = {
 		me: me ?? null,
@@ -92,7 +96,8 @@ export async function snapshot(): Promise<Snapshot> {
 		folders,
 		subjects,
 		comments: Object.fromEntries(commentRows.map((r) => [r.key, r.items])),
-		members: Object.fromEntries(memberRows.map((r) => [r.groupId, r.items]))
+		members: Object.fromEntries(memberRows.map((r) => [r.groupId, r.items])),
+		lessons: lessons ?? []
 	};
 	offline.counts = { news: news.length, homework: homework.length, materials: materials.length };
 	return mirror;
@@ -186,19 +191,36 @@ export function syncNow(): Promise<void> {
 
 const CONTENT: StoreName[] = ['news', 'homework', 'materials', 'folders', 'comments'];
 
+/**
+ * Пары расписания — одним списком в meta (их немного, сотни): без нового хранилища IndexedDB, иначе
+ * открытая вкладка прежней версии не дала бы обновить базу.
+ */
+async function nextLessons(d: Delta<Lesson>, full: boolean): Promise<Lesson[]> {
+	const byId = new Map<number, Lesson>();
+	if (!full) for (const l of (await getMeta<Lesson[]>('lessons')) ?? []) byId.set(l.id, l);
+	for (const id of d.delete) byId.delete(id);
+	for (const l of d.upsert) byId.set(l.id, l);
+	return [...byId.values()];
+}
+
 async function doSync() {
 	if (!userId || !navigator.onLine) return;
 	offline.syncing = true;
 	try {
 		const cursor = (await getMeta<number>('cursor')) ?? 0;
 		const lastFull = (await getMeta<number>('lastFull')) ?? 0;
-		// Раз в сутки — полный снимок: заодно уходит то, что стало невидимым незаметно.
-		const after = Date.now() - lastFull > DAY ? 0 : cursor;
+		// Раз в сутки — полный снимок: заодно уходит то, что стало невидимым незаметно. Копия без
+		// расписания (до 0.4.12) тоже берёт полный снимок — иначе пар из прошлых изменений не будет.
+		const withLessons = (await getMeta<Lesson[]>('lessons')) !== undefined;
+		const after = Date.now() - lastFull > DAY || !withLessons ? 0 : cursor;
 		const r = await request<SyncResult>(`/api/sync?after=${after}`);
 		const touched =
 			r.full ||
 			r.comments.length > 0 ||
-			[r.news, r.homework, r.materials, r.folders].some((d) => d.upsert.length || d.delete.length);
+			[r.news, r.homework, r.materials, r.folders, r.lessons].some(
+				(d) => d && (d.upsert.length || d.delete.length)
+			);
+		const lessons = r.lessons ? await nextLessons(r.lessons, r.full) : null;
 		await write([...CONTENT, 'subjects', 'members', 'meta'], (s) => {
 			if (r.full) CONTENT.forEach((name) => s(name).clear());
 			const apply = <T>(name: StoreName, d: Delta<T>, commentType?: string) => {
@@ -212,6 +234,7 @@ async function doSync() {
 			apply('homework', r.homework, 'homework');
 			apply('materials', r.materials, 'material');
 			apply('folders', r.folders);
+			if (lessons) s('meta').put(plain(lessons), 'lessons');
 			for (const c of r.comments) s('comments').put({ key: `${c.type}:${c.id}`, items: c.items });
 			s('subjects').clear();
 			r.subjects.forEach((x) => s('subjects').put(x));

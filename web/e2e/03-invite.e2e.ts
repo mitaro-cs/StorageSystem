@@ -35,8 +35,8 @@ test('студент регистрируется по инвайту, види�
 	await expect(toggle).toHaveAttribute('aria-checked', 'true');
 	await student.screenshot({ path: 'test-results/shots/homework-mobile.png', fullPage: true });
 
-	// Прав на публикацию и настройки у студента нет.
-	await expect(student.getByRole('button', { name: 'Задание' })).toHaveCount(0);
+	// Задания студент добавляет сам (с 0.4.12), а новостей и управления у него нет.
+	await expect(student.getByRole('button', { name: 'Задание' })).toBeVisible();
 	await student.goto('/settings');
 	await expect(student.getByText('Управлять здесь пока нечем')).toBeVisible();
 	await student.goto('/news');

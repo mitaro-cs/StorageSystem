@@ -52,8 +52,13 @@ const LABELS: Record<string, string> = {
 	'news.delete': 'удалил новость',
 	'news.hide': 'скрыл новость',
 	'news.unhide': 'вернул новость',
+	'lesson.create': 'добавил пару в расписание',
+	'lesson.delete': 'удалил пару из расписания',
+	'lesson.update': 'изменил пару',
 	'permissions.update': 'изменил права',
 	'report.dismiss': 'отклонил жалобу',
+	'schedule.clear': 'очистил расписание',
+	'schedule.import': 'загрузил расписание из файла календаря',
 	'settings.update': 'изменил настройки сайта',
 	'subject.archive': 'отправил предмет в архив',
 	'subject.create': 'создал предмет',
@@ -91,6 +96,7 @@ const SECTIONS: Record<string, string> = {
 	homework: 'изменил задание',
 	hosts: 'изменил компьютеры хоста',
 	invite: 'изменил приглашение',
+	lesson: 'изменил расписание',
 	material: 'изменил материал',
 	member: 'изменил участника',
 	news: 'изменил новость',
@@ -131,6 +137,8 @@ export function auditLink(e: AuditEntry): string | null {
 			return `/materials/${e.targetId}`;
 		case 'subject':
 			return `/subjects/${e.targetId}`;
+		case 'lesson':
+			return `/schedule/${e.targetId}`;
 		default:
 			return null;
 	}

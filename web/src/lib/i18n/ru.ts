@@ -6,6 +6,7 @@ export const ru = {
 		news: 'Новости',
 		homework: 'ДЗ',
 		homeworkLong: 'Домашние задания',
+		schedule: 'Расписание',
 		session: 'Сессия',
 		materials: 'Файлы',
 		subjects: 'Предметы',
@@ -32,7 +33,10 @@ export const ru = {
 	permissions: {
 		create_accounts: 'Создавать аккаунты',
 		manage_subjects: 'Создавать и редактировать предметы',
-		suggest_materials: 'Предлагать материалы (на премодерацию)'
+		publish_homework: 'Добавлять задания',
+		upload_materials: 'Выкладывать материалы',
+		suggest_materials: 'Предлагать материалы (на премодерацию)',
+		manage_schedule: 'Вести расписание пар'
 	} as Record<string, string>,
 	common: {
 		save: 'Сохранить',

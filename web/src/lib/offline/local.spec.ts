@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Homework, Material, Me, NewsItem, Subject } from '$lib/types';
+import type { Homework, Lesson, LessonDetail, Material, Me, NewsItem, Subject } from '$lib/types';
 import { NotFound, highlight, materialListing, resolve, stem, type Snapshot } from './local';
 
 const NOW = new Date(2026, 8, 23, 12, 0).getTime();
@@ -154,6 +154,24 @@ const snap: Snapshot = {
 	},
 	members: { 1: [] }
 };
+function lesson(id: number, startIn: number, extra: Partial<Lesson> = {}): Lesson {
+	return {
+		id,
+		groupId: 1,
+		subject: { id: 10, name: 'Физика', color: '#f00' },
+		title: 'Физика',
+		kind: 'lecture',
+		startsAt: NOW + startIn,
+		endsAt: NOW + startIn + 95 * 60_000,
+		place: '214',
+		teacher: '',
+		note: '',
+		homework: 0,
+		materials: 0,
+		can: { edit: false },
+		...extra
+	};
+}
 
 describe('офлайн-ответы', () => {
 	it('главная: неделя по сроку, просрочка без выполненного, 5 новостей', () => {
@@ -224,6 +242,45 @@ describe('офлайн-ответы', () => {
 			{ text: 'Лекц', hit: true },
 			{ text: 'ия', hit: false }
 		]);
+	});
+
+	it('расписание без сети: неделя, «не мой предмет», страница пары и «Сегодня»', () => {
+		const withLessons: Snapshot = {
+			...snap,
+			subjects: [subject, { ...subject, id: 11, name: 'Английский №2', mine: false }],
+			homework: [
+				...snap.homework,
+				hw(8, DAY, {
+					lesson: { id: 3, startsAt: NOW + DAY, endsAt: NOW + DAY + 1, kind: 'practice', place: '' }
+				})
+			],
+			lessons: [
+				lesson(1, 2 * 3600_000),
+				lesson(2, -DAY),
+				lesson(3, DAY, { kind: 'practice' }),
+				lesson(4, 3 * 3600_000, { subject: { id: 11, name: 'Английский №2', color: '#00f' } }),
+				lesson(5, 3 * DAY, { groupId: 2 })
+			]
+		};
+		const week = resolve(
+			`/api/schedule?group=1&from=${NOW - 2 * DAY}&to=${NOW + 7 * DAY}`,
+			withLessons
+		) as Lesson[];
+		// Английский №2 скрыт у себя — в общем расписании его нет; чужая группа — тоже нет.
+		expect(week.map((l) => l.id)).toEqual([2, 1, 3]);
+		const english = resolve(
+			`/api/schedule?subject=11&from=${NOW - DAY}&to=${NOW + DAY}`,
+			withLessons
+		) as Lesson[];
+		expect(english.map((l) => l.id)).toEqual([4]);
+		const detail = resolve('/api/lessons/3', withLessons) as LessonDetail;
+		expect(detail.homework.map((h) => h.id)).toEqual([8]);
+		expect(detail.prev?.id).toBe(1);
+		expect(detail.next).toBeNull();
+		const t = resolve('/api/today?group=1', withLessons, NOW) as { lessons: Lesson[] };
+		expect(t.lessons.map((l) => l.id)).toEqual([1, 3]);
+		// Копия от прежней версии — без пар: пусто, а не ошибка.
+		expect(resolve(`/api/schedule?from=0&to=${NOW}`, snap)).toEqual([]);
 	});
 
 	it('детали, комментарии и неизвестное', () => {

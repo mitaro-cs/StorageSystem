@@ -84,6 +84,8 @@
 	--glass-border: rgb(255 255 255 / 0.08);
 	--glass-text: rgb(255 255 255 / 0.62);
 	--glass-light: rgb(255 255 255 / 0.72);
+	/* Вуаль над своей картинкой фона: нейтральная, без оттенка темы. */
+	--veil: 255 255 255;
 	--shadow-1: 0 1px 2px rgb(16 18 24 / 0.04), 0 0 0 1px rgb(16 18 24 / 0.025);
 	--shadow-2: 0 16px 36px -16px rgb(16 18 24 / 0.22), 0 2px 6px rgb(16 18 24 / 0.04);
 	--shadow-3: 0 28px 64px -20px rgb(16 18 24 / 0.32), 0 4px 12px rgb(16 18 24 / 0.06);
@@ -121,6 +123,7 @@
 		--glass-border: rgb(255 255 255 / 0.1);
 		--glass-text: rgb(255 255 255 / 0.6);
 		--glass-light: rgb(255 255 255 / 0.86);
+		--veil: 0 0 0;
 		--shadow-1: none;
 		--shadow-2: 0 16px 40px -12px rgb(0 0 0 / 0.8);
 		--shadow-3: 0 28px 64px -16px rgb(0 0 0 / 0.85), 0 0 0 1px rgb(255 255 255 / 0.06);
@@ -157,6 +160,7 @@
 	--glass-border: rgb(255 255 255 / 0.1);
 	--glass-text: rgb(255 255 255 / 0.6);
 	--glass-light: rgb(255 255 255 / 0.86);
+	--veil: 0 0 0;
 	--shadow-1: none;
 	--shadow-2: 0 16px 40px -12px rgb(0 0 0 / 0.8);
 	--shadow-3: 0 28px 64px -16px rgb(0 0 0 / 0.85), 0 0 0 1px rgb(255 255 255 / 0.06);
@@ -174,7 +178,7 @@
 }
 
 /* ---------- Дизайн (Настройки → Оформление, lib/theme.ts STYLES) ----------
-   Пять цельных вариантов: «Классика» (без атрибута), «Стекло», «Объём», «Сияние», «Бумага». Каждый
+   Шесть цельных вариантов: «Классика» (без атрибута), «Стекло», «Объём», «Сияние», «Бумага», «Аура». Каждый
    меняет материал — карточки, тени, фон, заголовки; цвет берётся из выбранного основного цвета.
    Срочные новости везде сохраняют янтарную плашку, списки (.list) оформляются как карточки. */
 
@@ -320,7 +324,120 @@
 	letter-spacing: -0.005em;
 }
 
+/* Аура — по постерам, которые прислал владелец: яркие размытые пятна цвета на спокойном фоне,
+   крупный жирный шрифт, плоские контрастные плашки без теней, кислотная плашка у выбранного.
+   Пятна — из основного цвета (у «Чернил» — розовый, янтарный и электрик, как на референсе),
+   тонкий круг с перекрестием — как на постере. */
+:root[data-style='aura'] {
+	--bg: #e8e8ec;
+	--surface: #f8f8fa;
+	--surface-2: #efeff3;
+	--surface-3: #e1e1e7;
+	--border: #dadae1;
+	--border-strong: #c6c6cf;
+	--pop: var(--pal-pop, #d6ff3d);
+	--pop-text: #0b0b0c;
+	--shadow-1: none;
+	--shadow-2: 0 20px 40px -28px rgb(16 18 24 / 0.35);
+}
+:root[data-style='aura']:not([data-accent]) {
+	--mesh-1: #ff3d8b;
+	--mesh-2: #ffb020;
+	--mesh-3: #3558ff;
+}
+:root[data-style='aura'] body::before {
+	background:
+		radial-gradient(
+			34% 30% at 94% 4%,
+			color-mix(in srgb, var(--mesh-1) 62%, transparent),
+			transparent 72%
+		),
+		radial-gradient(
+			26% 24% at 78% 20%,
+			color-mix(in srgb, var(--mesh-2) 50%, transparent),
+			transparent 72%
+		),
+		radial-gradient(
+			44% 40% at 0% 100%,
+			color-mix(in srgb, var(--mesh-3) 52%, transparent),
+			transparent 74%
+		),
+		radial-gradient(
+			24% 22% at 22% 78%,
+			color-mix(in srgb, var(--mesh-1) 30%, transparent),
+			transparent 70%
+		);
+}
+/* Круг с перекрестием и узлами на линии — тонко, за карточками. */
+:root[data-style='aura'] body::after {
+	content: '';
+	position: fixed;
+	top: 9vh;
+	right: 5vw;
+	z-index: -1;
+	width: 300px;
+	height: 300px;
+	pointer-events: none;
+	background: var(--text);
+	opacity: 0.14;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300' fill='none' stroke='%23000' stroke-width='1.2'%3E%3Ccircle cx='150' cy='150' r='84'/%3E%3Cpath d='M150 0v300M30 150h240'/%3E%3Ccircle cx='150' cy='8' r='4'/%3E%3Ccircle cx='150' cy='292' r='4'/%3E%3C/svg%3E")
+		center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300' fill='none' stroke='%23000' stroke-width='1.2'%3E%3Ccircle cx='150' cy='150' r='84'/%3E%3Cpath d='M150 0v300M30 150h240'/%3E%3Ccircle cx='150' cy='8' r='4'/%3E%3Ccircle cx='150' cy='292' r='4'/%3E%3C/svg%3E")
+		center / contain no-repeat;
+}
+:root[data-bg='custom'][data-style='aura'] body::after {
+	display: none;
+}
+@media (max-width: 899px) {
+	:root[data-style='aura'] body::after {
+		top: auto;
+		right: -60px;
+		bottom: 18vh;
+		width: 220px;
+		height: 220px;
+		opacity: 0.1;
+	}
+}
+:root[data-style='aura'] :is(.card:not(.urgent), .list) {
+	box-shadow: none;
+}
+:root[data-style='aura'] .sidebar {
+	background: transparent;
+	border-right-color: transparent;
+}
+/* Выбранное — кислотной плашкой с чёрным текстом, как «Практики» на постере. */
+:root[data-style='aura'] :is(.sidebar .main a.active, .chip.accent) {
+	background: var(--pop);
+	color: var(--pop-text);
+}
+:root[data-style='aura'] :is(h1, h2) {
+	font-weight: 800;
+	letter-spacing: -0.045em;
+	line-height: 1.05;
+}
+:root[data-style='aura'] h3 {
+	font-weight: 750;
+	letter-spacing: -0.02em;
+}
+
 /* Дизайны в тёмной теме: кромка и свет слабее, тени глубже, свечение ярче. */
+:root[data-theme='dark'][data-style='aura'] {
+	--bg: #050506;
+	--surface: #0f0f12;
+	--surface-2: #17171b;
+	--surface-3: #222228;
+	--border: #1c1c21;
+	--border-strong: #2f2f36;
+	--accent: var(--pop);
+	--accent-hover: color-mix(in srgb, var(--pop) 85%, #fff);
+	--accent-soft: color-mix(in srgb, var(--pop) 18%, transparent);
+	--accent-text: var(--pop-text);
+	--focus: var(--pop);
+}
+:root[data-theme='dark'][data-style='aura'] :is(.card:not(.urgent), .list) {
+	box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07);
+}
+
 :root[data-theme='dark'][data-style='glass'] :is(.card:not(.urgent), .list) {
 	background-color: color-mix(in srgb, var(--surface) 50%, transparent);
 	box-shadow:
@@ -360,6 +477,22 @@
 	opacity: 0.16;
 }
 @media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light'])[data-style='aura'] {
+		--bg: #050506;
+		--surface: #0f0f12;
+		--surface-2: #17171b;
+		--surface-3: #222228;
+		--border: #1c1c21;
+		--border-strong: #2f2f36;
+		--accent: var(--pop);
+		--accent-hover: color-mix(in srgb, var(--pop) 85%, #fff);
+		--accent-soft: color-mix(in srgb, var(--pop) 18%, transparent);
+		--accent-text: var(--pop-text);
+		--focus: var(--pop);
+	}
+	:root:not([data-theme='light'])[data-style='aura'] :is(.card:not(.urgent), .list) {
+		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07);
+	}
 	:root:not([data-theme='light'])[data-style='glass'] :is(.card:not(.urgent), .list) {
 		background-color: color-mix(in srgb, var(--surface) 50%, transparent);
 		box-shadow:
@@ -401,20 +534,25 @@
 }
 
 /* ---------- Своя картинка на фоне (Настройки → Оформление, lib/looks.ts) ----------
-   Под всем, неподвижная, под вуалью цвета страницы — текст на ней читается. */
+   Под всем, неподвижная и в своих цветах: сверху только нейтральная вуаль — белая в светлой теме,
+   чёрная в тёмной, без оттенка основного цвета. Насколько приглушить (--bg-dim) и размыть ли,
+   выбирает сам человек. Пятна света и зерно дизайнов поверх картинки не рисуются. */
 :root[data-bg='custom']::before {
 	content: '';
 	position: fixed;
-	inset: -24px;
+	inset: 0;
 	z-index: -2;
 	pointer-events: none;
 	background:
-		linear-gradient(
-			color-mix(in srgb, var(--bg) 55%, transparent),
-			color-mix(in srgb, var(--bg) 70%, transparent)
-		),
+		linear-gradient(rgb(var(--veil) / var(--bg-dim, 0.25)), rgb(var(--veil) / var(--bg-dim, 0.25))),
 		var(--bg-image) center / cover no-repeat;
-	filter: blur(2px);
+}
+:root[data-bg='custom'][data-bg-blur]::before {
+	inset: -40px;
+	filter: blur(16px);
+}
+:root[data-bg='custom'] body::before {
+	display: none;
 }
 
 /* Приложение проявляется вместе с уходом заставки: чуть приближается из глубины. */

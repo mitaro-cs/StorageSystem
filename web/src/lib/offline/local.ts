@@ -1,6 +1,8 @@
 import type {
 	Comment,
 	Homework,
+	Lesson,
+	LessonDetail,
 	Material,
 	Me,
 	Member,
@@ -35,6 +37,8 @@ export interface Snapshot {
 	/** Ключ — «post:12», «homework:5», «material:7». */
 	comments: Record<string, Comment[]>;
 	members: Record<number, Member[]>;
+	/** Пары расписания (в копии до 0.4.12 их нет). */
+	lessons?: Lesson[];
 }
 
 export class NotFound extends Error {}
@@ -138,9 +142,57 @@ export function newsFeed(s: Snapshot, q: URLSearchParams) {
 	return { pinned, items, next: rest.length > limit ? (items.at(-1)?.id ?? null) : null };
 }
 
+/** Пары за период: как у сервера (LessonService.list) — общий список без «не моих» предметов. */
+export function schedule(s: Snapshot, q: URLSearchParams): Lesson[] {
+	const group = num(q, 'group');
+	const subject = num(q, 'subject');
+	const from = num(q, 'from') ?? 0;
+	const to = num(q, 'to') ?? Number.MAX_SAFE_INTEGER;
+	const hidden = subject === null ? notMine(s) : new Set<number>();
+	return (s.lessons ?? [])
+		.filter(
+			(l) =>
+				(group === null || l.groupId === group) &&
+				(subject === null || l.subject?.id === subject) &&
+				!(l.subject && hidden.has(l.subject.id)) &&
+				l.startsAt < to &&
+				l.endsAt > from
+		)
+		.sort((a, b) => a.startsAt - b.startsAt || a.id - b.id);
+}
+
+/** Страница пары: задания и материалы к ней — из копии, соседние пары того же предмета. */
+export function lessonDetail(s: Snapshot, id: number): LessonDetail {
+	const lesson = find(s.lessons ?? [], id);
+	const same = (s.lessons ?? [])
+		.filter((l) => l.groupId === lesson.groupId && l.subject && l.subject.id === lesson.subject?.id)
+		.sort((a, b) => a.startsAt - b.startsAt || a.id - b.id);
+	const at = same.findIndex((l) => l.id === id);
+	const ref = (l: Lesson | undefined) =>
+		l ? { id: l.id, startsAt: l.startsAt, kind: l.kind } : null;
+	return {
+		lesson,
+		homework: s.homework.filter((h) => h.lesson?.id === id).sort(byDue),
+		materials: s.materials.filter(
+			(m) => m.lessonId === id && (m.status === 'published' || m.pending)
+		),
+		prev: at > 0 ? ref(same[at - 1]) : null,
+		next: at >= 0 ? ref(same[at + 1]) : null
+	};
+}
+
 export function today(s: Snapshot, q: URLSearchParams, now: number) {
 	const feed = newsFeed(s, new URLSearchParams({ ...Object.fromEntries(q), limit: '5' }));
+	const sod = startOfDay(now);
 	return {
+		lessons: schedule(
+			s,
+			new URLSearchParams({
+				...Object.fromEntries(q),
+				from: String(sod),
+				to: String(sod + 2 * DAY)
+			})
+		),
 		upcoming: homeworkList(s, new URLSearchParams({ ...Object.fromEntries(q), view: 'week' }), now),
 		overdue: homeworkList(
 			s,
@@ -425,5 +477,7 @@ export function resolve(path: string, s: Snapshot, now = Date.now()): unknown {
 		return list;
 	}
 	if (p === '/api/search') return search(s, q);
+	if (p === '/api/schedule') return schedule(s, q);
+	if ((m = p.match(/^\/api\/lessons\/(\d+)$/))) return lessonDetail(s, Number(m[1]));
 	return undefined;
 }

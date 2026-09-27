@@ -3,11 +3,17 @@ import { appIcon, iconSrc, type AppIcon } from './appIcon.svelte';
 /**
  * Своя картинка на фоне страниц (Настройки → Оформление): хранится на этом устройстве, уменьшенной,
  * в localStorage. Правило — в app.css (:root[data-bg='custom']), применяется до отрисовки скриптом
- * в app.html. Узоры и градиенты фона с 0.4.10 — часть дизайнов (lib/theme.ts STYLES).
+ * в app.html. Картинка — в своих цветах: поверх только нейтральная вуаль (насколько приглушить —
+ * выбирает человек) и, по желанию, размытие. Узоры и градиенты фона — часть дизайнов (lib/theme.ts).
  */
 export type Background = 'none' | 'custom';
 const BG_KEY = 'gb-bg';
 const BG_IMAGE_KEY = 'gb-bg-image';
+const DIM_KEY = 'gb-bg-dim';
+const BLUR_KEY = 'gb-bg-blur';
+/** Приглушить картинку, % (0–80): по умолчанию слегка — текст на ней читается. */
+export const DEFAULT_DIM = 25;
+export const MAX_DIM = 80;
 
 export function currentBackground(): Background {
 	try {
@@ -28,15 +34,59 @@ export function customBackground(): string | null {
 	}
 }
 
+/** Насколько приглушена картинка, % (0 — как есть). */
+export function backgroundDim(): number {
+	try {
+		const raw = localStorage.getItem(DIM_KEY);
+		const v = Number(raw);
+		return raw !== null && Number.isInteger(v) && v >= 0 && v <= MAX_DIM ? v : DEFAULT_DIM;
+	} catch {
+		return DEFAULT_DIM;
+	}
+}
+
+export function backgroundBlur(): boolean {
+	try {
+		return localStorage.getItem(BLUR_KEY) === '1';
+	} catch {
+		return false;
+	}
+}
+
 function applyBackground(image: string | null) {
 	const root = document.documentElement;
 	if (image) {
 		root.setAttribute('data-bg', 'custom');
 		root.style.setProperty('--bg-image', `url("${image}")`);
+		root.style.setProperty('--bg-dim', String(backgroundDim() / 100));
+		root.toggleAttribute('data-bg-blur', backgroundBlur());
 	} else {
 		root.removeAttribute('data-bg');
+		root.removeAttribute('data-bg-blur');
 		root.style.removeProperty('--bg-image');
+		root.style.removeProperty('--bg-dim');
 	}
+}
+
+/** Приглушить картинку (ползунок — сразу, без плавного перехода) и запомнить. */
+export function setBackgroundDim(percent: number) {
+	const v = Math.round(Math.min(MAX_DIM, Math.max(0, percent)));
+	try {
+		localStorage.setItem(DIM_KEY, String(v));
+	} catch {
+		/* приватный режим — просто не запоминаем */
+	}
+	document.documentElement.style.setProperty('--bg-dim', String(v / 100));
+}
+
+export function setBackgroundBlur(on: boolean) {
+	try {
+		if (on) localStorage.setItem(BLUR_KEY, '1');
+		else localStorage.removeItem(BLUR_KEY);
+	} catch {
+		/* приватный режим */
+	}
+	document.documentElement.toggleAttribute('data-bg-blur', on);
 }
 
 /** Убрать картинку с фона (и из памяти браузера). */

@@ -2,8 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Archive, EyeOff, Pencil, Pin, PinOff, Plus, Send, Upload, Users } from '@lucide/svelte';
-	import { tick } from 'svelte';
-	import { get, post, put } from '$lib/api';
+	import { get, put } from '$lib/api';
 	import { loadSubjects, sortedSubjects } from '$lib/data.svelte';
 	import { can, session } from '$lib/session.svelte';
 	import { track } from '$lib/recent';
@@ -12,7 +11,6 @@
 	import Menu, { type MenuItem } from '$lib/ui/Menu.svelte';
 	import BackBar from '$lib/ui/BackBar.svelte';
 	import SubjectArt from '$lib/ui/SubjectArt.svelte';
-	import Modal from '$lib/ui/Modal.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
@@ -22,8 +20,6 @@
 	let missing = $state(false);
 	let editor = $state(false);
 	let share = $state(false);
-	let directory = $state<{ id: number; name: string; university: string }[]>([]);
-	let shareTo = $state<number | null>(null);
 	// Добавить прямо отсюда: задание, новость, файл — без поиска кнопки во вкладках.
 	let hwOpen = $state(false);
 	let newsOpen = $state(false);
@@ -33,12 +29,19 @@
 
 	const id = $derived(Number(page.params.id));
 	const tab = $derived(page.url.searchParams.get('tab') ?? 'feed');
-	const tabs = $derived([
-		{ label: 'Лента', href: `/subjects/${id}` },
-		{ label: 'ДЗ', href: `/subjects/${id}?tab=homework` },
-		{ label: 'Материалы', href: `/subjects/${id}?tab=materials` },
-		{ label: 'Участники', href: `/subjects/${id}?tab=members` }
-	]);
+	// «Пары» — если у предмета есть расписание.
+	const tabs = $derived(
+		[
+			{ value: 'feed', label: 'Лента' },
+			{ value: 'homework', label: 'ДЗ' },
+			...(subject?.lessons ? [{ value: 'lessons', label: 'Пары' }] : []),
+			{ value: 'materials', label: 'Материалы' },
+			{ value: 'members', label: 'Участники' }
+		].map((t) => ({
+			...t,
+			href: t.value === 'feed' ? `/subjects/${id}` : `/subjects/${id}?tab=${t.value}`
+		}))
+	);
 
 	async function load() {
 		try {
@@ -55,18 +58,8 @@
 		load();
 	});
 
-	// Полоса миниатюр предметов: текущий крупнее и прокручен в видимую область.
-	let strip: HTMLElement | undefined = $state();
+	// Полоса миниатюр предметов — отдельным кусочком (SubjectStrip): место под неё занято сразу.
 	const others = $derived(sortedSubjects(session.groupId));
-	$effect(() => {
-		void id;
-		void others.length;
-		tick().then(() =>
-			strip
-				?.querySelector('[aria-current="page"]')
-				?.scrollIntoView({ inline: 'center', block: 'nearest' })
-		);
-	});
 
 	async function togglePin() {
 		if (!subject) return;
@@ -88,30 +81,6 @@
 					: 'Скрыто: задания, новости и уведомления этого предмета больше не придут',
 				'ok'
 			);
-		} catch (e) {
-			toastError(e);
-		}
-	}
-
-	async function openShare() {
-		directory = await get('/api/groups/directory');
-		shareTo = null;
-		share = true;
-	}
-
-	async function doShare() {
-		if (!subject || shareTo === null) return;
-		try {
-			const r = await post<{ status: string }>(`/api/subjects/${subject.id}/links`, {
-				groupId: shareTo
-			});
-			toast(
-				r.status === 'linked' ? 'Предмет стал общим' : 'Запрос отправлен старосте группы',
-				'ok'
-			);
-			share = false;
-			load();
-			loadSubjects();
 		} catch (e) {
 			toastError(e);
 		}
@@ -145,7 +114,7 @@
 				? { label: 'Мой предмет — вернуть в списки', onclick: () => setMine(true) }
 				: { label: 'Не мой предмет (другая подгруппа)', onclick: () => setMine(false) }
 		);
-		if (s.can.share) out.push({ label: 'Сделать общим с группой…', onclick: openShare });
+		if (s.can.share) out.push({ label: 'Сделать общим с группой…', onclick: () => (share = true) });
 		if (s.can.edit)
 			out.push({
 				label: s.archived ? 'Вернуть из архива' : 'В архив',
@@ -164,14 +133,7 @@
 	});
 
 	// Активную вкладку-ссылку определяем по параметру, а не только по пути.
-	const activeTabs = $derived(
-		tabs
-			.map((t) => ({ ...t, href: t.href }))
-			.map((t, i) => ({
-				...t,
-				active: ['feed', 'homework', 'materials', 'members'][i] === tab
-			}))
-	);
+	const activeTabs = $derived(tabs.map((t) => ({ ...t, active: t.value === tab })));
 </script>
 
 <svelte:head><title>{subject?.name ?? 'Предмет'} · groupbase</title></svelte:head>
@@ -186,28 +148,12 @@
 	<BackBar href="/subjects" label="Предметы" />
 
 	{#if others.length > 1}
-		<nav class="strip" aria-label="Другие предметы" bind:this={strip}>
-			{#each others as o (o.id)}
-				<a
-					href="/subjects/{o.id}"
-					class="thumb"
-					class:on={o.id === subject.id}
-					aria-current={o.id === subject.id ? 'page' : undefined}
-					title={o.name}
-					aria-label={o.name}
-					data-sveltekit-replacestate
-				>
-					<SubjectArt
-						id={o.id}
-						name={o.name}
-						color={o.color}
-						avatar={o.avatar}
-						icon={o.icon}
-						class="fill"
-					/>
-				</a>
-			{/each}
-		</nav>
+		<div class="strip-slot">
+			{#await import('$lib/content/SubjectStrip.svelte') then m}<m.default
+					subjects={others}
+					current={subject.id}
+				/>{/await}
+		</div>
 	{/if}
 
 	{#if subject.mine === false}
@@ -307,6 +253,10 @@
 					title={false}
 					compose={false}
 				/>{/await}
+		{:else if tab === 'lessons'}
+			{#await import('$lib/schedule/SubjectLessons.svelte') then m}<m.default
+					subjectId={subject.id}
+				/>{/await}
 		{:else if tab === 'materials'}
 			{#await import('$lib/content/MaterialBrowser.svelte')}<Skeleton
 					lines={4}
@@ -352,26 +302,11 @@
 			/>
 		{/await}
 	{/if}
-	<Modal bind:open={share} title="Общий предмет">
-		<p class="muted">
-			Предмет и его материалы увидит выбранная группа. Если вы не староста этой группы, её староста
-			получит запрос.
-		</p>
-		<div class="options">
-			{#each directory.filter((g) => !subject?.groups.some((x) => x.id === g.id)) as g (g.id)}
-				<label class="check opt"
-					><input type="radio" bind:group={shareTo} value={g.id} />
-					<span>{g.name} <span class="faint small">{g.university}</span></span></label
-				>
-			{:else}
-				<p class="faint">Других групп на сайте нет</p>
-			{/each}
-		</div>
-		{#snippet footer()}
-			<Button onclick={() => (share = false)}>Отмена</Button>
-			<Button variant="primary" disabled={shareTo === null} onclick={doShare}>Связать</Button>
-		{/snippet}
-	</Modal>
+	{#if share}
+		{#await import('$lib/content/SubjectShare.svelte') then m}
+			<m.default bind:open={share} {subject} onsaved={() => (load(), loadSubjects())} />
+		{/await}
+	{/if}
 {/if}
 
 <style>
@@ -391,43 +326,11 @@
 	.not-mine strong {
 		color: var(--text);
 	}
-	.strip {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		margin: 0 calc(-1 * var(--s4)) var(--s4);
-		padding: 6px var(--s4);
-		overflow-x: auto;
-		scrollbar-width: none;
+	/* Место под полосу предметов — сразу, чтобы шапка не прыгала, когда полоса подгрузится. */
+	.strip-slot {
+		min-height: 108px;
+		margin-bottom: var(--s4);
 	}
-	.strip::-webkit-scrollbar {
-		display: none;
-	}
-	.thumb {
-		position: relative;
-		flex: none;
-		width: 60px;
-		height: 72px;
-		border-radius: 16px;
-		opacity: 0.75;
-		transition:
-			width 220ms var(--ease),
-			height 220ms var(--ease),
-			opacity var(--dur) var(--ease);
-	}
-	.thumb:hover {
-		opacity: 1;
-	}
-	.thumb.on {
-		width: 84px;
-		height: 96px;
-		opacity: 1;
-		box-shadow:
-			0 0 0 3px var(--bg),
-			0 0 0 5px var(--text);
-		border-radius: 18px;
-	}
-	.thumb :global(.fill),
 	.cover :global(.fill) {
 		position: absolute;
 		inset: 0;
@@ -570,26 +473,12 @@
 		color: var(--accent-text);
 	}
 	@media (min-width: 900px) {
-		.strip,
 		.subtabs {
 			margin-left: 0;
 			margin-right: 0;
 			padding-left: 2px;
 			padding-right: 2px;
 		}
-	}
-	.options {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		margin-top: var(--s3);
-	}
-	.opt {
-		padding: 10px 12px;
-		border-radius: var(--r-s);
-	}
-	.opt:hover {
-		background: var(--surface-2);
 	}
 	/* Узко — пункты переносятся: разделитель-черта тогда только мешает */
 	@media (max-width: 480px) {

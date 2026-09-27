@@ -112,6 +112,10 @@
 		align-items: center;
 		gap: 8px;
 	}
+	/* Иконка не сжимается, когда кнопке тесно (узкий экран, длинная подпись). */
+	.content :global(svg) {
+		flex: none;
+	}
 	.loading .content {
 		visibility: hidden;
 	}

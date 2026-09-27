@@ -14,6 +14,7 @@ export type Permission =
 	| 'publish_homework'
 	| 'upload_materials'
 	| 'suggest_materials'
+	| 'manage_schedule'
 	| 'moderate_content'
 	| 'comment'
 	| 'view_audit'
@@ -119,6 +120,8 @@ export interface Subject {
 	mine?: boolean;
 	groups: GroupRef[];
 	can: { edit: boolean; share: boolean };
+	/** Пар в расписании (с 0.4.12): есть — у предмета вкладка «Пары». */
+	lessons?: number;
 }
 
 export interface ItemCan {
@@ -176,8 +179,78 @@ export interface Homework {
 	comments: number;
 	attachments: FileInfo[];
 	can: ItemCan;
+	/** Пара из расписания, к которой задание (с 0.4.12); null — просто срок. */
+	lesson?: LessonRef | null;
 	/** Создано без сети и ещё не отправлено на сервер. */
 	pending?: boolean;
+}
+
+export type LessonKind =
+	'lecture' | 'practice' | 'seminar' | 'lab' | 'consult' | 'credit' | 'exam' | 'other';
+
+/** Пара из расписания группы. */
+export interface Lesson {
+	id: number;
+	groupId: number;
+	/** null — пара без предмета (классный час, кураторский час). */
+	subject: SubjectRef | null;
+	/** Название из файла календаря или своё; показывается, если нет предмета. */
+	title: string;
+	kind: LessonKind;
+	startsAt: number;
+	endsAt: number;
+	place: string;
+	teacher: string;
+	/** Тема занятия или заметка. */
+	note: string;
+	/** Сколько заданий и материалов к этой паре. */
+	homework: number;
+	materials: number;
+	can: { edit: boolean };
+}
+
+export interface LessonRef {
+	id: number;
+	startsAt: number;
+	endsAt: number;
+	kind: LessonKind;
+	place: string;
+}
+
+export interface LessonNeighbor {
+	id: number;
+	startsAt: number;
+	kind: LessonKind;
+}
+
+export interface LessonDetail {
+	lesson: Lesson;
+	homework: Homework[];
+	materials: Material[];
+	prev: LessonNeighbor | null;
+	next: LessonNeighbor | null;
+}
+
+/** Что в файле календаря — перед загрузкой. */
+export interface SchedulePreview {
+	lessons: number;
+	from: number;
+	to: number;
+	titles: {
+		key: string;
+		name: string;
+		count: number;
+		kinds: Partial<Record<LessonKind, number>>;
+		subjectId: number | null;
+		teacher: string;
+		places: string[];
+	}[];
+	allDay: number;
+	cancelled: number;
+	unsupported: number;
+	past: number;
+	existing: number;
+	replaced: number;
 }
 
 export interface Today {
@@ -187,6 +260,8 @@ export interface Today {
 	news: NewsItem[];
 	/** Зачёты и экзамены: недавние и будущие — для карточки сессии. */
 	exams: Homework[];
+	/** Пары сегодня и завтра (у серверов до 0.4.12 и в старой копии поля нет). */
+	lessons?: Lesson[];
 }
 
 export interface Comment {
@@ -295,6 +370,8 @@ export interface Material {
 	createdAt: number;
 	comments: number;
 	can: { edit: boolean; delete: boolean; moderate: boolean };
+	/** Пара из расписания, к которой материал (с 0.4.12). */
+	lessonId?: number | null;
 	/** Создано без сети и ещё не отправлено на сервер. */
 	pending?: boolean;
 }
