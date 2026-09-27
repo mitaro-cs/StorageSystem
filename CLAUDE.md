@@ -39,6 +39,7 @@ src/main/java/app/groupbase/
 ├─ access/     доступ для группы: туннель fxTunnel (клиент скачивается с проверкой SHA-256), LAN, свой адрес
 ├─ backup/     копии (VACUUM INTO + файлы + ключи + вход CloudPub), облачные папки, восстановление при старте
 ├─ hosts/      сайт на нескольких компьютерах хоста: общая папка в облаке, снимки, кто хост, ожидание
+├─ schedule/   расписание пар: разбор файла календаря .ics (Ics), названия → предметы (Titles), пары
 ├─ status/     проверка обновлений
 └─ jobs/       очистка сессий, ссылок и IP в аудите
 web/           SvelteKit (adapter-static, SPA) → web/build → classpath:/static в jar
@@ -192,10 +193,33 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   палитре — окно «Горячие клавиши» (`palette.help`).
 - «Режим управления» переключает только администратор сайта (`canToggleManage()`); у остальных
   `manageMode()` всегда true, даже если на сервере сохранено «выключен».
-- Дизайн — `data-style` на `<html>` (lib/theme.ts `STYLES`, ровно пять: plain «Классика» без
-  атрибута, glass, depth, neon «Сияние», paper), правила — в app.css (`:root[data-style]`, слой
-  `body::before`); у `.card` и `.list`. Старые значения (tint, outline, comic) просто не
-  применяются. «Оформление под значок» убрано по просьбе владельца.
+- Горячие клавиши — по `hotkey(e)` из `lib/platform.ts`, не по `e.key`: при русской раскладке
+  `e.key` — «л» вместо «k», и сочетания у людей не работали.
+- Права (0.4.12, просьба владельца): задания (`publish_homework`) и материалы (`upload_materials`)
+  добавляют и студенты — ⚙-ячейки, **включённые** по умолчанию (в `RbacMatrixTest` — «C»), и
+  модераторы сайта. Поэтому папку с чужими материалами удаляют только `moderate_content`
+  (`MaterialService.deleteFolder`). Расписание — `manage_schedule`: староста, замы, модератор,
+  студентам ⚙ (выкл.).
+- Расписание (`schedule/`, `/api/schedule`, `/api/lessons/{id}`, страницы `routes/(app)/schedule`):
+  таблица `lessons` (группа, предмет или NULL, вид, начало/конец, аудитория, тема, `source` — UID
+  события из файла: повторная загрузка обновляет, а не дублирует), `homework.lesson_id` и
+  `materials.lesson_id` — «к паре». Файл .ics разбирает сервер (`Ics`: RRULE DAILY/WEEKLY/MONTHLY,
+  EXDATE, RDATE, RECURRENCE-ID, пояса Windows; весь день и старше 120 дней — пропуск; до 3000 пар),
+  названия → предметы — `Titles` (вид по словам «лек/пр/лаб/сем…», сокращения «физра», «матан»,
+  номер подгруппы должен совпасть). Фронт: `lib/schedule/` (карточка пары, импорт с предпросмотром,
+  форма пары, блок на «Сегодня», вкладка «Пары» предмета при `Subject.lessons > 0`), «К паре» —
+  чипы в `HomeworkComposer`. Офлайн: пары — одним списком в `meta` IndexedDB (`lessons`), без
+  нового хранилища (иначе открытая старая вкладка блокирует обновление базы); копия без них берёт
+  полный снимок. «Не мой предмет» скрывает и пары.
+- Полоса предметов на странице предмета — `content/SubjectStrip.svelte` (лениво, место под неё
+  занято сразу): стрелки у края и затухание — мышью без сенсорной панели иначе не прокрутить.
+- Дизайн — `data-style` на `<html>` (lib/theme.ts `STYLES`, шесть: plain «Классика» без
+  атрибута, glass, depth, neon «Сияние», paper, aura «Аура» — по постерам-референсам владельца),
+  правила — в app.css (`:root[data-style]`, слой `body::before`; у «Ауры» ещё `body::after` — круг с
+  перекрестием); у `.card` и `.list`. «Аура»: пятна из `--mesh-*` (у «Чернил» — розовый, янтарь,
+  электрик), `--pop` (`--pal-pop` из colors.ts, иначе лайм) — у выбранного пункта и `.chip.accent`, в
+  тёмной теме `--accent` = `--pop`. Старые значения (tint, outline, comic) просто не применяются.
+  «Оформление под значок» убрано по просьбе владельца.
 - Блокировать, исключать и удалять людей (`block_users`) могут только администратор и староста —
   у модератора этого права нет (Rbac.MODERATOR). В интерфейсе роли — «Администратор» и
   «Модератор», без «сайта».
@@ -268,7 +292,10 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   `SmartLifecycle`: закрывает соединения до «вежливой» остановки Tomcat (иначе ждала бы до 20 с).
 - Оформление на устройстве (`lib/looks.ts`, выбор — `shell/ThemePicker`): своя картинка на фоне —
   `data-bg="custom"` на `<html>` и слой `:root[data-bg]::before` в app.css (`--bg-image`, data: URL
-  в localStorage), значок — `lib/appIcon.svelte.ts` (варианты — `java scripts/Icons.java variants`:
+  в localStorage). Картинка — в своих цветах: сверху только нейтральная вуаль `--veil` (белая/чёрная,
+  **не** `--bg` — тот в цвете темы, владелец жаловался на «покрас») силой `--bg-dim` (ползунок
+  «Приглушить», `gb-bg-dim`), размытие — `data-bg-blur`; слои дизайна поверх картинки не рисуются.
+  Значок — `lib/appIcon.svelte.ts` (варианты — `java scripts/Icons.java variants`:
   `static/icons/v/*`, `manifest-*.webmanifest`). Всё применяет скрипт в app.html до отрисовки.
 - Фон карточки предмета: `subjects.cover`, `AvatarService.storeCover` (16:9, 1280 и 480, WebP),
   `PUT/DELETE /api/subjects/{id}/cover`; `SubjectArt` показывает его вместо иконки.
