@@ -25,7 +25,7 @@ test('вход без ввода логина: выбор аккаунта и QR
 	const laptopCtx = await browser.newContext({ locale: 'ru-RU' });
 	const laptop = await laptopCtx.newPage();
 	await laptop.goto('/login');
-	await laptop.getByRole('tab', { name: 'По QR-коду' }).click();
+	await laptop.getByRole('tab', { name: 'С другого устройства' }).click();
 	const box = laptop.locator('[data-code]');
 	await expect(box).toBeVisible();
 	await laptop.screenshot({ path: 'test-results/shots/login-qr-desktop.png' });
@@ -37,7 +37,28 @@ test('вход без ввода логина: выбор аккаунта и QR
 	await expect(laptop.getByRole('heading', { level: 1 })).toContainText('Привет, Олег', {
 		timeout: 10_000
 	});
+
+	// Без камеры: второй ноутбук показывает 6 цифр, их вводят в профиле на телефоне.
+	const otherCtx = await browser.newContext({ locale: 'ru-RU' });
+	const other = await otherCtx.newPage();
+	await other.goto('/login');
+	await other.getByRole('tab', { name: 'С другого устройства' }).click();
+	const pin = (await other.locator('.pin strong').innerText()).replace(/\D/g, '');
+	expect(pin).toMatch(/^\d{6}$/);
+	await phone.goto('/profile?tab=security');
+	await phone.getByRole('button', { name: 'Ввести код' }).click();
+	await phone
+		.getByRole('dialog')
+		.getByRole('textbox')
+		.fill(`${pin.slice(0, 3)} ${pin.slice(3)}`);
+	await phone.getByRole('button', { name: 'Дальше' }).click();
+	await expect(phone.getByRole('heading', { name: 'Войти на другом устройстве?' })).toBeVisible();
+	await phone.getByRole('button', { name: 'Разрешить вход' }).click();
+	await expect(other.getByRole('heading', { level: 1 })).toContainText('Привет, Олег', {
+		timeout: 10_000
+	});
 	expect(errors).toEqual([]);
 	await phoneCtx.close();
 	await laptopCtx.close();
+	await otherCtx.close();
 });

@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { Fingerprint, KeyRound, MonitorSmartphone, ScanLine, ShieldCheck } from '@lucide/svelte';
+	import { goto } from '$app/navigation';
+	import {
+		Fingerprint,
+		KeyRound,
+		MonitorSmartphone,
+		ScanLine,
+		ShieldCheck,
+		SquareAsterisk
+	} from '@lucide/svelte';
 	import { get, post } from '$lib/api';
 	import { copy } from '$lib/copy';
 	import { loadMe, session } from '$lib/session.svelte';
@@ -81,6 +89,21 @@
 		} catch (err) {
 			toastError(err);
 		}
+	}
+
+	/** Вход на другом устройстве без камеры: 6 цифр с его экрана → подтверждение (/link/код). */
+	async function enterPin() {
+		const c = await askText('Введите 6 цифр с экрана устройства, на котором хотите войти', {
+			title: 'Код с другого устройства',
+			ok: 'Дальше',
+			inputmode: 'numeric',
+			autocomplete: 'off',
+			placeholder: '000 000',
+			maxlength: 7
+		});
+		const digits = c?.replace(/\D/g, '') ?? '';
+		if (digits.length === 6) goto(`/link/${digits}`);
+		else if (c) toast('В коде 6 цифр', 'error');
 	}
 
 	async function disableTotp() {
@@ -194,11 +217,12 @@
 		<h3>Вход на другом устройстве</h3>
 	</div>
 	<p class="muted small">
-		На ноутбуке или втором телефоне откройте groupbase, выберите «По QR-коду» и отсканируйте код
-		отсюда — логин и пароль вводить не придётся.
+		На ноутбуке или втором телефоне откройте groupbase, выберите «С другого устройства» и
+		отсканируйте QR-код отсюда или введите 6 цифр с его экрана — логин и пароль вводить не придётся.
 	</p>
-	<div>
+	<div class="row wrap">
 		<Button onclick={() => (scanOpen = true)}><ScanLine size={17} /> Сканировать QR-код</Button>
+		<Button onclick={enterPin}><SquareAsterisk size={17} /> Ввести код</Button>
 	</div>
 </section>
 {#if scanOpen}

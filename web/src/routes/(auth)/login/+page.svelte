@@ -191,7 +191,7 @@
 			>По паролю</button
 		>
 		<button role="tab" aria-selected={mode === 'qr'} onclick={() => (mode = 'qr')}
-			>По QR-коду</button
+			>С другого устройства</button
 		>
 	</div>
 {/if}
