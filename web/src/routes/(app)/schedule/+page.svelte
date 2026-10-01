@@ -18,6 +18,7 @@
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import LessonCard from '$lib/schedule/LessonCard.svelte';
 	import { addDays, byDay, weekStart } from '$lib/schedule/lessons';
+	import { tipOpen } from '$lib/onboarding.svelte';
 
 	// Неделя пар: дни списком сверху вниз, с понедельника по воскресенье, сегодня отмечено. Неделя — в адресе
 	// (?week=2026-09-07): вернулись со страницы пары — та же неделя.
@@ -159,6 +160,13 @@
 		</div>
 	{/if}
 </div>
+
+{#if tipOpen('schedule')}
+	{#await import('$lib/tour/Tip.svelte') then m}<m.default
+			id="schedule"
+			text="Нажмите на день в полосе — список прокрутится к нему. Пара открывается целиком: тема, задания и материалы к ней."
+		/>{/await}
+{/if}
 
 <nav class="weeks" aria-label="Неделя">
 	<button class="circle" onclick={() => go(-1)} aria-label="Предыдущая неделя"

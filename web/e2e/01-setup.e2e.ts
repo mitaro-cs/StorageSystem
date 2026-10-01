@@ -14,13 +14,19 @@ test('первый запуск создаёт группу и админист�
 	await page.getByRole('button', { name: 'Создать' }).click();
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Привет, Анна');
 
-	// Новому человеку — знакомство с сайтом: листаем до конца.
+	// Новичку — тур по сайту: приветствие, подсказки на настоящих кнопках, в конце «Готово!».
 	const welcome = page.getByRole('dialog', { name: 'Знакомство с groupbase' });
-	await expect(welcome.getByRole('heading', { name: 'Привет! Это groupbase' })).toBeVisible();
-	const next = welcome.getByRole('button', { name: 'Далее' });
+	await expect(welcome.getByRole('heading', { name: 'Привет, Анна!' })).toBeVisible();
+	await welcome.getByRole('button', { name: 'Поехали' }).click();
+	await expect(welcome.getByRole('heading', { name: 'Всё главное — на «Сегодня»' })).toBeVisible();
+	await page.screenshot({ path: 'test-results/shots/tour-desktop.png' });
+	const next = welcome.getByRole('button', { name: 'Дальше' });
 	while (await next.isVisible()) await next.click();
-	await expect(welcome.getByRole('heading', { name: 'Вы помогаете группе' })).toBeVisible();
-	await welcome.getByRole('button', { name: 'Начать' }).click();
+	// У администратора — и «Управление», и «Модерация».
+	await expect(welcome.getByRole('heading', { name: 'Модерация' })).toBeVisible();
+	await welcome.getByRole('button', { name: 'Готово' }).click();
+	await expect(welcome.getByRole('heading', { name: 'Готово!' })).toBeVisible();
+	await welcome.getByRole('button', { name: 'К заданиям' }).click();
 	await expect(welcome).toBeHidden();
 	// Больше само не открывается — и на других устройствах (отметка на сервере).
 	await page.reload();

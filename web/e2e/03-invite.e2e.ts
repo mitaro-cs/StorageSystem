@@ -22,10 +22,14 @@ test('студент регистрируется по инвайту, види�
 	await student.getByLabel('Повторите пароль').fill(STUDENT.password);
 	await student.getByRole('button', { name: 'Присоединиться' }).click();
 	await expect(student.getByRole('heading', { level: 1 })).toHaveText('Привет, Олег');
-	// Знакомство с сайтом — сразу после регистрации; закрыть можно в любой момент.
+	// Тур — сразу после регистрации; пропустить можно в любой момент.
 	const welcome = student.getByRole('dialog', { name: 'Знакомство с groupbase' });
-	await expect(welcome.getByRole('heading', { name: 'Привет! Это groupbase' })).toBeVisible();
-	await welcome.getByRole('button', { name: 'Закрыть' }).click();
+	await expect(welcome.getByRole('heading', { name: 'Привет, Олег!' })).toBeVisible();
+	await welcome.getByRole('button', { name: 'Поехали' }).click();
+	// На телефоне подсветка — на нижней панели.
+	await expect(welcome.getByRole('heading', { name: 'Всё главное — на «Сегодня»' })).toBeVisible();
+	await student.screenshot({ path: 'test-results/shots/tour-mobile.png' });
+	await welcome.getByRole('button', { name: 'Пропустить знакомство' }).click();
 	await expect(welcome).toBeHidden();
 
 	// Задание видно, отметка «выполнено» работает.
