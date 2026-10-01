@@ -84,6 +84,22 @@
 			.map((d) => ({ day: d, items: map.get(d) ?? [] }));
 	});
 	const total = $derived(lessons?.length ?? 0);
+	// Полоса-календарь недели (удобно на телефоне): день, число и точки по числу пар; нажатие —
+	// к этому дню в списке.
+	const strip = $derived.by(() => {
+		const map = byDay(lessons ?? []);
+		return Array.from({ length: 7 }, (_, i) => {
+			const day = addDays(week, i);
+			return { day, count: map.get(day)?.length ?? 0, shown: i < 6 || map.has(day) };
+		});
+	});
+	const short = (ms: number) =>
+		new Date(ms).toLocaleDateString('ru-RU', { weekday: 'short' }).replace('.', '');
+	function jump(day: number) {
+		document
+			.getElementById(`day-${iso(day)}`)
+			?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
 	const thisWeek = $derived(week === weekStart(now));
 	const range = $derived.by(() => {
 		const end = addDays(week, 6);
@@ -159,6 +175,29 @@
 	{#if !thisWeek}<button class="pill" onclick={() => go(0)}>Сегодня</button>{/if}
 </nav>
 
+<div class="strip" role="group" aria-label="Дни недели">
+	{#each strip as d (d.day)}
+		<button
+			type="button"
+			class="dayb"
+			class:today={d.day === startOfDay(now)}
+			class:empty={!d.count}
+			disabled={!d.shown || total === 0}
+			onclick={() => jump(d.day)}
+			aria-label="{cap(fmtWeekday(d.day))}, {fmtDate(d.day, now)}: {d.count
+				? `${d.count} ${plural(d.count, ['пара', 'пары', 'пар'])}`
+				: 'пар нет'}"
+		>
+			<span class="wd">{short(d.day)}</span>
+			<strong class="num">{new Date(d.day).getDate()}</strong>
+			<span class="dots" aria-hidden="true"
+				>{#each Array.from({ length: Math.min(d.count, 4) }, (_, k) => k) as k (k)}<i
+					></i>{/each}</span
+			>
+		</button>
+	{/each}
+</div>
+
 {#if !lessons}
 	<div class="stack"><Skeleton /><Skeleton /></div>
 {:else if total === 0}
@@ -182,6 +221,7 @@
 		{#each days as d, i (d.day)}
 			{@const today = d.day === startOfDay(now)}
 			<section
+				id="day-{iso(d.day)}"
 				class="day"
 				class:today
 				aria-label="{cap(fmtWeekday(d.day))}, {fmtDate(d.day, now)}"
@@ -241,6 +281,66 @@
 	.range strong {
 		font-size: 18px;
 		letter-spacing: -0.01em;
+	}
+	.strip {
+		display: grid;
+		grid-template-columns: repeat(7, 1fr);
+		gap: 6px;
+		margin: calc(var(--s2) * -1) 0 var(--s5);
+	}
+	.dayb {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+		min-width: 0;
+		padding: 8px 0 7px;
+		border: 1px solid var(--border);
+		border-radius: var(--r-s);
+		background: var(--surface);
+		color: var(--text);
+		font: inherit;
+		cursor: pointer;
+		transition: background-color var(--dur) var(--ease);
+	}
+	.dayb:hover:not(:disabled) {
+		background: var(--surface-2);
+	}
+	.dayb:disabled {
+		cursor: default;
+		opacity: 0.45;
+	}
+	.dayb .wd {
+		font-size: 12px;
+		color: var(--text-3);
+	}
+	.dayb strong {
+		font-size: 17px;
+		line-height: 1.2;
+	}
+	.dayb.today {
+		border-color: var(--accent);
+		background: var(--accent);
+		color: var(--accent-text);
+	}
+	.dayb.today .wd {
+		color: inherit;
+		opacity: 0.8;
+	}
+	.dots {
+		display: flex;
+		gap: 3px;
+		height: 5px;
+	}
+	.dots i {
+		width: 5px;
+		height: 5px;
+		border-radius: 50%;
+		background: currentColor;
+		opacity: 0.7;
+	}
+	.day {
+		scroll-margin-top: calc(var(--s4) + env(safe-area-inset-top) + 56px);
 	}
 	.days {
 		display: grid;

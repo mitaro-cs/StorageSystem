@@ -182,6 +182,9 @@ class GroupIsolationIT extends IntegrationTest {
                 .put("/api/admin/users/" + mod.id() + "/instance-role", Map.of("role", "moderator"))
                 .status())
         .isEqualTo(200);
+    // Назначение модератором не выкидывает со всех устройств: прежний вход уже с новой ролью.
+    assertThat(mod.api().get("/api/me").json().get("user").get("instanceRole").asString())
+        .isEqualTo("moderator");
     var modApi = login(mod.username(), PASSWORD);
     long b = newGroup("Чужая");
     TestUser victim = newUser(b, "student");

@@ -87,8 +87,8 @@
 {:else if restriction === 'totp_setup_required'}
 	<h1>Двухфакторная защита</h1>
 	<p class="muted">
-		Для администраторов и модераторов она обязательна. Отсканируйте код в приложении (Яндекс Ключ,
-		Google Authenticator, Aegis) и введите 6 цифр.
+		Для администраторов она обязательна. Отсканируйте код в приложении (Яндекс Ключ, Google
+		Authenticator, Aegis) и введите 6 цифр.
 	</p>
 	<form onsubmit={submit}>
 		{#if uri}

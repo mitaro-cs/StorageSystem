@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Monitor, Moon, Sun } from '@lucide/svelte';
-	import { currentTheme, setTheme, type Theme } from '$lib/theme';
+	import { currentTheme, onTheme, setTheme, type Theme } from '$lib/theme';
 
 	let theme = $state<Theme>('system');
 	let changed = $state(false);
-	onMount(() => (theme = currentTheme()));
+	onMount(() => {
+		theme = currentTheme();
+		return onTheme((t) => {
+			changed = changed || t !== theme;
+			theme = t;
+		});
+	});
 
 	const next: Record<Theme, Theme> = { system: 'light', light: 'dark', dark: 'system' };
 	const labels: Record<Theme, string> = {
@@ -15,9 +21,8 @@
 	};
 
 	function toggle() {
-		theme = next[theme];
 		changed = true;
-		setTheme(theme);
+		setTheme(next[theme]);
 	}
 </script>
 

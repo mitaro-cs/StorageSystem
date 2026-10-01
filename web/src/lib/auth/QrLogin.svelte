@@ -6,10 +6,12 @@
 	import QrCode from '$lib/ui/QrCode.svelte';
 	import Button from '$lib/ui/Button.svelte';
 
-	// Новое устройство показывает QR; телефон, где человек уже вошёл, сканирует и подтверждает.
+	// Новое устройство показывает QR и 6 цифр; телефон, где человек уже вошёл, сканирует QR или
+	// вводит цифры («Профиль → Вход на другом устройстве → Ввести код») и подтверждает.
 	let { onsuccess }: { onsuccess: () => void } = $props();
 
 	let code = $state('');
+	let pin = $state('');
 	let poll = '';
 	let expiresAt = $state(0);
 	let now = $state(Date.now());
@@ -23,12 +25,13 @@
 		stale = false;
 		error = '';
 		try {
-			const r = await post<{ code: string; poll: string; expiresAt: number }>(
+			const r = await post<{ code: string; poll: string; pin?: string; expiresAt: number }>(
 				'/api/auth/qr',
 				{ device: deviceLabel() },
 				{ anonymous: true }
 			);
 			code = r.code;
+			pin = r.pin ?? '';
 			poll = r.poll;
 			expiresAt = r.expiresAt;
 			schedule();
@@ -79,9 +82,20 @@
 		<div class="code" data-code={code}>
 			<QrCode value="{location.origin}/link/{code}" label="QR-код для входа" />
 		</div>
+		{#if pin}
+			<p class="pin">
+				<span class="faint small">или код</span>
+				<strong class="num" aria-label="Код {pin.split('').join(' ')}"
+					>{pin.slice(0, 3)}&nbsp;{pin.slice(3)}</strong
+				>
+			</p>
+		{/if}
 		<ol class="how">
 			<li>Откройте groupbase на телефоне, где вы уже вошли</li>
-			<li>Профиль → «Сканировать QR-код» или просто камера телефона</li>
+			<li>
+				Профиль → «Вход и безопасность» → «Сканировать QR-код» (или камера телефона) либо «Ввести
+				код»
+			</li>
 			<li>Нажмите «Разрешить вход» — здесь всё откроется само</li>
 		</ol>
 		<p class="faint small num">Код обновится через {left} с</p>
@@ -100,6 +114,18 @@
 	}
 	.code {
 		width: 220px;
+	}
+	.pin {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+		margin: 0;
+	}
+	.pin strong {
+		font-size: 30px;
+		letter-spacing: 0.08em;
+		font-variant-numeric: tabular-nums;
 	}
 	.placeholder {
 		aspect-ratio: 1;

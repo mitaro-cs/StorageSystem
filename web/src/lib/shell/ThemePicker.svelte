@@ -5,6 +5,7 @@
 		STYLES,
 		currentStyle,
 		currentTheme,
+		onTheme,
 		setStyle,
 		setTheme,
 		type Style,
@@ -16,7 +17,6 @@
 		MAX_DIM,
 		backgroundBlur,
 		backgroundDim,
-		currentIcon,
 		customBackground,
 		removeCustomBackground,
 		setBackgroundBlur,
@@ -24,7 +24,7 @@
 		setCustomBackground,
 		setIcon
 	} from '$lib/looks';
-	import { iconSrc, type AppIcon } from '$lib/appIcon.svelte';
+	import { appIcon, iconSrc, type AppIcon } from '$lib/appIcon.svelte';
 	import { toast } from '$lib/toasts.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Switch from '$lib/ui/Switch.svelte';
@@ -38,7 +38,6 @@
 	let bgImage = $state<string | null>(null);
 	let dim = $state(0);
 	let blur = $state(false);
-	let icon = $state<AppIcon>('light');
 	let fileInput: HTMLInputElement | undefined = $state();
 
 	onMount(() => {
@@ -49,7 +48,8 @@
 		bgImage = customBackground();
 		dim = backgroundDim();
 		blur = backgroundBlur();
-		icon = currentIcon();
+		// Тему могли сменить кнопкой в панели или из палитры — показываем то же.
+		return onTheme((t) => (theme = t));
 	});
 
 	const modes: { value: Theme; label: string; icon: typeof Sun }[] = [
@@ -113,13 +113,14 @@
 		bgImage = null;
 	}
 
+	// Значок — общее состояние (appIcon): логотип в панели и выбор здесь всегда одинаковые.
+	const icon = $derived(appIcon.id);
 	function pickIcon(i: AppIcon) {
-		icon = i;
 		setIcon(i);
 	}
 
 	/** Образец цвета — ярким, как на кнопке. */
-	const dot = (hue: number) => oklch(0.62, 0.19, hue);
+	const dot = (hue: number) => oklch(0.62, 0.25, hue);
 	const satLabel = $derived(
 		accent.sat < 25 ? 'спокойно' : accent.sat < 55 ? 'мягко' : accent.sat < 80 ? 'ярко' : 'сочно'
 	);
@@ -235,7 +236,7 @@
 				disabled={accent.hue === null}
 				aria-label="Насыщенность"
 				style:--from={accent.hue === null ? undefined : oklch(0.6, 0.02, accent.hue)}
-				style:--to={accent.hue === null ? undefined : oklch(0.6, 0.24, accent.hue)}
+				style:--to={accent.hue === null ? undefined : oklch(0.6, 0.32, accent.hue)}
 				oninput={(e) => slide({ sat: Number(e.currentTarget.value) })}
 			/>
 		</label>
@@ -326,7 +327,8 @@
 		</div>
 		<p class="hint">
 			Во вкладке браузера меняется сразу. На Android значок на экране обновится сам, на iPhone —
-			если удалить сайт с экрана «Домой» и добавить снова.
+			если удалить сайт с экрана «Домой» и добавить снова. В тёмном оформлении значков iPhone
+			светлый значок темнеет — там лучше тёмный или цветной.
 		</p>
 	</div>
 	<p class="hint">Оформление сохраняется на этом устройстве.</p>

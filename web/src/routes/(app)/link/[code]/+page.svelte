@@ -10,16 +10,18 @@
 	import Empty from '$lib/ui/Empty.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 
-	// Подтверждение входа на другом устройстве (оно показывает QR-код).
+	// Подтверждение входа на другом устройстве (оно показывает QR-код и 6 цифр). Адрес — длинный код
+	// из QR или 6 цифр, введённые в профиле («Ввести код»).
 	let info = $state<{ device: string; createdAt: number } | null>(null);
 	let problem = $state('');
 	let done = $state(false);
 	let busy = $state(false);
 	const code = $derived(page.params.code ?? '');
+	const base = $derived(/^\d{6}$/.test(code) ? `/api/auth/qr/pin/${code}` : `/api/auth/qr/${code}`);
 
 	onMount(async () => {
 		try {
-			info = await get(`/api/auth/qr/${code}`);
+			info = await get(base);
 		} catch (e) {
 			problem = e instanceof Error ? e.message : 'Код не подошёл';
 		}
@@ -28,7 +30,7 @@
 	async function approve() {
 		busy = true;
 		try {
-			await post(`/api/auth/qr/${code}/approve`);
+			await post(`${base}/approve`);
 			done = true;
 		} catch (e) {
 			toastError(e);
@@ -67,8 +69,8 @@
 		</dl>
 		<p class="tip amber">
 			<span
-				>Разрешайте, только если QR-код показан <strong>на вашем устройстве</strong> и вы сами его отсканировали.
-				Если код прислал кто-то другой — нажмите «Отмена».</span
+				>Разрешайте, только если код показан <strong>на вашем устройстве</strong> и вы сами его отсканировали
+				или ввели. Если код прислал кто-то другой — нажмите «Отмена».</span
 			>
 		</p>
 		<div class="row wrap actions">

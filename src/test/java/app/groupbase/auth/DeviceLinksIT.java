@@ -66,4 +66,46 @@ class DeviceLinksIT extends IntegrationTest {
     assertThat(student.api().get("/api/auth/qr/not-a-token").status()).isEqualTo(410);
     assertThat(laptop.post("/api/auth/qr/poll", Map.of("poll", "")).status()).isEqualTo(410);
   }
+
+  @Test
+  void sixDigitCodeWorksWithoutCamera() {
+    long g = newGroup("Код");
+    TestUser student = newUser(g, "student");
+    ApiClient laptop = client();
+    var started = laptop.post("/api/auth/qr", Map.of("device", "Safari, Mac")).json();
+    String pin = started.get("pin").asString();
+    String poll = started.get("poll").asString();
+    assertThat(pin).matches("\\d{6}");
+
+    // Только вошедший; разделители в коде не мешают.
+    assertThat(client().get("/api/auth/qr/pin/" + pin).status()).isEqualTo(401);
+    String spaced = pin.substring(0, 3) + "-" + pin.substring(3);
+    assertThat(student.api().get("/api/auth/qr/pin/" + spaced).json().get("device").asString())
+        .isEqualTo("Safari, Mac");
+    assertThat(student.api().post("/api/auth/qr/pin/" + pin + "/approve", null).status())
+        .isEqualTo(200);
+    assertThat(
+            laptop.post("/api/auth/qr/poll", Map.of("poll", poll)).json().get("status").asString())
+        .isEqualTo("ok");
+    assertThat(laptop.get("/api/me").json().get("user").get("username").asString())
+        .isEqualTo(student.username());
+    assertThat(student.api().get("/api/auth/qr/pin/" + pin).status())
+        .as("код одноразовый")
+        .isEqualTo(410);
+  }
+
+  @Test
+  void guessingSixDigitCodesIsCapped() {
+    long g = newGroup("Перебор");
+    TestUser student = newUser(g, "student");
+    String wrong = "000000";
+    for (int i = 0; i < DeviceLinks.PIN_TRIES; i++) {
+      assertThat(student.api().get("/api/auth/qr/pin/" + wrong).status()).isIn(410, 200);
+    }
+    var started = client().post("/api/auth/qr", Map.of("device", "x")).json();
+    // Даже верный код — после серии ошибок только через паузу.
+    assertThat(student.api().get("/api/auth/qr/pin/" + started.get("pin").asString()).status())
+        .isEqualTo(429);
+    clock.advance(Duration.ofMinutes(11));
+  }
 }

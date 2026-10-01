@@ -93,7 +93,7 @@ public class SessionService {
     Actor.Restriction r = null;
     if (u.mustChangePassword()) {
       r = Actor.Restriction.PASSWORD_CHANGE_REQUIRED;
-    } else if (requireStaffTotp && u.isStaff() && !u.totpEnabled() && !local) {
+    } else if (requireStaffTotp && totpRequired(u) && !u.totpEnabled() && !local) {
       r = Actor.Restriction.TOTP_SETUP_REQUIRED;
     }
     return new Actor(
@@ -105,6 +105,14 @@ public class SessionService {
         r,
         sessionHash,
         local);
+  }
+
+  /**
+   * Обязательна ли 2FA этому человеку: только администратору. Модератору — по желанию: его вход не
+   * должен ломаться на втором устройстве (просьба владельца, 0.5).
+   */
+  public static boolean totpRequired(User u) {
+    return u.instanceRole() == InstanceRole.ADMIN;
   }
 
   public void revoke(String token) {

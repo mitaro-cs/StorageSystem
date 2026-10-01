@@ -13,7 +13,7 @@ export interface Accent {
 	sat: number;
 }
 
-export const DEFAULT_SAT = 60;
+export const DEFAULT_SAT = 70;
 
 /** Основные цвета — одним нажатием; свой — ползунком оттенка. */
 export const PRESETS: { id: string; label: string; hue: number | null }[] = [
@@ -88,15 +88,15 @@ export function oklch(l: number, c: number, h: number): string {
 
 /**
  * Переменные темы для оттенка и насыщенности: --pal-* — светлый режим, --pald-* — тёмный
- * (app.css берёт их вместо «Классики»). Насыщенность 0 — серый, 100 — сочный цвет и заметно
- * цветной фон.
+ * (app.css берёт их вместо «Классики»). Насыщенность 0 — серый, 100 — самый сочный цвет, какой
+ * может показать экран (с 0.5 — ярче: на IPS-матрицах прежний цвет казался блёклым).
  */
 export function accentVars({ hue, sat }: Accent): Record<string, string> {
 	if (hue === null) return {};
 	const h = hue;
 	const k = Math.min(100, Math.max(0, sat)) / 100;
-	const acc = 0.035 + 0.19 * k;
-	const tint = 0.045 * k;
+	const acc = 0.04 + 0.27 * k;
+	const tint = 0.065 * k;
 	return {
 		'--pal-bg': oklch(0.962, tint * 0.55, h),
 		'--pal-surface': oklch(0.997, tint * 0.08, h),
@@ -105,25 +105,25 @@ export function accentVars({ hue, sat }: Accent): Record<string, string> {
 		'--pal-border': oklch(0.91, tint * 0.45, h),
 		'--pal-accent': oklch(0.54, acc, h),
 		'--pal-accent-hover': oklch(0.48, acc, h),
-		'--pal-accent-soft': oklch(0.93, 0.02 + 0.05 * k, h),
+		'--pal-accent-soft': oklch(0.92, 0.025 + 0.075 * k, h),
 		'--pal-accent-text': '#ffffff',
-		'--pal-inverse': oklch(0.27, 0.02 + 0.08 * k, h),
-		'--pal-inverse-2': oklch(0.33, 0.02 + 0.08 * k, h),
+		'--pal-inverse': oklch(0.27, 0.02 + 0.1 * k, h),
+		'--pal-inverse-2': oklch(0.33, 0.02 + 0.1 * k, h),
 		'--pald-bg': oklch(0.14, tint * 0.75, h),
 		'--pald-surface': oklch(0.2, tint * 0.8, h),
 		'--pald-surface-2': oklch(0.25, tint * 0.85, h),
 		'--pald-surface-3': oklch(0.31, tint * 0.9, h),
 		'--pald-border': oklch(0.27, tint * 0.8, h),
-		'--pald-accent': oklch(0.8, 0.03 + 0.15 * k, h),
-		'--pald-accent-hover': oklch(0.86, 0.03 + 0.12 * k, h),
-		'--pald-accent-soft': oklch(0.3, 0.02 + 0.07 * k, h),
+		'--pald-accent': oklch(0.79, 0.035 + 0.22 * k, h),
+		'--pald-accent-hover': oklch(0.85, 0.035 + 0.18 * k, h),
+		'--pald-accent-soft': oklch(0.31, 0.025 + 0.1 * k, h),
 		'--pald-accent-text': oklch(0.2, 0.02 + 0.06 * k, h),
 		// Яркая плашка «Ауры» (активный пункт, отметки) — светлая, текст на ней чёрный.
-		'--pal-pop': oklch(0.9, 0.06 + 0.13 * k, h),
+		'--pal-pop': oklch(0.9, 0.07 + 0.18 * k, h),
 		// Пятна света для «Стекла», «Сияния» и «Ауры»: основной цвет и два соседних оттенка.
-		'--mesh-1': oklch(0.68, 0.06 + 0.16 * k, h),
-		'--mesh-2': oklch(0.74, 0.05 + 0.13 * k, (h + 48) % 360),
-		'--mesh-3': oklch(0.72, 0.05 + 0.14 * k, (h + 312) % 360),
+		'--mesh-1': oklch(0.68, 0.07 + 0.22 * k, h),
+		'--mesh-2': oklch(0.74, 0.06 + 0.18 * k, (h + 48) % 360),
+		'--mesh-3': oklch(0.72, 0.06 + 0.19 * k, (h + 312) % 360),
 		'--accent-h': String(h)
 	};
 }
