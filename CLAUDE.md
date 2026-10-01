@@ -281,6 +281,10 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   на каждом запросе), кроме назначения администратором. Обязательная 2FA
   (`require-staff-totp`) — только у администратора (`SessionService.totpRequired`), модераторам —
   по желанию.
+- Вход на втором устройстве (`auth/DeviceLinks`, `lib/auth/QrLogin.svelte`, страница `/link/[code]`):
+  QR и с 0.5 — 6 цифр (`Started.pin`, `GET /api/auth/qr/pin/{pin}`, `POST …/approve`; вводит
+  только вошедший — «Ввести код» в `SecurityPanel`, не больше `PIN_TRIES` ошибок за 10 минут).
+  `/link/123456` — тот же экран подтверждения по 6 цифрам. Срок кода — 3 минуты (`TTL`).
 - Тема (`lib/theme.ts`): `setTheme` шлёт событие `gb:theme`, кнопка темы (`ThemeToggle`, их две —
   в панели и `MobileBar`) и `ThemePicker` подписаны через `onTheme()` — иначе показывали разное.
 - «Управление → Версия и обновления» (`lib/settings/UpdatesPanel.svelte`, `POST
