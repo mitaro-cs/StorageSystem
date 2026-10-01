@@ -19,7 +19,7 @@
 	import LessonCard from '$lib/schedule/LessonCard.svelte';
 	import { addDays, byDay, weekStart } from '$lib/schedule/lessons';
 
-	// Неделя пар: дни по порядку (на широком экране — колонками), сегодня отмечено. Неделя — в адресе
+	// Неделя пар: дни списком сверху вниз, с понедельника по воскресенье, сегодня отмечено. Неделя — в адресе
 	// (?week=2026-09-07): вернулись со страницы пары — та же неделя.
 	const now = Date.now();
 	const iso = (ms: number) => {
@@ -78,10 +78,11 @@
 
 	const days = $derived.by(() => {
 		const map = byDay(lessons ?? []);
-		// Пн–Сб всегда (пустой день — «Пар нет»), воскресенье — только если в нём пары.
-		return Array.from({ length: 7 }, (_, i) => addDays(week, i))
-			.filter((d, i) => i < 6 || map.has(d))
-			.map((d) => ({ day: d, items: map.get(d) ?? [] }));
+		// Все семь дней, пустой — «Пар нет».
+		return Array.from({ length: 7 }, (_, i) => addDays(week, i)).map((d) => ({
+			day: d,
+			items: map.get(d) ?? []
+		}));
 	});
 	const total = $derived(lessons?.length ?? 0);
 	// Полоса-календарь недели (удобно на телефоне): день, число и точки по числу пар; нажатие —
@@ -90,7 +91,7 @@
 		const map = byDay(lessons ?? []);
 		return Array.from({ length: 7 }, (_, i) => {
 			const day = addDays(week, i);
-			return { day, count: map.get(day)?.length ?? 0, shown: i < 6 || map.has(day) };
+			return { day, count: map.get(day)?.length ?? 0 };
 		});
 	});
 	const short = (ms: number) =>
@@ -182,7 +183,7 @@
 			class="dayb"
 			class:today={d.day === startOfDay(now)}
 			class:empty={!d.count}
-			disabled={!d.shown || total === 0}
+			disabled={total === 0}
 			onclick={() => jump(d.day)}
 			aria-label="{cap(fmtWeekday(d.day))}, {fmtDate(d.day, now)}: {d.count
 				? `${d.count} ${plural(d.count, ['пара', 'пары', 'пар'])}`
@@ -343,10 +344,9 @@
 		scroll-margin-top: calc(var(--s4) + env(safe-area-inset-top) + 56px);
 	}
 	.days {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-		gap: var(--s5) var(--s4);
-		align-items: start;
+		display: flex;
+		flex-direction: column;
+		gap: var(--s5);
 	}
 	.day-head {
 		display: flex;
