@@ -1,4 +1,4 @@
-import { appIcon, iconSrc, type AppIcon } from './appIcon.svelte';
+import { DEFAULT_ICON, appIcon, iconSrc, type AppIcon } from './appIcon.svelte';
 
 /**
  * Своя картинка на фоне страниц (Настройки → Оформление): хранится на этом устройстве, уменьшенной,
@@ -125,7 +125,7 @@ export async function setCustomBackground(file: Blob): Promise<boolean> {
 
 /**
  * Значок сайта (Профиль → Оформление): во вкладке меняется сразу, на экране «Домой» — при установке
- * (Android обновляет сам, iPhone — если добавить сайт заново). Файлы — static/icons/v и
+ * (Android обновляет сам, iPhone — если добавить сайт заново). По умолчанию — тёмный (DEFAULT_ICON). Файлы — static/icons/v и
  * manifest-*.webmanifest (java scripts/Icons.java variants), применяется скриптом в app.html.
  */
 export const ICONS = [
@@ -146,15 +146,15 @@ export function isAppIcon(v: unknown): v is AppIcon {
 export function currentIcon(): AppIcon {
 	try {
 		const v = localStorage.getItem(ICON_KEY);
-		return isAppIcon(v) ? v : 'light';
+		return isAppIcon(v) ? v : DEFAULT_ICON;
 	} catch {
-		return 'light';
+		return DEFAULT_ICON;
 	}
 }
 
 export function setIcon(icon: AppIcon) {
 	try {
-		if (icon === 'light') localStorage.removeItem(ICON_KEY);
+		if (icon === DEFAULT_ICON) localStorage.removeItem(ICON_KEY);
 		else localStorage.setItem(ICON_KEY, icon);
 	} catch {
 		/* приватный режим — просто не запоминаем */

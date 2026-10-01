@@ -29,13 +29,15 @@ export const mainNav = [
 ];
 
 /**
- * Нижняя панель телефона — те же главные разделы, что в боковой панели компьютера. Файлы — внутри
- * предметов, поиск — в верхней строке, участники и настройки — в профиле.
+ * Нижняя панель телефона — те же главные разделы, что в боковой панели компьютера, и расписание
+ * (с 0.5 — в одно нажатие). Файлы — внутри предметов, поиск — в верхней строке, участники и
+ * настройки — в профиле.
  */
 export const bottomNav = [
 	{ href: '/', label: t.nav.today, icon: House },
 	{ href: '/news', label: t.nav.news, icon: Newspaper },
 	{ href: '/homework', label: t.nav.homework, icon: CalendarCheck },
+	{ href: '/schedule', label: t.nav.schedule, icon: CalendarDays },
 	{ href: '/subjects', label: t.nav.subjects, icon: BookOpen },
 	{ href: '/profile', label: t.nav.profile, icon: UserRound }
 ];

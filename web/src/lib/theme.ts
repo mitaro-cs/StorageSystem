@@ -23,6 +23,18 @@ export function setTheme(theme: Theme) {
 		/* приватный режим — просто не запоминаем */
 	}
 	setTimeout(() => root.classList.remove('theme-switching'), 300);
+	// Кнопка темы в панели, «Оформление» и палитра команд показывают одно и то же.
+	window.dispatchEvent(new CustomEvent<Theme>(THEME_EVENT, { detail: theme }));
+}
+
+/** Событие смены темы: подписка — onTheme(). */
+const THEME_EVENT = 'gb:theme';
+
+/** Следить за сменой темы из любого места; возвращает отписку (для onMount/$effect). */
+export function onTheme(fn: (t: Theme) => void): () => void {
+	const h = (e: Event) => fn((e as CustomEvent<Theme>).detail);
+	window.addEventListener(THEME_EVENT, h);
+	return () => window.removeEventListener(THEME_EVENT, h);
 }
 
 /**

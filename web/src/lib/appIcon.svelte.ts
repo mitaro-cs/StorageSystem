@@ -6,14 +6,17 @@ export function iconSrc(icon: AppIcon): string {
 	return icon === 'light' ? '/favicon.svg?v=3' : `/icons/v/${icon}.svg?v=3`;
 }
 
+/** Значок по умолчанию — тёмный: белый логотип виден и в тёмном оформлении значков iPhone. */
+export const DEFAULT_ICON: AppIcon = 'dark';
+
 function stored(): AppIcon {
 	try {
 		const v = localStorage.getItem('gb-icon');
-		return v === 'dark' || v === 'ocean' || v === 'forest' || v === 'sunset' || v === 'grape'
+		return v === 'light' || v === 'ocean' || v === 'forest' || v === 'sunset' || v === 'grape'
 			? v
-			: 'light';
+			: DEFAULT_ICON;
 	} catch {
-		return 'light';
+		return DEFAULT_ICON;
 	}
 }
 
@@ -22,5 +25,5 @@ function stored(): AppIcon {
  * группы», «Версия и обновления». Меняет setIcon().
  */
 export const appIcon = $state<{ id: AppIcon }>({
-	id: typeof localStorage === 'undefined' ? 'light' : stored()
+	id: typeof localStorage === 'undefined' ? DEFAULT_ICON : stored()
 });

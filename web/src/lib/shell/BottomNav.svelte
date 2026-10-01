@@ -8,7 +8,12 @@
 
 <!-- Плавающая матовая панель: иконки, активный раздел — белый круг. Подписи — для скринридеров. -->
 <div class="fade" aria-hidden="true"></div>
-<nav class="bottom-nav" aria-label="Основные разделы" style:--i={Math.max(index, 0)}>
+<nav
+	class="bottom-nav"
+	aria-label="Основные разделы"
+	style:--i={Math.max(index, 0)}
+	style:--n={bottomNav.length}
+>
 	<span class="pill" class:hidden={index < 0} aria-hidden="true"></span>
 	{#each bottomNav as item (item.href)}
 		{@const Icon = item.icon}
@@ -55,10 +60,10 @@
 		max-width: 420px;
 		margin: 0 auto;
 		display: grid;
-		grid-template-columns: repeat(5, 1fr);
+		grid-template-columns: repeat(var(--n), 1fr);
 		align-items: center;
 		height: var(--bottom-nav);
-		padding: 0 8px;
+		padding: 0 6px;
 		border: 1px solid var(--glass-border);
 		border-radius: var(--r-full);
 		/* матовое стекло: сильное размытие и приглушённая прозрачность */
@@ -72,10 +77,10 @@
 	.pill {
 		position: absolute;
 		top: 50%;
-		left: calc(8px + (100% - 16px) / 5 * var(--i) + ((100% - 16px) / 5 - 48px) / 2);
-		width: 48px;
-		height: 48px;
-		margin-top: -24px;
+		left: calc(6px + (100% - 12px) / var(--n) * var(--i) + ((100% - 12px) / var(--n) - 46px) / 2);
+		width: 46px;
+		height: 46px;
+		margin-top: -23px;
 		border-radius: 50%;
 		background: #fff;
 		box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
@@ -101,8 +106,8 @@
 	.icon {
 		display: grid;
 		place-items: center;
-		width: 48px;
-		height: 48px;
+		width: 46px;
+		height: 46px;
 		border-radius: 50%;
 		transition:
 			background-color 220ms var(--ease),

@@ -11,11 +11,9 @@
 		<meta name="color-scheme" content="light dark" />
 		<meta name="theme-color" content="#f1f2f4" media="(prefers-color-scheme: light)" />
 		<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
-		<!-- ?v=3 — иконки кешируются на месяц (и в браузере, и старыми service worker), новый адрес
-		     загружает их заново. Выбранный значок (lib/theme.ts ICONS) ставит скрипт ниже. -->
-		<link rel="icon" href="%sveltekit.assets%/favicon.svg?v=3" type="image/svg+xml" />
-		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
-		<link rel="apple-touch-icon" href="%sveltekit.assets%/icons/icon-180.png?v=3" />
+		<!-- Значок во вкладке, для экрана «Домой» и manifest ставит скрипт ниже — сразу выбранный
+		     (lib/looks.ts ICONS): если бы тут стоял стандартный, браузер успевал его прочитать, и
+		     выбранный на телефон не попадал. ?v=3 — иконки кешируются на месяц. -->
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<link
@@ -51,18 +49,26 @@
 					if (localStorage.getItem('gb-bg-blur') === '1')
 						document.documentElement.setAttribute('data-bg-blur', '');
 				}
-				// Значок во вкладке и для установки на экран «Домой».
 				var ic = localStorage.getItem('gb-icon');
-				if (/^(dark|ocean|forest|sunset|grape)$/.test(ic || '')) {
-					var set = function (rel, href) {
-						var l = document.querySelector('link[rel="' + rel + '"]');
-						if (l) l.setAttribute('href', href);
-					};
-					set('icon', '/icons/v/' + ic + '.svg?v=3');
-					set('apple-touch-icon', '/icons/v/' + ic + '-180.png?v=3');
-					set('manifest', '/manifest-' + ic + '.webmanifest');
-				}
 			} catch (e) {}
+			// Значок во вкладке и для установки на экран «Домой». По умолчанию — тёмный: белый
+			// логотип виден и в тёмном оформлении значков iPhone (светлый там темнеет целиком).
+			(function (ic) {
+				var light = ic === 'light';
+				var add = function (rel, href, type) {
+					var l = document.createElement('link');
+					l.rel = rel;
+					l.href = href;
+					if (type) l.type = type;
+					document.head.appendChild(l);
+				};
+				add('icon', light ? '/favicon.svg?v=3' : '/icons/v/' + ic + '.svg?v=3', 'image/svg+xml');
+				add(
+					'apple-touch-icon',
+					light ? '/icons/icon-180.png?v=3' : '/icons/v/' + ic + '-180.png?v=3'
+				);
+				add('manifest', light ? '/manifest.webmanifest' : '/manifest-' + ic + '.webmanifest');
+			})(/^(light|dark|ocean|forest|sunset|grape)$/.test(ic || '') ? ic : 'dark');
 			// Данные первого экрана — сразу, пока грузится код интерфейса: через туннель каждый
 			// запрос — задержка, а так они идут параллельно (lib/early.ts забирает ответы).
 			try {

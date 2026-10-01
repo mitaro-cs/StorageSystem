@@ -14,8 +14,12 @@ test('телефон: внизу — те же разделы, что на ко�
 	const errors = watchConsole(page);
 	await login(page, STUDENT);
 	const nav = page.getByRole('navigation', { name: 'Основные разделы' });
-	for (const name of ['Сегодня', 'Новости', 'ДЗ', 'Предметы', 'Профиль'])
+	for (const name of ['Сегодня', 'Новости', 'ДЗ', 'Расписание', 'Предметы', 'Профиль'])
 		await expect(nav.getByRole('link', { name })).toBeVisible();
+	// Расписание — в одно нажатие, с полосой дней недели.
+	await nav.getByRole('link', { name: 'Расписание' }).click();
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Расписание');
+	await expect(page.getByRole('group', { name: 'Дни недели' }).getByRole('button')).toHaveCount(7);
 	// Файлы — внутри предметов, как в боковой панели компьютера.
 	await expect(nav.getByRole('link', { name: 'Файлы' })).toHaveCount(0);
 
@@ -57,5 +61,21 @@ test('настройки: какая версия стоит и кнопка «�
 	await page.getByRole('link', { name: 'проверить обновления' }).click();
 	await expect(page).toHaveURL(/tab=updates/);
 	await expect(page.getByText('Установлена версия')).toBeVisible();
+	expect(errors).toEqual([]);
+});
+
+test('тема: кнопка в панели и «Оформление» показывают одно и то же', async ({ page }) => {
+	const errors = watchConsole(page);
+	await login(page, STUDENT);
+	await page.goto('/profile?tab=appearance');
+	const sidebar = page.locator('.sidebar');
+	await page.getByRole('radio', { name: 'Тёмная' }).click();
+	await expect(sidebar.getByRole('button', { name: 'Тема: тёмная' })).toBeVisible();
+	await sidebar.getByRole('button', { name: 'Тема: тёмная' }).click();
+	await expect(page.getByRole('radio', { name: 'Как в системе' })).toHaveAttribute(
+		'aria-checked',
+		'true'
+	);
+	await expect(page.locator('html')).not.toHaveAttribute('data-theme');
 	expect(errors).toEqual([]);
 });
