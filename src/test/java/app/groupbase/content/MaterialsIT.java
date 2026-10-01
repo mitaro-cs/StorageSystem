@@ -153,7 +153,7 @@ class MaterialsIT extends IntegrationTest {
     assertThat(m.json().get("status").asString()).isEqualTo("published");
 
     // И задание, и модератор сайта — тоже.
-    long due = System.currentTimeMillis() + 3 * 86_400_000L;
+    long due = clock.millis() + 3 * 86_400_000L;
     for (TestUser who : List.of(s2, moderator)) {
       var hw =
           who.api()

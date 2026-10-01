@@ -127,12 +127,16 @@ class AuthFlowIT extends IntegrationTest {
   void sessionSlidesAndExpires() {
     long g = newGroup("Сессии");
     TestUser u = newUser(g, "student");
-    clock.advance(Duration.ofDays(20));
+    clock.advance(Duration.ofDays(200));
+    var me = u.api().get("/api/me");
+    assertThat(me.status()).isEqualTo(200);
+    // Cookie продлевается вместе с сессией — браузер не забудет вход раньше сервера.
+    assertThat(me.raw().headers().allValues("Set-Cookie"))
+        .anyMatch(c -> c.startsWith("gb_session=") && c.contains("Max-Age=31536000"));
+    clock.advance(Duration.ofDays(200));
+    // Активность на 200-й день продлила сессию ещё на год.
     assertThat(u.api().get("/api/me").status()).isEqualTo(200);
-    clock.advance(Duration.ofDays(20));
-    // Активность на 20-й день продлила сессию ещё на 30 дней.
-    assertThat(u.api().get("/api/me").status()).isEqualTo(200);
-    clock.advance(Duration.ofDays(31));
+    clock.advance(Duration.ofDays(366));
     assertThat(u.api().get("/api/me").status()).isEqualTo(401);
   }
 

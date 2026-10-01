@@ -72,6 +72,11 @@ public class AuthFilter extends OncePerRequestFilter {
       Actor actor = sessions.resolve(token, Requests.fromThisComputer(req)).orElse(null);
       if (actor != null) {
         req.setAttribute(ACTOR, actor);
+        // Срок сессии скользящий — продлеваем и cookie, раз за открытие приложения: кто заходит
+        // хотя бы раз в год, входит один раз и больше не вводит пароль.
+        if (req.getRequestURI().equals("/api/me") && "GET".equals(req.getMethod())) {
+          cookies.setSession(req, res, token, sessions.ttlSeconds());
+        }
       } else {
         cookies.clearSession(req, res);
       }

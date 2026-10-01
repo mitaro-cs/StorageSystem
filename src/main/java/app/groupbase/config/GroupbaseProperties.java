@@ -31,12 +31,12 @@ public record GroupbaseProperties(
       @DefaultValue("false") boolean insecure) {}
 
   /**
-   * @param sessionDays срок жизни сессии; продлевается при активности
-   * @param requireStaffTotp обязательная 2FA для admin и moderator
+   * @param sessionDays срок жизни сессии; продлевается при активности (вошёл — помнит)
+   * @param requireStaffTotp обязательная 2FA для администраторов (модераторам — по желанию)
    * @param activationDays срок действия ссылок активации и сброса пароля
    */
   public record Auth(
-      @DefaultValue("30") int sessionDays,
+      @DefaultValue("365") int sessionDays,
       @DefaultValue("true") boolean requireStaffTotp,
       @DefaultValue("7") int activationDays,
       @DefaultValue("5") int maxLoginAttempts,

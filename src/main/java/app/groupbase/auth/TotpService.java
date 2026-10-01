@@ -100,8 +100,8 @@ public class TotpService {
     if (!u.totpEnabled()) {
       return;
     }
-    if (staffRequired && u.isStaff()) {
-      throw ApiException.forbidden("Для администраторов и модераторов 2FA обязательна");
+    if (staffRequired && SessionService.totpRequired(u)) {
+      throw ApiException.forbidden("Для администраторов 2FA обязательна");
     }
     if (!login.verifyTotp(u, code)) {
       throw ApiException.invalid("code", "Неверный код");

@@ -164,7 +164,7 @@
 			<Button onclick={() => ((regenCode = ''), (recoveryCodes = null), (regenOpen = true))}
 				>Новые резервные коды</Button
 			>
-			{#if !me.user.instanceRole || !me.instance.requireStaffTotp}<Button
+			{#if me.user.instanceRole !== 'admin' || !me.instance.requireStaffTotp}<Button
 					variant="ghost"
 					onclick={disableTotp}>Отключить</Button
 				>{/if}
