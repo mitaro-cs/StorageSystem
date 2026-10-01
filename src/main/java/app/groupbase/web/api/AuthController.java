@@ -101,6 +101,18 @@ class AuthController {
     return links.info(code);
   }
 
+  /** Без камеры: 6 цифр с экрана нового устройства. */
+  @GetMapping("/qr/pin/{pin}")
+  DeviceLinks.Info pinInfo(Actor actor, @PathVariable String pin) {
+    return links.infoByPin(actor, pin);
+  }
+
+  @PostMapping("/qr/pin/{pin}/approve")
+  Map<String, String> pinApprove(Actor actor, @PathVariable String pin) {
+    links.approveByPin(actor, pin);
+    return Map.of("status", "ok");
+  }
+
   @PostMapping("/qr/{code}/approve")
   Map<String, String> qrApprove(Actor actor, @PathVariable String code) {
     links.approve(actor, code);
