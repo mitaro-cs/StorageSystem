@@ -374,4 +374,21 @@ class AccountsIT extends IntegrationTest {
     // Режим управления при этом не меняется.
     assertThat(r.json().get("manageMode").asBoolean()).isTrue();
   }
+
+  @Test
+  void sectionTipsAreClosedOnceForAllDevices() {
+    long g = newGroup("Подсказки");
+    TestUser u = newUser(g, "student");
+    assertThat(u.api().get("/api/me").json().get("user").get("tips").size()).isZero();
+    assertThat(u.api().patch("/api/me/preferences", Map.of("tip", "schedule")).status())
+        .isEqualTo(200);
+    u.api().patch("/api/me/preferences", Map.of("tip", "schedule"));
+    u.api().patch("/api/me/preferences", Map.of("tip", "homework"));
+    // На другом устройстве — то же самое, без повторов.
+    var tips = login(u.username(), PASSWORD).get("/api/me").json().get("user").get("tips");
+    assertThat(tips.size()).isEqualTo(2);
+    assertThat(tips.get(0).asString()).isEqualTo("schedule");
+    assertThat(u.api().patch("/api/me/preferences", Map.of("tip", "Bad,tip")).status())
+        .isEqualTo(400);
+  }
 }

@@ -44,7 +44,8 @@ class MeController {
       InstanceRole instanceRole,
       boolean totpEnabled,
       boolean manageMode,
-      boolean onboarded) {}
+      boolean onboarded,
+      List<String> tips) {}
 
   record GroupView(
       long id,
@@ -92,9 +93,10 @@ class MeController {
   record ProfileBody(String displayName) {}
 
   /**
-   * @param onboarded true — знакомство с сайтом просмотрено (больше не показывать)
+   * @param onboarded true — тур по сайту пройден или пропущен (больше не показывать)
+   * @param tip подсказка раздела закрыта (`schedule`, `homework`…) — больше не показывать
    */
-  record PreferencesBody(Boolean manageMode, Boolean onboarded) {}
+  record PreferencesBody(Boolean manageMode, Boolean onboarded, String tip) {}
 
   record PasswordBody(String current, String password) {}
 
@@ -170,7 +172,8 @@ class MeController {
             u.instanceRole(),
             u.totpEnabled(),
             users.manageMode(u.id()),
-            users.onboarded(u.id())),
+            users.onboarded(u.id()),
+            users.tips(u.id())),
         actor.restriction() == null ? null : actor.restriction().id(),
         new InstanceView(
             name,
@@ -192,6 +195,12 @@ class MeController {
     }
     if (Boolean.TRUE.equals(b.onboarded())) {
       users.setOnboarded(actor.id(), clock.millis());
+    }
+    if (b.tip() != null) {
+      if (!UserStore.TIP.matcher(b.tip()).matches()) {
+        throw ApiException.invalid("tip", "Неизвестная подсказка");
+      }
+      users.addTip(actor.id(), b.tip());
     }
     return Map.of(
         "manageMode", users.manageMode(actor.id()), "onboarded", users.onboarded(actor.id()));
