@@ -101,6 +101,8 @@
 			return;
 		}
 		bgImage = customBackground();
+		// И на других устройствах человека.
+		import('$lib/looksSync').then((m) => m.uploadCurrentBackground());
 	}
 
 	function slideDim(v: number) {
@@ -111,6 +113,7 @@
 	function dropBackground() {
 		removeCustomBackground();
 		bgImage = null;
+		import('$lib/looksSync').then((m) => m.removeBackground());
 	}
 
 	// Значок — общее состояние (appIcon): логотип в панели и выбор здесь всегда одинаковые.
@@ -331,7 +334,7 @@
 			светлый значок темнеет — там лучше тёмный или цветной.
 		</p>
 	</div>
-	<p class="hint">Оформление сохраняется на этом устройстве.</p>
+	<p class="hint">Оформление и картинка — одни на всех ваших устройствах.</p>
 </div>
 
 <style>
@@ -596,52 +599,6 @@
 	.look.paper .btn-mini {
 		background: #3a2e1d;
 	}
-	/* Аура: чёрный постер с яркими пятнами, жирный заголовок, кислотная кнопка. */
-	.look.aura {
-		--m-bg: #0a0a0c;
-		--m-card: #17171b;
-		--m-text: #ffffff;
-		--m-line: #a3a3ad;
-		--a1: #ff3d8b;
-		--a2: #ffb020;
-		--a3: #3558ff;
-		background:
-			radial-gradient(
-				60% 75% at 100% 0%,
-				color-mix(in srgb, var(--a1) 90%, transparent),
-				transparent 72%
-			),
-			radial-gradient(
-				45% 55% at 72% 34%,
-				color-mix(in srgb, var(--a2) 70%, transparent),
-				transparent 70%
-			),
-			radial-gradient(
-				75% 80% at 0% 100%,
-				color-mix(in srgb, var(--a3) 85%, transparent),
-				transparent 72%
-			),
-			var(--m-bg);
-	}
-	:global(:root[data-accent]) .look.aura {
-		--a1: var(--mesh-1);
-		--a2: var(--mesh-2);
-		--a3: var(--mesh-3);
-	}
-	.look.aura .t {
-		width: 56%;
-		height: 10px;
-		border-radius: 2px;
-	}
-	.look.aura .c {
-		border-radius: 6px;
-		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
-	}
-	.look.aura .btn-mini {
-		background: var(--pal-pop, #d6ff3d);
-		border-radius: 3px;
-	}
-
 	/* ---------- Цвет ---------- */
 	.colors {
 		display: flex;

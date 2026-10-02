@@ -36,7 +36,7 @@
 				}
 				// Дизайн (Настройки → Оформление): «Классика» — без атрибута.
 				var st = localStorage.getItem('gb-style');
-				if (/^(glass|depth|neon|paper|aura)$/.test(st || ''))
+				if (/^(glass|depth|neon|paper)$/.test(st || ''))
 					document.documentElement.setAttribute('data-style', st);
 				// Своя картинка на фоне: в своих цветах, приглушённая настолько, насколько выбрали.
 				var img = localStorage.getItem('gb-bg') === 'custom' && localStorage.getItem('gb-bg-image');

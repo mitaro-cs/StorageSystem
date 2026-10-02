@@ -3,9 +3,9 @@ import { STYLES, isStyle } from './theme';
 import { PRESETS, accentVars, cssText, oklch } from './colors';
 
 describe('дизайны оформления', () => {
-	it('шесть вариантов, первый — «Классика», последний — «Аура»; у каждого есть пояснение', () => {
-		expect(STYLES).toHaveLength(6);
-		expect(STYLES.at(-1)?.id).toBe('aura');
+	it('пять вариантов, первый — «Классика» («Аура» убрана); у каждого есть пояснение', () => {
+		expect(STYLES).toHaveLength(5);
+		expect(isStyle('aura')).toBe(false);
 		expect(STYLES[0].id).toBe('plain');
 		expect(STYLES[0].label).toBe('Классика');
 		const ids = STYLES.map((s) => s.id);

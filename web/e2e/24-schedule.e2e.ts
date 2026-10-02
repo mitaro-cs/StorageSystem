@@ -128,8 +128,9 @@ test('студент видит расписание и сам добавляе�
 	expect(errors).toEqual([]);
 });
 
-test('своя картинка на фоне — в своих цветах, без оттенка темы; «Аура» по референсу', async ({
-	page
+test('своя картинка на фоне — в своих цветах и та же на другом устройстве', async ({
+	page,
+	browser
 }) => {
 	const errors = watchConsole(page);
 	await login(page, STUDENT);
@@ -162,15 +163,28 @@ test('своя картинка на фоне — в своих цветах, б
 	await page.getByRole('switch', { name: 'Размыть картинку' }).click();
 	await expect(html).toHaveAttribute('data-bg-blur', '');
 
-	// «Аура»: яркие пятна и круг с перекрестием — поверх своей картинки их нет.
+	// Оформление общее для всех устройств: на телефоне — та же картинка, тот же цвет и размытие.
+	const phoneCtx = await browser.newContext({
+		locale: 'ru-RU',
+		viewport: { width: 390, height: 844 }
+	});
+	const phone = await phoneCtx.newPage();
+	await login(phone, STUDENT);
+	const phoneHtml = phone.locator('html');
+	await expect(phoneHtml).toHaveAttribute('data-bg', 'custom', { timeout: 10_000 });
+	await expect(phoneHtml).toHaveAttribute('data-bg-blur', '');
+	await expect(phoneHtml).toHaveAttribute('data-accent', '');
+	// После перезагрузки — сразу, до отрисовки (картинка сохранена на устройстве).
+	await phone.reload();
+	await expect(phoneHtml).toHaveAttribute('data-bg', 'custom');
+
+	// Убрали на компьютере — пропала и на телефоне.
 	await page.getByRole('button', { name: 'Убрать' }).click();
-	await page
-		.getByRole('radiogroup', { name: 'Дизайн' })
-		.getByRole('radio', { name: 'Аура' })
-		.click();
-	await expect(html).toHaveAttribute('data-style', 'aura');
-	const after = await page.evaluate(() => getComputedStyle(document.body, '::after').maskImage);
-	expect(after).toContain('svg');
+	await expect(html).not.toHaveAttribute('data-bg', /.+/);
+	await phone.waitForTimeout(800);
+	await phone.reload();
+	await expect(phoneHtml).not.toHaveAttribute('data-bg', /.+/, { timeout: 10_000 });
+	await phoneCtx.close();
 
 	// Вернуть как было — для остальных тестов.
 	await page

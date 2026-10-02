@@ -42,6 +42,8 @@ const LABELS: Record<string, string> = {
 	'material.approve': 'одобрил материал',
 	'material.create': 'добавил материал',
 	'material.delete': 'удалил материал',
+	'material.pin': 'закрепил материал',
+	'material.unpin': 'открепил материал',
 	'material.hide': 'скрыл материал',
 	'material.reject': 'отклонил материал',
 	'material.suggest': 'предложил материал',

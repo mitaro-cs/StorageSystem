@@ -1,4 +1,4 @@
-import { del, post } from '$lib/api';
+import { del, post, put } from '$lib/api';
 import { toast, toastError } from '$lib/toasts.svelte';
 import type { Material } from '$lib/types';
 import type { MenuItem } from '$lib/ui/Menu.svelte';
@@ -21,6 +21,21 @@ export function materialActions(m: Material, changed: () => void): MenuItem[] {
 		out.push({
 			label: 'Скачать',
 			onclick: () => (location.href = `/api/files/${m.file!.id}?download=true`)
+		});
+	}
+	// Закрепить сверху — староста, замы и модераторы (как закреплённые новости).
+	if (m.can.pin && m.status === 'published') {
+		out.push({
+			label: m.pinnedAt ? 'Открепить' : 'Закрепить сверху',
+			onclick: async () => {
+				try {
+					await put(`/api/materials/${m.id}/pinned`, { pinned: !m.pinnedAt });
+					toast(m.pinnedAt ? 'Откреплено' : 'Закреплено сверху', 'ok');
+					changed();
+				} catch (e) {
+					toastError(e);
+				}
+			}
 		});
 	}
 	if (m.can.moderate && m.status === 'pending') {

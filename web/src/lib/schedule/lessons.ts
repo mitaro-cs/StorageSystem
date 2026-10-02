@@ -115,3 +115,56 @@ export function kindsText(kinds: Partial<Record<LessonKind, number>>): string {
 		.map((k) => `${kinds[k.value]} ${plural(kinds[k.value]!, k.forms)}`)
 		.join(', ');
 }
+
+/** Окно между парами: с конца одной до начала следующей. */
+export interface Gap {
+	from: number;
+	to: number;
+}
+
+/** Сводка дня для карточки дня на «Расписании»: сколько пар и часов, начало, конец, окна. */
+export interface DayStats {
+	count: number;
+	/** Минут на парах. */
+	minutes: number;
+	first: Lesson | null;
+	last: Lesson | null;
+	/** Перерывы от 30 минут — «окна». */
+	gaps: Gap[];
+	kinds: Partial<Record<LessonKind, number>>;
+}
+
+export function dayStats(lessons: Lesson[]): DayStats {
+	const list = [...lessons].sort((a, b) => a.startsAt - b.startsAt);
+	const kinds: Partial<Record<LessonKind, number>> = {};
+	let minutes = 0;
+	const gaps: Gap[] = [];
+	let end = -Infinity;
+	for (const l of list) {
+		kinds[l.kind] = (kinds[l.kind] ?? 0) + 1;
+		minutes += Math.round((l.endsAt - l.startsAt) / 60_000);
+		if (end > -Infinity && l.startsAt - end >= 30 * 60_000)
+			gaps.push({ from: end, to: l.startsAt });
+		end = Math.max(end, l.endsAt);
+	}
+	const last = list.reduce<Lesson | null>((a, l) => (!a || l.endsAt > a.endsAt ? l : a), null);
+	return { count: list.length, minutes, first: list[0] ?? null, last, gaps, kinds };
+}
+
+/** «1 ч 30 мин», «45 мин», «6 ч». */
+export function durationText(minutes: number): string {
+	const h = Math.floor(minutes / 60);
+	const m = minutes % 60;
+	if (!h) return `${m} мин`;
+	return m ? `${h} ч ${m} мин` : `${h} ч`;
+}
+
+/** «Иванов И. И.» из «Иванов Иван Иванович»; уже короткое — как есть. */
+export function shortName(full: string): string {
+	const p = full.trim().split(/\s+/);
+	if (p.length < 2 || p.slice(1).every((x) => /^[А-ЯЁA-Z]\.?$/u.test(x))) return full.trim();
+	return `${p[0]} ${p
+		.slice(1, 3)
+		.map((x) => x[0].toUpperCase() + '.')
+		.join(' ')}`;
+}

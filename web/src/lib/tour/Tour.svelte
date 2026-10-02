@@ -116,7 +116,7 @@
 		if (Math.abs(dx) > 60) (dx < 0 ? next : back)();
 	}
 
-	// Конфетти: цвета темы и пятен «Ауры», у каждой — своя траектория.
+	// Конфетти: цвета темы и её пятен света, у каждой — своя траектория.
 	const confetti = Array.from({ length: 36 }, (_, i) => ({
 		x: Math.round(Math.random() * 100),
 		d: Math.round(Math.random() * 600),

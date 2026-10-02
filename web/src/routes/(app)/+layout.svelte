@@ -102,6 +102,28 @@
 		}
 	});
 
+	// Оформление общее для всех устройств (lib/looksSync.ts, грузится отдельно): после входа — с
+	// сервера, если там новее; поменяли здесь — на сервер. Модуль загружен — проверка «это мы сами
+	// применяем присланное» синхронная, иначе присланное ушло бы обратно.
+	onMount(() => {
+		const me = session.me;
+		if (!me || me.user.appearance === undefined) return;
+		let looks: typeof import('$lib/looksSync') | null = null;
+		const load = () => import('$lib/looksSync').then((m) => (looks = m));
+		load().then((m) => m.pullLooks(me));
+		const changed = () => {
+			if (looks) {
+				if (!looks.isApplying()) looks.pushLooks();
+			} else load().then((m) => m.pushLooks());
+		};
+		addEventListener('gb:looks', changed);
+		addEventListener('gb:theme', changed);
+		return () => {
+			removeEventListener('gb:looks', changed);
+			removeEventListener('gb:theme', changed);
+		};
+	});
+
 	// Профиль показан из копии на устройстве (сеть была медленной), а свежий уже пришёл — берём его.
 	$effect(() => {
 		void offline.version;

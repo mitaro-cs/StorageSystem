@@ -17,6 +17,7 @@
 	import { can, currentGroup, groups, isMulti, session } from '$lib/session.svelte';
 	import { fmtDate, fmtWeekday, fmtWeekdayShort, plural, relativeDay } from '$lib/format';
 	import { flip, fly, slide, stagger } from '$lib/motion';
+	import SubjectGlyph from '$lib/ui/SubjectGlyph.svelte';
 	import { toggleDone, byDay } from '$lib/content/homework';
 	import { openPalette, palette } from '$lib/shell/palette.svelte';
 	import type { NewsItem, Today } from '$lib/types';
@@ -264,8 +265,17 @@
 				{:else}
 					<ol class="timeline">
 						{#each days as d, di (d.day)}
+							<!-- Значок предмета первого несделанного задания дня; без предмета — число. -->
+							{@const lead = d.items.find((h) => !h.done) ?? d.items[0]}
 							<li in:fly={{ y: 8, delay: stagger(di, 50) }}>
-								<span class="node num" aria-hidden="true">{new Date(d.day).getDate()}</span>
+								<span class="node num" aria-hidden="true"
+									>{#if lead?.subject}<SubjectGlyph
+											id={lead.subject.id}
+											name={lead.subject.name}
+											color={lead.subject.color}
+											size={44}
+										/>{:else}{new Date(d.day).getDate()}{/if}</span
+								>
 								<div class="day">
 									<p class="day-title">
 										<strong>{cap(relativeDay(d.day, now))}</strong>
@@ -469,6 +479,14 @@
 	.timeline li:first-child .node {
 		background: var(--accent);
 		color: var(--accent-text);
+	}
+	/* Значок предмета заполняет кружок; ближайший день — с кольцом основного цвета. */
+	.node :global(.glyph) {
+		border-radius: 50%;
+	}
+	.timeline li:first-child .node:has(:global(.glyph)) {
+		background: var(--surface);
+		box-shadow: 0 0 0 2px var(--accent);
 	}
 	.day {
 		min-width: 0;

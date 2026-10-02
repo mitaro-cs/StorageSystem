@@ -77,6 +77,7 @@ export function setBackgroundDim(percent: number) {
 		/* приватный режим — просто не запоминаем */
 	}
 	document.documentElement.style.setProperty('--bg-dim', String(v / 100));
+	window.dispatchEvent(new Event('gb:looks'));
 }
 
 export function setBackgroundBlur(on: boolean) {
@@ -87,6 +88,7 @@ export function setBackgroundBlur(on: boolean) {
 		/* приватный режим */
 	}
 	document.documentElement.toggleAttribute('data-bg-blur', on);
+	window.dispatchEvent(new Event('gb:looks'));
 }
 
 /** Убрать картинку с фона (и из памяти браузера). */
@@ -171,4 +173,5 @@ export function setIcon(icon: AppIcon) {
 		light ? '/manifest.webmanifest' : `/manifest-${icon}.webmanifest`
 	);
 	appIcon.id = icon;
+	window.dispatchEvent(new Event('gb:looks'));
 }

@@ -8,16 +8,19 @@
 		FileText,
 		FileVideo,
 		Link,
+		MessageSquareText,
 		Presentation
 	} from '@lucide/svelte';
 
 	let {
 		mime = null,
 		link = false,
+		note = false,
 		size = 20
-	}: { mime?: string | null; link?: boolean; size?: number } = $props();
+	}: { mime?: string | null; link?: boolean; note?: boolean; size?: number } = $props();
 
 	const kind = $derived.by(() => {
+		if (note) return 'note';
 		if (link) return 'link';
 		const m = mime ?? '';
 		if (m.startsWith('image/')) return 'image';
@@ -32,7 +35,8 @@
 </script>
 
 <span class="icon {kind}" style:width="{size + 16}px" style:height="{size + 16}px">
-	{#if kind === 'link'}<Link {size} />
+	{#if kind === 'note'}<MessageSquareText {size} />
+	{:else if kind === 'link'}<Link {size} />
 	{:else if kind === 'image'}<FileImage {size} />
 	{:else if kind === 'video'}<FileVideo {size} />
 	{:else if kind === 'audio'}<FileAudio {size} />
@@ -52,7 +56,8 @@
 		background: var(--surface-2);
 		color: var(--text-2);
 	}
-	.text {
+	.text,
+	.note {
 		background: var(--accent-soft);
 		color: var(--accent);
 	}
