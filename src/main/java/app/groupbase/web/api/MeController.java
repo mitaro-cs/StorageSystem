@@ -45,7 +45,9 @@ class MeController {
       boolean totpEnabled,
       boolean manageMode,
       boolean onboarded,
-      List<String> tips) {}
+      List<String> tips,
+      Map<String, Object> appearance,
+      String background) {}
 
   record GroupView(
       long id,
@@ -95,8 +97,10 @@ class MeController {
   /**
    * @param onboarded true — тур по сайту пройден или пропущен (больше не показывать)
    * @param tip подсказка раздела закрыта (`schedule`, `homework`…) — больше не показывать
+   * @param appearance оформление этого человека для всех устройств (см. {@link Appearance})
    */
-  record PreferencesBody(Boolean manageMode, Boolean onboarded, String tip) {}
+  record PreferencesBody(
+      Boolean manageMode, Boolean onboarded, String tip, Map<String, Object> appearance) {}
 
   record PasswordBody(String current, String password) {}
 
@@ -173,7 +177,9 @@ class MeController {
             u.totpEnabled(),
             users.manageMode(u.id()),
             users.onboarded(u.id()),
-            users.tips(u.id())),
+            users.tips(u.id()),
+            Appearance.parse(users.appearance(u.id())),
+            users.background(u.id())),
         actor.restriction() == null ? null : actor.restriction().id(),
         new InstanceView(
             name,
@@ -201,6 +207,9 @@ class MeController {
         throw ApiException.invalid("tip", "Неизвестная подсказка");
       }
       users.addTip(actor.id(), b.tip());
+    }
+    if (b.appearance() != null) {
+      users.setAppearance(actor.id(), Appearance.clean(b.appearance()));
     }
     return Map.of(
         "manageMode", users.manageMode(actor.id()), "onboarded", users.onboarded(actor.id()));

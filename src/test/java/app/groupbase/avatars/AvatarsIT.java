@@ -157,4 +157,48 @@ class AvatarsIT extends IntegrationTest {
     assertThat(student.api().download("/api/avatars/" + cover + "-480.webp").statusCode())
         .isEqualTo(404);
   }
+
+  @Test
+  void backgroundAndLooksAreSharedAcrossDevices() throws IOException {
+    long g = newGroup("Оформление");
+    TestUser u = newUser(g, "student");
+    var r = u.api().putRaw("/api/me/background", jpegWithExif());
+    assertThat(r.status()).as(r.body()).isEqualTo(200);
+    String id = r.json().get("background").asString();
+    // Пропорции сохранены (1200×800 — меньше предела, не растягивается), EXIF убран.
+    var dl = u.api().download("/api/avatars/" + id + "-1920.webp");
+    assertThat(dl.statusCode()).isEqualTo(200);
+    assertThat(new String(dl.body(), StandardCharsets.ISO_8859_1)).doesNotContain(SECRET);
+    BufferedImage img = ImageIO.read(new ByteArrayInputStream(dl.body()));
+    assertThat(img.getWidth()).isEqualTo(1200);
+    assertThat(img.getHeight()).isEqualTo(800);
+
+    var looks =
+        u.api()
+            .patch(
+                "/api/me/preferences",
+                java.util.Map.of(
+                    "appearance",
+                    java.util.Map.of(
+                        "theme", "dark", "hue", 150, "sat", 80, "blur", true, "junk", "x")));
+    assertThat(looks.status()).as(looks.body()).isEqualTo(200);
+    // Второе устройство видит то же; лишнее поле не сохранилось.
+    var me = login(u.username(), PASSWORD).get("/api/me").json().get("user");
+    assertThat(me.get("background").asString()).isEqualTo(id);
+    assertThat(me.get("appearance").get("theme").asString()).isEqualTo("dark");
+    assertThat(me.get("appearance").get("hue").asInt()).isEqualTo(150);
+    assertThat(me.get("appearance").has("junk")).isFalse();
+    assertThat(
+            u.api()
+                .patch(
+                    "/api/me/preferences",
+                    java.util.Map.of("appearance", java.util.Map.of("style", "aura")))
+                .status())
+        .as("«Аура» убрана")
+        .isEqualTo(400);
+
+    assertThat(u.api().delete("/api/me/background").status()).isEqualTo(200);
+    assertThat(u.api().get("/api/me").json().get("user").get("background").isNull()).isTrue();
+    assertThat(u.api().download("/api/avatars/" + id + "-1920.webp").statusCode()).isEqualTo(404);
+  }
 }

@@ -251,6 +251,32 @@ public class UserStore {
         .update();
   }
 
+  /** Оформление (JSON, проверенный MeController) — общее для всех устройств; пусто — не выбирал. */
+  public String appearance(long id) {
+    return db.sql("SELECT appearance FROM users WHERE id = ?")
+        .param(id)
+        .query(String.class)
+        .optional()
+        .orElse("");
+  }
+
+  public void setAppearance(long id, String json) {
+    db.sql("UPDATE users SET appearance = ? WHERE id = ?").params(json, id).update();
+  }
+
+  /** Своя картинка фона — идентификатор в каталоге аватаров или null. */
+  public String background(long id) {
+    return db.sql("SELECT background FROM users WHERE id = ?")
+        .param(id)
+        .query((rs, i) -> rs.getString(1))
+        .optional()
+        .orElse(null);
+  }
+
+  public void setBackground(long id, String background) {
+    db.sql("UPDATE users SET background = ? WHERE id = ?").params(background, id).update();
+  }
+
   public boolean manageMode(long id) {
     return db.sql("SELECT manage_mode FROM users WHERE id = ?")
             .param(id)

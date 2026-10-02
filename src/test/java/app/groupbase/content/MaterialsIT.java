@@ -352,4 +352,54 @@ class MaterialsIT extends IntegrationTest {
     assertThat(r.statusCode()).isEqualTo(404);
     assertThat(new String(r.body(), StandardCharsets.UTF_8)).contains("file_missing");
   }
+
+  @Test
+  void notesArePastedAndPinnedOnTop() {
+    long g = newGroup("Сообщения");
+    TestUser headman = newUser(g, "headman");
+    TestUser student = newUser(g, "student");
+    long s = subject(g);
+    var link =
+        headman
+            .api()
+            .post(
+                "/api/subjects/" + s + "/materials",
+                Map.of("kind", "link", "url", "https://example.org/book"));
+    assertThat(link.status()).as(link.body()).isEqualTo(200);
+    // Сообщение из чата: название — первая строка.
+    var note =
+        student
+            .api()
+            .post(
+                "/api/subjects/" + s + "/materials",
+                Map.of("kind", "note", "description", "Билеты к экзамену\n1. Пределы\n2. Ряды"));
+    assertThat(note.status()).as(note.body()).isEqualTo(200);
+    long noteId = note.json().get("id").asLong();
+    assertThat(student.api().get("/api/materials/" + noteId).json().get("title").asString())
+        .isEqualTo("Билеты к экзамену");
+    assertThat(
+            student
+                .api()
+                .post(
+                    "/api/subjects/" + s + "/materials", Map.of("kind", "note", "description", " "))
+                .status())
+        .isEqualTo(400);
+
+    // Закрепляет староста, студент — нет; закреплённое — первым в списке.
+    assertThat(
+            student
+                .api()
+                .put("/api/materials/" + noteId + "/pinned", Map.of("pinned", true))
+                .status())
+        .isEqualTo(403);
+    long linkId = link.json().get("id").asLong();
+    var pinned = headman.api().put("/api/materials/" + linkId + "/pinned", Map.of("pinned", true));
+    assertThat(pinned.status()).as(pinned.body()).isEqualTo(200);
+    assertThat(pinned.json().get("pinnedAt").isNull()).isFalse();
+    var list = student.api().get("/api/subjects/" + s + "/materials").json().get("materials");
+    assertThat(list.get(0).get("id").asLong()).isEqualTo(linkId);
+    assertThat(list.get(0).get("can").get("pin").asBoolean()).isFalse();
+    // Поиск находит сообщение по тексту.
+    assertThat(student.api().get("/api/search?q=Ряды").body()).contains("Билеты к экзамену");
+  }
 }

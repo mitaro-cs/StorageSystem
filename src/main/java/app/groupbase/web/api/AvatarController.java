@@ -111,6 +111,27 @@ class AvatarController {
     return Map.of("avatar", id);
   }
 
+  /**
+   * Своя картинка на фоне страниц — общая для всех устройств человека (0.6). Отдаётся по случайному
+   * имени, как аватар: {@code /api/avatars/<id>-1920.webp}.
+   */
+  @PutMapping("/api/me/background")
+  Map<String, String> setBackground(Actor actor, HttpServletRequest req) throws IOException {
+    String id = avatars.storeBackground(req.getInputStream());
+    String old = users.background(actor.id());
+    users.setBackground(actor.id(), id);
+    avatars.delete(old);
+    return Map.of("background", id);
+  }
+
+  @DeleteMapping("/api/me/background")
+  Map<String, String> removeBackground(Actor actor) {
+    String old = users.background(actor.id());
+    users.setBackground(actor.id(), null);
+    avatars.delete(old);
+    return Map.of("status", "ok");
+  }
+
   /** Фон карточки предмета — широкая картинка вместо иконки. */
   @PutMapping("/api/subjects/{subjectId}/cover")
   Map<String, String> setCover(Actor actor, @PathVariable long subjectId, HttpServletRequest req)

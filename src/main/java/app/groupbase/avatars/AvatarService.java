@@ -44,8 +44,12 @@ public class AvatarService {
   /** Фон карточки предмета: 16:9, ширина 1280 (крупно) и 480 (плитки в списке). */
   public static final int[] COVER_WIDTHS = {1280, 480};
 
+  /** Своя картинка фона: длинная сторона — не больше этого. */
+  public static final int BACKGROUND = 1920;
+
   private static final Pattern ID = Pattern.compile("[0-9a-f]{20}");
-  private static final Pattern NAME = Pattern.compile("([0-9a-f]{20})-(256|64|1280|480)\\.webp");
+  private static final Pattern NAME =
+      Pattern.compile("([0-9a-f]{20})-(256|64|1280|480|1920)\\.webp");
 
   private final Path dir;
   private final byte[] key;
@@ -93,6 +97,22 @@ public class AvatarService {
     for (int w : COVER_WIDTHS) {
       write(id + "-" + w + ".webp", encodeWebp(fit(wide, w, w * 9 / 16)));
     }
+    return id;
+  }
+
+  /**
+   * Своя картинка на фоне страниц (общая для всех устройств человека): пропорции как есть, длинная
+   * сторона — до {@link #BACKGROUND}, перекодирована с нуля (без EXIF). Файл — {@code
+   * <id>-1920.webp}.
+   */
+  public String storeBackground(InputStream body) throws IOException {
+    BufferedImage src = decode(read(body));
+    double k = Math.min(1, (double) BACKGROUND / Math.max(src.getWidth(), src.getHeight()));
+    int w = Math.max(1, (int) Math.round(src.getWidth() * k));
+    int h = Math.max(1, (int) Math.round(src.getHeight() * k));
+    String id = HexFormat.of().formatHex(Tokens.randomBytes(10));
+    Files.createDirectories(dir);
+    write(id + "-" + BACKGROUND + ".webp", encodeWebp(fit(src, w, h)));
     return id;
   }
 
@@ -162,6 +182,7 @@ public class AvatarService {
       for (int w : COVER_WIDTHS) {
         Files.deleteIfExists(dir.resolve(id + "-" + w + ".webp"));
       }
+      Files.deleteIfExists(dir.resolve(id + "-" + BACKGROUND + ".webp"));
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

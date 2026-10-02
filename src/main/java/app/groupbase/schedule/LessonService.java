@@ -170,7 +170,7 @@ public class LessonService {
 
   private static final String SELECT =
       """
-      SELECT l.*, s.name AS subject_name, s.color AS subject_color,
+      SELECT l.*, s.name AS subject_name, s.color AS subject_color, s.teacher AS subject_teacher,
         (SELECT count(*) FROM homework h WHERE h.lesson_id = l.id AND h.hidden = 0) AS hw_count,
         (SELECT count(*) FROM materials m WHERE m.lesson_id = l.id AND m.status = 'published'
           AND m.hidden = 0) AS mat_count
@@ -226,7 +226,10 @@ public class LessonService {
                     rs.getLong("starts_at"),
                     rs.getLong("ends_at"),
                     rs.getString("place"),
-                    rs.getString("teacher"),
+                    // Нет в файле календаря — преподаватель из карточки предмета.
+                    rs.getString("teacher").isBlank()
+                        ? java.util.Objects.toString(rs.getString("subject_teacher"), "")
+                        : rs.getString("teacher"),
                     rs.getString("note"),
                     rs.getInt("hw_count"),
                     rs.getInt("mat_count")))
