@@ -57,8 +57,10 @@
 		<BookOpenText size={18} />
 		<h3>Как пользоваться</h3>
 	</div>
-	<p class="muted small">Короткое знакомство с groupbase — то же, что при первом входе.</p>
-	<div><Button onclick={() => (welcome.open = true)}>Показать знакомство</Button></div>
+	<p class="muted small">
+		Тур по сайту — то же, что при первом входе: полминуты, по главным кнопкам.
+	</p>
+	<div><Button onclick={() => (welcome.open = true)}>Пройти тур</Button></div>
 </section>
 
 <section class="card pane">

@@ -43,7 +43,7 @@
 			stop?.();
 		};
 	});
-	// Только что зарегистрировался — знакомство с сайтом, когда заставка уже ушла.
+	// Только что зарегистрировался — тур по сайту, когда заставка уже ушла.
 	onMount(() => {
 		if (!needsWelcome()) return;
 		let id: ReturnType<typeof setTimeout> | undefined;
@@ -178,9 +178,9 @@
 			bind:open={palette.upload}
 		/>{/await}
 {/if}
-<!-- Знакомство: код грузится, только когда окно нужно. -->
+<!-- Тур по сайту: код грузится, только когда он нужен. -->
 {#if welcome.open}
-	{#await import('$lib/Welcome.svelte') then m}<m.default />{/await}
+	{#await import('$lib/tour/Tour.svelte') then m}<m.default />{/await}
 {/if}
 <Hotkeys />
 <SwipeBack />

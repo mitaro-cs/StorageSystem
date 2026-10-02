@@ -64,8 +64,10 @@ export interface Me {
 		totpEnabled: boolean;
 		/** Режим управления: false — кнопки администратора и старосты скрыты. */
 		manageMode: boolean;
-		/** Знакомство с сайтом уже показано (у серверов до 0.4.8 поля нет — не показываем). */
+		/** Тур по сайту уже пройден (у серверов до 0.4.8 поля нет — не показываем). */
 		onboarded?: boolean;
+		/** Закрытые подсказки разделов; «*» — все (с 0.6, у старых серверов поля нет). */
+		tips?: string[];
 	};
 	restriction: 'password_change_required' | 'totp_setup_required' | null;
 	instance: {

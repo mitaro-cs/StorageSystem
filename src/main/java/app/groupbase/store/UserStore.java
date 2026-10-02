@@ -224,6 +224,33 @@ public class UserStore {
   }
 
   /** Режим управления: false — интерфейс без кнопок администратора и старосты. */
+  /** Подсказка в разделе: латиница и дефис, коротко. */
+  public static final java.util.regex.Pattern TIP = java.util.regex.Pattern.compile("[a-z-]{1,24}");
+
+  /** Закрытые подсказки разделов; «*» — все (у тех, кто пользовался сайтом до 0.6). */
+  public List<String> tips(long id) {
+    String raw =
+        db.sql("SELECT tips_seen FROM users WHERE id = ?")
+            .param(id)
+            .query(String.class)
+            .optional()
+            .orElse("*");
+    return raw.isEmpty() ? List.of() : List.of(raw.split(","));
+  }
+
+  /** Подсказка закрыта — больше не показывается (на всех устройствах). Не больше 40 штук. */
+  public void addTip(long id, String tip) {
+    List<String> seen = tips(id);
+    if (seen.contains("*") || seen.contains(tip) || seen.size() >= 40) {
+      return;
+    }
+    db.sql(
+            "UPDATE users SET tips_seen = CASE WHEN tips_seen = '' THEN ? ELSE tips_seen || ',' || ?"
+                + " END WHERE id = ?")
+        .params(tip, tip, id)
+        .update();
+  }
+
   public boolean manageMode(long id) {
     return db.sql("SELECT manage_mode FROM users WHERE id = ?")
             .param(id)

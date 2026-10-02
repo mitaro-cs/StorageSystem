@@ -12,6 +12,7 @@
 	import SubjectArt from '$lib/ui/SubjectArt.svelte';
 	import { choices, open } from '$lib/content/subgroups';
 	import type { Subject } from '$lib/types';
+	import { tipOpen } from '$lib/onboarding.svelte';
 
 	let editor = $state(false);
 	let wizard = $state(false);
@@ -61,6 +62,12 @@
 		</div>
 	{/if}
 </div>
+{#if tipOpen('subjects')}
+	{#await import('$lib/tour/Tip.svelte') then m}<m.default
+			id="subjects"
+			text="Не ходите на какой-то предмет? Откройте его → «…» → «Не мой предмет»: он пропадёт из заданий, расписания и уведомлений."
+		/>{/await}
+{/if}
 
 {#if requests.length}
 	<section class="requests">
