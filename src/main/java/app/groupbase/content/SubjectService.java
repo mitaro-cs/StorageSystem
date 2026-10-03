@@ -178,6 +178,47 @@ public class SubjectService {
     audit.log(actor, null, archived ? "subject.archive" : "subject.unarchive", "subject", id);
   }
 
+  /**
+   * Разделить предмет на подгруппы (0.7): «Иностранный язык» → «Иностранный язык №1» (этот же
+   * предмет — со всеми заданиями и материалами) и пустые «№2»… с тем же цветом, иконкой и группами.
+   * Каждый выбирает свою подгруппу (lib/content/subgroups.ts — по «№N» в названии), чужие у него
+   * скрываются («не мой предмет»).
+   */
+  @Transactional
+  public List<SubjectView> split(Actor actor, long id, int count) {
+    requireManage(actor, id);
+    if (count < 2 || count > 6) {
+      throw ApiException.invalid("count", "Подгрупп — от 2 до 6");
+    }
+    SubjectStore.Row r = subjects.find(id).orElseThrow(ApiException::notFound);
+    String base = r.name().replaceAll("\\s*(№\\s*\\d+|\\(\\s*\\d+\\s*\\))\\s*$", "").strip();
+    if (base.length() > 75) {
+      base = base.substring(0, 75).strip();
+    }
+    long now = clock.millis();
+    List<Long> groupIds = subjects.groupIds(id);
+    subjects.update(id, base + " №1", r.teacher(), r.color());
+    List<Long> ids = new java.util.ArrayList<>(List.of(id));
+    for (int i = 2; i <= count; i++) {
+      long n = subjects.insert(base + " №" + i, r.teacher(), r.color(), actor.id(), now);
+      if (r.icon() != null) {
+        subjects.setIcon(n, r.icon());
+      }
+      for (long g : groupIds) {
+        subjects.link(n, g, now);
+      }
+      ids.add(n);
+    }
+    audit.log(
+        actor,
+        groupIds.isEmpty() ? null : groupIds.getFirst(),
+        "subject.split",
+        "subject",
+        id,
+        Map.of("name", base, "count", count));
+    return ids.stream().map(x -> get(actor, x)).toList();
+  }
+
   public void setPinned(Actor actor, long id, boolean pinned) {
     visible(actor, id);
     if (pinned) {

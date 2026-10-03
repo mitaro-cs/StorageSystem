@@ -63,6 +63,8 @@ const LABELS: Record<string, string> = {
 	'schedule.import': 'загрузил расписание из файла календаря',
 	'settings.update': 'изменил настройки сайта',
 	'subject.archive': 'отправил предмет в архив',
+	'subject.delete': 'удалил предмет',
+	'subject.split': 'разделил предмет на подгруппы',
 	'subject.create': 'создал предмет',
 	'subject.link': 'сделал предмет общим',
 	'subject.link_accept': 'принял общий предмет',

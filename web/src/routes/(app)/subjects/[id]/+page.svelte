@@ -104,7 +104,7 @@
 		});
 	}
 
-	// Редкое — в меню «…»: общий предмет, архив, «не мой предмет».
+	// Редкое — в меню «…»: общий предмет, архив, «не мой предмет», подгруппы, удалить.
 	const actions = $derived.by((): MenuItem[] => {
 		if (!subject) return [];
 		const s = subject;
@@ -129,6 +129,17 @@
 					}
 				}
 			});
+		if (s.can.edit) {
+			out.push({
+				label: 'Разделить на подгруппы…',
+				onclick: () => import('$lib/content/subjectAdmin').then((m) => m.splitSubject(s))
+			});
+			out.push({
+				label: 'Удалить предмет…',
+				danger: true,
+				onclick: () => import('$lib/content/subjectAdmin').then((m) => m.deleteSubject(s))
+			});
+		}
 		return out;
 	});
 
@@ -154,6 +165,11 @@
 					current={subject.id}
 				/>{/await}
 		</div>
+	{/if}
+
+	<!-- Подгруппы «№1», «№2»: выбор своей (код — только у таких предметов). -->
+	{#if /№\s*\d|\(\s*\d+\s*\)|\d\s*(под)?гр/i.test(subject.name)}
+		{#await import('$lib/content/SubgroupSwitch.svelte') then m}<m.default {subject} />{/await}
 	{/if}
 
 	{#if subject.mine === false}
