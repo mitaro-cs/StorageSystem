@@ -63,6 +63,8 @@ struct App {
     /// Версия, про которую уже спросили «Обновить сейчас?» — второй раз за запуск не спрашиваем.
     offered: Mutex<Option<String>>,
     updating: Mutex<bool>,
+    /// Масштаб окна под текущий монитор (monitor_zoom).
+    zoom: Mutex<f64>,
     data: PathBuf,
 }
 
@@ -101,6 +103,7 @@ fn main() {
                 update: Mutex::new(None),
                 offered: Mutex::new(None),
                 updating: Mutex::new(false),
+                zoom: Mutex::new(1.0),
                 data,
             });
             create_window(app.handle(), !hidden)?;
@@ -220,15 +223,53 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
             }
         })
         .build()?;
+    // Окно и масштаб — под монитор: на большом мониторе окно больше и всё крупнее.
+    if let Some(z) = monitor_zoom(&window) {
+        let _ = window.set_zoom(z);
+        if let Ok(Some(m)) = window.current_monitor() {
+            let area = m.size().to_logical::<f64>(m.scale_factor());
+            let _ = window.set_size(tauri::LogicalSize::new(
+                (1180.0 * z).min(area.width * 0.92),
+                (800.0 * z).min(area.height * 0.88),
+            ));
+            let _ = window.center();
+        }
+        *app.state::<App>().zoom.lock().unwrap() = z;
+    }
     let w = window.clone();
-    window.on_window_event(move |event| {
-        if let WindowEvent::CloseRequested { api, .. } = event {
+    window.on_window_event(move |event| match event {
+        WindowEvent::CloseRequested { api, .. } => {
             // Закрыть окно ≠ выключить сайт: прячем окно, сервер работает дальше.
             api.prevent_close();
             let _ = w.hide();
         }
+        // Перетащили окно на другой монитор — масштаб под него.
+        WindowEvent::Moved(_) | WindowEvent::ScaleFactorChanged { .. } => {
+            if let Some(z) = monitor_zoom(&w) {
+                let st = w.app_handle().state::<App>();
+                let mut last = st.zoom.lock().unwrap();
+                if (*last - z).abs() > 0.01 {
+                    *last = z;
+                    let _ = w.set_zoom(z);
+                }
+            }
+        }
+        _ => {}
     });
     Ok(())
+}
+
+/// Масштаб интерфейса под монитор (просьба владельца — «везде выглядело одинаково»): сайт
+/// рассчитан на ширину около 1440 точек; на мониторе 1920 всё в 1,35 раза крупнее, на 2560 — в 1,5,
+/// на тесном ноутбуке — чуть мельче. Шаг — 5 %.
+fn monitor_zoom(window: &tauri::WebviewWindow) -> Option<f64> {
+    let m = window.current_monitor().ok().flatten()?;
+    let width = m.size().to_logical::<f64>(m.scale_factor()).width;
+    Some(zoom_for(width))
+}
+
+fn zoom_for(width: f64) -> f64 {
+    ((width / 1440.0).clamp(0.9, 1.5) * 20.0).round() / 20.0
 }
 
 /// Адрес без параметров: в ссылке входа — одноразовый токен, в журнал он не попадает.
@@ -1161,6 +1202,16 @@ fn show_icon(app: &AppHandle, png: Option<&'static [u8]>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn zoom_follows_monitor_width() {
+        assert_eq!(zoom_for(1440.0), 1.0);
+        assert_eq!(zoom_for(1470.0), 1.0);
+        assert_eq!(zoom_for(1920.0), 1.35);
+        assert_eq!(zoom_for(2560.0), 1.5);
+        assert_eq!(zoom_for(3840.0), 1.5);
+        assert_eq!(zoom_for(1280.0), 0.9);
+    }
 
     #[test]
     #[cfg(windows)]

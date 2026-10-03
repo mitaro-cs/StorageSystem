@@ -604,6 +604,22 @@ button {
 		font-size: 14px;
 	}
 }
+/* 2560 и шире (27–32″ без масштабирования): всё заметно крупнее, чтобы не было «мелко и пусто». */
+@media (min-width: 2400px) {
+	:root {
+		--content: 1440px;
+		--sidebar: 340px;
+	}
+	body {
+		font-size: 18px;
+	}
+	h1 {
+		font-size: 38px;
+	}
+	.small {
+		font-size: 15px;
+	}
+}
 .sr-only {
 	position: absolute;
 	width: 1px;
