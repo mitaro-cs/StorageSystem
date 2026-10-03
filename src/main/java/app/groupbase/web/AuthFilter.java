@@ -3,6 +3,7 @@ package app.groupbase.web;
 import app.groupbase.auth.Actor;
 import app.groupbase.auth.SessionService;
 import app.groupbase.auth.Tokens;
+import app.groupbase.hosts.PeerService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,12 +32,22 @@ public class AuthFilter extends OncePerRequestFilter {
   private static final Set<String> SAFE = Set.of("GET", "HEAD", "OPTIONS");
   private static final JsonMapper JSON = JsonMapper.builder().build();
 
+  /** Заголовки второго компьютера хоста: его ключ и чьё это изменение. */
+  public static final String PEER_HEADER = "X-Groupbase-Peer";
+
+  public static final String AS_HEADER = "X-Groupbase-As";
+
+  /** Атрибут запроса: номер компьютера хоста, приславшего запрос по ключу. */
+  public static final String PEER = "gb.peer";
+
   private final SessionService sessions;
   private final Cookies cookies;
+  private final PeerService peers;
 
-  public AuthFilter(SessionService sessions, Cookies cookies) {
+  public AuthFilter(SessionService sessions, Cookies cookies, PeerService peers) {
     this.sessions = sessions;
     this.cookies = cookies;
+    this.peers = peers;
   }
 
   @Override
@@ -63,6 +74,27 @@ public class AuthFilter extends OncePerRequestFilter {
               header.getBytes(StandardCharsets.US_ASCII),
               csrfCookie.getBytes(StandardCharsets.US_ASCII))) {
         deny(res, "csrf", "Устаревшая страница: обновите её и повторите");
+        return;
+      }
+    }
+
+    // Второй компьютер хоста по своему ключу: обмен данными, а с номером человека — его изменение
+    // из окна того компьютера. Вход, выход и окно хоста — только свои, не пересланные.
+    String peerHeader = req.getHeader(PEER_HEADER);
+    if (api && peerHeader != null) {
+      String computer = peers.authenticate(peerHeader).orElse(null);
+      if (computer != null) {
+        req.setAttribute(PEER, computer);
+        String uri = req.getRequestURI();
+        String as = req.getHeader(AS_HEADER);
+        if (as != null && !uri.startsWith("/api/auth/") && !uri.startsWith("/api/desktop/")) {
+          try {
+            sessions.forPeer(Long.parseLong(as)).ifPresent(a -> req.setAttribute(ACTOR, a));
+          } catch (NumberFormatException e) {
+            // нет такого человека — запрос пойдёт без входа
+          }
+        }
+        chain.doFilter(req, res);
         return;
       }
     }

@@ -1,0 +1,283 @@
+package app.groupbase.hosts;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import app.groupbase.ApiClient;
+import app.groupbase.GroupbaseApplication;
+import app.groupbase.IntegrationTest;
+import app.groupbase.accounts.PublicUrl;
+import app.groupbase.backup.PendingRestore;
+import app.groupbase.desktop.DesktopBridge;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.imageio.ImageIO;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.web.server.context.WebServerApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+
+/**
+ * Два компьютера хоста напрямую: этот сервер — «главный» A, второй сервер B поднимается в тесте.
+ * Адрес сайта — прокси, который изображает туннель: пересылает главному, «нет интернета» (обрыв)
+ * или «компьютер выключен» (страница туннеля без метки groupbase).
+ */
+class PeerIT extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void desktop(DynamicPropertyRegistry r) {
+    r.add("groupbase.desktop.enabled", () -> "true");
+    r.add("groupbase.hosts.tick-ms", () -> "3600000");
+    r.add("groupbase.peers.tick-ms", () -> "0");
+    r.add("groupbase.peers.takeover-ms", () -> "0");
+  }
+
+  @Autowired PeerService peers;
+  @Autowired PublicUrl publicUrl;
+  @Autowired DesktopBridge bridge;
+
+  /** Туннель: куда ведёт адрес сайта и что с ним сейчас. */
+  static final class Tunnel {
+    volatile int target;
+    volatile String mode = "forward";
+    private final HttpServer server;
+    private final HttpClient http =
+        HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
+    private static final Set<String> SKIP =
+        Set.of("connection", "content-length", "expect", "host", "upgrade", "transfer-encoding");
+
+    Tunnel(int target) throws IOException {
+      this.target = target;
+      server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+      server.createContext("/", this::handle);
+      server.start();
+    }
+
+    String url() {
+      return "http://127.0.0.1:" + server.getAddress().getPort();
+    }
+
+    void stop() {
+      server.stop(0);
+    }
+
+    private void handle(HttpExchange ex) throws IOException {
+      try (ex) {
+        if (mode.equals("offline")) {
+          return; // соединение рвётся без ответа — как без интернета
+        }
+        if (mode.equals("nobody")) {
+          byte[] page = "<h1>Tunnel not found</h1>".getBytes(StandardCharsets.UTF_8);
+          ex.getResponseHeaders().add("Content-Type", "text/html");
+          ex.sendResponseHeaders(404, page.length);
+          ex.getResponseBody().write(page);
+          return;
+        }
+        byte[] body = ex.getRequestBody().readAllBytes();
+        HttpRequest.Builder b =
+            HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + target + ex.getRequestURI()))
+                .method(
+                    ex.getRequestMethod(),
+                    body.length == 0
+                        ? HttpRequest.BodyPublishers.noBody()
+                        : HttpRequest.BodyPublishers.ofByteArray(body));
+        ex.getRequestHeaders()
+            .forEach(
+                (k, vs) -> {
+                  if (!SKIP.contains(k.toLowerCase())) {
+                    vs.forEach(v -> b.header(k, v));
+                  }
+                });
+        // Через туннель запросы приходят «снаружи».
+        b.header("X-Forwarded-For", "203.0.113.9");
+        HttpResponse<byte[]> r;
+        try {
+          r = http.send(b.build(), HttpResponse.BodyHandlers.ofByteArray());
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        r.headers()
+            .map()
+            .forEach(
+                (k, vs) -> {
+                  if (!SKIP.contains(k.toLowerCase()) && !k.startsWith(":")) {
+                    vs.forEach(v -> ex.getResponseHeaders().add(k, v));
+                  }
+                });
+        ex.sendResponseHeaders(r.statusCode(), r.body().length == 0 ? -1 : r.body().length);
+        try (OutputStream out = ex.getResponseBody()) {
+          out.write(r.body());
+        }
+      }
+    }
+  }
+
+  private ApiClient window() {
+    admin();
+    ApiClient c = client();
+    URI u = URI.create(bridge.enterUrl());
+    var r = c.get(u.getRawPath() + "?" + u.getRawQuery());
+    assertThat(r.status()).as(r.body()).isEqualTo(200);
+    return c;
+  }
+
+  private static ConfigurableApplicationContext startB(Path data) {
+    return new SpringApplicationBuilder(GroupbaseApplication.class)
+        .properties(
+            "groupbase.data-dir=" + data,
+            "server.port=0",
+            "groupbase.http.insecure=true",
+            "groupbase.auth.require-staff-totp=false",
+            "groupbase.desktop.enabled=true",
+            "groupbase.hosts.tick-ms=3600000",
+            "groupbase.peers.tick-ms=0",
+            "groupbase.peers.takeover-ms=0",
+            "groupbase.update-check.enabled=false")
+        .run();
+  }
+
+  private static int portOf(ConfigurableApplicationContext ctx) {
+    return ((WebServerApplicationContext) ctx).getWebServer().getPort();
+  }
+
+  private static List<String> groups(ApiClient c) {
+    var r = c.get("/api/groups");
+    assertThat(r.status()).as(r.body()).isEqualTo(200);
+    return r.json().valueStream().map(n -> n.get("name").asString()).toList();
+  }
+
+  private static byte[] png() throws IOException {
+    BufferedImage img = new BufferedImage(48, 32, BufferedImage.TYPE_INT_RGB);
+    for (int x = 0; x < 48; x++) {
+      for (int y = 0; y < 32; y++) {
+        img.setRGB(x, y, (x * 5) << 16 | (y * 7) << 8 | 90);
+      }
+    }
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    ImageIO.write(img, "png", out);
+    return out.toByteArray();
+  }
+
+  @Test
+  void twoComputersStayInSyncAndHandOverTheSite() throws Exception {
+    Tunnel tunnel = new Tunnel(port);
+    publicUrl.set(tunnel.url());
+    ApiClient a = admin();
+    ApiClient wa = window();
+    ConfigurableApplicationContext ctxB = null;
+    try {
+      // Код даёт администратор; этот компьютер становится главным.
+      var code = wa.post("/api/host/peers/code", Map.of());
+      assertThat(code.status()).as(code.body()).isEqualTo(200);
+      assertThat(code.json().get("role").asString()).isEqualTo("main");
+      String pairing = code.json().get("code").get("code").asString();
+
+      // Второй компьютер подключается: ключ по коду, полная копия, перезапуск.
+      Path dataB = Files.createTempDirectory("groupbase-peer-b");
+      ctxB = startB(dataB);
+      PeerService peersB = ctxB.getBean(PeerService.class);
+      assertThat(peersB.join(tunnel.url(), pairing)).contains("перезапускаемся");
+      ctxB.close();
+      assertThat(PendingRestore.apply(dataB, s -> {})).isTrue();
+      ctxB = startB(dataB);
+      peersB = ctxB.getBean(PeerService.class);
+      assertThat(peersB.role()).isEqualTo(PeerService.Role.SECOND);
+      ApiClient b = new ApiClient(portOf(ctxB));
+      var login = b.post("/api/auth/login", Map.of("username", ADMIN, "password", ADMIN_PASSWORD));
+      assertThat(login.status()).as(login.body()).isEqualTo(200);
+
+      // Новое на главном — на втором после шага синхронизации; сессия второго не пропадает.
+      String fromA = "С главного " + uniq();
+      assertThat(a.post("/api/groups", Map.of("name", fromA, "university", "МТУСИ")).status())
+          .isEqualTo(200);
+      peersB.tick();
+      assertThat(groups(b)).contains(fromA);
+
+      // Изменение во втором окне уходит главному, и второй видит его сразу.
+      String fromB = "Со второго " + uniq();
+      var made = b.post("/api/groups", Map.of("name", fromB, "university", "МТУСИ"));
+      assertThat(made.status()).as(made.body()).isEqualTo(200);
+      assertThat(made.raw().headers().firstValue("X-Groupbase-Queued")).isEmpty();
+      assertThat(groups(a)).contains(fromB);
+      assertThat(groups(b)).contains(fromB);
+
+      // Файл со второго — у главного, и у второго тоже.
+      var bg = b.putRaw("/api/me/background", png());
+      assertThat(bg.status()).as(bg.body()).isEqualTo(200);
+      String bgId = bg.json().get("background").asString();
+      assertThat(props.dataDir().resolve("avatars").resolve(bgId + "-1920.webp")).exists();
+      peersB.tick();
+      assertThat(dataB.resolve("avatars").resolve(bgId + "-1920.webp")).exists();
+
+      // Нет связи: изменение применяется здесь и ждёт; связь появилась — уходит главному.
+      tunnel.mode = "offline";
+      String offline = "Без связи " + uniq();
+      var queued = b.post("/api/groups", Map.of("name", offline, "university", "МТУСИ"));
+      assertThat(queued.status()).as(queued.body()).isEqualTo(200);
+      assertThat(queued.raw().headers().firstValue("X-Groupbase-Queued")).hasValue("1");
+      assertThat(groups(b)).contains(offline);
+      assertThat(groups(a)).doesNotContain(offline);
+      peersB.tick();
+      assertThat(peersB.view().state()).isEqualTo("offline");
+      assertThat(peersB.view().queued()).isEqualTo(1);
+      tunnel.mode = "forward";
+      peersB.tick();
+      assertThat(peersB.view().queued()).isZero();
+      assertThat(groups(a)).contains(offline);
+      assertThat(groups(b)).contains(offline);
+
+      // Чужой ключ — не пускают; второй сам данные не отдаёт.
+      assertThat(
+              client()
+                  .header("X-Groupbase-Peer", "00000000-0000 " + "x".repeat(43))
+                  .get("/api/host/peer/state")
+                  .status())
+          .isEqualTo(403);
+
+      // Главный выключен (по адресу — страница туннеля): второй становится главным.
+      tunnel.mode = "nobody";
+      peersB.tick();
+      assertThat(peersB.role()).isEqualTo(PeerService.Role.MAIN);
+      assertThat(peersB.view().epoch()).isEqualTo(2);
+
+      // Прежний главный без связи успел что-то изменить в своём окне.
+      String onOld = "На старом " + uniq();
+      assertThat(wa.post("/api/groups", Map.of("name", onOld, "university", "МТУСИ")).status())
+          .isEqualTo(200);
+
+      // Туннель теперь ведёт на B; прежний главный это видит, отдаёт своё и становится вторым.
+      tunnel.target = portOf(ctxB);
+      tunnel.mode = "forward";
+      peers.syncNow();
+      assertThat(peers.role()).isEqualTo(PeerService.Role.SECOND);
+      assertThat(groups(b)).contains(onOld, fromA, fromB, offline);
+      assertThat(groups(a)).contains(onOld);
+      try (var aside = Files.list(props.dataDir().resolve("peer").resolve("aside"))) {
+        assertThat(aside.count()).isEqualTo(1);
+      }
+    } finally {
+      if (ctxB != null) {
+        ctxB.close();
+      }
+      tunnel.stop();
+    }
+  }
+}

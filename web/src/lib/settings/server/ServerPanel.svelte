@@ -2,6 +2,7 @@
 	import AccessPanel from './AccessPanel.svelte';
 	import BackupsPanel from './BackupsPanel.svelte';
 	import HostsPanel from './HostsPanel.svelte';
+	import PeerPanel from './PeerPanel.svelte';
 	import StatusPanel from './StatusPanel.svelte';
 </script>
 
@@ -11,6 +12,7 @@
 
 <!-- Заголовок у раздела свой: его нет, если сайт не в приложении хоста. -->
 <HostsPanel />
+<PeerPanel />
 
 <h2 class="head">Резервные копии</h2>
 <BackupsPanel />

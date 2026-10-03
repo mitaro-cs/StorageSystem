@@ -6,6 +6,7 @@ import app.groupbase.backup.RestoreStager;
 import app.groupbase.config.GroupbaseProperties;
 import app.groupbase.desktop.DesktopBridge;
 import app.groupbase.hosts.HostService;
+import app.groupbase.hosts.PeerService;
 import app.groupbase.hosts.TransferService;
 import app.groupbase.web.ApiException;
 import app.groupbase.web.Public;
@@ -48,6 +49,7 @@ class SetupController {
   private final TransferService transfers;
   private final DesktopBridge bridge;
   private final GroupbaseProperties props;
+  private final PeerService peers;
 
   SetupController(
       SetupService setup,
@@ -56,7 +58,8 @@ class SetupController {
       HostService hosts,
       TransferService transfers,
       DesktopBridge bridge,
-      GroupbaseProperties props) {
+      GroupbaseProperties props,
+      PeerService peers) {
     this.setup = setup;
     this.http = http;
     this.restore = restore;
@@ -64,6 +67,7 @@ class SetupController {
     this.transfers = transfers;
     this.bridge = bridge;
     this.props = props;
+    this.peers = peers;
   }
 
   /**
@@ -79,6 +83,27 @@ class SetupController {
     try {
       return new RestoreStager.Result("restarting", transfers.pull(b.url(), b.code()));
     } catch (HostService.Problem e) {
+      throw ApiException.badRequest(e.getMessage());
+    }
+  }
+
+  /**
+   * Первый запуск: подключить этот компьютер вторым к сайту на другом компьютере — по адресу сайта
+   * и коду с главного. Данные встанут после перезапуска.
+   */
+  @PostMapping("/peer")
+  RestoreStager.Result peer(
+      @RequestParam String code, @RequestBody TransferBody b, HttpServletRequest req) {
+    setup.checkCode(code);
+    if (!setup.needed()) {
+      throw ApiException.conflict("already_setup", "Сайт уже настроен");
+    }
+    if (!bridge.enabled() || !Requests.fromThisComputer(req)) {
+      throw ApiException.forbidden("Доступно только в приложении на компьютере хоста");
+    }
+    try {
+      return new RestoreStager.Result("restarting", peers.join(b.url(), b.code()));
+    } catch (PeerService.Problem e) {
       throw ApiException.badRequest(e.getMessage());
     }
   }
