@@ -7,9 +7,12 @@
 	import { finishWelcome } from '$lib/onboarding.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import { findTarget, placeCard, tourSteps } from './steps';
+	import TourDemo from './TourDemo.svelte';
 
 	// Тур для новичка (0.6): приветствие с Атлантом, потом подсказки на настоящих кнопках —
-	// затемнено всё, кроме нужной, подсветка перетекает от кнопки к кнопке. В конце — конфетти.
+	// затемнено всё, кроме нужной, подсветка перетекает от кнопки к кнопке. В каждой подсказке —
+	// мини-«запись» (TourDemo, 0.7). В конце — большой экран «Добро пожаловать» с сиянием,
+	// кольцами и залпом конфетти.
 	// Esc, «Пропустить» или крестик — тур закончен и больше сам не покажется (и на других устройствах).
 
 	const phone = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 899px)').matches;
@@ -116,14 +119,39 @@
 		if (Math.abs(dx) > 60) (dx < 0 ? next : back)();
 	}
 
-	// Конфетти: цвета темы и её пятен света, у каждой — своя траектория.
-	const confetti = Array.from({ length: 36 }, (_, i) => ({
-		x: Math.round(Math.random() * 100),
-		d: Math.round(Math.random() * 600),
-		r: Math.round(Math.random() * 720 - 360),
-		c: ['var(--accent)', 'var(--mesh-1)', 'var(--mesh-2)', 'var(--mesh-3)', 'var(--urgent)'][i % 5]
-	}));
+	// Залп конфетти снизу из двух углов: цвета темы и её пятен света, у каждой — своя траектория.
+	const confetti = Array.from({ length: 90 }, (_, i) => {
+		const left = i % 2 === 0;
+		return {
+			x: left ? Math.round(Math.random() * 12) : 88 + Math.round(Math.random() * 12),
+			dx: Math.round((left ? 1 : -1) * (120 + Math.random() * 420)),
+			h: Math.round(380 + Math.random() * 420),
+			d: Math.round(Math.random() * 500),
+			r: Math.round(Math.random() * 1080 - 540),
+			c: ['#4f7df5', '#1fa37a', '#e0633a', '#d9a21b', '#a35cf0', 'var(--accent)'][i % 6]
+		};
+	});
 </script>
+
+{#snippet logo(cls: string)}
+	<!-- Логотип из static/logo.svg: плитка выпрыгивает, Атлант поднимается, глобус падает ему
+		     на руки и пружинит, потом медленно вращается. -->
+	<svg class={cls} viewBox="-12 -12 56 56" aria-hidden="true">
+		<g class="tile">
+			<rect class="bg" width="32" height="32" rx="9" />
+			<g transform="scale(0.0434783)">
+				<g class="globe">
+					<circle class="ball" cx="347.8" cy="273.1" r="165" />
+					<use href="/logo.svg#grid" />
+				</g>
+				<g class="fig">
+					<use href="/logo.svg#figure" />
+					<use href="/logo.svg#eye" />
+				</g>
+			</g>
+		</g>
+	</svg>
+{/snippet}
 
 <div
 	class="tour"
@@ -150,23 +178,7 @@
 
 	{#if phase === 'hello'}
 		<div class="hello" role="document">
-			<!-- Логотип из static/logo.svg: плитка выпрыгивает, Атлант поднимается, глобус падает ему
-			     на руки и пружинит, потом медленно вращается. -->
-			<svg class="logo" viewBox="-12 -12 56 56" aria-hidden="true">
-				<g class="tile">
-					<rect class="bg" width="32" height="32" rx="9" />
-					<g transform="scale(0.0434783)">
-						<g class="globe">
-							<circle class="ball" cx="347.8" cy="273.1" r="165" />
-							<use href="/logo.svg#grid" />
-						</g>
-						<g class="fig">
-							<use href="/logo.svg#figure" />
-							<use href="/logo.svg#eye" />
-						</g>
-					</g>
-				</g>
-			</svg>
+			{@render logo('logo')}
 			<h2>Привет{name ? `, ${name}` : ''}!</h2>
 			<p class="muted">
 				Это сайт {group ? `группы ${group}` : 'вашей группы'}. Покажу главное — полминуты.
@@ -190,6 +202,7 @@
 			<button class="x" onclick={close} aria-label="Пропустить знакомство"><X size={16} /></button>
 			{#key step}
 				<div class="body">
+					<TourDemo kind={s.id} />
 					<h3>{s.title}</h3>
 					<p>{s.text}</p>
 				</div>
@@ -205,18 +218,37 @@
 			</div>
 		</div>
 	{:else}
-		<div class="hello done" role="document">
+		<div class="finale" role="document">
+			<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+			<div class="rings" aria-hidden="true"><i></i><i></i><i></i></div>
 			<div class="confetti" aria-hidden="true">
 				{#each confetti as p, i (i)}
-					<i style:left="{p.x}%" style:--d="{p.d}ms" style:--r="{p.r}deg" style:background={p.c}
+					<i
+						style:left="{p.x}%"
+						style:--d="{p.d}ms"
+						style:--r="{p.r}deg"
+						style:--h="{p.h}px"
+						style:--dx="{p.dx}px"
+						style:background={p.c}
 					></i>
 				{/each}
 			</div>
-			<h2>Готово!</h2>
-			<p class="muted">Тур можно пройти снова: «Профиль» → «Приложение» → «Как пользоваться».</p>
+			{@render logo('logo big')}
+			<h2 aria-label="Добро пожаловать!">
+				{#each [...'Добро пожаловать!'] as ch, i (i)}<span aria-hidden="true" style:--i={i}
+						>{ch === ' ' ? '\u00a0' : ch}</span
+					>{/each}
+			</h2>
+			<p class="lead">
+				{name ? `${name}, теперь` : 'Теперь'} вы в {group ? `группе ${group}` : 'своей группе'}.
+				Задания, пары и файлы — всё здесь.
+			</p>
 			<div class="actions">
-				<Button variant="primary" onclick={close}>К заданиям</Button>
+				<Button variant="primary" onclick={close}>К заданиям <ArrowRight size={17} /></Button>
 			</div>
+			<p class="again faint small">
+				Тур можно пройти снова: «Профиль» → «Приложение» → «Пройти тур».
+			</p>
 		</div>
 	{/if}
 </div>
@@ -370,16 +402,127 @@
 	.foot span {
 		margin-right: auto;
 	}
-	.done {
+	/* Финал: на весь экран — сияние цветов темы, кольца от логотипа, буквы по одной, залп конфетти. */
+	.finale {
+		position: fixed;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--s3);
+		padding: var(--s5);
+		text-align: center;
 		overflow: hidden;
+		background: color-mix(in srgb, var(--bg) 93%, transparent);
+		backdrop-filter: blur(18px) saturate(1.4);
+		-webkit-backdrop-filter: blur(18px) saturate(1.4);
+		animation: fade-in 400ms var(--ease);
+	}
+	.aurora i {
+		position: absolute;
+		width: 70vmax;
+		height: 70vmax;
+		border-radius: 50%;
+		filter: blur(80px);
+		opacity: 0.5;
+		animation: drift 9s ease-in-out infinite alternate;
+	}
+	.aurora i:nth-child(1) {
+		top: -35vmax;
+		left: -20vmax;
+		background: var(--mesh-1, #4f7df5);
+	}
+	.aurora i:nth-child(2) {
+		bottom: -40vmax;
+		right: -25vmax;
+		background: var(--mesh-2, #a35cf0);
+		animation-delay: -3s;
+	}
+	.aurora i:nth-child(3) {
+		top: 30%;
+		left: 40%;
+		width: 40vmax;
+		height: 40vmax;
+		background: var(--mesh-3, #1fa37a);
+		opacity: 0.35;
+		animation-delay: -6s;
+	}
+	.rings {
+		position: absolute;
+		top: calc(50% - 120px);
+		left: 50%;
+	}
+	.rings i {
+		position: absolute;
+		width: 160px;
+		height: 160px;
+		margin: -80px 0 0 -80px;
+		border: 2px solid var(--accent);
+		border-radius: 50%;
+		opacity: 0;
+		animation: ring 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) 700ms infinite;
+	}
+	.rings i:nth-child(2) {
+		animation-delay: 1.5s;
+	}
+	.rings i:nth-child(3) {
+		animation-delay: 2.3s;
+	}
+	.logo.big {
+		position: relative;
+		width: 190px;
+		height: 190px;
+	}
+	.finale h2 {
+		position: relative;
+		margin: var(--s2) 0 0;
+		font-size: clamp(34px, 7vw, 64px);
+		font-weight: 800;
+		letter-spacing: -0.03em;
+		line-height: 1.05;
+	}
+	.finale h2 span {
+		display: inline-block;
+		background: linear-gradient(120deg, var(--text), var(--accent) 60%, var(--text));
+		background-size: 300% 100%;
+		-webkit-background-clip: text;
+		background-clip: text;
+		color: transparent;
+		animation:
+			letter 700ms cubic-bezier(0.2, 0.9, 0.25, 1.4) calc(900ms + var(--i) * 45ms) both,
+			shine 4s linear 2.2s infinite;
+	}
+	.lead {
+		position: relative;
+		max-width: 460px;
+		margin: 0;
+		font-size: 17px;
+		color: var(--text-2);
+		animation: fade-up 600ms var(--ease) 1.7s both;
+	}
+	.finale .actions {
+		position: relative;
+		margin-top: var(--s3);
+		animation: fade-up 600ms var(--ease) 2s both;
+	}
+	.finale .actions :global(.btn) {
+		padding-inline: 28px;
+		font-size: 16px;
+		height: 48px;
+	}
+	.again {
+		position: relative;
+		margin: 0;
+		animation: fade-up 600ms var(--ease) 2.3s both;
 	}
 	.confetti i {
 		position: absolute;
-		top: -12px;
-		width: 8px;
-		height: 12px;
+		bottom: -14px;
+		width: 9px;
+		height: 14px;
 		border-radius: 2px;
-		animation: fall 1.6s cubic-bezier(0.2, 0.7, 0.4, 1) var(--d) both;
+		animation: burst 2.6s cubic-bezier(0.15, 0.7, 0.35, 1) calc(800ms + var(--d)) both;
 	}
 	@keyframes fade-in {
 		from {
@@ -433,23 +576,70 @@
 				0 0 0 9999px var(--overlay);
 		}
 	}
-	@keyframes fall {
-		from {
-			transform: translateY(0) rotate(0);
+	@keyframes burst {
+		0% {
+			transform: translate(0, 0) rotate(0);
 			opacity: 1;
 		}
-		to {
-			transform: translateY(420px) rotate(var(--r));
+		55% {
+			transform: translate(calc(var(--dx) * 0.8), calc(var(--h) * -1)) rotate(var(--r));
+			opacity: 1;
+		}
+		100% {
+			transform: translate(var(--dx), calc(var(--h) * -0.35)) rotate(calc(var(--r) * 2));
 			opacity: 0;
 		}
 	}
+	@keyframes ring {
+		0% {
+			transform: scale(0.6);
+			opacity: 0.7;
+		}
+		100% {
+			transform: scale(3.2);
+			opacity: 0;
+		}
+	}
+	@keyframes drift {
+		to {
+			transform: translate(6vmax, 4vmax) scale(1.1);
+		}
+	}
+	@keyframes letter {
+		from {
+			transform: translateY(0.6em) scale(0.6) rotate(-8deg);
+			opacity: 0;
+			filter: blur(6px);
+		}
+	}
+	@keyframes shine {
+		from {
+			background-position: 100% 0;
+		}
+		to {
+			background-position: -200% 0;
+		}
+	}
+	@keyframes fade-up {
+		from {
+			opacity: 0;
+			transform: translateY(14px);
+		}
+	}
 	@media (prefers-reduced-motion: reduce) {
-		.tour *,
-		.hole {
+		.dim,
+		.hole,
+		.hello,
+		.coach,
+		.body,
+		.finale,
+		.finale *,
+		.logo * {
 			animation: none !important;
 			transition: none !important;
 		}
-		.confetti {
+		.confetti,
+		.rings {
 			display: none;
 		}
 	}
