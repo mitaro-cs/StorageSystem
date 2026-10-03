@@ -1,13 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import {
-		Fingerprint,
-		KeyRound,
-		MonitorSmartphone,
-		ScanLine,
-		ShieldCheck,
-		SquareAsterisk
-	} from '@lucide/svelte';
+	import { Fingerprint, KeyRound, MonitorSmartphone, QrCode, ShieldCheck } from '@lucide/svelte';
 	import { get, post } from '$lib/api';
 	import { copy } from '$lib/copy';
 	import { loadMe, session } from '$lib/session.svelte';
@@ -34,7 +26,7 @@
 	let recoveryLeft = $state<number | null>(null);
 	let regenOpen = $state(false);
 	let regenCode = $state('');
-	let scanOpen = $state(false);
+	let codeOpen = $state(false);
 
 	async function changePassword(e: SubmitEvent) {
 		e.preventDefault();
@@ -89,21 +81,6 @@
 		} catch (err) {
 			toastError(err);
 		}
-	}
-
-	/** Вход на другом устройстве без камеры: 6 цифр с его экрана → подтверждение (/link/код). */
-	async function enterPin() {
-		const c = await askText('Введите 6 цифр с экрана устройства, на котором хотите войти', {
-			title: 'Код с другого устройства',
-			ok: 'Дальше',
-			inputmode: 'numeric',
-			autocomplete: 'off',
-			placeholder: '000 000',
-			maxlength: 7
-		});
-		const digits = c?.replace(/\D/g, '') ?? '';
-		if (digits.length === 6) goto(`/link/${digits}`);
-		else if (c) toast('В коде 6 цифр', 'error');
 	}
 
 	async function disableTotp() {
@@ -217,16 +194,15 @@
 		<h3>Вход на другом устройстве</h3>
 	</div>
 	<p class="muted small">
-		На ноутбуке или втором телефоне откройте groupbase, выберите «С другого устройства» и
-		отсканируйте QR-код отсюда или введите 6 цифр с его экрана — логин и пароль вводить не придётся.
+		Покажите здесь код и отсканируйте его на ноутбуке или втором телефоне («Вход → По коду» или
+		просто камерой телефона) — или введите там 6 цифр. Логин и пароль вводить не придётся.
 	</p>
-	<div class="row wrap">
-		<Button onclick={() => (scanOpen = true)}><ScanLine size={17} /> Сканировать QR-код</Button>
-		<Button onclick={enterPin}><SquareAsterisk size={17} /> Ввести код</Button>
+	<div>
+		<Button onclick={() => (codeOpen = true)}><QrCode size={17} /> Показать код</Button>
 	</div>
 </section>
-{#if scanOpen}
-	{#await import('$lib/auth/QrScanner.svelte') then m}<m.default bind:open={scanOpen} />{/await}
+{#if codeOpen}
+	{#await import('$lib/auth/ShowCode.svelte') then m}<m.default bind:open={codeOpen} />{/await}
 {/if}
 
 <!-- Редкие окна (2FA, резервные коды) грузят свой код только при открытии. -->
