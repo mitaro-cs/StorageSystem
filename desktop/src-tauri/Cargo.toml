@@ -1,7 +1,7 @@
 [package]
 name = "groupbase-desktop"
 version = "0.1.0"
-description = "groupbase — сервер студенческой группы на своём компьютере"
+description = "Campus — сервер студенческой группы на своём компьютере"
 authors = ["groupbase"]
 license = "AGPL-3.0-only"
 edition = "2021"

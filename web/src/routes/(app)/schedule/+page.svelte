@@ -240,7 +240,7 @@
 	const pairs = (n: number) => `${n} ${plural(n, ['пара', 'пары', 'пар'])}`;
 </script>
 
-<svelte:head><title>Расписание · groupbase</title></svelte:head>
+<svelte:head><title>Расписание · Campus</title></svelte:head>
 
 <div class="page-head">
 	<h1>Расписание</h1>

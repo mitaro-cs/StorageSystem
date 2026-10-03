@@ -65,7 +65,7 @@
 	async function returnHere() {
 		if (
 			!(await ask(
-				'Сайт снова заработает здесь — с данными на момент переноса. Делайте так, только если на новом компьютере groupbase закрыт или не запустился: иначе будут два разных сайта.',
+				'Сайт снова заработает здесь — с данными на момент переноса. Делайте так, только если на новом компьютере Campus закрыт или не запустился: иначе будут два разных сайта.',
 				{ title: 'Вернуть сайт сюда', ok: 'Вернуть', danger: true }
 			))
 		)
@@ -117,7 +117,7 @@
 	const canPull = $derived(!!h && (h.role === 'standby' || h.role === 'moved'));
 </script>
 
-<svelte:head><title>Сайт на другом компьютере · groupbase</title></svelte:head>
+<svelte:head><title>Сайт на другом компьютере · Campus</title></svelte:head>
 
 <div class="standby">
 	<div class="pair" aria-hidden="true">
@@ -205,7 +205,7 @@
 				{:else if h.action === 'start'}
 					<p class="tip amber small">
 						<span
-							>Если «{other}» на самом деле включён, сначала закройте groupbase на нём: иначе
+							>Если «{other}» на самом деле включён, сначала закройте Campus на нём: иначе
 							изменения, сделанные там после последнего сохранения, сюда не попадут.</span
 						>
 					</p>

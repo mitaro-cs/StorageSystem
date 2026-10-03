@@ -311,8 +311,7 @@ public class BackupService {
       throw new IOException(
           "Это выгрузка группы (архив для чтения), а не резервная копия сайта. " + WHERE);
     }
-    throw new IOException(
-        "Это не резервная копия groupbase: в архиве нет " + MANIFEST + ". " + WHERE);
+    throw new IOException("Это не резервная копия Campus: в архиве нет " + MANIFEST + ". " + WHERE);
   }
 
   /** Снимок для других компьютеров хоста — не копия: его берут сами компьютеры из общей папки. */
@@ -334,7 +333,7 @@ public class BackupService {
     if (manifest.path("format").asInt() > FORMAT
         || manifest.path("schema").asInt() > Migrations.latest()) {
       throw new IOException(
-          "Копия сделана более новой версией groupbase — сначала обновите приложение");
+          "Копия сделана более новой версией Campus — сначала обновите приложение");
     }
   }
 

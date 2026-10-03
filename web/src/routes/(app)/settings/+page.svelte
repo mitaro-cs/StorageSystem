@@ -192,7 +192,7 @@
 </script>
 
 <svelte:head
-	><title>{current ? `${current.label} · ` : ''}{t.nav.settings} · groupbase</title></svelte:head
+	><title>{current ? `${current.label} · ` : ''}{t.nav.settings} · Campus</title></svelte:head
 >
 
 <div class="page-head">

@@ -21,7 +21,7 @@ public final class PendingRestore {
     return dataDir.resolve(DIR).resolve(PENDING);
   }
 
-  /** Принимает архив: проверяет, что это бэкап groupbase, и ставит в очередь. */
+  /** Принимает архив: проверяет, что это бэкап Campus, и ставит в очередь. */
   public static void stage(Path zip, Path dataDir) throws IOException {
     tools.jackson.databind.JsonNode manifest = BackupService.readManifest(zip);
     BackupService.requireBackup(manifest);

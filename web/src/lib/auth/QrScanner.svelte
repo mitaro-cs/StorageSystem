@@ -70,7 +70,7 @@
 					open = false;
 					return goto(path);
 				}
-				if (text) error = 'Это не код входа groupbase';
+				if (text) error = 'Это не код входа Campus';
 			}
 			frame = requestAnimationFrame(tick);
 		};

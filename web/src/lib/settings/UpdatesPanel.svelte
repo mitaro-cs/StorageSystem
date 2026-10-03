@@ -72,7 +72,7 @@
 	<img class="mark" src={iconSrc(appIcon.id)} alt="" width="56" height="56" />
 	<div class="txt">
 		<span class="small muted">Установлена версия</span>
-		<strong class="num">groupbase {version}</strong>
+		<strong class="num">Campus {version}</strong>
 		<span class="state small {status.tone}" role="status">
 			{#if status.tone === 'ok'}<CircleCheck
 					size={15}

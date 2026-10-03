@@ -46,7 +46,7 @@ jobs:
       - run: ./mvnw -B -DskipTests package
       - uses: actions/upload-artifact@v5
         with:
-          name: groupbase-jar
+          name: campus-jar
           path: target/groupbase.jar
           retention-days: 7
 
@@ -85,7 +85,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v5
         with:
-          name: groupbase-jar
+          name: campus-jar
           path: target
       - uses: actions/setup-java@v5
         with:
@@ -142,7 +142,7 @@ jobs:
           # Без ls с несуществующим каталогом и без пайпа: в GitHub bash включён pipefail.
           src=$(find "$dir" -maxdepth 2 -type f \( -name '*.dmg' -o -name '*-setup.exe' \) -print -quit)
           [ -n "$src" ] || { echo "Установщик не найден в $dir" >&2; exit 1; }
-          name="groupbase-${{ needs.jar.outputs.version }}-${{ matrix.file }}"
+          name="campus-${{ needs.jar.outputs.version }}-${{ matrix.file }}"
           mkdir -p dist
           cp "$src" "dist/$name"
           # Для автообновления: подпись установщика Windows, архив приложения macOS с подписью.
@@ -155,7 +155,7 @@ jobs:
           ls -la dist
       - uses: actions/upload-artifact@v5
         with:
-          name: groupbase-${{ matrix.file }}
+          name: campus-${{ matrix.file }}
           path: dist/*
           retention-days: 14
 
@@ -169,8 +169,8 @@ jobs:
       - uses: actions/download-artifact@v5
         with:
           path: dist
-          # Только файлы выпуска (groupbase-*).
-          pattern: groupbase-*
+          # Только файлы выпуска (campus-*: установщики и jar).
+          pattern: campus-*
           merge-multiple: true
       - run: ls -la dist
       - name: Файл обновлений latest.json
@@ -179,19 +179,19 @@ jobs:
           base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
           # Без файла или подписи обновление на этой системе сломается — такой выпуск не публикуем.
           for f in macos-apple-silicon.app.tar.gz macos-intel.app.tar.gz windows-setup.exe; do
-            if [ ! -s "dist/groupbase-$v-$f" ] || [ ! -s "dist/groupbase-$v-$f.sig" ]; then
-              echo "Нет файла обновления или его подписи: groupbase-$v-$f" >&2
+            if [ ! -s "dist/campus-$v-$f" ] || [ ! -s "dist/campus-$v-$f.sig" ]; then
+              echo "Нет файла обновления или его подписи: campus-$v-$f" >&2
               exit 1
             fi
           done
-          sig() { cat "dist/groupbase-$v-$1.sig"; }
+          sig() { cat "dist/campus-$v-$1.sig"; }
           notes=$(awk -v h="## $v" '$0==h{f=1;next} /^## /{f=0} f' CHANGELOG.md 2>/dev/null)
           jq -n --arg v "$v" --arg notes "$notes" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg a "$base/groupbase-$v-macos-apple-silicon.app.tar.gz" \
+            --arg a "$base/campus-$v-macos-apple-silicon.app.tar.gz" \
             --arg as "$(sig macos-apple-silicon.app.tar.gz)" \
-            --arg i "$base/groupbase-$v-macos-intel.app.tar.gz" \
+            --arg i "$base/campus-$v-macos-intel.app.tar.gz" \
             --arg is "$(sig macos-intel.app.tar.gz)" \
-            --arg w "$base/groupbase-$v-windows-setup.exe" \
+            --arg w "$base/campus-$v-windows-setup.exe" \
             --arg ws "$(sig windows-setup.exe)" \
             '{version: $v, notes: $notes, pub_date: $date, platforms: {
               "darwin-aarch64": {signature: $as, url: $a},
@@ -206,5 +206,5 @@ jobs:
           v="${{ needs.jar.outputs.version }}"
           notes=$(awk -v h="## $v" '$0==h{f=1;next} /^## /{f=0} f' CHANGELOG.md 2>/dev/null)
           [ -n "$notes" ] || notes="Скачайте установщик для своего компьютера — инструкция в README."
-          gh release create "$GITHUB_REF_NAME" dist/* --title "groupbase $v" --notes "$notes" \
+          gh release create "$GITHUB_REF_NAME" dist/* --title "Campus $v" --notes "$notes" \
             || gh release upload "$GITHUB_REF_NAME" dist/* --clobber

@@ -51,7 +51,7 @@
 	}
 </script>
 
-<svelte:head><title>Предметы · groupbase</title></svelte:head>
+<svelte:head><title>Предметы · Campus</title></svelte:head>
 
 <div class="page-head">
 	<h1>Предметы</h1>

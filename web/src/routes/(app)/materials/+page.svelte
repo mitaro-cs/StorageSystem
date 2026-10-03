@@ -80,7 +80,7 @@
 	const title = $derived(crumbs[crumbs.length - 1].label);
 </script>
 
-<svelte:head><title>{title} · groupbase</title></svelte:head>
+<svelte:head><title>{title} · Campus</title></svelte:head>
 
 <div class="page-head"><h1>{subjectId === null ? 'Файлы' : (subject?.name ?? 'Файлы')}</h1></div>
 {#if subjectId !== null}<Crumbs items={crumbs} />{/if}

@@ -1,7 +1,7 @@
 {
 	"name": "groupbase-desktop",
 	"private": true,
-	"description": "Приложение хоста groupbase для macOS и Windows: сервер группы на своём компьютере",
+	"description": "Приложение хоста Campus для macOS и Windows: сервер группы на своём компьютере",
 	"scripts": {
 		"tauri": "tauri",
 		"dev": "tauri dev",

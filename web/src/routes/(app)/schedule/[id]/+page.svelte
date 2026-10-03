@@ -138,9 +138,7 @@
 		`${lessonKind(n.kind).label}, ${fmtWeekdayShort(n.startsAt)} ${fmtDate(n.startsAt, now)}`;
 </script>
 
-<svelte:head
-	><title>{l ? `${lessonName(l)} · ${kind.label}` : 'Пара'} · groupbase</title></svelte:head
->
+<svelte:head><title>{l ? `${lessonName(l)} · ${kind.label}` : 'Пара'} · Campus</title></svelte:head>
 
 <BackBar href={l ? `/schedule?week=${iso(l.startsAt)}` : '/schedule'} label="Расписание"
 	><Menu items={actions} label="Действия с парой" /></BackBar
