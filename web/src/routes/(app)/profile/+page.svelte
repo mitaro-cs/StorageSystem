@@ -7,8 +7,8 @@
 		CalendarDays,
 		ChevronLeft,
 		ChevronRight,
-		Database,
 		GraduationCap,
+		LogOut,
 		Palette,
 		ShieldCheck,
 		SlidersHorizontal,
@@ -51,14 +51,6 @@
 			desc: 'Пароль, 2FA и резервные коды, ключи входа',
 			icon: ShieldCheck,
 			tone: 'green',
-			part: 'account'
-		},
-		{
-			value: 'data',
-			label: 'Мои данные',
-			desc: 'Скачать всё своё, выйти, удалить аккаунт',
-			icon: Database,
-			tone: 'gray',
 			part: 'account'
 		},
 		{
@@ -171,13 +163,21 @@
 						aria-current={s.value === tab ? 'page' : undefined}
 						onclick={() => select(s.value)}
 					>
-						<span class="ic {s.tone}"><s.icon size={19} /></span>
+						<span class="ic {s.tone}"><s.icon size={22} /></span>
 						<span class="txt"><strong>{s.label}</strong><span>{s.desc}</span></span>
 						<ChevronRight size={16} class="chev" />
 					</button>
 				{/each}
 			</div>
 		{/each}
+		<!-- Выйти — на этом устройстве (код выхода грузится по нажатию). -->
+		<button
+			class="item card logout"
+			onclick={() => import('$lib/profile/logout').then((m) => m.logout())}
+		>
+			<span class="ic red"><LogOut size={22} /></span>
+			<span class="txt"><strong>Выйти</strong><span>На этом устройстве</span></span>
+		</button>
 	</nav>
 
 	<section class="content" aria-labelledby="profile-section">
@@ -200,8 +200,6 @@
 					{#await import('$lib/profile/AccountPanel.svelte') then m}<m.default />{/await}
 				{:else if tab === 'security'}
 					{#await import('$lib/profile/SecurityPanel.svelte') then m}<m.default />{/await}
-				{:else if tab === 'data'}
-					{#await import('$lib/profile/DataPanel.svelte') then m}<m.default />{/await}
 				{:else if tab === 'appearance'}
 					{#await import('$lib/shell/ThemePicker.svelte') then m}
 						<section class="card pane"><m.default /></section>
@@ -221,7 +219,7 @@
 <style>
 	.layout {
 		display: grid;
-		grid-template-columns: 300px minmax(0, 1fr);
+		grid-template-columns: 340px minmax(0, 1fr);
 		gap: var(--s5);
 		align-items: start;
 	}
@@ -276,13 +274,15 @@
 		background: var(--surface);
 		box-shadow: var(--shadow-1);
 	}
+	/* Меню разделов (0.7): крупные пункты, выбранный — заливкой, полосой и цветной иконкой. */
 	.item {
+		position: relative;
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		padding: 10px;
+		gap: 14px;
+		padding: 13px 12px;
 		border: 0;
-		border-radius: 12px;
+		border-radius: 14px;
 		background: transparent;
 		color: var(--text);
 		font: inherit;
@@ -293,16 +293,23 @@
 		background: var(--surface-2);
 	}
 	.item.on {
-		background: var(--surface-2);
-		box-shadow: inset 3px 0 0 var(--accent);
+		background: var(--accent-soft);
+		box-shadow: inset 4px 0 0 var(--accent);
+	}
+	.item.on .txt strong {
+		font-weight: 720;
+	}
+	.item.on .ic {
+		background: var(--c);
+		color: #fff;
 	}
 	.ic {
 		flex: none;
 		display: grid;
 		place-items: center;
-		width: 36px;
-		height: 36px;
-		border-radius: 11px;
+		width: 44px;
+		height: 44px;
+		border-radius: 13px;
 		color: var(--c);
 		background: color-mix(in srgb, var(--c) 13%, transparent);
 	}
@@ -336,11 +343,11 @@
 	}
 	.txt strong {
 		font-weight: 620;
-		font-size: 15px;
+		font-size: 16.5px;
 	}
 	.txt span {
 		color: var(--text-2);
-		font-size: 12.5px;
+		font-size: 13.5px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -450,7 +457,7 @@
 			display: none;
 		}
 		.item {
-			padding: 12px 10px;
+			padding: 14px 12px;
 		}
 		.item :global(.chev) {
 			display: block;

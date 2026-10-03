@@ -173,7 +173,7 @@
 			</p>
 			<div class="actions">
 				<Button variant="primary" onclick={start}>Поехали <ArrowRight size={17} /></Button>
-				<Button variant="ghost" onclick={close}>Сам разберусь</Button>
+				<Button variant="ghost" onclick={close}>Сам решу</Button>
 			</div>
 		</div>
 	{:else if phase === 'tour'}
