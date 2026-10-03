@@ -125,3 +125,28 @@ export interface PullProgress {
 	total: number;
 	error: string | null;
 }
+
+/** Второй компьютер хоста напрямую (PeerService). */
+export interface PeerView {
+	available: boolean;
+	role: 'off' | 'main' | 'second';
+	/** ok, offline, nobody (главный не отвечает), behind (версии разные), checking. */
+	state: string;
+	message: string | null;
+	computer: string | null;
+	url: string | null;
+	epoch: number;
+	syncedAt: number | null;
+	queued: number;
+	filesMissing: number;
+	nobodyFor: number;
+	cloud: boolean;
+	peers: {
+		computerId: string;
+		name: string;
+		createdAt: number;
+		seenAt: number | null;
+		here: boolean;
+	}[];
+	code: { code: string; expiresAt: number; url: string | null } | null;
+}

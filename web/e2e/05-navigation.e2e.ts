@@ -13,6 +13,8 @@ test('палитра Ctrl+K и горячие клавиши', async ({ page }) 
 	await page.screenshot({ path: 'test-results/shots/palette-dark.png', animations: 'disabled' });
 	await page.keyboard.press('Enter');
 	await expect(page).toHaveURL(/\/subjects\/\d+$/);
+	// Страница предмета дорисовалась — иначе нажатие клавиш может уйти в никуда.
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('Математический анализ');
 
 	// «Недавнее» появляется в палитре после открытия предмета.
 	await page.keyboard.press('Control+k');

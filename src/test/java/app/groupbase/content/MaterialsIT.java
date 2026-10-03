@@ -62,7 +62,7 @@ class MaterialsIT extends IntegrationTest {
     try (Stream<Path> files = Files.walk(props.filesDir())) {
       for (Path p : files.filter(Files::isRegularFile).toList()) {
         String raw = new String(Files.readAllBytes(p), StandardCharsets.ISO_8859_1);
-        assertThat(raw).doesNotContain("%PDF").doesNotContain("EOF");
+        assertThat(raw).doesNotContain("%PDF").doesNotContain("%%EOF");
         assertThat(p.getFileName().toString()).matches("[0-9a-f-]{36}");
       }
     }

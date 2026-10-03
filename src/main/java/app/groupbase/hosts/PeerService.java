@@ -1,0 +1,1056 @@
+package app.groupbase.hosts;
+
+import app.groupbase.access.AccessService;
+import app.groupbase.accounts.PublicUrl;
+import app.groupbase.auth.Tokens;
+import app.groupbase.backup.BackupService;
+import app.groupbase.backup.PendingRestore;
+import app.groupbase.config.GroupbaseProperties;
+import app.groupbase.desktop.DesktopBridge;
+import app.groupbase.store.SettingsStore;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.Clock;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Stream;
+import java.util.zip.GZIPOutputStream;
+import javax.sql.DataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.SmartLifecycle;
+import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+
+/**
+ * Два компьютера хоста напрямую, без облачной папки (0.8, просьба владельца): дома — ПК, в вузе —
+ * ноутбук, и на обоих в окне приложения можно работать.
+ *
+ * <ul>
+ *   <li>Адрес сайта для группы ведёт на <b>главный</b> компьютер. Второй держит полную копию: раз в
+ *       несколько секунд спрашивает у главного (по тому же адресу сайта), что нового, и забирает
+ *       снимок базы и недостающие файлы; свои файлы, которых нет у главного, отдаёт ему.
+ *   <li>Изменение в окне второго компьютера сразу уходит главному, а копия обновляется до ответа
+ *       окну. Нет связи — изменение применяется здесь же и ждёт в очереди; связь появилась — уходит
+ *       главному, и копия выравнивается по нему.
+ *   <li>Главный пропал (по адресу сайта отвечает страница туннеля, а интернет у второго есть)
+ *       дольше {@link #TAKEOVER_MS} — второй становится главным: поколение растёт, туннель
+ *       поднимается здесь. Вернувшийся компьютер видит главного старшего поколения и сам становится
+ *       вторым: свои изменения без связи отдаёт новому главному, а свою базу на всякий случай
+ *       откладывает в {@code peer/aside}.
+ * </ul>
+ *
+ * Сопряжение — кодом с экрана главного (как перенос по коду). У каждого компьютера свой ключ:
+ * открыт он только в его {@code hosts.properties}, а в базе (таблица {@code host_peers}, едет в
+ * копиях) — хеш, поэтому проверить другого может любой из них, когда станет главным.
+ */
+@Service
+public class PeerService implements SmartLifecycle {
+
+  private static final Logger log = LoggerFactory.getLogger(PeerService.class);
+
+  public enum Role {
+    OFF,
+    MAIN,
+    SECOND;
+
+    public String id() {
+      return name().toLowerCase(Locale.ROOT);
+    }
+
+    static Role of(String s) {
+      return switch (s == null ? "" : s) {
+        case "main" -> MAIN;
+        case "second" -> SECOND;
+        default -> OFF;
+      };
+    }
+  }
+
+  static final long TICK_MS = 5_000;
+  static final long PROBE_MS = 30_000;
+  static final long FILES_MS = 60_000;
+  static final long TAKEOVER_MS = 3 * 60_000;
+  static final Duration CODE_TTL = Duration.ofMinutes(15);
+  static final int MAX_WRONG = 5;
+  static final int KEEP_ASIDE = 3;
+  private static final String ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+  public record Code(String code, long expiresAt, String url) {}
+
+  /** Ответ главного на пересланное изменение — окну как есть. */
+  public record Reply(int status, String contentType, byte[] body) {}
+
+  public record Peer(String computerId, String name, long createdAt, Long seenAt, boolean here) {}
+
+  /**
+   * Что показать в «Управление → Сервер».
+   *
+   * @param state ok, offline (нет связи), nobody (главный не отвечает), behind (версии разные),
+   *     checking (главный проверяет, не работает ли сайт на другом компьютере)
+   * @param nobodyFor сколько главный уже не отвечает (мс) — до перехода сюда
+   */
+  public record View(
+      boolean available,
+      String role,
+      String state,
+      String message,
+      String computer,
+      String url,
+      long epoch,
+      Long syncedAt,
+      int queued,
+      int filesMissing,
+      long nobodyFor,
+      boolean cloud,
+      List<Peer> peers,
+      Code code) {}
+
+  /** Ошибка, понятная пользователю. */
+  public static final class Problem extends RuntimeException {
+    Problem(String message) {
+      super(message);
+    }
+  }
+
+  private final GroupbaseProperties props;
+  private final JdbcClient db;
+  private final DataSource dataSource;
+  private final SettingsStore settings;
+  private final HostService hosts;
+  private final AccessService access;
+  private final BackupService backups;
+  private final DesktopBridge bridge;
+  private final PublicUrl publicUrl;
+  private final Clock clock;
+  private final long tickMs;
+  private final long takeoverMs;
+  private final SecureRandom random = new SecureRandom();
+  private final HostsConfig cfg;
+  private final PeerQueue queue;
+
+  /** Данные второго компьютера меняются либо снимком главного, либо изменением без связи. */
+  private final ReentrantLock dataLock = new ReentrantLock();
+
+  /** Шаги синхронизации — по одному (фоновый и после изменения не тянут снимок одновременно). */
+  private final ReentrantLock stepLock = new ReentrantLock();
+
+  private volatile Role role = Role.OFF;
+  private volatile String state = "ok";
+  private volatile String message;
+  private volatile Long syncedAt;
+  private volatile int filesMissing;
+  private volatile long nobodySince;
+  private volatile long lastProbe;
+  private volatile long lastFiles;
+  private volatile boolean checking;
+
+  /** Главный убедился, что адрес сайта ведёт сюда: журнал изменений без связи не нужен. */
+  private volatile boolean confirmedHere;
+
+  private final Map<String, Long> seen = new ConcurrentHashMap<>();
+
+  private String code;
+  private long codeExpires;
+  private int wrong;
+
+  private ScheduledExecutorService timer;
+  private volatile boolean running;
+
+  public PeerService(
+      GroupbaseProperties props,
+      JdbcClient db,
+      DataSource dataSource,
+      SettingsStore settings,
+      HostService hosts,
+      AccessService access,
+      BackupService backups,
+      DesktopBridge bridge,
+      PublicUrl publicUrl,
+      Clock clock,
+      Environment env) {
+    this.props = props;
+    this.db = db;
+    this.dataSource = dataSource;
+    this.settings = settings;
+    this.hosts = hosts;
+    this.access = access;
+    this.backups = backups;
+    this.bridge = bridge;
+    this.publicUrl = publicUrl;
+    this.clock = clock;
+    // Для тестов: шаги — по команде теста, переход — без ожидания.
+    this.tickMs = env.getProperty("groupbase.peers.tick-ms", Long.class, TICK_MS);
+    this.takeoverMs = env.getProperty("groupbase.peers.takeover-ms", Long.class, TAKEOVER_MS);
+    this.cfg = hosts.config();
+    this.queue = new PeerQueue(props.dataDir());
+    if (cfg != null) {
+      role = Role.of(cfg.peerRole());
+    }
+    // До того как AccessService поднимет туннель: второй компьютер его не поднимает, а главный —
+    // только убедившись, что сайт не работает на другом компьютере (тот мог стать главным, пока
+    // этот был выключен).
+    if (role == Role.SECOND) {
+      access.suspend(SECOND_MESSAGE);
+    } else if (role == Role.MAIN) {
+      checking = true;
+      state = "checking";
+      access.suspend("Проверяем, не работает ли сайт на втором компьютере…");
+    }
+  }
+
+  static final String SECOND_MESSAGE =
+      "Это второй компьютер хоста: сайт для группы работает на главном.";
+
+  public Role role() {
+    return role;
+  }
+
+  /** Изменения в окне этого компьютера пересылаются главному. */
+  public boolean second() {
+    return role == Role.SECOND;
+  }
+
+  /**
+   * Главный без подтверждённой связи: изменения окна ещё и записываются (вдруг главный уже другой).
+   */
+  public boolean journaling() {
+    return role == Role.MAIN && !confirmedHere;
+  }
+
+  PeerQueue queue() {
+    return queue;
+  }
+
+  // ---------- главный: сопряжение ----------
+
+  /** Код для второго компьютера; этот компьютер становится главным, если ещё не был. */
+  public synchronized Code newCode() {
+    requireApp();
+    if (hosts.cloudEnabled()) {
+      throw new Problem(
+          "Включён перенос через облачную папку — выключите его, чтобы связать компьютеры"
+              + " напрямую");
+    }
+    if (role == Role.SECOND) {
+      throw new Problem("Код даёт главный компьютер — тот, где сайт работает для группы");
+    }
+    try {
+      // https — или адрес в локальной сети: по нему второй компьютер найдёт этот.
+      TransferClient.normalize(publicUrl.get().orElse(""));
+    } catch (IOException e) {
+      throw new Problem(
+          "Сначала включите доступ для группы по адресу https://… — по нему второй компьютер"
+              + " найдёт этот");
+    }
+    if (role == Role.OFF) {
+      becomeMain(Math.max(1, cfg.peerEpoch()));
+    }
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < 12; i++) {
+      sb.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
+    }
+    code = sb.toString();
+    codeExpires = clock.millis() + CODE_TTL.toMillis();
+    wrong = 0;
+    return codeView();
+  }
+
+  public synchronized Code code() {
+    if (code != null && clock.millis() > codeExpires) {
+      code = null;
+    }
+    return code == null ? null : codeView();
+  }
+
+  private Code codeView() {
+    return new Code(
+        code.substring(0, 4) + "-" + code.substring(4, 8) + "-" + code.substring(8),
+        codeExpires,
+        publicUrl.get().orElse(null));
+  }
+
+  /** Второй компьютер пришёл с кодом: выдать ему ключ. */
+  public synchronized Map<String, Object> pair(String given, String computerId, String name) {
+    if (role != Role.MAIN) {
+      throw new Problem("Этот компьютер сейчас не главный — возьмите код там, где работает сайт");
+    }
+    if (code == null || clock.millis() > codeExpires) {
+      code = null;
+      throw new Problem("Код устарел или не выдавался — возьмите новый на главном компьютере");
+    }
+    String g = TransferService.normalize(given);
+    if (!MessageDigest.isEqual(
+        g.getBytes(StandardCharsets.US_ASCII), code.getBytes(StandardCharsets.US_ASCII))) {
+      if (++wrong >= MAX_WRONG) {
+        code = null;
+      }
+      throw new Problem("Неверный код");
+    }
+    String id = computerId == null ? "" : computerId.strip();
+    if (!id.matches("[0-9a-fA-F-]{8,64}") || id.equals(cfg.computerId())) {
+      throw new Problem("Не похоже на компьютер groupbase — обновите приложение там");
+    }
+    code = null;
+    String token = Tokens.newToken();
+    savePeer(id, cleanName(name), token);
+    log.info("Второй компьютер хоста подключён");
+    return Map.of(
+        "token", token, "site", siteId(), "computer", cfg.computerId(), "epoch", cfg.peerEpoch());
+  }
+
+  public synchronized void removePeer(String computerId) {
+    requireApp();
+    if (computerId == null || computerId.equals(cfg.computerId())) {
+      throw new Problem("Этот компьютер отключить отсюда нельзя");
+    }
+    db.sql("DELETE FROM host_peers WHERE computer_id = ?").param(computerId).update();
+    seen.remove(computerId);
+  }
+
+  private void savePeer(String computerId, String name, String token) {
+    db.sql(
+            """
+            INSERT INTO host_peers (computer_id, name, token_hash, created_at) VALUES (?, ?, ?, ?)
+            ON CONFLICT (computer_id) DO UPDATE SET name = excluded.name,
+              token_hash = excluded.token_hash
+            """)
+        .params(computerId, name, Tokens.sha256(token), clock.millis())
+        .update();
+  }
+
+  private static String cleanName(String name) {
+    String n = name == null ? "" : name.strip();
+    if (n.isEmpty()) {
+      n = "Компьютер";
+    }
+    return n.length() > 40 ? n.substring(0, 40) : n;
+  }
+
+  private String siteId() {
+    return settings
+        .get(HostService.SITE_ID)
+        .filter(s -> !s.isBlank())
+        .orElseGet(
+            () -> {
+              String id = UUID.randomUUID().toString();
+              settings.set(HostService.SITE_ID, id);
+              return id;
+            });
+  }
+
+  /**
+   * Чей это запрос: «номер ключ» в заголовке {@value PeerClient#PEER}. Ключ проверяется по хешу из
+   * базы.
+   */
+  public Optional<String> authenticate(String header) {
+    if (header == null || role == Role.OFF) {
+      return Optional.empty();
+    }
+    int space = header.indexOf(' ');
+    if (space <= 0) {
+      return Optional.empty();
+    }
+    String id = header.substring(0, space);
+    String token = header.substring(space + 1).strip();
+    if (!Tokens.looksValid(token)) {
+      return Optional.empty();
+    }
+    Optional<byte[]> hash =
+        db.sql("SELECT token_hash FROM host_peers WHERE computer_id = ?")
+            .param(id)
+            .query(byte[].class)
+            .optional();
+    if (hash.isEmpty() || !MessageDigest.isEqual(hash.get(), Tokens.sha256(token))) {
+      return Optional.empty();
+    }
+    seen.put(id, clock.millis());
+    return Optional.of(id);
+  }
+
+  // ---------- главный: что отдаёт второму ----------
+
+  /** Отвечать второму может только главный (сайт работает здесь). */
+  public void requireMain() {
+    if (role != Role.MAIN) {
+      throw new Problem("Этот компьютер сейчас не главный");
+    }
+  }
+
+  public Map<String, Object> state() {
+    requireMain();
+    return Map.of(
+        "site",
+        siteId(),
+        "computer",
+        cfg.computerId(),
+        "epoch",
+        cfg.peerEpoch(),
+        "seq",
+        seq(),
+        "schema",
+        schema());
+  }
+
+  /** Полная копия (как резервная, с ключами и файлами) — для первого подключения второго. */
+  public void writeCopy(OutputStream out) throws IOException {
+    requireMain();
+    backups.write(out);
+  }
+
+  /** Согласованный снимок базы, сжатый. */
+  public void writeDb(OutputStream out) throws IOException {
+    requireMain();
+    Path dir = props.dataDir().resolve("peer");
+    Files.createDirectories(dir);
+    Path snap =
+        dir.resolve("out-" + clock.millis() + "-" + Thread.currentThread().threadId() + ".db");
+    Files.deleteIfExists(snap);
+    try {
+      db.sql("VACUUM INTO ?").param(snap.toAbsolutePath().toString()).update();
+      GZIPOutputStream gz = new GZIPOutputStream(out, 64 * 1024);
+      Files.copy(snap, gz);
+      gz.finish();
+      gz.flush();
+    } finally {
+      Files.deleteIfExists(snap);
+    }
+  }
+
+  /** Файлы и аватары этого компьютера: «files/…», «avatars/…». */
+  public List<String> files() throws IOException {
+    List<String> out = new ArrayList<>();
+    for (String top : List.of("files", "avatars")) {
+      Path root = props.dataDir().resolve(top);
+      if (!Files.isDirectory(root)) {
+        continue;
+      }
+      try (Stream<Path> walk = Files.walk(root)) {
+        for (Path p : walk.filter(Files::isRegularFile).toList()) {
+          String rel = root.relativize(p).toString().replace('\\', '/');
+          if (!rel.endsWith(".part") && !rel.endsWith(".tmp")) {
+            out.add(top + "/" + rel);
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  /** Путь файла по имени из списка — только внутри files/ и avatars/. */
+  public Path file(String name) {
+    String n = name == null ? "" : name.replace('\\', '/');
+    if (!(n.startsWith("files/") || n.startsWith("avatars/"))
+        || n.contains("..")
+        || !n.matches("[A-Za-z0-9._/-]{3,200}")) {
+      throw new Problem("Недопустимое имя файла");
+    }
+    Path data = props.dataDir().toAbsolutePath().normalize();
+    Path p = data.resolve(n).normalize();
+    if (!p.startsWith(data.resolve(n.substring(0, n.indexOf('/'))))) {
+      throw new Problem("Недопустимое имя файла");
+    }
+    return p;
+  }
+
+  /**
+   * Принять файл от второго компьютера (у главного его не было). Файлы не меняются — не затираем.
+   */
+  public void putFile(String name, InputStream in) throws IOException {
+    requireMain();
+    Path target = file(name);
+    if (Files.exists(target)) {
+      in.transferTo(OutputStream.nullOutputStream());
+      return;
+    }
+    Files.createDirectories(target.getParent());
+    Path part = target.resolveSibling(target.getFileName() + ".part");
+    try (OutputStream out = Files.newOutputStream(part)) {
+      in.transferTo(out);
+    }
+    Files.move(part, target, StandardCopyOption.ATOMIC_MOVE);
+  }
+
+  private long seq() {
+    return db.sql("SELECT COALESCE(MAX(seq), 0) FROM changes").query(Long.class).single();
+  }
+
+  private int schema() {
+    return db.sql(
+            "SELECT COALESCE(MAX(CAST(version AS INTEGER)), 0) FROM flyway_schema_history"
+                + " WHERE success = 1")
+        .query(Integer.class)
+        .single();
+  }
+
+  // ---------- второй: подключиться ----------
+
+  /**
+   * Подключить этот компьютер вторым: получить ключ по коду, скачать полную копию и перезапуститься
+   * — данные встанут при запуске. Прежние данные этого компьютера не удаляются — откладываются в
+   * before-restore-….
+   */
+  public String join(String siteUrl, String given) {
+    requireApp();
+    if (hosts.cloudEnabled()) {
+      throw new Problem(
+          "Выключите перенос через облачную папку — компьютеры будут связаны напрямую");
+    }
+    if (role != Role.OFF) {
+      throw new Problem("Этот компьютер уже связан с другим");
+    }
+    Path data = props.dataDir();
+    Path zip = data.resolve("restore").resolve("peer-" + clock.millis() + ".zip");
+    try {
+      PeerClient.Paired p = PeerClient.pair(siteUrl, given, cfg.computerId(), cfg.computerName());
+      String url = TransferClient.normalize(siteUrl).toString();
+      PeerClient client = new PeerClient(url, cfg.computerId(), p.token());
+      client.download("/api/host/peer/copy", zip, false);
+      try {
+        SiteFolder.verify(zip);
+      } catch (IOException e) {
+        throw new IOException("Копия пришла не целиком — попробуйте ещё раз", e);
+      }
+      PendingRestore.stage(zip, data);
+      synchronized (this) {
+        cfg.setPeerRole(Role.SECOND.id());
+        cfg.setPeerToken(p.token());
+        cfg.setPeerUrl(url);
+        cfg.setPeerEpoch(p.epoch());
+        cfg.setPeerApplied(0);
+        saveCfg();
+        role = Role.SECOND;
+        access.suspend(SECOND_MESSAGE);
+      }
+      queue.clear();
+      log.info("Этот компьютер подключён вторым к сайту — перезапуск");
+      if (bridge.enabled()) {
+        CompletableFuture.delayedExecutor(700, TimeUnit.MILLISECONDS)
+            .execute(bridge::requestRestart);
+      }
+      return "Данные сайта получены — перезапускаемся…";
+    } catch (IOException e) {
+      throw new Problem(e.getMessage());
+    } finally {
+      try {
+        Files.deleteIfExists(zip);
+      } catch (IOException ignored) {
+        // временный файл — уберётся с каталогом restore
+      }
+    }
+  }
+
+  // ---------- шаги ----------
+
+  /** Один шаг: второй — синхронизация и очередь, главный — проверка, что адрес сайта ведёт сюда. */
+  void tick() {
+    if (cfg == null) {
+      return;
+    }
+    try {
+      switch (role) {
+        case SECOND -> secondStep(false);
+        case MAIN -> mainStep(false);
+        case OFF -> {}
+      }
+    } catch (RuntimeException e) {
+      message = "Ошибка синхронизации: " + e.getMessage();
+      log.warn("Шаг синхронизации компьютеров не удался: {}", e.getMessage());
+    }
+  }
+
+  /** «Синхронизировать сейчас» и после изменения, пересланного главному. */
+  public View syncNow() {
+    requireApp();
+    if (role == Role.SECOND) {
+      secondStep(true);
+    } else if (role == Role.MAIN) {
+      mainStep(true);
+    }
+    return view();
+  }
+
+  private PeerClient client() throws IOException {
+    String url = role == Role.SECOND ? cfg.peerUrl() : publicUrl.get().orElse("");
+    return new PeerClient(url, cfg.computerId(), cfg.peerToken());
+  }
+
+  private void secondStep(boolean force) {
+    stepLock.lock();
+    try {
+      secondStepLocked(force);
+    } finally {
+      stepLock.unlock();
+    }
+  }
+
+  private void secondStepLocked(boolean force) {
+    long now = clock.millis();
+    try {
+      PeerClient c = client();
+      replay(c);
+      PeerClient.State st = c.state();
+      nobodySince = 0;
+      if (st.computer().equals(cfg.computerId())) {
+        return; // адрес сайта ведёт сюда — так быть не должно; подождём
+      }
+      if (!st.site().isBlank() && !st.site().equals(siteId())) {
+        state = "behind";
+        message = "Главный компьютер обслуживает другой сайт — подключите этот заново";
+        return;
+      }
+      int mine = schema();
+      if (st.schema() != mine) {
+        state = "behind";
+        message =
+            st.schema() > mine
+                ? "На главном компьютере groupbase новее — обновите и этот"
+                : "На этом компьютере groupbase новее — обновите главный";
+        return;
+      }
+      boolean pulled = false;
+      if (force || st.epoch() != cfg.peerEpoch() || st.seq() != cfg.peerApplied()) {
+        pull(c, st);
+        pulled = true;
+      }
+      if (pulled || force || now - lastFiles >= FILES_MS) {
+        reconcile(c);
+        lastFiles = now;
+      }
+      state = "ok";
+      message = null;
+      syncedAt = now;
+    } catch (PeerClient.NoServer e) {
+      // Адрес сайта отвечает страницей туннеля: главный выключен, а интернет здесь есть.
+      if (nobodySince == 0) {
+        nobodySince = now;
+      }
+      state = "nobody";
+      message = "Главный компьютер не отвечает";
+      if (now - nobodySince >= takeoverMs) {
+        takeOver("главный компьютер не отвечает");
+      }
+    } catch (IOException e) {
+      nobodySince = 0;
+      state = "offline";
+      message = "Нет связи с главным компьютером — изменения подождут здесь";
+    }
+  }
+
+  private void mainStep(boolean force) {
+    stepLock.lock();
+    try {
+      mainStepLocked(force);
+    } finally {
+      stepLock.unlock();
+    }
+  }
+
+  private void mainStepLocked(boolean force) {
+    long now = clock.millis();
+    if (!force && now - lastProbe < (checking ? TICK_MS : PROBE_MS)) {
+      return;
+    }
+    lastProbe = now;
+    try {
+      PeerClient.State st = client().state();
+      if (st.computer().equals(cfg.computerId())) {
+        confirmedHere = true;
+        queue.clear();
+        state = "ok";
+        message = null;
+        return;
+      }
+      if (st.epoch() >= cfg.peerEpoch()) {
+        // Пока этот компьютер был без связи, главным стал другой.
+        demote(st);
+      }
+    } catch (PeerClient.NoServer e) {
+      // По адресу сайта никто не отвечает: сайт нигде не работает — поднимаем туннель здесь.
+      confirmedHere = false;
+      if (checking) {
+        checking = false;
+        state = "ok";
+        message = null;
+        access.resume();
+        log.info("Сайт ни на одном компьютере не работает — главный поднимает туннель");
+      }
+    } catch (IOException e) {
+      // Нет связи: туннель не поднимется и так; изменения окна записываются на всякий случай.
+      confirmedHere = false;
+      state = checking ? "checking" : "offline";
+      message =
+          checking
+              ? "Нет интернета — сайт для группы откроется, когда связь появится"
+              : "Нет связи с адресом сайта — изменения сохраняются и здесь";
+    }
+  }
+
+  /** Отправить главному изменения из очереди — по порядку; при обрыве остановиться. */
+  private void replay(PeerClient c) throws IOException {
+    for (PeerQueue.Item i : queue.list()) {
+      PeerClient.Reply r = c.forward(i.method(), i.uri(), i.contentType(), i.userId(), i.body());
+      if (r.status() >= 400) {
+        log.warn(
+            "Изменение из очереди главный не принял ({}): {} {}",
+            r.status(),
+            i.method(),
+            i.uri().replaceAll("\\?.*", ""));
+      }
+      queue.remove(i.id());
+    }
+  }
+
+  /** Забрать снимок базы главного и подменить им здешнюю — с сохранением своих сессий. */
+  private void pull(PeerClient c, PeerClient.State st) throws IOException {
+    Path dir = props.dataDir().resolve("peer");
+    Path incoming = dir.resolve("incoming.db");
+    c.download("/api/host/peer/db", incoming, true);
+    try {
+      check(incoming);
+      dataLock.lock();
+      try {
+        applySnapshot(incoming);
+      } finally {
+        dataLock.unlock();
+      }
+      cfg.setPeerEpoch(st.epoch());
+      cfg.setPeerApplied(st.seq());
+      saveCfg();
+    } finally {
+      Files.deleteIfExists(incoming);
+    }
+  }
+
+  /** Снимок цел: открывается и проходит быструю проверку SQLite. */
+  static void check(Path file) throws IOException {
+    try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + file.toAbsolutePath());
+        Statement st = c.createStatement();
+        ResultSet rs = st.executeQuery("PRAGMA quick_check")) {
+      if (!rs.next() || !"ok".equalsIgnoreCase(rs.getString(1))) {
+        throw new IOException("Снимок базы пришёл повреждённым");
+      }
+    } catch (SQLException e) {
+      throw new IOException("Снимок базы не открывается: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Подменить базу снимком ({@code restore from} — SQLite копирует страницы в открытую базу, сервер
+   * не останавливается). Сессии этого компьютера (окно приложения, вход по сети) остаются.
+   */
+  void applySnapshot(Path snapshot) {
+    List<Map<String, Object>> sessions = db.sql("SELECT * FROM sessions").query().listOfRows();
+    try (Connection c = dataSource.getConnection();
+        Statement st = c.createStatement()) {
+      st.executeUpdate(
+          "restore from '" + snapshot.toAbsolutePath().toString().replace("'", "''") + "'");
+    } catch (SQLException e) {
+      // База занята — попробуем на следующем шаге; это не обрыв связи.
+      throw new Problem("Не удалось применить снимок базы: " + e.getMessage());
+    }
+    for (Map<String, Object> row : sessions) {
+      List<String> cols = new ArrayList<>(row.keySet());
+      String sql =
+          "INSERT OR IGNORE INTO sessions ("
+              + String.join(", ", cols)
+              + ") SELECT "
+              + String.join(", ", cols.stream().map(k -> "?").toList())
+              + " WHERE EXISTS (SELECT 1 FROM users WHERE id = ?)";
+      List<Object> params = new ArrayList<>();
+      for (String k : cols) {
+        params.add(row.get(k));
+      }
+      params.add(row.get("user_id"));
+      try {
+        db.sql(sql).params(params).update();
+      } catch (RuntimeException e) {
+        // столбцы разошлись (версии разные) — сессия просто пропадёт, войти можно снова
+      }
+    }
+  }
+
+  /** Файлы: недостающие — скачать, лишние (у главного нет) — отдать ему. */
+  private void reconcile(PeerClient c) throws IOException {
+    Set<String> remote = new HashSet<>(c.files());
+    Set<String> local = new HashSet<>(files());
+    int missing = 0;
+    for (String name : remote) {
+      if (local.contains(name)) {
+        continue;
+      }
+      try {
+        c.getFile(name, file(name));
+      } catch (Problem | PeerClient.NoServer e) {
+        missing++;
+      } catch (IOException e) {
+        missing++;
+      }
+    }
+    for (String name : local) {
+      if (remote.contains(name)) {
+        continue;
+      }
+      try {
+        c.putFile(name, file(name));
+      } catch (IOException e) {
+        missing++;
+      }
+    }
+    filesMissing = missing;
+  }
+
+  // ---------- кто главный ----------
+
+  private void becomeMain(long epoch) {
+    cfg.setPeerRole(Role.MAIN.id());
+    if (cfg.peerToken().isBlank()) {
+      cfg.setPeerToken(Tokens.newToken());
+    }
+    cfg.setPeerEpoch(epoch);
+    saveCfg();
+    savePeer(cfg.computerId(), cfg.computerName(), cfg.peerToken());
+    role = Role.MAIN;
+    checking = false;
+    confirmedHere = false;
+  }
+
+  /**
+   * Второй становится главным: поколение растёт, номера журнала изменений уходят вперёд (телефоны
+   * не примут новые изменения за уже полученные), туннель поднимается здесь.
+   */
+  synchronized void takeOver(String why) {
+    if (role != Role.SECOND) {
+      return;
+    }
+    becomeMain(cfg.peerEpoch() + 1);
+    // Изменения из очереди здесь уже применены — эта база теперь главная.
+    queue.clear();
+    try {
+      if (db.sql("UPDATE sqlite_sequence SET seq = seq + 1000 WHERE name = 'changes'").update()
+          == 0) {
+        db.sql("INSERT INTO sqlite_sequence (name, seq) VALUES ('changes', 1000)").update();
+      }
+    } catch (RuntimeException e) {
+      log.warn("Не сдвинуть номера журнала изменений: {}", e.getMessage());
+    }
+    nobodySince = 0;
+    state = "ok";
+    message = null;
+    access.resume();
+    log.info("Этот компьютер стал главным: {}", why);
+  }
+
+  /** «Сделать главным» вручную — когда главный точно не вернётся (сломался, продан). */
+  public View makeMain() {
+    requireApp();
+    if (role != Role.SECOND) {
+      throw new Problem("Этот компьютер и так главный");
+    }
+    try {
+      client().state();
+      throw new Problem(
+          "Главный компьютер на связи — сайт работает там. Закройте приложение на нём, и этот"
+              + " станет главным сам");
+    } catch (PeerClient.NoServer e) {
+      takeOver("вручную");
+    } catch (IOException e) {
+      throw new Problem(
+          "Нет интернета — сделать этот компьютер главным можно, когда связь появится");
+    }
+    return view();
+  }
+
+  /**
+   * Главным стал другой компьютер (этот был без связи): база этого — в сторону, изменения без связи
+   * — новому главному, дальше этот — второй.
+   */
+  private synchronized void demote(PeerClient.State st) {
+    if (role != Role.MAIN) {
+      return;
+    }
+    log.info("Главным стал другой компьютер — этот становится вторым");
+    access.suspend(SECOND_MESSAGE);
+    putAside();
+    cfg.setPeerRole(Role.SECOND.id());
+    cfg.setPeerUrl(publicUrl.get().orElse(cfg.peerUrl()));
+    cfg.setPeerApplied(-1);
+    saveCfg();
+    role = Role.SECOND;
+    checking = false;
+    confirmedHere = false;
+    secondStep(true);
+  }
+
+  /**
+   * Копия базы перед тем, как её заменит снимок нового главного (последние {@value #KEEP_ASIDE}).
+   */
+  private void putAside() {
+    Path dir = props.dataDir().resolve("peer").resolve("aside");
+    try {
+      Files.createDirectories(dir);
+      db.sql("VACUUM INTO ?")
+          .param(dir.resolve("before-" + clock.millis() + ".db").toAbsolutePath().toString())
+          .update();
+      try (Stream<Path> files = Files.list(dir)) {
+        List<Path> all = files.filter(f -> f.toString().endsWith(".db")).sorted().toList();
+        for (int i = 0; i < all.size() - KEEP_ASIDE; i++) {
+          Files.deleteIfExists(all.get(i));
+        }
+      }
+    } catch (IOException | RuntimeException e) {
+      log.warn("Не удалось отложить копию базы перед переходом: {}", e.getMessage());
+    }
+  }
+
+  // ---------- изменения окна ----------
+
+  /** Ответ главного на пересланное изменение; null — нет связи (изменение остаётся здесь). */
+  public Reply forward(String method, String uri, String contentType, long userId, Path body) {
+    try {
+      PeerClient c = client();
+      PeerClient.Reply r = c.forward(method, uri, contentType, userId, body);
+      if (r.status() == 409
+          && new String(r.body(), StandardCharsets.UTF_8).contains("\"not_main\"")) {
+        // По адресу сайта отвечает компьютер, который сейчас не главный, — как без связи.
+        return null;
+      }
+      if (r.status() < 400) {
+        // Окно сразу увидит своё изменение: копия обновляется до ответа.
+        try {
+          secondStep(true);
+        } catch (RuntimeException e) {
+          log.warn("Копия не обновилась после изменения: {}", e.getMessage());
+        }
+      }
+      return new Reply(r.status(), r.contentType(), r.body());
+    } catch (IOException e) {
+      return null;
+    }
+  }
+
+  /** Записать изменение в очередь (тело переносится в очередь). */
+  public void enqueue(String method, String uri, String contentType, long userId, Path body)
+      throws IOException {
+    queue.add(method, uri, contentType, userId, clock.millis(), body);
+  }
+
+  public Path tempBody() throws IOException {
+    return queue.tempBody();
+  }
+
+  /** Применить изменение здесь, пока снимок главного не подменяет базу. */
+  public void locally(Runnable apply) {
+    dataLock.lock();
+    try {
+      apply.run();
+    } finally {
+      dataLock.unlock();
+    }
+  }
+
+  // ---------- для интерфейса ----------
+
+  public View view() {
+    boolean available = cfg != null;
+    List<Peer> peers = List.of();
+    if (available && role != Role.OFF) {
+      peers =
+          db.sql("SELECT computer_id, name, created_at FROM host_peers ORDER BY created_at")
+              .query(
+                  (rs, i) -> {
+                    String id = rs.getString(1);
+                    return new Peer(
+                        id,
+                        rs.getString(2),
+                        rs.getLong(3),
+                        seen.get(id),
+                        id.equals(cfg.computerId()));
+                  })
+              .list();
+    }
+    long now = clock.millis();
+    return new View(
+        available,
+        role.id(),
+        state,
+        message,
+        available ? cfg.computerName() : null,
+        role == Role.SECOND ? cfg.peerUrl() : publicUrl.get().orElse(null),
+        available ? cfg.peerEpoch() : 0,
+        syncedAt,
+        queue.size(),
+        filesMissing,
+        nobodySince == 0 ? 0 : now - nobodySince,
+        available && hosts.cloudEnabled(),
+        peers,
+        role == Role.MAIN ? code() : null);
+  }
+
+  private void requireApp() {
+    if (cfg == null) {
+      throw new Problem("Это доступно только в приложении хоста на компьютере");
+    }
+  }
+
+  private void saveCfg() {
+    try {
+      cfg.save();
+    } catch (IOException e) {
+      log.warn("Не сохранить настройки компьютера хоста: {}", e.getMessage());
+    }
+  }
+
+  // ---------- жизненный цикл ----------
+
+  @Override
+  public synchronized void start() {
+    running = true;
+    if (cfg == null || tickMs <= 0) {
+      return;
+    }
+    timer =
+        Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().name("peers-", 0).factory());
+    timer.scheduleWithFixedDelay(this::tick, 2_000, tickMs, TimeUnit.MILLISECONDS);
+  }
+
+  @Override
+  public synchronized void stop() {
+    running = false;
+    if (timer != null) {
+      timer.shutdownNow();
+      timer = null;
+    }
+  }
+
+  @Override
+  public boolean isRunning() {
+    return running;
+  }
+}

@@ -151,6 +151,53 @@ public final class HostsConfig {
     p.setProperty("failed.version", snapshot == null ? "" : version);
   }
 
+  // ---------- два компьютера напрямую (PeerService) ----------
+
+  /** main — сайт работает здесь, second — второй компьютер, "" — не сопряжён. */
+  public synchronized String peerRole() {
+    return p.getProperty("peer.role", "");
+  }
+
+  public synchronized void setPeerRole(String role) {
+    p.setProperty("peer.role", role == null ? "" : role);
+  }
+
+  /** Ключ этого компьютера для обмена с другим (в базе — только его хеш). */
+  public synchronized String peerToken() {
+    return p.getProperty("peer.token", "");
+  }
+
+  public synchronized void setPeerToken(String token) {
+    p.setProperty("peer.token", token == null ? "" : token);
+  }
+
+  /** Адрес сайта, по которому второй компьютер ходит к главному. */
+  public synchronized String peerUrl() {
+    return p.getProperty("peer.url", "");
+  }
+
+  public synchronized void setPeerUrl(String url) {
+    p.setProperty("peer.url", url == null ? "" : url);
+  }
+
+  /** Поколение: растёт, когда главным становится другой компьютер; старшее не уступает. */
+  public synchronized long peerEpoch() {
+    return number("peer.epoch");
+  }
+
+  public synchronized void setPeerEpoch(long epoch) {
+    p.setProperty("peer.epoch", String.valueOf(epoch));
+  }
+
+  /** Номер журнала изменений главного, до которого данные здесь совпадают с ним. */
+  public synchronized long peerApplied() {
+    return number("peer.applied");
+  }
+
+  public synchronized void setPeerApplied(long seq) {
+    p.setProperty("peer.applied", String.valueOf(seq));
+  }
+
   private long number(String key) {
     try {
       return Long.parseLong(p.getProperty(key, "0").strip());

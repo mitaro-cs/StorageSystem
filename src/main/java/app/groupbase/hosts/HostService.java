@@ -238,6 +238,16 @@ public class HostService implements SmartLifecycle {
     }
   }
 
+  /** Настройки этого компьютера (общие с {@link PeerService}); null — не приложение хоста. */
+  HostsConfig config() {
+    return cfg;
+  }
+
+  /** Включён ли перенос через облачную папку (с прямой связью компьютеров он не совмещается). */
+  public synchronized boolean cloudEnabled() {
+    return folder != null;
+  }
+
   static final String MOVED_MESSAGE = "Сайт перенесён на другой компьютер.";
 
   /** Сайт работает здесь (или перенос выключен): API открыт, фоновые копии делаются. */

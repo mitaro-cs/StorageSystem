@@ -178,6 +178,19 @@ class DesktopIT extends IntegrationTest {
   }
 
   @Test
+  void dataFolderChoiceOnlyFromTheHostWindow() {
+    ApiClient host = client();
+    admin();
+    host.get(enterPath());
+    assertThat(host.post("/api/desktop/data-folder", Map.of()).status()).isEqualTo(200);
+    ApiClient phone = client().header("X-Forwarded-For", "198.51.100.32");
+    assertThat(phone.post("/api/desktop/data-folder", Map.of()).status()).isIn(401, 403);
+    // Путь к данным (в нём имя пользователя) — только окну на этом компьютере.
+    assertThat(host.get("/api/setup").json().has("dataDir")).isTrue();
+    assertThat(phone.get("/api/setup").json().has("dataDir")).isFalse();
+  }
+
+  @Test
   void iconChoiceReachesTheShellOnlyFromTheHostWindow() {
     ApiClient host = client();
     admin();

@@ -2,8 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { ArrowLeftRight, Check, Cloud, History } from '@lucide/svelte';
-	import PullForm from '$lib/hosts/PullForm.svelte';
+	import { ArrowLeftRight, Check, Cloud, FolderInput, History, Laptop } from '@lucide/svelte';
 	import { putFile } from '$lib/upload';
 	import { waitForRestart } from '$lib/settings/server/restart';
 	import type { FoundSite } from '$lib/settings/server/types';
@@ -41,6 +40,8 @@
 
 	// Сайт уже работает на другом компьютере — забрать его сюда по коду переноса, без файлов.
 	let byCode = $state(false);
+	// Второй компьютер хоста напрямую: сайт работает на главном, этот держит копию.
+	let byPeer = $state(false);
 	let pulling = $state(false);
 
 	// Второй компьютер хоста: сайт уже лежит в облачной папке — его сохранил туда другой компьютер.
@@ -56,6 +57,26 @@
 			sites = [];
 		}
 	}
+	// В приложении хоста: где будут лежать данные сайта — можно выбрать другую папку (диск D:,
+	// внешний диск) до того, как они появятся.
+	let dataDir = $state('');
+	onMount(() => {
+		request<{ needed: boolean; dataDir?: string }>('/api/setup', { anonymous: true })
+			.then((r) => (dataDir = r.dataDir ?? ''))
+			.catch(() => {});
+	});
+	async function chooseFolder() {
+		try {
+			await post(
+				`/api/setup/data-folder?code=${encodeURIComponent(code.trim())}`,
+				{},
+				{ anonymous: true }
+			);
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Ошибка';
+		}
+	}
+
 	onMount(() => {
 		findSites();
 		// Облачный диск может докачивать папку — проверяем ещё, пока открыта страница.
@@ -155,6 +176,16 @@
 		<p>{restoreMessage}</p>
 	</div>
 {:else}
+	{#if dataDir && code.trim()}
+		<section class="where" aria-label="Папка с данными">
+			<FolderInput size={18} />
+			<div class="grow">
+				<strong>Данные сайта хранятся здесь</strong>
+				<span class="faint small path" title={dataDir}>{dataDir}</span>
+			</div>
+			<Button size="s" onclick={chooseFolder}>Изменить…</Button>
+		</section>
+	{/if}
 	{#if sites.length}
 		<section class="found" aria-label="Сайты в облачной папке">
 			<p class="found-head"><Cloud size={18} /> <strong>Уже есть сайт в облачной папке</strong></p>
@@ -179,32 +210,67 @@
 			</p>
 		</section>
 	{/if}
-	<section class="by-code" class:open={byCode}>
-		{#if byCode}
-			<p class="head"><ArrowLeftRight size={18} /> <strong>Перенос по коду</strong></p>
-			{#if code.trim()}
-				<PullForm
-					endpoint={`/api/setup/transfer?code=${encodeURIComponent(code.trim())}`}
-					bind:busy={pulling}
-				/>
+	{#if dataDir && !byCode}
+		<section class="by-code" class:open={byPeer}>
+			{#if byPeer}
+				<p class="head"><Laptop size={18} /> <strong>Второй компьютер</strong></p>
+				<p class="faint small">
+					На главном компьютере: «Управление → Сервер → Второй компьютер → Этот — главный: получить
+					код». Здесь — адрес сайта и этот код.
+				</p>
+				{#if code.trim()}
+					{#await import('$lib/hosts/PullForm.svelte') then m}<m.default
+							endpoint={`/api/setup/peer?code=${encodeURIComponent(code.trim())}`}
+							label="Подключить"
+							bind:busy={pulling}
+						/>{/await}
+				{:else}
+					<p class="error-text">Нужен код настройки — откройте ссылку из окна сервера</p>
+				{/if}
+				{#if !pulling}
+					<button type="button" class="linklike small" onclick={() => (byPeer = false)}
+						>Нет, создать новую группу</button
+					>
+				{/if}
 			{:else}
-				<p class="error-text">Нужен код настройки — откройте ссылку из окна сервера</p>
+				<div class="grow">
+					<strong>Второй компьютер для сайта?</strong>
+					<p class="faint small">
+						Сайт работает на другом компьютере, а этот будет держать копию и работать с ней.
+					</p>
+				</div>
+				<Button onclick={() => (byPeer = true)}>Подключить</Button>
 			{/if}
-			{#if !pulling}
-				<button type="button" class="linklike small" onclick={() => (byCode = false)}
-					>Нет, создать новую группу</button
-				>
+		</section>
+	{/if}
+	{#if !byPeer}
+		<section class="by-code" class:open={byCode}>
+			{#if byCode}
+				<p class="head"><ArrowLeftRight size={18} /> <strong>Перенос по коду</strong></p>
+				{#if code.trim()}
+					{#await import('$lib/hosts/PullForm.svelte') then m}<m.default
+							endpoint={`/api/setup/transfer?code=${encodeURIComponent(code.trim())}`}
+							bind:busy={pulling}
+						/>{/await}
+				{:else}
+					<p class="error-text">Нужен код настройки — откройте ссылку из окна сервера</p>
+				{/if}
+				{#if !pulling}
+					<button type="button" class="linklike small" onclick={() => (byCode = false)}
+						>Нет, создать новую группу</button
+					>
+				{/if}
+			{:else}
+				<div class="grow">
+					<strong>Сайт уже работает на другом компьютере?</strong>
+					<p class="faint small">Перенесите его сюда по коду — без файлов и с тем же адресом.</p>
+				</div>
+				<Button onclick={() => (byCode = true)}>Перенести по коду</Button>
 			{/if}
-		{:else}
-			<div class="grow">
-				<strong>Сайт уже работает на другом компьютере?</strong>
-				<p class="faint small">Перенесите его сюда по коду — без файлов и с тем же адресом.</p>
-			</div>
-			<Button onclick={() => (byCode = true)}>Перенести по коду</Button>
-		{/if}
-	</section>
+		</section>
+	{/if}
 
-	{#if !byCode}
+	{#if !byCode && !byPeer}
 		<form onsubmit={submit}>
 			{#if fromLink}
 				<p class="linked"><Check size={16} /> Код настройки подставлен из ссылки</p>
@@ -337,6 +403,28 @@
 {/if}
 
 <style>
+	.where {
+		display: flex;
+		align-items: center;
+		gap: var(--s3);
+		margin-bottom: var(--s4);
+		padding: var(--s3) var(--s4);
+		border-radius: var(--r-l);
+		background: var(--surface-2);
+	}
+	.where .grow {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		flex: 1;
+	}
+	.where .path {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		direction: rtl;
+		text-align: left;
+	}
 	.by-code {
 		display: flex;
 		align-items: center;

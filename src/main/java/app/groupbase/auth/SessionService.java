@@ -86,6 +86,17 @@ public class SessionService {
   }
 
   /**
+   * Изменение, пересланное вторым компьютером хоста из его окна (см. hosts.PeerService): от имени
+   * того же человека, как из окна на этом компьютере. Только действующий пользователь.
+   */
+  public Optional<Actor> forPeer(long userId) {
+    return users
+        .find(userId)
+        .filter(u -> u.status() == User.Status.ACTIVE)
+        .map(u -> actor(u, Tokens.sha256("peer:" + userId), true));
+  }
+
+  /**
    * @param local сессия окна хоста на его компьютере: 2FA не требуется — кто сидит за этим
    *     компьютером, и так может прочитать файлы сервера
    */
