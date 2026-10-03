@@ -54,7 +54,7 @@
 	}
 </script>
 
-<svelte:head><title>Пароль · groupbase</title></svelte:head>
+<svelte:head><title>Пароль · Campus</title></svelte:head>
 
 {#if invalid}
 	<h1>Ссылка не работает</h1>

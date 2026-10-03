@@ -39,9 +39,7 @@ public class BackupCommand implements Callable<Integer> {
     PrintWriter say = spec.commandLine().getOut();
     Path data = target.dataDir();
     if (!Files.isRegularFile(data.resolve("groupbase.db"))) {
-      spec.commandLine()
-          .getErr()
-          .println("В " + data + " нет данных groupbase — нечего копировать");
+      spec.commandLine().getErr().println("В " + data + " нет данных Campus — нечего копировать");
       return 1;
     }
     try (var ctx = target.open()) {

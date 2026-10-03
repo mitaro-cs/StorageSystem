@@ -34,7 +34,7 @@ test('телефон: внизу — те же разделы, что на ко�
 	await expect(more.getByRole('link', { name: 'Участники' })).toBeVisible();
 	await expect(more.getByRole('link', { name: 'Уведомления' })).toBeVisible();
 	await more.getByRole('button', { name: /Приложение/ }).click();
-	await expect(page.getByText(/^groupbase \S+$/)).toBeVisible();
+	await expect(page.getByText(/^Campus \S+$/)).toBeVisible();
 	expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
 	expect(errors).toEqual([]);
 	await ctx.close();
@@ -48,7 +48,7 @@ test('настройки: какая версия стоит и кнопка «�
 	await expect(item).toContainText(/Сейчас \S+/);
 	await item.click();
 	await expect(page.getByText('Установлена версия')).toBeVisible();
-	await expect(page.getByText(/^groupbase \S+$/).first()).toBeVisible();
+	await expect(page.getByText(/^Campus \S+$/).first()).toBeVisible();
 
 	// На тестовом сервере проверка выключена (GROUPBASE_UPDATE_CHECK=false) — панель так и говорит.
 	await page.getByRole('button', { name: 'Проверить обновления' }).click();

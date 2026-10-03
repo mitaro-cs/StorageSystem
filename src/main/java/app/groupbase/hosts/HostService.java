@@ -817,7 +817,7 @@ public class HostService implements SmartLifecycle {
         return new Probe(Seen.NOBODY, null, 0);
       }
       if (r.statusCode() != 200) {
-        // Отвечает сервер groupbase, но не хост в переносе (старая версия, ожидание) — сайт жив.
+        // Отвечает сервер Campus, но не хост в переносе (старая версия, ожидание) — сайт жив.
         return new Probe(Seen.OTHER, null, -1);
       }
       JsonNode j = SiteFolder.JSON.readTree(r.body());
@@ -1169,7 +1169,7 @@ public class HostService implements SmartLifecycle {
       throw new Problem(
           "Сайт сейчас отвечает с "
               + (name == null ? "другого компьютера" : "компьютера «" + name + "»")
-              + ": он включён, а облачная папка на нём не обновляется. Закройте groupbase там или"
+              + ": он включён, а облачная папка на нём не обновляется. Закройте Campus там или"
               + " проверьте облачный диск.");
     }
     synchronized (this) {

@@ -55,7 +55,7 @@ public class RestoreCommand implements Callable<Integer> {
     }
     Path data = target.dataDir();
     out.printf(
-        "Копия groupbase %s: пользователей %d, заданий %d, файлов %d.%n",
+        "Копия Campus %s: пользователей %d, заданий %d, файлов %d.%n",
         manifest.path("version").asString("?"),
         manifest.path("counts").path("users").asInt(),
         manifest.path("counts").path("homework").asInt(),

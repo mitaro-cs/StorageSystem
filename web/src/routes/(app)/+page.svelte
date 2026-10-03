@@ -104,7 +104,7 @@
 	);
 </script>
 
-<svelte:head><title>Сегодня · groupbase</title></svelte:head>
+<svelte:head><title>Сегодня · Campus</title></svelte:head>
 
 <header class="hello">
 	<div class="who">

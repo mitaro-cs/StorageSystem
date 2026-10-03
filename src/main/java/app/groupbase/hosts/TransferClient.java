@@ -154,7 +154,7 @@ final class TransferClient {
     }
   }
 
-  /** Отвечает ли по адресу сервер groupbase (после переноса прежний компьютер молчит). */
+  /** Отвечает ли по адресу сервер Campus (после переноса прежний компьютер молчит). */
   boolean serverAnswers() {
     try {
       HttpResponse<Void> r =
@@ -185,7 +185,7 @@ final class TransferClient {
         return c.getValue();
       }
     }
-    throw new IOException("Сервер не выдал ключ защиты запроса — обновите groupbase там");
+    throw new IOException("Сервер не выдал ключ защиты запроса — обновите Campus там");
   }
 
   private <T> HttpResponse<T> send(HttpRequest req, HttpResponse.BodyHandler<T> handler)
@@ -199,16 +199,16 @@ final class TransferClient {
       throw new IOException(
           "Не удалось связаться с сайтом по адресу "
               + base.getHost()
-              + " — проверьте адрес и интернет, и что там открыт groupbase",
+              + " — проверьте адрес и интернет, и что там открыт Campus",
           e);
     }
   }
 
-  /** Ответ не от groupbase: туннель показывает свою страницу — компьютер с сайтом выключен. */
+  /** Ответ не от Campus: туннель показывает свою страницу — компьютер с сайтом выключен. */
   private static void requireServer(HttpResponse<?> r) throws IOException {
     if (r.headers().firstValue("X-Groupbase").isEmpty()) {
       throw new IOException(
-          "По этому адресу сейчас не отвечает groupbase — компьютер с сайтом выключен или адрес"
+          "По этому адресу сейчас не отвечает Campus — компьютер с сайтом выключен или адрес"
               + " другой");
     }
   }

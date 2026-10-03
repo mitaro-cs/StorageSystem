@@ -160,7 +160,7 @@
 	});
 </script>
 
-<svelte:head><title>Модерация · groupbase</title></svelte:head>
+<svelte:head><title>Модерация · Campus</title></svelte:head>
 
 <div class="page-head">
 	<div>

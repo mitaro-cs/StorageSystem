@@ -53,7 +53,7 @@ public class DoctorCommand implements Callable<Integer> {
   public Integer call() throws Exception {
     PrintWriter out = spec.commandLine().getOut();
     Path data = target.dataDir();
-    out.println("groupbase " + Main.version() + ", Java " + Runtime.version().feature());
+    out.println("Campus " + Main.version() + ", Java " + Runtime.version().feature());
     out.println("Данные: " + data);
     String baseUrl = target.environment().getProperty("groupbase.base-url", "");
     List<Check> checks = run(data, baseUrl, System.currentTimeMillis());
@@ -177,8 +177,7 @@ public class DoctorCommand implements Callable<Integer> {
     }
     if (version > latest) {
       return new Check(
-          Level.FAIL,
-          "База от более новой версии groupbase (" + version + ") — обновите программу");
+          Level.FAIL, "База от более новой версии Campus (" + version + ") — обновите программу");
     }
     return version < latest
         ? new Check(

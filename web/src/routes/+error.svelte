@@ -47,7 +47,7 @@
 	}
 </script>
 
-<svelte:head><title>{info.title} · groupbase</title></svelte:head>
+<svelte:head><title>{info.title} · Campus</title></svelte:head>
 
 <main class="err" role="alert">
 	<!-- Логотип из static/logo.svg: глобус краснеет и соскальзывает с плеч, в углу «!». -->

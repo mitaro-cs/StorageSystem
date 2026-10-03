@@ -105,7 +105,7 @@ class DesktopController {
         <meta charset="utf-8">
         <meta name="color-scheme" content="light dark">
         <meta http-equiv="refresh" content="%s;url=%s">
-        <title>groupbase</title>
+        <title>Campus</title>
         %s
         </head>
         <body></body>

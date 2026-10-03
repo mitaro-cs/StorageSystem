@@ -146,7 +146,7 @@
 					<Button onclick={() => copy(activation, 'Ссылка скопирована')}
 						><Copy size={16} /> Копировать</Button
 					>
-					{#if canShare()}<Button onclick={() => share(activation, 'Вход в groupbase')}
+					{#if canShare()}<Button onclick={() => share(activation, 'Вход в Campus')}
 							><Share2 size={16} /> Отправить</Button
 						>{/if}
 				</div>

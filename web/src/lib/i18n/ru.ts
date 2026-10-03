@@ -1,6 +1,6 @@
 /** Строки интерфейса. Для перевода добавьте en.ts с той же структурой. */
 export const ru = {
-	app: 'groupbase',
+	app: 'Campus',
 	nav: {
 		today: 'Сегодня',
 		news: 'Новости',

@@ -252,7 +252,7 @@ sw.addEventListener('push', (event) => {
 	}
 	event.waitUntil(
 		Promise.all([
-			sw.registration.showNotification(data.title || 'groupbase', {
+			sw.registration.showNotification(data.title || 'Campus', {
 				body: data.body ?? '',
 				tag: data.tag,
 				icon: '/icons/icon-192.png?v=3',

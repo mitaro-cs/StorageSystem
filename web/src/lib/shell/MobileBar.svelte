@@ -9,7 +9,7 @@
 	// участники и настройки — в профиле, поэтому отдельного меню нет.
 	const title = $derived(
 		currentGroup()?.name ??
-			(isMulti() ? t.nav.allGroups : (session.me?.groups[0]?.name ?? 'groupbase'))
+			(isMulti() ? t.nav.allGroups : (session.me?.groups[0]?.name ?? 'Campus'))
 	);
 </script>
 

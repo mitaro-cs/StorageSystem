@@ -96,7 +96,7 @@
 	}
 </script>
 
-<svelte:head><title>{q ? `${q} · ` : ''}Поиск · groupbase</title></svelte:head>
+<svelte:head><title>{q ? `${q} · ` : ''}Поиск · Campus</title></svelte:head>
 
 <h1 class="title">Поиск</h1>
 
