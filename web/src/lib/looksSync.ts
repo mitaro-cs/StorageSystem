@@ -1,4 +1,4 @@
-import { del, patch } from './api';
+import { del, patch, post } from './api';
 import { DEFAULT_SAT, currentAccent, setAccent } from './colors';
 import {
 	backgroundBlur,
@@ -94,6 +94,19 @@ function toBlob(data: string): Blob {
 	const [head, body] = data.split(',', 2);
 	const bytes = Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
 	return new Blob([bytes], { type: head.match(/data:([^;]+)/)?.[1] ?? 'image/jpeg' });
+}
+
+let sentIcon: string | null = null;
+
+/**
+ * Окно приложения хоста: выбранный значок — сразу в Dock на Mac или на панель задач Windows (сервер
+ * передаёт его оболочке, она запоминает выбор до следующего запуска).
+ */
+export function hostIcon() {
+	const icon = currentIcon();
+	if (icon === sentIcon) return;
+	sentIcon = icon;
+	post('/api/desktop/icon', { icon }).catch(() => (sentIcon = null));
 }
 
 /** Картинка, которая сейчас на фоне, — на сервер (после выбора здесь). */

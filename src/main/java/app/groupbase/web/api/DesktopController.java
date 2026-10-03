@@ -123,6 +123,21 @@ class DesktopController {
         .body(html);
   }
 
+  record IconBody(String icon) {}
+
+  /** Значок приложения хоста — только из окна на этом компьютере. */
+  @PostMapping("/icon")
+  Map<String, String> icon(Actor actor, @RequestBody IconBody in) {
+    if (!bridge.enabled() || !actor.local()) {
+      throw ApiException.forbidden("Значок меняется в приложении на компьютере хоста");
+    }
+    if (in.icon() == null || !DesktopBridge.ICONS.contains(in.icon())) {
+      throw ApiException.invalid("icon", "Нет такого значка");
+    }
+    bridge.showIcon(in.icon());
+    return Map.of("status", "ok");
+  }
+
   /**
    * «Обновить сейчас»: оболочка сама проверит версию, скачает её, остановит сервер, установит и
    * перезапустится. Ей не нужно было находить обновление заранее — хватит того, что его нашёл

@@ -110,11 +110,19 @@
 		if (!me || me.user.appearance === undefined) return;
 		let looks: typeof import('$lib/looksSync') | null = null;
 		const load = () => import('$lib/looksSync').then((m) => (looks = m));
-		load().then((m) => m.pullLooks(me));
+		// Окно приложения хоста: значок в Dock или на панели задач — тот же, что выбран.
+		const host = me.hostWindow;
+		load().then(async (m) => {
+			await m.pullLooks(me);
+			if (host) m.hostIcon();
+		});
 		const changed = () => {
-			if (looks) {
-				if (!looks.isApplying()) looks.pushLooks();
-			} else load().then((m) => m.pushLooks());
+			const run = (m: typeof import('$lib/looksSync')) => {
+				if (!m.isApplying()) m.pushLooks();
+				if (host) m.hostIcon();
+			};
+			if (looks) run(looks);
+			else load().then(run);
 		};
 		addEventListener('gb:looks', changed);
 		addEventListener('gb:theme', changed);

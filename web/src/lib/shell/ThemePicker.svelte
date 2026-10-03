@@ -25,6 +25,7 @@
 		setIcon
 	} from '$lib/looks';
 	import { appIcon, iconSrc, type AppIcon } from '$lib/appIcon.svelte';
+	import { session } from '$lib/session.svelte';
 	import { toast } from '$lib/toasts.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Switch from '$lib/ui/Switch.svelte';
@@ -329,8 +330,10 @@
 			{/each}
 		</div>
 		<p class="hint">
-			Во вкладке браузера меняется сразу. На Android значок на экране обновится сам, на iPhone —
-			если удалить сайт с экрана «Домой» и добавить снова. В тёмном оформлении значков iPhone
+			{#if session.me?.hostWindow}В приложении хоста значок в Dock (Mac) и на панели задач (Windows)
+				меняется сразу.
+			{/if}Во вкладке браузера меняется сразу. На Android значок на экране обновится сам, на iPhone
+			— если удалить сайт с экрана «Домой» и добавить снова. В тёмном оформлении значков iPhone
 			светлый значок темнеет — там лучше тёмный или цветной.
 		</p>
 	</div>

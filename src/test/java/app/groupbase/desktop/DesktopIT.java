@@ -178,6 +178,17 @@ class DesktopIT extends IntegrationTest {
   }
 
   @Test
+  void iconChoiceReachesTheShellOnlyFromTheHostWindow() {
+    ApiClient host = client();
+    admin();
+    host.get(enterPath());
+    assertThat(host.post("/api/desktop/icon", Map.of("icon", "ocean")).status()).isEqualTo(200);
+    assertThat(host.post("/api/desktop/icon", Map.of("icon", "rainbow")).status()).isEqualTo(400);
+    ApiClient phone = client().header("X-Forwarded-For", "198.51.100.31");
+    assertThat(phone.post("/api/desktop/icon", Map.of("icon", "ocean")).status()).isIn(401, 403);
+  }
+
+  @Test
   void updateButtonInHostWindowWheneverANewVersionIsKnown() {
     ApiClient host = client();
     admin();
