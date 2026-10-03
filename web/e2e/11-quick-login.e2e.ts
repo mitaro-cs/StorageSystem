@@ -38,7 +38,7 @@ test('вход без ввода логина: выбор аккаунта и QR
 	});
 	// Телефон видит, что вход состоялся.
 	await expect(shown.getByText('Готово!')).toBeVisible({ timeout: 10_000 });
-	await shown.getByRole('button', { name: 'Закрыть' }).click();
+	await shown.locator('footer').getByRole('button', { name: 'Закрыть' }).click();
 
 	// Без камеры: 6 цифр вводят на странице входа второго ноутбука — «По коду».
 	await phone.getByRole('button', { name: 'Показать код' }).click();

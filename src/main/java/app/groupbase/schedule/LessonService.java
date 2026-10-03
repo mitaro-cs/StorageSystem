@@ -55,6 +55,7 @@ public class LessonService {
       String note,
       int homework,
       int materials,
+      boolean cancelled,
       Can can) {}
 
   /** Соседняя пара того же предмета — листать лекции по порядку. */
@@ -139,7 +140,8 @@ public class LessonService {
       String teacher,
       String note,
       int homework,
-      int materials) {}
+      int materials,
+      boolean cancelled) {}
 
   /** Пара из прежней загрузки — сравнить с новой и обновить только изменившееся. */
   private record Existing(
@@ -232,7 +234,8 @@ public class LessonService {
                         : rs.getString("teacher"),
                     rs.getString("note"),
                     rs.getInt("hw_count"),
-                    rs.getInt("mat_count")))
+                    rs.getInt("mat_count"),
+                    rs.getInt("cancelled") == 1))
         .list();
   }
 
@@ -259,6 +262,7 @@ public class LessonService {
               r.note(),
               r.homework(),
               r.materials(),
+              r.cancelled(),
               new Can(can)));
     }
     return out;
@@ -532,6 +536,24 @@ public class LessonService {
             id)
         .update();
     audit.log(actor, r.groupId(), "lesson.update", "lesson", id, Map.of("title", c.title()));
+    return views(actor, query("l.id = :id", Map.of("id", id))).getFirst();
+  }
+
+  /** Отметить, что пары не было (или вернуть). */
+  @Transactional
+  public Lesson setCancelled(Actor actor, long id, boolean value) {
+    Row r = row(actor, id);
+    requireManage(actor, r.groupId());
+    db.sql("UPDATE lessons SET cancelled = ?, updated_at = ? WHERE id = ?")
+        .params(value ? 1 : 0, clock.millis(), id)
+        .update();
+    audit.log(
+        actor,
+        r.groupId(),
+        value ? "lesson.cancel" : "lesson.restore",
+        "lesson",
+        id,
+        Map.of("title", r.title()));
     return views(actor, query("l.id = :id", Map.of("id", id))).getFirst();
   }
 

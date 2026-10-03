@@ -68,7 +68,7 @@ export function startLive(): () => void {
 		polling = true;
 		pollTimer = setInterval(() => {
 			if (document.visibilityState === 'visible') refresh();
-		}, 20_000);
+		}, 10_000);
 	}
 
 	function onVisibility() {

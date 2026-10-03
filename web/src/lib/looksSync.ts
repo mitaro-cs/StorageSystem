@@ -111,6 +111,12 @@ export async function uploadBackground(image: Blob) {
 			headers: { 'X-CSRF-Token': csrf(), 'Content-Type': 'application/octet-stream' }
 		});
 		if (r.ok) write(BG_ID_KEY, (await r.json()).background);
+		else {
+			// Картинка не подошла серверу — на этом устройстве она есть, на других не появится.
+			const { toast } = await import('./toasts.svelte');
+			const why = await r.json().catch(() => null);
+			toast(why?.message ?? 'Картинка не сохранилась для других устройств', 'error');
+		}
 	} catch {
 		/* нет сети — останется только на этом устройстве, при следующем входе отправим снова */
 	}

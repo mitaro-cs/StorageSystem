@@ -168,3 +168,52 @@ export function shortName(full: string): string {
 		.map((x) => x[0].toUpperCase() + '.')
 		.join(' ')}`;
 }
+
+/** Цвет вида пары — полоска на карточке и точки в календаре (как на сайте вуза). */
+export const KIND_COLORS: Record<LessonKind, string> = {
+	lecture: '#1fa37a',
+	practice: '#4f7df5',
+	seminar: '#a35cf0',
+	lab: '#e0633a',
+	consult: '#1f9bb8',
+	credit: '#d9a21b',
+	exam: '#d9487e',
+	other: '#8a8f98'
+};
+
+/**
+ * Номер учебной недели и чётность: осенью счёт с недели 1 сентября, весной — с недели 1 февраля
+ * (первая неделя — нечётная).
+ */
+export function studyWeek(ms: number): { n: number; odd: boolean } {
+	const d = new Date(ms);
+	const y = d.getFullYear();
+	const m = d.getMonth();
+	const start = m >= 7 ? new Date(y, 8, 1) : m === 0 ? new Date(y - 1, 8, 1) : new Date(y, 1, 1);
+	const n = Math.round((weekStart(ms) - weekStart(start.getTime())) / (7 * 86_400_000)) + 1;
+	return { n: Math.max(1, n), odd: Math.max(1, n) % 2 === 1 };
+}
+
+/** Поиск по паре: предмет, название, преподаватель, аудитория, тема. */
+export function lessonMatches(l: Lesson, query: string): boolean {
+	const q = query.trim().toLowerCase();
+	if (!q) return true;
+	return [l.subject?.name, l.title, l.teacher, l.place, l.note].some((x) =>
+		x?.toLowerCase().includes(q)
+	);
+}
+
+/** Пара: не было (отменили), прошла, идёт, скоро или позже. */
+export function lessonStatus(l: Lesson, now: number): LessonState | 'cancelled' {
+	return l.cancelled ? 'cancelled' : lessonState(l, now);
+}
+
+/** Сетка месяца: понедельники недель, в которые попадает месяц. */
+export function monthWeeks(ms: number): number[] {
+	const d = new Date(ms);
+	const first = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+	const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getTime();
+	const out: number[] = [];
+	for (let w = weekStart(first); w <= last; w = addDays(w, 7)) out.push(w);
+	return out;
+}

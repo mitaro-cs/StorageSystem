@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Lesson } from '$lib/types';
+import { abbr } from './month';
 import {
 	addDays,
+	monthWeeks,
+	studyWeek,
 	byDay,
 	dayStats,
 	durationText,
@@ -108,5 +111,26 @@ describe('расписание', () => {
 		expect(shortName('Smith')).toBe('Smith');
 		expect(durationText(45)).toBe('45 мин');
 		expect(durationText(120)).toBe('2 ч');
+	});
+});
+
+describe('месяц и неделя', () => {
+	it('чётность от 1 сентября и 1 февраля', () => {
+		expect(studyWeek(new Date(2026, 8, 1).getTime())).toEqual({ n: 1, odd: true });
+		expect(studyWeek(new Date(2026, 8, 9).getTime())).toEqual({ n: 2, odd: false });
+		expect(studyWeek(new Date(2026, 9, 5).getTime()).n).toBe(6);
+		expect(studyWeek(new Date(2027, 0, 11).getTime()).n).toBeGreaterThan(18);
+		expect(studyWeek(new Date(2027, 1, 3).getTime())).toEqual({ n: 1, odd: true });
+	});
+	it('сокращения названий', () => {
+		expect(abbr('Высшая математика')).toBe('ВМ');
+		expect(abbr('Теория вероятностей и математическая статистика')).toBe('ТВМС');
+		expect(abbr('Физика')).toBe('Физ');
+		expect(abbr('Английский язык №2')).toBe('АЯ');
+	});
+	it('недели месяца', () => {
+		const w = monthWeeks(new Date(2026, 9, 15).getTime());
+		expect(w).toHaveLength(5);
+		expect(new Date(w[0]).getDate()).toBe(28);
 	});
 });

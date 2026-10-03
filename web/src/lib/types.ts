@@ -212,6 +212,8 @@ export interface Lesson {
 	/** Сколько заданий и материалов к этой паре. */
 	homework: number;
 	materials: number;
+	/** Пары не было — отметил староста. */
+	cancelled?: boolean;
 	can: { edit: boolean };
 }
 

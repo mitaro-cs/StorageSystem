@@ -73,6 +73,41 @@ test('расписание из файла календаря: загрузка,
 	await dialog.getByRole('button', { name: 'Загрузить 8 пар' }).click();
 	await expect(dialog).toBeHidden();
 
+	// Как на сайте вуза: чётность недели, «Неделя» и «Месяц», поиск, «пары не было».
+	const t = new Date();
+	t.setDate(t.getDate() + 1);
+	const p2 = (n: number) => String(n).padStart(2, '0');
+	const tomorrow = `${t.getFullYear()}-${p2(t.getMonth() + 1)}-${p2(t.getDate())}`;
+	await page.goto(`/schedule?view=week&week=${tomorrow}`);
+	await expect(page.locator('.parity')).toContainText(/чётная неделя \(\d+\)/);
+	await expect(
+		page.getByRole('link', { name: /^Математический анализ, \d/ }).first()
+	).toBeVisible();
+	await page.screenshot({ path: 'test-results/shots/schedule-week.png', fullPage: true });
+	await page
+		.getByRole('radiogroup', { name: 'Вид расписания' })
+		.getByRole('radio', { name: 'Месяц' })
+		.click();
+	const month = page.getByRole('grid', { name: 'Месяц' });
+	await expect(month).toBeVisible();
+	await page.screenshot({ path: 'test-results/shots/schedule-month.png', fullPage: true });
+	await month
+		.getByRole('gridcell', {
+			name: new RegExp(`^${t.getDate()} [а-я]+: пар — `)
+		})
+		.first()
+		.click();
+	await expect(page).not.toHaveURL(/view=/);
+	const pairs = page.locator('ol.pairs');
+	await expect(pairs.getByRole('link', { name: /^Математический анализ/ })).toBeVisible();
+	await page.getByLabel('Поиск по расписанию').fill('А-214');
+	await expect(pairs.getByRole('link')).toHaveCount(1);
+	await pairs.getByRole('button', { name: 'Пары не было' }).click();
+	await expect(pairs.getByText('не было')).toBeVisible();
+	await page.screenshot({ path: 'test-results/shots/schedule-cancelled.png', fullPage: true });
+	await pairs.getByRole('button', { name: 'Вернуть пару' }).click();
+	await expect(pairs.getByText('не было')).toHaveCount(0);
+
 	// Завтрашние пары — на «Сегодня».
 	await page.goto('/');
 	const block = page.getByRole('region', { name: /Завтра|Пары сегодня/ });
@@ -140,9 +175,9 @@ test('своя картинка на фоне — в своих цветах и 
 		.getByRole('radiogroup', { name: 'Цвет' })
 		.getByRole('radio', { name: 'Зелёный' })
 		.click();
-	// Своя картинка — зелёная тема не должна её перекрашивать.
+	// Своя картинка (сервер берёт от 16 точек) — зелёная тема не должна её перекрашивать.
 	const png = Buffer.from(
-		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+		'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKklEQVR4nGPQqDhBU8QwasGoBaMWjFowasGoBaMWjFowasGoBaMWDBULAIuXoEzkdmPIAAAAAElFTkSuQmCC',
 		'base64'
 	);
 	await page.locator('input[type=file][accept="image/*"]').setInputFiles({

@@ -12,7 +12,7 @@
 		Upload,
 		UserRound
 	} from '@lucide/svelte';
-	import { del, get, patch } from '$lib/api';
+	import { del, get, patch, put } from '$lib/api';
 	import { fmtDate, fmtWeekday, fmtWeekdayShort } from '$lib/format';
 	import { offline } from '$lib/offline/engine';
 	import { can } from '$lib/session.svelte';
@@ -83,6 +83,19 @@
 		const lesson = l;
 		return [
 			{ label: 'Изменить пару', onclick: () => (editor = true) },
+			{
+				label: lesson.cancelled ? 'Вернуть пару' : 'Пары не было',
+				onclick: async () => {
+					try {
+						const updated = await put<Lesson>(`/api/lessons/${lesson.id}/cancelled`, {
+							value: !lesson.cancelled
+						});
+						if (data) data.lesson = updated;
+					} catch (e) {
+						toastError(e);
+					}
+				}
+			},
 			{
 				label: 'Удалить пару',
 				danger: true,
@@ -156,7 +169,8 @@
 				<span class="kind">{kind.label}</span>
 				<h1>{lessonName(l)}</h1>
 			</div>
-			{#if status === 'now'}<span class="chip live"><i class="dot"></i>идёт</span>
+			{#if l.cancelled}<span class="chip danger">пары не было</span>
+			{:else if status === 'now'}<span class="chip live"><i class="dot"></i>идёт</span>
 			{:else if status === 'soon'}<span class="chip amber num">{untilText(l.startsAt - now)}</span>
 			{:else if status === 'past'}<span class="chip">прошла</span>{/if}
 		</div>
