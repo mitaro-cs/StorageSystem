@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { ArrowLeftRight, Check, Cloud, History } from '@lucide/svelte';
+	import { ArrowLeftRight, Check, Cloud, FolderInput, History } from '@lucide/svelte';
 	import PullForm from '$lib/hosts/PullForm.svelte';
 	import { putFile } from '$lib/upload';
 	import { waitForRestart } from '$lib/settings/server/restart';
@@ -56,6 +56,26 @@
 			sites = [];
 		}
 	}
+	// В приложении хоста: где будут лежать данные сайта — можно выбрать другую папку (диск D:,
+	// внешний диск) до того, как они появятся.
+	let dataDir = $state('');
+	onMount(() => {
+		request<{ needed: boolean; dataDir?: string }>('/api/setup', { anonymous: true })
+			.then((r) => (dataDir = r.dataDir ?? ''))
+			.catch(() => {});
+	});
+	async function chooseFolder() {
+		try {
+			await post(
+				`/api/setup/data-folder?code=${encodeURIComponent(code.trim())}`,
+				{},
+				{ anonymous: true }
+			);
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Ошибка';
+		}
+	}
+
 	onMount(() => {
 		findSites();
 		// Облачный диск может докачивать папку — проверяем ещё, пока открыта страница.
@@ -155,6 +175,16 @@
 		<p>{restoreMessage}</p>
 	</div>
 {:else}
+	{#if dataDir && code.trim()}
+		<section class="where" aria-label="Папка с данными">
+			<FolderInput size={18} />
+			<div class="grow">
+				<strong>Данные сайта хранятся здесь</strong>
+				<span class="faint small path" title={dataDir}>{dataDir}</span>
+			</div>
+			<Button size="s" onclick={chooseFolder}>Изменить…</Button>
+		</section>
+	{/if}
 	{#if sites.length}
 		<section class="found" aria-label="Сайты в облачной папке">
 			<p class="found-head"><Cloud size={18} /> <strong>Уже есть сайт в облачной папке</strong></p>
@@ -337,6 +367,28 @@
 {/if}
 
 <style>
+	.where {
+		display: flex;
+		align-items: center;
+		gap: var(--s3);
+		margin-bottom: var(--s4);
+		padding: var(--s3) var(--s4);
+		border-radius: var(--r-l);
+		background: var(--surface-2);
+	}
+	.where .grow {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		flex: 1;
+	}
+	.where .path {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		direction: rtl;
+		text-align: left;
+	}
 	.by-code {
 		display: flex;
 		align-items: center;

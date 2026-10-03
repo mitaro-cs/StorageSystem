@@ -89,11 +89,45 @@ fn main() {
             current_status
         ])
         .setup(move |app| {
-            // GROUPBASE_DATA — другой каталог данных (разработка, тесты, несколько групп).
-            let data = plain(&match std::env::var_os("GROUPBASE_DATA") {
-                Some(dir) => PathBuf::from(dir),
-                None => app.path().app_data_dir()?,
-            });
+            // GROUPBASE_DATA — другой каталог данных (разработка, тесты, несколько групп); иначе —
+            // папка, которую выбрал хост («Управление → Сервер → Состояние»), иначе — стандартная.
+            let base = plain(&app.path().app_data_dir()?);
+            let (data, missing) = match std::env::var_os("GROUPBASE_DATA") {
+                Some(dir) => (plain(&PathBuf::from(dir)), false),
+                None => match chosen_data(&base) {
+                    Some(dir) if dir.is_dir() => (dir, false),
+                    Some(dir) => (dir, true),
+                    None => (base.clone(), false),
+                },
+            };
+            if missing {
+                // Диск с данными не подключён: пустой сайт на его месте только запутает группу.
+                let gone = data.clone();
+                app.manage(App {
+                    server: Mutex::new(Server {
+                        quitting: true,
+                        ..Server::default()
+                    }),
+                    awake: Mutex::new(None),
+                    copy_item: Mutex::new(None),
+                    update_item: Mutex::new(None),
+                    update: Mutex::new(None),
+                    offered: Mutex::new(None),
+                    updating: Mutex::new(false),
+                    zoom: Mutex::new(1.0),
+                    data: base,
+                });
+                let handle = app.handle().clone();
+                app.dialog()
+                    .message(format!(
+                        "Папка с данными сайта не найдена:\n{}\n\nПодключите диск с ней и запустите \
+                         groupbase снова.",
+                        gone.display()
+                    ))
+                    .title("groupbase")
+                    .show(move |_| handle.exit(1));
+                return Ok(());
+            }
             fs::create_dir_all(data.join("logs"))?;
             app.manage(App {
                 server: Mutex::new(Server::default()),
@@ -659,6 +693,11 @@ fn on_event(app: &AppHandle, v: &Value) {
                 apply_icon(app, &id);
             }
         }
+        // «Сменить папку…» в «Управление → Сервер → Состояние»: диалоги блокирующие — не здесь.
+        "choose-data" => {
+            let app = app.clone();
+            thread::spawn(move || choose_data(&app));
+        }
         // «Обновить» в «Настройки → Сервер → Состояние».
         "update" => install_update(app),
         // «Состояние» открыли раньше, чем оболочка проверила обновления сама.
@@ -1100,6 +1139,203 @@ fn stop_server(app: &AppHandle) {
     }
 }
 
+// ---------- папка данных ----------
+
+/// Куда хост перенёс данные: `location.json` в стандартном каталоге приложения.
+fn chosen_data(base: &Path) -> Option<PathBuf> {
+    fs::read_to_string(base.join("location.json"))
+        .ok()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+        .and_then(|v| v.get("data").and_then(Value::as_str).map(PathBuf::from))
+        .filter(|p| !p.as_os_str().is_empty())
+        .map(|p| plain(&p))
+}
+
+/// Папка для данных в выбранной: сама она, если пустая или в ней уже данные groupbase, иначе —
+/// подпапка «groupbase» (выбрали «Документы» — не мусорим в них).
+fn data_target(picked: &Path) -> PathBuf {
+    let empty = fs::read_dir(picked)
+        .map(|mut d| d.next().is_none())
+        .unwrap_or(true);
+    if empty || picked.join("groupbase.db").is_file() {
+        picked.to_path_buf()
+    } else {
+        picked.join("groupbase")
+    }
+}
+
+fn same_dir(a: &Path, b: &Path) -> bool {
+    match (fs::canonicalize(a), fs::canonicalize(b)) {
+        (Ok(x), Ok(y)) => x == y,
+        _ => a == b,
+    }
+}
+
+/// Копия каталога целиком; `location.json` (указатель на папку) не копируется.
+fn copy_dir(from: &Path, to: &Path) -> std::io::Result<u64> {
+    fs::create_dir_all(to)?;
+    let mut bytes = 0;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        if name == "location.json" {
+            continue;
+        }
+        let (src, dst) = (entry.path(), to.join(&name));
+        if entry.file_type()?.is_dir() {
+            bytes += copy_dir(&src, &dst)?;
+        } else {
+            bytes += fs::copy(&src, &dst)?;
+        }
+    }
+    Ok(bytes)
+}
+
+/// Все файлы на месте и того же размера — тогда старую папку можно убрать.
+fn same_files(from: &Path, to: &Path) -> bool {
+    let Ok(entries) = fs::read_dir(from) else {
+        return false;
+    };
+    entries.flatten().all(|e| {
+        if e.file_name() == "location.json" {
+            return true;
+        }
+        let dst = to.join(e.file_name());
+        match e.file_type() {
+            Ok(t) if t.is_dir() => same_files(&e.path(), &dst),
+            Ok(_) => match (e.metadata(), fs::metadata(&dst)) {
+                (Ok(a), Ok(b)) => a.len() == b.len(),
+                _ => false,
+            },
+            Err(_) => false,
+        }
+    })
+}
+
+fn write_location(base: &Path, data: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(base)?;
+    let file = base.join("location.json");
+    if same_dir(base, data) {
+        return match fs::remove_file(&file) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+            _ => Ok(()),
+        };
+    }
+    let tmp = base.join("location.json.part");
+    fs::write(&tmp, serde_json::json!({ "data": data }).to_string())?;
+    fs::rename(&tmp, &file)
+}
+
+/// Убрать прежнюю папку данных; стандартный каталог приложения остаётся (в нём указатель).
+fn remove_old(old: &Path, base: &Path) {
+    if same_dir(old, base) {
+        if let Ok(entries) = fs::read_dir(old) {
+            for e in entries.flatten() {
+                if e.file_name() == "location.json" {
+                    continue;
+                }
+                let _ = if e.path().is_dir() {
+                    fs::remove_dir_all(e.path())
+                } else {
+                    fs::remove_file(e.path())
+                };
+            }
+        }
+    } else {
+        let _ = fs::remove_dir_all(old);
+    }
+}
+
+/// Выбрать другую папку для данных сайта: скопировать, проверить, переключиться и перезапуститься.
+/// В папке уже есть данные groupbase — переключиться на них (текущие остаются на месте).
+fn choose_data(app: &AppHandle) {
+    let current = app.state::<App>().data.clone();
+    let Ok(base) = app.path().app_data_dir().map(|p| plain(&p)) else {
+        return;
+    };
+    let Some(picked) = app
+        .dialog()
+        .file()
+        .set_title("Где хранить данные сайта")
+        .blocking_pick_folder()
+        .and_then(|p| p.into_path().ok())
+    else {
+        return;
+    };
+    let target = data_target(&plain(&picked));
+    if same_dir(&target, &current) {
+        return;
+    }
+    if target.starts_with(&current) {
+        info(
+            app,
+            "Нельзя перенести данные внутрь их же папки — выберите другую.",
+        );
+        return;
+    }
+    let existing = target.join("groupbase.db").is_file();
+    let (text, ok) = if existing {
+        (
+            format!(
+                "В папке {} уже есть данные groupbase. Открыть сайт с ними?\n\nТекущие данные \
+                 останутся в {}.",
+                target.display(),
+                current.display()
+            ),
+            "Открыть",
+        )
+    } else {
+        (
+            format!(
+                "Перенести данные сайта в {}?\n\nСайт остановится примерно на минуту: данные \
+                 скопируются, проверятся, и старая папка удалится.",
+                target.display()
+            ),
+            "Перенести",
+        )
+    };
+    let yes = app
+        .dialog()
+        .message(text)
+        .title("Папка с данными")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            ok.to_string(),
+            "Отмена".to_string(),
+        ))
+        .blocking_show();
+    if !yes {
+        return;
+    }
+    log(app, &format!("перенос данных: {}", target.display()));
+    show_splash(app, "Переносим данные…", false);
+    stop_server(app);
+    let failed = |why: String| {
+        log(app, &format!("перенос данных не удался: {why}"));
+        info(
+            app,
+            &format!("Не удалось перенести данные: {why}\n\nСайт работает со старой папкой."),
+        );
+        start_server(app);
+    };
+    if !existing {
+        if let Err(e) = copy_dir(&current, &target) {
+            let _ = fs::remove_dir_all(&target);
+            return failed(e.to_string());
+        }
+        if !same_files(&current, &target) {
+            let _ = fs::remove_dir_all(&target);
+            return failed("копия не совпала с оригиналом".to_string());
+        }
+    }
+    if let Err(e) = write_location(&base, &target) {
+        return failed(e.to_string());
+    }
+    if !existing {
+        remove_old(&current, &base);
+    }
+    app.restart();
+}
+
 /// Пока включено, компьютер не уходит в сон — сайт остаётся доступным группе.
 fn set_awake(app: &AppHandle, on: bool) {
     let st = app.state::<App>();
@@ -1202,6 +1438,44 @@ fn show_icon(app: &AppHandle, png: Option<&'static [u8]>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn data_goes_to_a_subfolder_of_a_busy_folder() {
+        let root = std::env::temp_dir().join(format!("gb-shell-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let empty = root.join("empty");
+        let busy = root.join("busy");
+        let site = root.join("site");
+        fs::create_dir_all(&empty).unwrap();
+        fs::create_dir_all(&busy).unwrap();
+        fs::create_dir_all(&site).unwrap();
+        fs::write(busy.join("notes.txt"), "x").unwrap();
+        fs::write(site.join("groupbase.db"), "x").unwrap();
+        assert_eq!(data_target(&empty), empty);
+        assert_eq!(data_target(&busy), busy.join("groupbase"));
+        assert_eq!(data_target(&site), site);
+
+        // Копия целиком, указатель не копируется, проверка видит расхождение.
+        let from = root.join("from");
+        fs::create_dir_all(from.join("files")).unwrap();
+        fs::write(from.join("groupbase.db"), "db").unwrap();
+        fs::write(from.join("files").join("a"), "abc").unwrap();
+        fs::write(from.join("location.json"), "{}").unwrap();
+        let to = root.join("to");
+        assert_eq!(copy_dir(&from, &to).unwrap(), 5);
+        assert!(!to.join("location.json").exists());
+        assert!(same_files(&from, &to));
+        fs::write(to.join("files").join("a"), "ab").unwrap();
+        assert!(!same_files(&from, &to));
+
+        // Указатель: в стандартный каталог — не нужен, в другой — записан и читается.
+        let base = root.join("base");
+        write_location(&base, &to).unwrap();
+        assert_eq!(chosen_data(&base), Some(plain(&to)));
+        write_location(&base, &base).unwrap();
+        assert_eq!(chosen_data(&base), None);
+        let _ = fs::remove_dir_all(&root);
+    }
 
     #[test]
     fn zoom_follows_monitor_width() {

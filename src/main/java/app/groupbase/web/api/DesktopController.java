@@ -171,4 +171,18 @@ class DesktopController {
     LocalOpen.folder(dir.toAbsolutePath());
     return Map.of("status", "ok");
   }
+
+  /**
+   * «Сменить папку…»: оболочка покажет выбор папки, перенесёт данные и перезапустится. Сервер сам
+   * папку не трогает — пока он работает, база открыта.
+   */
+  @Require(Permission.MANAGE_INSTANCE)
+  @PostMapping("/data-folder")
+  Map<String, String> dataFolder(Actor actor) {
+    if (!bridge.enabled() || !actor.local()) {
+      throw ApiException.forbidden("Доступно только в приложении на компьютере хоста");
+    }
+    bridge.chooseDataFolder();
+    return Map.of("status", "asked");
+  }
 }

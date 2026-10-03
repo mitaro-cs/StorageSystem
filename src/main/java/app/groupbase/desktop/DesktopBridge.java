@@ -134,6 +134,11 @@ public class DesktopBridge {
     event("update", Map.of());
   }
 
+  /** Попросить оболочку показать выбор папки для данных сайта (и перенести их туда). */
+  public void chooseDataFolder() {
+    event("choose-data", Map.of());
+  }
+
   /** Значки на выбор (как в интерфейсе, lib/appIcon.svelte.ts). */
   public static final java.util.Set<String> ICONS =
       java.util.Set.of("light", "dark", "ocean", "forest", "sunset", "grape");

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { FileText, FolderOpen } from '@lucide/svelte';
+	import { FileText, FolderInput, FolderOpen } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { get, post } from '$lib/api';
 	import { fmtAgo, fmtSize } from '$lib/format';
@@ -37,6 +37,15 @@
 			alive = false;
 		};
 	});
+
+	// Папку выбирают в окне оболочки: она остановит сервер, перенесёт данные и перезапустится.
+	async function moveData() {
+		try {
+			await post('/api/desktop/data-folder');
+		} catch (e) {
+			toastError(e);
+		}
+	}
 
 	async function open(what: 'data' | 'logs') {
 		try {
@@ -93,6 +102,9 @@
 				>
 				<Button size="s" variant="ghost" onclick={() => open('logs')}
 					><FileText size={15} /> Журналы</Button
+				>
+				<Button size="s" variant="ghost" onclick={moveData}
+					><FolderInput size={15} /> Сменить папку…</Button
 				>
 			</div>
 		{/if}

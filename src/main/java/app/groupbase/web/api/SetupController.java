@@ -3,10 +3,13 @@ package app.groupbase.web.api;
 import app.groupbase.accounts.GroupService;
 import app.groupbase.accounts.SetupService;
 import app.groupbase.backup.RestoreStager;
+import app.groupbase.config.GroupbaseProperties;
+import app.groupbase.desktop.DesktopBridge;
 import app.groupbase.hosts.HostService;
 import app.groupbase.hosts.TransferService;
 import app.groupbase.web.ApiException;
 import app.groupbase.web.Public;
+import app.groupbase.web.Requests;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -43,18 +46,24 @@ class SetupController {
   private final RestoreStager restore;
   private final HostService hosts;
   private final TransferService transfers;
+  private final DesktopBridge bridge;
+  private final GroupbaseProperties props;
 
   SetupController(
       SetupService setup,
       Http http,
       RestoreStager restore,
       HostService hosts,
-      TransferService transfers) {
+      TransferService transfers,
+      DesktopBridge bridge,
+      GroupbaseProperties props) {
     this.setup = setup;
     this.http = http;
     this.restore = restore;
     this.hosts = hosts;
     this.transfers = transfers;
+    this.bridge = bridge;
+    this.props = props;
   }
 
   /**
@@ -121,9 +130,31 @@ class SetupController {
     }
   }
 
+  /**
+   * Нужна ли настройка. В окне приложения на компьютере хоста — ещё и где лежат данные (путь с
+   * именем пользователя наружу не отдаётся).
+   */
   @GetMapping
-  Map<String, Boolean> status() {
+  Map<String, Object> status(HttpServletRequest req) {
+    if (bridge.enabled() && Requests.fromThisComputer(req)) {
+      return Map.of(
+          "needed", setup.needed(), "dataDir", props.dataDir().toAbsolutePath().toString());
+    }
     return Map.of("needed", setup.needed());
+  }
+
+  /** Первый запуск в приложении хоста: выбрать папку для данных до того, как они появятся. */
+  @PostMapping("/data-folder")
+  Map<String, String> dataFolder(@RequestParam String code, HttpServletRequest req) {
+    setup.checkCode(code);
+    if (!setup.needed()) {
+      throw ApiException.conflict("already_setup", "Сайт уже настроен");
+    }
+    if (!bridge.enabled() || !Requests.fromThisComputer(req)) {
+      throw ApiException.forbidden("Доступно только в приложении на компьютере хоста");
+    }
+    bridge.chooseDataFolder();
+    return Map.of("status", "asked");
   }
 
   @PostMapping
