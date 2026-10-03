@@ -153,7 +153,8 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   pdf.js (`PdfView.svelte`, воркер кешируется лениво — см. `LAZY` в service-worker).
 - Фон входа — `lib/appearance.ts` + классы `.login-bg-*` в `app.css`; сервер — `avatars/LoginBackground`.
 - Свои настройки — `/profile` (шестерёнка у имени в боковой панели; на телефоне — «Профиль»):
-  разделы «Аккаунт» (`lib/profile/AccountPanel`, `SecurityPanel`, `DataPanel`) и «Приложение»
+  разделы «Аккаунт» (`lib/profile/AccountPanel`, `SecurityPanel`; «Мои данные» убраны в 0.7,
+  «Выйти» — внизу меню, `profile/logout.ts`) и «Приложение»
   (`ThemePicker`, `settings/NotificationSettings`, `settings/OfflineSettings`, `profile/AppPanel`),
   `?tab=…`; старые ссылки `/profile#notifications` переводятся сами. Управление группой и сайтом —
   `/settings`, в интерфейсе **«Управление»**. Карточки разделов — класс `.card.pane` (и
@@ -271,20 +272,46 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   страница догружает свой код); статику и страницу берём только из кеша своей версии.
 - На телефоне нижняя панель — те же разделы, что в боковой (`bottomNav`: Сегодня, Новости, ДЗ,
   Расписание, Предметы, Профиль; число колонок — `--n`), поиск — в `MobileBar`, участники, сессия,
-  уведомления и настройки — в профиле. Расписание (0.7, по референсу владельца) — выбор дня
-  (`.picker`, группа «Дни недели»), карточка дня `.hero` (сводка — `dayStats` в
-  `lib/schedule/lessons.ts`), строки `.facts`, пары `ol.pairs` с преподавателем (`shortName`; нет в
-  файле — `subjects.teacher`, подставляет `LessonService`), «Сдать в этот день» (`/api/homework?view=range`),
-  плавающая «К сегодня»; день и неделя — в адресе (`?week=&day=`).
+  уведомления и настройки — в профиле.
+- Расписание (0.7, как на сайте МТУСИ, но в нашем стиле): сверху чётность (`studyWeek` — неделя
+  1 сентября / 1 февраля — первая, нечётная), вид «День / Неделя / Месяц» (`?view=`), поиск
+  (`lessonMatches`) и фильтр по виду. «День» — выбор дня (`.picker`, группа «Дни недели», точки
+  видов — `KIND_COLORS`), карточка `.hero` (сводка — `dayStats`, без отменённых), строки —
+  `schedule/DayFacts` (лениво), пары `ol.pairs` с преподавателем (`shortName`; нет в файле —
+  `subjects.teacher`, подставляет `LessonService`), «Сдать в этот день» — `DueList`
+  (`/api/homework?view=range`), плавающая «К сегодня». «Неделя» — `WeekView`, «Месяц» —
+  `MonthView` (+ `month.ts abbr`), пустая неделя — `EmptyWeek`, действия старосты — `manage.ts`:
+  всё лениво, страница на грани бюджета. «Пары не было» — `lessons.cancelled` (V24), `PUT
+  /api/lessons/{id}/cancelled`, `manage_schedule`; импорт файла поле не трогает. Время на странице
+  тикает раз в 15 с, `live.ts` без SSE опрашивает раз в 10 с.
 - Вход (0.5, жалоба «аккаунты вылетают»): сессия — 365 дней, скользящая; cookie продлевает
   `AuthFilter` на каждом `GET /api/me`. Смена роли сайта сессии не закрывает (роль читается из базы
   на каждом запросе), кроме назначения администратором. Обязательная 2FA
   (`require-staff-totp`) — только у администратора (`SessionService.totpRequired`), модераторам —
   по желанию.
-- Вход на втором устройстве (`auth/DeviceLinks`, `lib/auth/QrLogin.svelte`, страница `/link/[code]`):
-  QR и с 0.5 — 6 цифр (`Started.pin`, `GET /api/auth/qr/pin/{pin}`, `POST …/approve`; вводит
-  только вошедший — «Ввести код» в `SecurityPanel`, не больше `PIN_TRIES` ошибок за 10 минут).
-  `/link/123456` — тот же экран подтверждения по 6 цифрам. Срок кода — 3 минуты (`TTL`).
+- Вход на другом устройстве (0.7, наоборот, просьба владельца): код показывает **вошедшее**
+  устройство — «Показать код» в `SecurityPanel` → `lib/auth/ShowCode.svelte` (`POST
+  /api/auth/link`, QR на `/enter/<код>` и 6 цифр, опрос `POST /api/auth/link/status`, «Готово!
+  Вошли: …»). Новое — сканирует QR (`QrScanner` понимает `/enter/…` с любого адреса, страница
+  `routes/(auth)/enter/[code]`) или вводит цифры на странице входа («По коду»,
+  `lib/auth/CodeLogin.svelte`) → `POST /api/auth/link/redeem` (без входа). `auth/DeviceLinks`: код
+  на 3 минуты, один раз; подбор цифр — не больше `MISSES_PER_IP` с адреса и `MISSES_TOTAL` на сайт
+  за 10 минут (QR при этом работает), аудит `user.code_login`.
+- Предметы (0.7): «Удалить предмет…» — `SubjectDeletion` (`DELETE /api/subjects/{id}`: нужно
+  `manage_subjects` во всех группах предмета; файлы заданий и материалов, комментарии, картинка и
+  обложка — тоже), «Разделить на подгруппы…» — `SubjectService.split` (`POST
+  /api/subjects/{id}/subgroups {count}`: «База №1…№N», те же группы, цвет и преподаватель). На
+  странице предмета с номером подгруппы — `content/SubgroupSwitch` («Моя подгруппа»: своя —
+  `mine`, остальные — скрыты). Меню предмета — `content/subjectAdmin.ts` (лениво).
+- Значок в приложении хоста (0.7): окно хоста (`Me.hostWindow`) шлёт выбор `POST
+  /api/desktop/icon` (`looksSync.hostIcon`, и при старте), сервер — событие `icon` оболочке, она
+  ставит картинку из `web/static/icons` (Mac — `NSApplication.setApplicationIconImage`, Windows и
+  Linux — значок окна) и помнит выбор в `prefs` («dark» — родной значок пакета). Масштаб окна —
+  `monitor_zoom`: ширина монитора / 1440 (0,9–1,5, шаг 5 %), окно при запуске — под монитор;
+  перетащили на другой монитор — пересчёт. В браузере — ступени app.css 1440, 1920 и 2400.
+- Тур (0.7): в карточке шага — `tour/TourDemo.svelte` (CSS-сценка по `step.id`, по кругу), финал —
+  на весь экран «Добро пожаловать!» (сияние `--mesh-*`, кольца, буквы по одной, залп конфетти;
+  у заголовка `aria-label`).
 - Тема (`lib/theme.ts`): `setTheme` шлёт событие `gb:theme`, кнопка темы (`ThemeToggle`, их две —
   в панели и `MobileBar`) и `ThemePicker` подписаны через `onTheme()` — иначе показывали разное.
 - «Управление → Версия и обновления» (`lib/settings/UpdatesPanel.svelte`, `POST
