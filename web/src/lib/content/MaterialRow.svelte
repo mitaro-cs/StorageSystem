@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CloudOff, ExternalLink, Eye } from '@lucide/svelte';
+	import { CloudOff, ExternalLink, Eye, Pin } from '@lucide/svelte';
 	import { openFiles } from '$lib/files/viewer.svelte';
 	import { canPreview } from '$lib/fileKinds';
 	import { fmtAgo, fmtSize } from '$lib/format';
@@ -17,10 +17,17 @@
 </script>
 
 <!-- Вся строка — ссылка на материал; «Открыть», ссылка наружу и меню — поверх неё. -->
-<div class="list-row mrow" class:dim={m.hidden}>
-	<FileIcon mime={m.file?.mime} link={m.kind === 'link'} />
+<div class="list-row mrow" class:dim={m.hidden} class:pinned={!!m.pinnedAt}>
+	<FileIcon mime={m.file?.mime} link={m.kind === 'link'} note={m.kind === 'note'} />
 	<div class="main">
-		<a class="title" href="/materials/{m.id}">{m.title}</a>
+		<a class="title" href="/materials/{m.id}"
+			>{#if m.pinnedAt}<Pin size={13} aria-label="Закреплено" />
+			{/if}{m.title}</a
+		>
+		{#if m.kind === 'note' && m.description !== m.title}
+			<!-- Сообщение: начало текста прямо в списке. -->
+			<span class="text small">{m.description.replace(m.title, '').trim()}</span>
+		{/if}
 		<span class="faint small meta num">
 			{#if showSubject}<SubjectGlyph
 					id={m.subjectId}
@@ -103,6 +110,18 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+	.text {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		color: var(--text-2);
+		white-space: pre-line;
+	}
+	.pinned {
+		background: color-mix(in srgb, var(--accent) 6%, transparent);
 	}
 	.meta {
 		display: flex;

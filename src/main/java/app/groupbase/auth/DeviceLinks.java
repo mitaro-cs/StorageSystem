@@ -12,43 +12,39 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 /**
- * Вход по QR-коду, как в мессенджерах: новое устройство показывает QR, человек сканирует его
- * телефоном, где уже вошёл, и подтверждает. Код живёт 3 минуты и срабатывает один раз; в памяти
- * только хеши. Новое устройство узнаёт об одобрении по отдельному секрету опроса, который видит
- * лишь оно.
+ * Вход на другом устройстве (0.7, как просил владелец): устройство, где человек уже вошёл,
+ * показывает QR-код и 6 цифр («Профиль → Вход и безопасность → Показать код»), новое сканирует QR
+ * камерой или вводит цифры на странице входа — и входит без пароля. Код живёт 3 минуты и
+ * срабатывает один раз; показавшее устройство видит, где вошли. В памяти — только хеши длинных
+ * кодов.
  *
- * <p>Без камеры — по короткому коду (0.5): рядом с QR те же 3 минуты показаны 6 цифр, их вводят на
- * устройстве, где уже вошли ({@link #byPin}). Вводит только вошедший, и ошибок не больше {@link
- * #PIN_TRIES} за 10 минут — перебором не подобрать; подобранный код дал бы вход в свой же аккаунт.
+ * <p>6 цифр подбирать бессмысленно: не больше {@link #MISSES_PER_IP} ошибок с адреса и {@link
+ * #MISSES_TOTAL} на весь сайт за 10 минут — дальше ввод цифр закрыт (QR работает).
  */
 @Service
 public class DeviceLinks {
 
   public static final Duration TTL = Duration.ofMinutes(3);
 
-  /** Не больше стольких QR-кодов с одного адреса за 10 минут. */
-  static final int STARTS_PER_IP = 20;
+  /** Не больше стольких кодов от человека за 10 минут. */
+  static final int ISSUES_PER_USER = 20;
 
-  /** Ошибок при вводе короткого кода на человека за 10 минут. */
-  static final int PIN_TRIES = 10;
+  static final int MISSES_PER_IP = 10;
+  static final int MISSES_TOTAL = 60;
+  private static final long WINDOW = Duration.ofMinutes(10).toMillis();
 
-  public record Started(String code, String poll, String pin, long expiresAt) {}
+  public record Issued(String code, String pin, long expiresAt) {}
 
-  public record Info(String device, long createdAt, long expiresAt) {}
+  /** waiting — ещё не вошли, used — вошли (device — где), expired — код устарел. */
+  public record Status(String status, String device) {}
 
-  private record Link(
-      String codeHash, String device, long createdAt, long expiresAt, Long userId) {}
+  private record Link(String codeHash, String pin, long userId, long expiresAt, String usedOn) {}
 
   private final Map<String, Link> byCode = new ConcurrentHashMap<>();
-  private final Map<String, String> byPoll = new ConcurrentHashMap<>();
-  private final Map<String, long[]> starts = new ConcurrentHashMap<>();
-
-  /** Короткий код (6 цифр) → хеш длинного; живёт столько же. */
   private final Map<String, String> pins = new ConcurrentHashMap<>();
-
-  /** Человек → [начало окна, ошибок]. */
-  private final Map<Long, long[]> pinMisses = new ConcurrentHashMap<>();
-
+  private final Map<Long, long[]> issues = new ConcurrentHashMap<>();
+  private final Map<String, long[]> misses = new ConcurrentHashMap<>();
+  private final long[] missesTotal = {0, 0};
   private final SecureRandom random = new SecureRandom();
   private final AuditService audit;
   private final Clock clock;
@@ -62,123 +58,112 @@ public class DeviceLinks {
     return HexFormat.of().formatHex(Tokens.sha256(token));
   }
 
-  public Started start(String ip, String device) {
+  /** Счётчик в окне 10 минут: [начало окна, сколько]. */
+  private long[] window(long[] w, long now) {
+    if (w[0] < now - WINDOW) {
+      w[0] = now;
+      w[1] = 0;
+    }
+    return w;
+  }
+
+  /** Код для входа на другом устройстве — от имени того, кто уже вошёл. */
+  public Issued issue(Actor actor) {
     long now = clock.millis();
-    long[] window =
-        starts.compute(ip, (k, v) -> v == null || v[0] < now - 600_000 ? new long[] {now, 0} : v);
-    synchronized (window) {
-      if (++window[1] > STARTS_PER_IP) {
+    long[] w = issues.computeIfAbsent(actor.id(), k -> new long[] {now, 0});
+    synchronized (w) {
+      if (++window(w, now)[1] > ISSUES_PER_USER) {
         throw new ApiException(
-            HttpStatus.TOO_MANY_REQUESTS, "too_many", "Слишком много попыток, подождите немного");
+            HttpStatus.TOO_MANY_REQUESTS, "too_many", "Слишком много кодов, подождите немного");
       }
     }
     String code = Tokens.newToken();
-    String poll = Tokens.newToken();
-    String label = device == null ? "" : device.strip();
-    Link link =
-        new Link(
-            hash(code),
-            label.length() > 60 ? label.substring(0, 60) : label,
-            now,
-            now + TTL.toMillis(),
-            null);
-    byCode.put(link.codeHash(), link);
-    byPoll.put(hash(poll), link.codeHash());
     String pin;
     do {
       pin = String.format("%06d", random.nextInt(1_000_000));
-    } while (pins.putIfAbsent(pin, link.codeHash()) != null);
-    return new Started(code, poll, pin, link.expiresAt());
+    } while (pins.putIfAbsent(pin, hash(code)) != null);
+    Link link = new Link(hash(code), pin, actor.id(), now + TTL.toMillis(), null);
+    byCode.put(link.codeHash(), link);
+    return new Issued(code, pin, link.expiresAt());
+  }
+
+  /** Что с выданным кодом — спрашивает только тот, кто его показал. */
+  public Status status(Actor actor, String code) {
+    Link l = code == null || !Tokens.looksValid(code) ? null : byCode.get(hash(code));
+    if (l == null || l.userId() != actor.id()) {
+      return new Status("expired", null);
+    }
+    if (l.usedOn() != null) {
+      byCode.remove(l.codeHash());
+      return new Status("used", l.usedOn());
+    }
+    return new Status(l.expiresAt() < clock.millis() ? "expired" : "waiting", null);
   }
 
   /**
-   * Запись по короткому коду, введённому на устройстве, где уже вошли. Неверный или устаревший код
-   * — ошибка этого человека; после {@link #PIN_TRIES} ошибок за 10 минут — пауза.
+   * Новое устройство предъявляет код из QR или 6 цифр. Возвращает, за кого войти; код сгорает.
+   *
+   * @param device как назвать это устройство показавшему («Safari, Mac»)
    */
-  private Link livePin(Actor actor, String pin) {
+  public long redeem(String ip, String code, String pin, String device) {
     long now = clock.millis();
-    long[] window =
-        pinMisses.compute(
-            actor.id(), (k, v) -> v == null || v[0] < now - 600_000 ? new long[] {now, 0} : v);
-    synchronized (window) {
-      if (window[1] >= PIN_TRIES) {
-        throw new ApiException(
-            HttpStatus.TOO_MANY_REQUESTS,
-            "too_many",
-            "Слишком много неверных кодов — подождите 10 минут или отсканируйте QR");
+    boolean byPin = code == null || code.isBlank();
+    if (byPin) {
+      long[] mine = misses.computeIfAbsent(ip, k -> new long[] {now, 0});
+      synchronized (missesTotal) {
+        synchronized (mine) {
+          if (window(mine, now)[1] >= MISSES_PER_IP
+              || window(missesTotal, now)[1] >= MISSES_TOTAL) {
+            throw new ApiException(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "too_many",
+                "Слишком много неверных кодов — подождите 10 минут или отсканируйте QR");
+          }
+        }
       }
     }
     String digits = pin == null ? "" : pin.replaceAll("\\D", "");
-    String codeHash = digits.length() == 6 ? pins.get(digits) : null;
+    String codeHash =
+        byPin
+            ? (digits.length() == 6 ? pins.get(digits) : null)
+            : Tokens.looksValid(code) ? hash(code) : null;
     Link l = codeHash == null ? null : byCode.get(codeHash);
-    if (l == null || l.expiresAt() < now || l.userId() != null) {
-      synchronized (window) {
-        window[1]++;
+    if (l == null || l.expiresAt() < now || l.usedOn() != null) {
+      if (byPin) {
+        synchronized (missesTotal) {
+          long[] mine = misses.get(ip);
+          synchronized (mine) {
+            mine[1]++;
+          }
+          missesTotal[1]++;
+        }
       }
       throw new ApiException(
-          HttpStatus.GONE, "expired", "Код не подошёл — проверьте цифры на другом устройстве");
+          HttpStatus.GONE,
+          "expired",
+          byPin
+              ? "Код не подошёл — проверьте цифры на другом устройстве"
+              : "Код устарел — покажите новый на другом устройстве");
     }
-    return l;
-  }
-
-  public Info infoByPin(Actor actor, String pin) {
-    Link l = livePin(actor, pin);
-    return new Info(l.device(), l.createdAt(), l.expiresAt());
-  }
-
-  public void approveByPin(Actor actor, String pin) {
-    approve(actor, livePin(actor, pin));
-  }
-
-  private Link live(String code) {
-    Link l = code == null || !Tokens.looksValid(code) ? null : byCode.get(hash(code));
-    if (l == null || l.expiresAt() < clock.millis() || l.userId() != null) {
-      throw new ApiException(
-          HttpStatus.GONE, "expired", "Код устарел — обновите QR на другом устройстве");
-    }
-    return l;
-  }
-
-  /** Что подтверждает человек: какое устройство и когда просило вход. */
-  public Info info(String code) {
-    Link l = live(code);
-    return new Info(l.device(), l.createdAt(), l.expiresAt());
-  }
-
-  public void approve(Actor actor, String code) {
-    approve(actor, live(code));
-  }
-
-  private void approve(Actor actor, Link l) {
-    Link approved = new Link(l.codeHash(), l.device(), l.createdAt(), l.expiresAt(), actor.id());
-    if (!byCode.replace(l.codeHash(), l, approved)) {
+    String label = device == null ? "" : device.strip();
+    label =
+        label.isEmpty()
+            ? "другое устройство"
+            : label.length() > 60 ? label.substring(0, 60) : label;
+    Link used = new Link(l.codeHash(), l.pin(), l.userId(), l.expiresAt(), label);
+    if (!byCode.replace(l.codeHash(), l, used)) {
       throw new ApiException(HttpStatus.GONE, "expired", "Код уже использован");
     }
-    audit.log(actor, null, "user.qr_approve", "user", actor.id());
-  }
-
-  /** null — ещё не подтвердили; id пользователя — можно открывать сессию (один раз). */
-  public Long poll(String poll) {
-    String codeHash = poll == null || !Tokens.looksValid(poll) ? null : byPoll.get(hash(poll));
-    Link l = codeHash == null ? null : byCode.get(codeHash);
-    if (l == null || (l.userId() == null && l.expiresAt() < clock.millis())) {
-      throw new ApiException(HttpStatus.GONE, "expired", "Код устарел — покажите новый");
-    }
-    if (l.userId() == null) {
-      return null;
-    }
-    byCode.remove(codeHash);
-    byPoll.remove(hash(poll));
-    pins.values().remove(codeHash);
+    pins.remove(l.pin(), l.codeHash());
+    audit.log(null, null, "user.code_login", "user", l.userId(), Map.of("device", label));
     return l.userId();
   }
 
   public void cleanup() {
     long now = clock.millis();
     byCode.values().removeIf(l -> l.expiresAt() < now - TTL.toMillis());
-    byPoll.values().removeIf(h -> !byCode.containsKey(h));
     pins.values().removeIf(h -> !byCode.containsKey(h));
-    pinMisses.values().removeIf(w -> w[0] < now - 600_000);
-    starts.values().removeIf(w -> w[0] < now - 600_000);
+    issues.values().removeIf(w -> w[0] < now - WINDOW);
+    misses.values().removeIf(w -> w[0] < now - WINDOW);
   }
 }

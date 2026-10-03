@@ -8,7 +8,7 @@
 	import Button from '$lib/ui/Button.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
 	import FioField from '$lib/auth/FioField.svelte';
-	import QrLogin from '$lib/auth/QrLogin.svelte';
+	import CodeLogin from '$lib/auth/CodeLogin.svelte';
 	import { fioError, firstName, suggestUsername } from '$lib/names';
 	import type { GroupRole } from '$lib/types';
 
@@ -165,13 +165,12 @@
 					><KeyRound size={17} /> Войти по логину и паролю</Button
 				>
 				{#if qr}
-					<QrLogin onsuccess={signedInByQr} />
+					<CodeLogin onsuccess={signedInByQr} />
 				{:else}
-					<Button onclick={() => (qr = true)}
-						><QrCode size={17} /> Войти по QR-коду с телефона</Button
-					>
+					<Button onclick={() => (qr = true)}><QrCode size={17} /> Войти по коду с телефона</Button>
 					<p class="faint small">
-						QR-код появится здесь — отсканируйте его телефоном, где вы уже вошли в groupbase.
+						На телефоне, где вы уже вошли: «Профиль → Вход и безопасность → Показать код» — здесь
+						отсканируйте его или введите 6 цифр.
 					</p>
 				{/if}
 			</div>

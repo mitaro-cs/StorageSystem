@@ -25,9 +25,11 @@ class SubjectController {
   record FlagBody(Boolean value) {}
 
   private final SubjectService subjects;
+  private final app.groupbase.content.SubjectDeletion deletion;
 
-  SubjectController(SubjectService subjects) {
+  SubjectController(SubjectService subjects, app.groupbase.content.SubjectDeletion deletion) {
     this.subjects = subjects;
+    this.deletion = deletion;
   }
 
   @GetMapping("/api/subjects")
@@ -56,6 +58,22 @@ class SubjectController {
   @PutMapping("/api/subjects/{id}/archived")
   Map<String, String> archive(Actor actor, @PathVariable long id, @RequestBody FlagBody b) {
     subjects.setArchived(actor, id, Boolean.TRUE.equals(b.value()));
+    return Map.of("status", "ok");
+  }
+
+  record SplitBody(Integer count) {}
+
+  /** Разделить на подгруппы «№1», «№2»… */
+  @PostMapping("/api/subjects/{id}/subgroups")
+  List<SubjectService.SubjectView> split(
+      Actor actor, @PathVariable long id, @RequestBody SplitBody b) {
+    return subjects.split(actor, id, b.count() == null ? 2 : b.count());
+  }
+
+  /** Удалить совсем — со всеми заданиями и материалами (в архив — PUT …/archived). */
+  @DeleteMapping("/api/subjects/{id}")
+  Map<String, String> delete(Actor actor, @PathVariable long id) {
+    deletion.delete(actor, id);
     return Map.of("status", "ok");
   }
 

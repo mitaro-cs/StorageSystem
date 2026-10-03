@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -81,6 +82,13 @@ class MaterialController {
   MaterialService.Item update(
       Actor actor, @PathVariable long id, @RequestBody MaterialService.Input in) {
     return materials.update(actor, id, in);
+  }
+
+  record PinBody(boolean pinned) {}
+
+  @PutMapping("/api/materials/{id}/pinned")
+  MaterialService.Item pin(Actor actor, @PathVariable long id, @RequestBody PinBody b) {
+    return materials.pin(actor, id, b.pinned());
   }
 
   @DeleteMapping("/api/materials/{id}")

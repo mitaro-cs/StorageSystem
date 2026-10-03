@@ -134,6 +134,17 @@ public class DesktopBridge {
     event("update", Map.of());
   }
 
+  /** Значки на выбор (как в интерфейсе, lib/appIcon.svelte.ts). */
+  public static final java.util.Set<String> ICONS =
+      java.util.Set.of("light", "dark", "ocean", "forest", "sunset", "grape");
+
+  /** Выбрали значок в окне хоста — оболочка ставит его в Dock или на панель задач. */
+  public void showIcon(String icon) {
+    if (enabled && ICONS.contains(icon)) {
+      event("icon", Map.of("icon", icon));
+    }
+  }
+
   static final long CHECK_EVERY_MS = 60_000;
   private volatile long checkAskedAt = Long.MIN_VALUE;
 

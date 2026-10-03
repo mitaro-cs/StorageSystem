@@ -63,6 +63,8 @@ struct App {
     /// Версия, про которую уже спросили «Обновить сейчас?» — второй раз за запуск не спрашиваем.
     offered: Mutex<Option<String>>,
     updating: Mutex<bool>,
+    /// Масштаб окна под текущий монитор (monitor_zoom).
+    zoom: Mutex<f64>,
     data: PathBuf,
 }
 
@@ -101,10 +103,16 @@ fn main() {
                 update: Mutex::new(None),
                 offered: Mutex::new(None),
                 updating: Mutex::new(false),
+                zoom: Mutex::new(1.0),
                 data,
             });
             create_window(app.handle(), !hidden)?;
             build_tray(app.handle())?;
+            // Значок, выбранный в «Профиль → Приложение» (сервер присылает событие icon).
+            let icon = read_pref_text(app.handle(), "icon");
+            if !icon.is_empty() {
+                apply_icon(app.handle(), &icon);
+            }
             if read_pref(app.handle(), "keepAwake") {
                 set_awake(app.handle(), true);
             }
@@ -215,15 +223,53 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
             }
         })
         .build()?;
+    // Окно и масштаб — под монитор: на большом мониторе окно больше и всё крупнее.
+    if let Some(z) = monitor_zoom(&window) {
+        let _ = window.set_zoom(z);
+        if let Ok(Some(m)) = window.current_monitor() {
+            let area = m.size().to_logical::<f64>(m.scale_factor());
+            let _ = window.set_size(tauri::LogicalSize::new(
+                (1180.0 * z).min(area.width * 0.92),
+                (800.0 * z).min(area.height * 0.88),
+            ));
+            let _ = window.center();
+        }
+        *app.state::<App>().zoom.lock().unwrap() = z;
+    }
     let w = window.clone();
-    window.on_window_event(move |event| {
-        if let WindowEvent::CloseRequested { api, .. } = event {
+    window.on_window_event(move |event| match event {
+        WindowEvent::CloseRequested { api, .. } => {
             // Закрыть окно ≠ выключить сайт: прячем окно, сервер работает дальше.
             api.prevent_close();
             let _ = w.hide();
         }
+        // Перетащили окно на другой монитор — масштаб под него.
+        WindowEvent::Moved(_) | WindowEvent::ScaleFactorChanged { .. } => {
+            if let Some(z) = monitor_zoom(&w) {
+                let st = w.app_handle().state::<App>();
+                let mut last = st.zoom.lock().unwrap();
+                if (*last - z).abs() > 0.01 {
+                    *last = z;
+                    let _ = w.set_zoom(z);
+                }
+            }
+        }
+        _ => {}
     });
     Ok(())
+}
+
+/// Масштаб интерфейса под монитор (просьба владельца — «везде выглядело одинаково»): сайт
+/// рассчитан на ширину около 1440 точек; на мониторе 1920 всё в 1,35 раза крупнее, на 2560 — в 1,5,
+/// на тесном ноутбуке — чуть мельче. Шаг — 5 %.
+fn monitor_zoom(window: &tauri::WebviewWindow) -> Option<f64> {
+    let m = window.current_monitor().ok().flatten()?;
+    let width = m.size().to_logical::<f64>(m.scale_factor()).width;
+    Some(zoom_for(width))
+}
+
+fn zoom_for(width: f64) -> f64 {
+    ((width / 1440.0).clamp(0.9, 1.5) * 20.0).round() / 20.0
 }
 
 /// Адрес без параметров: в ссылке входа — одноразовый токен, в журнал он не попадает.
@@ -604,6 +650,14 @@ fn on_event(app: &AppHandle, v: &Value) {
                 if code.is_empty() { "GB-200" } else { &code },
                 &text("message"),
             );
+        }
+        // Выбрали значок в окне хоста — Dock на Mac, панель задач на Windows; запоминаем.
+        "icon" => {
+            let id = text("icon");
+            if id == "dark" || icon_png(&id).is_some() {
+                write_pref_value(app, "icon", Value::String(id.clone()));
+                apply_icon(app, &id);
+            }
         }
         // «Обновить» в «Настройки → Сервер → Состояние».
         "update" => install_update(app),
@@ -1077,19 +1131,87 @@ fn read_pref(app: &AppHandle, key: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn read_pref_text(app: &AppHandle, key: &str) -> String {
+    fs::read_to_string(prefs_path(app))
+        .ok()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+        .and_then(|v| v.get(key).and_then(Value::as_str).map(str::to_string))
+        .unwrap_or_default()
+}
+
 fn write_pref(app: &AppHandle, key: &str, value: bool) {
+    write_pref_value(app, key, Value::Bool(value));
+}
+
+fn write_pref_value(app: &AppHandle, key: &str, value: Value) {
     let path = prefs_path(app);
     let mut v = fs::read_to_string(&path)
         .ok()
         .and_then(|s| serde_json::from_str::<Value>(&s).ok())
         .unwrap_or_else(|| serde_json::json!({}));
-    v[key] = Value::Bool(value);
+    v[key] = value;
     let _ = fs::write(path, v.to_string());
+}
+
+/// Картинки значков на выбор (web/static/icons, `java scripts/Icons.java variants`). «dark» — значок
+/// приложения по умолчанию: для него — None, ставится родной.
+fn icon_png(id: &str) -> Option<&'static [u8]> {
+    Some(match id {
+        "light" => include_bytes!("../../../web/static/icons/icon-512.png"),
+        "ocean" => include_bytes!("../../../web/static/icons/v/ocean-512.png"),
+        "forest" => include_bytes!("../../../web/static/icons/v/forest-512.png"),
+        "sunset" => include_bytes!("../../../web/static/icons/v/sunset-512.png"),
+        "grape" => include_bytes!("../../../web/static/icons/v/grape-512.png"),
+        _ => return None,
+    })
+}
+
+fn apply_icon(app: &AppHandle, id: &str) {
+    let png = icon_png(id);
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || show_icon(&handle, png));
+}
+
+/// Mac: значок в Dock, пока приложение запущено (после выхода Dock показывает значок из пакета).
+#[cfg(target_os = "macos")]
+fn show_icon(_app: &AppHandle, png: Option<&'static [u8]>) {
+    use objc2::{AllocAnyThread, MainThreadMarker};
+    use objc2_app_kit::{NSApplication, NSImage};
+    use objc2_foundation::NSData;
+    let Some(mtm) = MainThreadMarker::new() else {
+        return;
+    };
+    let app = NSApplication::sharedApplication(mtm);
+    let image =
+        png.and_then(|bytes| NSImage::initWithData(NSImage::alloc(), &NSData::with_bytes(bytes)));
+    unsafe { app.setApplicationIconImage(image.as_deref()) };
+}
+
+/// Windows и Linux: значок окна — он же на панели задач.
+#[cfg(not(target_os = "macos"))]
+fn show_icon(app: &AppHandle, png: Option<&'static [u8]>) {
+    let icon = match png {
+        Some(bytes) => tauri::image::Image::from_bytes(bytes).ok(),
+        None => app.default_window_icon().cloned(),
+    };
+    if let (Some(w), Some(icon)) = (app.get_webview_window(MAIN), icon) {
+        let _ = w.set_icon(icon);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn zoom_follows_monitor_width() {
+        assert_eq!(zoom_for(1440.0), 1.0);
+        assert_eq!(zoom_for(1470.0), 1.0);
+        assert_eq!(zoom_for(1920.0), 1.35);
+        assert_eq!(zoom_for(2560.0), 1.5);
+        assert_eq!(zoom_for(3840.0), 1.5);
+        assert_eq!(zoom_for(1280.0), 0.9);
+    }
 
     #[test]
     #[cfg(windows)]

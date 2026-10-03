@@ -115,3 +115,105 @@ export function kindsText(kinds: Partial<Record<LessonKind, number>>): string {
 		.map((k) => `${kinds[k.value]} ${plural(kinds[k.value]!, k.forms)}`)
 		.join(', ');
 }
+
+/** Окно между парами: с конца одной до начала следующей. */
+export interface Gap {
+	from: number;
+	to: number;
+}
+
+/** Сводка дня для карточки дня на «Расписании»: сколько пар и часов, начало, конец, окна. */
+export interface DayStats {
+	count: number;
+	/** Минут на парах. */
+	minutes: number;
+	first: Lesson | null;
+	last: Lesson | null;
+	/** Перерывы от 30 минут — «окна». */
+	gaps: Gap[];
+	kinds: Partial<Record<LessonKind, number>>;
+}
+
+export function dayStats(lessons: Lesson[]): DayStats {
+	const list = [...lessons].sort((a, b) => a.startsAt - b.startsAt);
+	const kinds: Partial<Record<LessonKind, number>> = {};
+	let minutes = 0;
+	const gaps: Gap[] = [];
+	let end = -Infinity;
+	for (const l of list) {
+		kinds[l.kind] = (kinds[l.kind] ?? 0) + 1;
+		minutes += Math.round((l.endsAt - l.startsAt) / 60_000);
+		if (end > -Infinity && l.startsAt - end >= 30 * 60_000)
+			gaps.push({ from: end, to: l.startsAt });
+		end = Math.max(end, l.endsAt);
+	}
+	const last = list.reduce<Lesson | null>((a, l) => (!a || l.endsAt > a.endsAt ? l : a), null);
+	return { count: list.length, minutes, first: list[0] ?? null, last, gaps, kinds };
+}
+
+/** «1 ч 30 мин», «45 мин», «6 ч». */
+export function durationText(minutes: number): string {
+	const h = Math.floor(minutes / 60);
+	const m = minutes % 60;
+	if (!h) return `${m} мин`;
+	return m ? `${h} ч ${m} мин` : `${h} ч`;
+}
+
+/** «Иванов И. И.» из «Иванов Иван Иванович»; уже короткое — как есть. */
+export function shortName(full: string): string {
+	const p = full.trim().split(/\s+/);
+	if (p.length < 2 || p.slice(1).every((x) => /^[А-ЯЁA-Z]\.?$/u.test(x))) return full.trim();
+	return `${p[0]} ${p
+		.slice(1, 3)
+		.map((x) => x[0].toUpperCase() + '.')
+		.join(' ')}`;
+}
+
+/** Цвет вида пары — полоска на карточке и точки в календаре (как на сайте вуза). */
+export const KIND_COLORS: Record<LessonKind, string> = {
+	lecture: '#1fa37a',
+	practice: '#4f7df5',
+	seminar: '#a35cf0',
+	lab: '#e0633a',
+	consult: '#1f9bb8',
+	credit: '#d9a21b',
+	exam: '#d9487e',
+	other: '#8a8f98'
+};
+
+/**
+ * Номер учебной недели и чётность: осенью счёт с недели 1 сентября, весной — с недели 1 февраля
+ * (первая неделя — нечётная).
+ */
+export function studyWeek(ms: number): { n: number; odd: boolean } {
+	const d = new Date(ms);
+	const y = d.getFullYear();
+	const m = d.getMonth();
+	const start = m >= 7 ? new Date(y, 8, 1) : m === 0 ? new Date(y - 1, 8, 1) : new Date(y, 1, 1);
+	const n = Math.round((weekStart(ms) - weekStart(start.getTime())) / (7 * 86_400_000)) + 1;
+	return { n: Math.max(1, n), odd: Math.max(1, n) % 2 === 1 };
+}
+
+/** Поиск по паре: предмет, название, преподаватель, аудитория, тема. */
+export function lessonMatches(l: Lesson, query: string): boolean {
+	const q = query.trim().toLowerCase();
+	if (!q) return true;
+	return [l.subject?.name, l.title, l.teacher, l.place, l.note].some((x) =>
+		x?.toLowerCase().includes(q)
+	);
+}
+
+/** Пара: не было (отменили), прошла, идёт, скоро или позже. */
+export function lessonStatus(l: Lesson, now: number): LessonState | 'cancelled' {
+	return l.cancelled ? 'cancelled' : lessonState(l, now);
+}
+
+/** Сетка месяца: понедельники недель, в которые попадает месяц. */
+export function monthWeeks(ms: number): number[] {
+	const d = new Date(ms);
+	const first = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+	const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getTime();
+	const out: number[] = [];
+	for (let w = weekStart(first); w <= last; w = addDays(w, 7)) out.push(w);
+	return out;
+}

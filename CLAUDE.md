@@ -153,7 +153,8 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   pdf.js (`PdfView.svelte`, воркер кешируется лениво — см. `LAZY` в service-worker).
 - Фон входа — `lib/appearance.ts` + классы `.login-bg-*` в `app.css`; сервер — `avatars/LoginBackground`.
 - Свои настройки — `/profile` (шестерёнка у имени в боковой панели; на телефоне — «Профиль»):
-  разделы «Аккаунт» (`lib/profile/AccountPanel`, `SecurityPanel`, `DataPanel`) и «Приложение»
+  разделы «Аккаунт» (`lib/profile/AccountPanel`, `SecurityPanel`; «Мои данные» убраны в 0.7,
+  «Выйти» — внизу меню, `profile/logout.ts`) и «Приложение»
   (`ThemePicker`, `settings/NotificationSettings`, `settings/OfflineSettings`, `profile/AppPanel`),
   `?tab=…`; старые ссылки `/profile#notifications` переводятся сами. Управление группой и сайтом —
   `/settings`, в интерфейсе **«Управление»**. Карточки разделов — класс `.card.pane` (и
@@ -213,13 +214,10 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   полный снимок. «Не мой предмет» скрывает и пары.
 - Полоса предметов на странице предмета — `content/SubjectStrip.svelte` (лениво, место под неё
   занято сразу): стрелки у края и затухание — мышью без сенсорной панели иначе не прокрутить.
-- Дизайн — `data-style` на `<html>` (lib/theme.ts `STYLES`, шесть: plain «Классика» без
-  атрибута, glass, depth, neon «Сияние», paper, aura «Аура» — по постерам-референсам владельца),
-  правила — в app.css (`:root[data-style]`, слой `body::before`; у «Ауры» ещё `body::after` — круг с
-  перекрестием); у `.card` и `.list`. «Аура»: пятна из `--mesh-*` (у «Чернил» — розовый, янтарь,
-  электрик), `--pop` (`--pal-pop` из colors.ts, иначе лайм) — у выбранного пункта и `.chip.accent`, в
-  тёмной теме `--accent` = `--pop`. Старые значения (tint, outline, comic) просто не применяются.
-  «Оформление под значок» убрано по просьбе владельца.
+- Дизайн — `data-style` на `<html>` (lib/theme.ts `STYLES`, пять: plain «Классика» без
+  атрибута, glass, depth, neon «Сияние», paper), правила — в app.css (`:root[data-style]`, слой
+  `body::before`); у `.card` и `.list`. «Аура» убрана в 0.7 (просьба владельца), старые значения
+  (aura, tint, outline, comic) просто не применяются. «Оформление под значок» убрано.
 - Блокировать, исключать и удалять людей (`block_users`) могут только администратор и староста —
   у модератора этого права нет (Rbac.MODERATOR). В интерфейсе роли — «Администратор» и
   «Модератор», без «сайта».
@@ -274,17 +272,46 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   страница догружает свой код); статику и страницу берём только из кеша своей версии.
 - На телефоне нижняя панель — те же разделы, что в боковой (`bottomNav`: Сегодня, Новости, ДЗ,
   Расписание, Предметы, Профиль; число колонок — `--n`), поиск — в `MobileBar`, участники, сессия,
-  уведомления и настройки — в профиле. Расписание — один столбец Пн–Вс (все семь дней), сверху — полоса дней недели (`.strip`,
-  точки — число пар, нажатие — прокрутка к `#day-ГГГГ-ММ-ДД`).
+  уведомления и настройки — в профиле.
+- Расписание (0.7, как на сайте МТУСИ, но в нашем стиле): сверху чётность (`studyWeek` — неделя
+  1 сентября / 1 февраля — первая, нечётная), вид «День / Неделя / Месяц» (`?view=`), поиск
+  (`lessonMatches`) и фильтр по виду. «День» — выбор дня (`.picker`, группа «Дни недели», точки
+  видов — `KIND_COLORS`), карточка `.hero` (сводка — `dayStats`, без отменённых), строки —
+  `schedule/DayFacts` (лениво), пары `ol.pairs` с преподавателем (`shortName`; нет в файле —
+  `subjects.teacher`, подставляет `LessonService`), «Сдать в этот день» — `DueList`
+  (`/api/homework?view=range`), плавающая «К сегодня». «Неделя» — `WeekView`, «Месяц» —
+  `MonthView` (+ `month.ts abbr`), пустая неделя — `EmptyWeek`, действия старосты — `manage.ts`:
+  всё лениво, страница на грани бюджета. «Пары не было» — `lessons.cancelled` (V24), `PUT
+  /api/lessons/{id}/cancelled`, `manage_schedule`; импорт файла поле не трогает. Время на странице
+  тикает раз в 15 с, `live.ts` без SSE опрашивает раз в 10 с.
 - Вход (0.5, жалоба «аккаунты вылетают»): сессия — 365 дней, скользящая; cookie продлевает
   `AuthFilter` на каждом `GET /api/me`. Смена роли сайта сессии не закрывает (роль читается из базы
   на каждом запросе), кроме назначения администратором. Обязательная 2FA
   (`require-staff-totp`) — только у администратора (`SessionService.totpRequired`), модераторам —
   по желанию.
-- Вход на втором устройстве (`auth/DeviceLinks`, `lib/auth/QrLogin.svelte`, страница `/link/[code]`):
-  QR и с 0.5 — 6 цифр (`Started.pin`, `GET /api/auth/qr/pin/{pin}`, `POST …/approve`; вводит
-  только вошедший — «Ввести код» в `SecurityPanel`, не больше `PIN_TRIES` ошибок за 10 минут).
-  `/link/123456` — тот же экран подтверждения по 6 цифрам. Срок кода — 3 минуты (`TTL`).
+- Вход на другом устройстве (0.7, наоборот, просьба владельца): код показывает **вошедшее**
+  устройство — «Показать код» в `SecurityPanel` → `lib/auth/ShowCode.svelte` (`POST
+  /api/auth/link`, QR на `/enter/<код>` и 6 цифр, опрос `POST /api/auth/link/status`, «Готово!
+  Вошли: …»). Новое — сканирует QR (`QrScanner` понимает `/enter/…` с любого адреса, страница
+  `routes/(auth)/enter/[code]`) или вводит цифры на странице входа («По коду»,
+  `lib/auth/CodeLogin.svelte`) → `POST /api/auth/link/redeem` (без входа). `auth/DeviceLinks`: код
+  на 3 минуты, один раз; подбор цифр — не больше `MISSES_PER_IP` с адреса и `MISSES_TOTAL` на сайт
+  за 10 минут (QR при этом работает), аудит `user.code_login`.
+- Предметы (0.7): «Удалить предмет…» — `SubjectDeletion` (`DELETE /api/subjects/{id}`: нужно
+  `manage_subjects` во всех группах предмета; файлы заданий и материалов, комментарии, картинка и
+  обложка — тоже), «Разделить на подгруппы…» — `SubjectService.split` (`POST
+  /api/subjects/{id}/subgroups {count}`: «База №1…№N», те же группы, цвет и преподаватель). На
+  странице предмета с номером подгруппы — `content/SubgroupSwitch` («Моя подгруппа»: своя —
+  `mine`, остальные — скрыты). Меню предмета — `content/subjectAdmin.ts` (лениво).
+- Значок в приложении хоста (0.7): окно хоста (`Me.hostWindow`) шлёт выбор `POST
+  /api/desktop/icon` (`looksSync.hostIcon`, и при старте), сервер — событие `icon` оболочке, она
+  ставит картинку из `web/static/icons` (Mac — `NSApplication.setApplicationIconImage`, Windows и
+  Linux — значок окна) и помнит выбор в `prefs` («dark» — родной значок пакета). Масштаб окна —
+  `monitor_zoom`: ширина монитора / 1440 (0,9–1,5, шаг 5 %), окно при запуске — под монитор;
+  перетащили на другой монитор — пересчёт. В браузере — ступени app.css 1440, 1920 и 2400.
+- Тур (0.7): в карточке шага — `tour/TourDemo.svelte` (CSS-сценка по `step.id`, по кругу), финал —
+  на весь экран «Добро пожаловать!» (сияние `--mesh-*`, кольца, буквы по одной, залп конфетти;
+  у заголовка `aria-label`).
 - Тема (`lib/theme.ts`): `setTheme` шлёт событие `gb:theme`, кнопка темы (`ThemeToggle`, их две —
   в панели и `MobileBar`) и `ThemePicker` подписаны через `onTheme()` — иначе показывали разное.
 - «Управление → Версия и обновления» (`lib/settings/UpdatesPanel.svelte`, `POST
@@ -308,11 +335,21 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   в localStorage). Картинка — в своих цветах: сверху только нейтральная вуаль `--veil` (белая/чёрная,
   **не** `--bg` — тот в цвете темы, владелец жаловался на «покрас») силой `--bg-dim` (ползунок
   «Приглушить», `gb-bg-dim`), размытие — `data-bg-blur`; слои дизайна поверх картинки не рисуются.
+  Общее для всех устройств (0.7): `lib/looksSync.ts` (лениво из макета) — сеттеры шлют `gb:looks`
+  (тема — `gb:theme`), через секунду `PATCH /api/me/preferences {appearance}` с меткой `at`; после
+  входа новее с сервера — применяем (`isApplying()` — не отправлять обратно). Проверка полей —
+  `web/api/Appearance.java`, хранение — `users.appearance` (JSON) и `users.background` (WebP
+  `<id>-1920.webp` у `AvatarService.storeBackground`, `PUT/DELETE /api/me/background`).
   Значок — `lib/appIcon.svelte.ts` (варианты — `java scripts/Icons.java variants`:
   `static/icons/v/*`, `manifest-*.webmanifest`; по умолчанию — `dark`, `DEFAULT_ICON`: светлый
   iPhone в тёмной теме затемняет целиком). Всё применяет скрипт в app.html до отрисовки; ссылки
   icon, apple-touch-icon и manifest он **создаёт** сам — в разметке их нет, иначе браузер успевал
-  взять стандартный значок. «Аура» со своей картинкой — пятна поверх неё (исключение из правила).
+  взять стандартный значок.
+- Материалы: виды file, link и с 0.7 note — сообщение (текст в `description`, название — первая
+  строка), `pinned_at` — закреплено сверху (`PUT /api/materials/{id}/pinned`, право — `publish_news`
+  или `moderate_content`). V23 пересобирает таблицу ради CHECK (триггеры — копии V6/V9/V21,
+  `legacy_alter_table` на время RENAME). Страница предмета: первая вкладка — «ДЗ», «Новости»
+  лениво; дедлайны на «Сегодня» — `SubjectGlyph` в кружке.
 - Фон карточки предмета: `subjects.cover`, `AvatarService.storeCover` (16:9, 1280 и 480, WebP),
   `PUT/DELETE /api/subjects/{id}/cover`; `SubjectArt` показывает его вместо иконки.
 - Знакомство (0.6) — тур по живому интерфейсу: `lib/tour/Tour.svelte` (приветствие с анимацией

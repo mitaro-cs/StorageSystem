@@ -194,6 +194,18 @@ class ScheduleIT extends IntegrationTest {
     Map<String, Object> note = Map.of("note", "Лекция 1. Пределы");
     assertThat(student.api().patch("/api/lessons/" + lesson, note).status()).isEqualTo(403);
     assertThat(headman.api().patch("/api/lessons/" + lesson, note).status()).isEqualTo(200);
+    // «Пары не было» — тоже староста; отметка переживает повторную загрузку.
+    Map<String, Object> off = Map.of("value", true);
+    assertThat(student.api().put("/api/lessons/" + lesson + "/cancelled", off).status())
+        .isEqualTo(403);
+    assertThat(
+            headman
+                .api()
+                .put("/api/lessons/" + lesson + "/cancelled", off)
+                .json()
+                .get("cancelled")
+                .asBoolean())
+        .isTrue();
 
     // Обновлённый файл: последней лекции нет — она уходит, остальное (с темой и заданием) — нет.
     var shorter = headman.api().post(base + "/preview", Map.of("ics", ics(day, 3)));
@@ -204,6 +216,7 @@ class ScheduleIT extends IntegrationTest {
     assertThat(student.api().get("/api/schedule?group=" + g + range).json().size()).isEqualTo(6);
     var kept = student.api().get("/api/lessons/" + lesson).json();
     assertThat(kept.get("lesson").get("note").asString()).isEqualTo("Лекция 1. Пределы");
+    assertThat(kept.get("lesson").get("cancelled").asBoolean()).isTrue();
     assertThat(kept.get("homework").size()).isEqualTo(1);
 
     // Офлайн-копия получает пары.

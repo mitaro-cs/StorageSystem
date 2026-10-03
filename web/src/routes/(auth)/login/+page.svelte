@@ -5,7 +5,7 @@
 	import { ApiError, get, post } from '$lib/api';
 	import Button from '$lib/ui/Button.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
-	import QrLogin from '$lib/auth/QrLogin.svelte';
+	import CodeLogin from '$lib/auth/CodeLogin.svelte';
 	import { Fingerprint, X } from '@lucide/svelte';
 	import {
 		loginWithPasskey,
@@ -181,7 +181,7 @@
 			? 'Введите один из резервных кодов, которые вы сохранили при включении 2FA'
 			: 'Введите 6 цифр из приложения-аутентификатора'
 		: mode === 'qr'
-			? 'Без логина и пароля — подтвердите вход с телефона'
+			? 'Без логина и пароля — код с устройства, где вы уже вошли'
 			: 'Аккаунт создаётся старостой или администратором'}
 </p>
 
@@ -190,14 +190,12 @@
 		<button role="tab" aria-selected={mode === 'password'} onclick={() => (mode = 'password')}
 			>По паролю</button
 		>
-		<button role="tab" aria-selected={mode === 'qr'} onclick={() => (mode = 'qr')}
-			>С другого устройства</button
-		>
+		<button role="tab" aria-selected={mode === 'qr'} onclick={() => (mode = 'qr')}>По коду</button>
 	</div>
 {/if}
 
 {#if mode === 'qr' && !ticket}
-	<QrLogin onsuccess={entered} />
+	<CodeLogin onsuccess={entered} />
 {:else}
 	<form onsubmit={submit} novalidate>
 		{#if ticket}
@@ -366,6 +364,10 @@
 	}
 	.modes button {
 		height: 40px;
+		padding: 0 8px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 		border: 0;
 		border-radius: var(--r-full);
 		background: transparent;

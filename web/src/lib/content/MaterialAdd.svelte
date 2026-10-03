@@ -25,7 +25,8 @@
 		onsaved
 	}: Props = $props();
 
-	let mode = $state<'file' | 'link'>('file');
+	// Сообщение (0.6) — текст прямо в материалах: вставить из чата билеты, список литературы.
+	let mode = $state<'file' | 'link' | 'note'>('file');
 	let files = $state<FileInfo[]>([]);
 	let uploading = $state(0);
 	let url = $state('');
@@ -48,7 +49,17 @@
 		error = '';
 		try {
 			let created: Material[] = [];
-			if (mode === 'link') {
+			if (mode === 'note') {
+				created.push(
+					await post<Material>(`/api/subjects/${subjectId}/materials`, {
+						kind: 'note',
+						title,
+						description,
+						folderId,
+						lessonId
+					})
+				);
+			} else if (mode === 'link') {
 				created.push(
 					await post<Material>(`/api/subjects/${subjectId}/materials`, {
 						kind: 'link',
@@ -107,9 +118,18 @@
 				class:on={mode === 'link'}
 				onclick={() => (mode = 'link')}>Ссылка</button
 			>
+			<button
+				type="button"
+				role="tab"
+				aria-selected={mode === 'note'}
+				class:on={mode === 'note'}
+				onclick={() => (mode = 'note')}>Сообщение</button
+			>
 		</div>
 		{#if mode === 'file'}
 			<DropZone bind:files bind:uploading />
+		{:else if mode === 'note'}
+			<!-- Текст сообщения — сразу, название не обязательно: возьмём первую строку. -->
 		{:else}
 			<div>
 				<label class="label" for="m-url">Адрес</label>
@@ -123,7 +143,7 @@
 				/>
 			</div>
 		{/if}
-		{#if mode === 'link' || files.length <= 1}
+		{#if mode !== 'file' || files.length <= 1}
 			<div>
 				<label class="label" for="m-title"
 					>Название <span class="faint">(необязательно)</span></label
@@ -131,11 +151,26 @@
 				<input id="m-title" class="input" bind:value={title} maxlength="200" />
 			</div>
 		{/if}
-		<div>
-			<label class="label" for="m-desc">Описание <span class="faint">(необязательно)</span></label>
-			<textarea id="m-desc" class="textarea" rows="3" bind:value={description} maxlength="2000"
-			></textarea>
-		</div>
+		{#if mode === 'note'}
+			<div>
+				<label class="label" for="m-text">Текст сообщения</label>
+				<textarea
+					id="m-text"
+					class="textarea"
+					rows="8"
+					bind:value={description}
+					maxlength="8000"
+					placeholder="Напишите или вставьте — например, билеты к экзамену из чата"
+					required></textarea>
+			</div>
+		{:else}
+			<div>
+				<label class="label" for="m-desc">Описание <span class="faint">(необязательно)</span></label
+				>
+				<textarea id="m-desc" class="textarea" rows="3" bind:value={description} maxlength="2000"
+				></textarea>
+			</div>
+		{/if}
 		{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 	</form>
 	{#snippet footer()}

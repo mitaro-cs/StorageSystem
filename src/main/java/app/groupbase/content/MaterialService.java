@@ -54,7 +54,8 @@ public class MaterialService {
 
   public record FileInfo(long id, String name, String mime, long size) {}
 
-  public record Can(boolean edit, boolean delete, boolean moderate) {}
+  /** pin — закрепить сверху (староста, замы, модераторы — как закреплённые новости). */
+  public record Can(boolean edit, boolean delete, boolean moderate, boolean pin) {}
 
   public record Item(
       long id,
@@ -74,7 +75,9 @@ public class MaterialService {
       int comments,
       Can can,
       // Пара из расписания, к которой материал; null — просто в предмете.
-      Long lessonId) {}
+      Long lessonId,
+      // Закреплён сверху с этого момента; null — нет.
+      Long pinnedAt) {}
 
   public record Folder(long id, Long parentId, String name, int count) {}
 
@@ -108,7 +111,8 @@ public class MaterialService {
       boolean hidden,
       long createdAt,
       int comments,
-      Long lessonId) {}
+      Long lessonId,
+      Long pinnedAt) {}
 
   private final JdbcClient db;
   private final SubjectService subjects;
@@ -178,7 +182,8 @@ public class MaterialService {
                     Rows.bool(rs, "hidden"),
                     rs.getLong("created_at"),
                     rs.getInt("comment_count"),
-                    Rows.longOrNull(rs, "lesson_id")))
+                    Rows.longOrNull(rs, "lesson_id"),
+                    Rows.longOrNull(rs, "pinned_at")))
         .list();
   }
 
@@ -203,7 +208,8 @@ public class MaterialService {
             m.subject_id = :s AND m.folder_id IS :f
             AND ((m.status = 'published' AND m.hidden = 0) OR m.author_id = :uid OR :mod = 1)
             AND m.status != 'rejected'
-            ORDER BY m.status = 'pending' DESC, m.created_at DESC
+            ORDER BY m.pinned_at IS NULL, m.pinned_at DESC, m.status = 'pending' DESC,
+              m.created_at DESC
             """,
             p);
     List<Folder> folders =
@@ -423,14 +429,28 @@ public class MaterialService {
           title = f.name();
         }
       }
-      default -> throw ApiException.invalid("kind", "Тип материала: файл или ссылка");
+      case "note" -> {
+        // Сообщение: текст — в описании, название — первая строка, если своего нет.
+        String text = in.description() == null ? "" : in.description().strip();
+        if (text.isEmpty()) {
+          throw ApiException.invalid("description", "Напишите или вставьте текст сообщения");
+        }
+        if (title.isEmpty()) {
+          String first = text.lines().findFirst().orElse("").strip();
+          title = first.length() > 80 ? first.substring(0, 79).strip() + "…" : first;
+        }
+      }
+      default -> throw ApiException.invalid("kind", "Тип материала: файл, ссылка или сообщение");
     }
     if (title.length() > 200) {
       throw ApiException.invalid("title", "Название — до 200 символов");
     }
     String description = in.description() == null ? "" : in.description().strip();
-    if (description.length() > 2000) {
-      throw ApiException.invalid("description", "Описание — до 2000 символов");
+    int max = "note".equals(kind) ? 8000 : 2000;
+    if (description.length() > max) {
+      throw ApiException.invalid(
+          "description",
+          ("note".equals(kind) ? "Сообщение" : "Описание") + " — до " + max + " символов");
     }
     long now = clock.millis();
     long id =
@@ -496,6 +516,28 @@ public class MaterialService {
                 + " updated_at = ? WHERE id = ?")
         .params(title, description, folder, lesson, clock.millis(), id)
         .update();
+    return get(actor, id);
+  }
+
+  /** Закрепить сверху списка материалов предмета (или открепить). */
+  public Item pin(Actor actor, long id, boolean pinned) {
+    Row r = row(id);
+    List<Long> groups = subjectStore.groupIds(r.subjectId());
+    access.requireSee(actor, groups);
+    if (!access.can(actor, Permission.PUBLISH_NEWS, groups)
+        && !access.can(actor, Permission.MODERATE_CONTENT, groups)) {
+      throw ApiException.forbidden("Закреплять могут староста, замы и модераторы");
+    }
+    db.sql("UPDATE materials SET pinned_at = ?, updated_at = ? WHERE id = ?")
+        .params(pinned ? clock.millis() : null, clock.millis(), id)
+        .update();
+    audit.log(
+        actor,
+        groups.getFirst(),
+        pinned ? "material.pin" : "material.unpin",
+        "material",
+        id,
+        Map.of("title", r.title()));
     return get(actor, id);
   }
 
@@ -755,10 +797,14 @@ public class MaterialService {
         });
     Map<Long, Person> authors = people.load(authorIds);
     Map<Long, List<Long>> groupsCache = new HashMap<>();
+    Map<Long, Boolean> pinRights = new HashMap<>();
     List<Item> out = new ArrayList<>();
     for (Row r : rows) {
       List<Long> groups = groupsCache.computeIfAbsent(r.subjectId(), subjectStore::groupIds);
       boolean mod = access.can(actor, Permission.MODERATE_CONTENT, groups);
+      boolean pin =
+          pinRights.computeIfAbsent(
+              r.subjectId(), x -> access.can(actor, Permission.PUBLISH_NEWS, groups) || mod);
       out.add(
           new Item(
               r.id(),
@@ -778,8 +824,9 @@ public class MaterialService {
               r.hidden(),
               r.createdAt(),
               r.comments(),
-              new Can(isAuthor(actor, r) || mod, isAuthor(actor, r) || mod, mod),
-              r.lessonId()));
+              new Can(isAuthor(actor, r) || mod, isAuthor(actor, r) || mod, mod, pin),
+              r.lessonId(),
+              r.pinnedAt()));
     }
     return out;
   }

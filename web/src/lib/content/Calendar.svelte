@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SubjectGlyph from '$lib/ui/SubjectGlyph.svelte';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import { get, qs } from '$lib/api';
 	import { session } from '$lib/session.svelte';
@@ -85,7 +86,7 @@
 	<div class="day-list" in:fade>
 		{#each byDay[selected] ?? [] as h (h.id)}
 			<a class="list-row" href="/homework/{h.id}">
-				<span class="dot" style:background={h.subject.color}></span>
+				<SubjectGlyph id={h.subject.id} name={h.subject.name} color={h.subject.color} size={28} />
 				<span class="t" class:done={h.done}>{h.title}</span>
 				<span class="faint small">{h.subject.name}</span>
 			</a>
@@ -179,12 +180,6 @@
 	}
 	.day-list > * + * {
 		border-top: 1px solid var(--border);
-	}
-	.dot {
-		width: 10px;
-		height: 10px;
-		border-radius: 3px;
-		flex: none;
 	}
 	.t {
 		flex: 1;

@@ -178,7 +178,7 @@
 }
 
 /* ---------- Дизайн (Настройки → Оформление, lib/theme.ts STYLES) ----------
-   Шесть цельных вариантов: «Классика» (без атрибута), «Стекло», «Объём», «Сияние», «Бумага», «Аура». Каждый
+   Пять цельных вариантов: «Классика» (без атрибута), «Стекло», «Объём», «Сияние», «Бумага». Каждый
    меняет материал — карточки, тени, фон, заголовки; цвет берётся из выбранного основного цвета.
    Срочные новости везде сохраняют янтарную плашку, списки (.list) оформляются как карточки. */
 
@@ -324,121 +324,7 @@
 	letter-spacing: -0.005em;
 }
 
-/* Аура — по постерам, которые прислал владелец: яркие размытые пятна цвета на спокойном фоне,
-   крупный жирный шрифт, плоские контрастные плашки без теней, кислотная плашка у выбранного.
-   Пятна — из основного цвета (у «Чернил» — розовый, янтарный и электрик, как на референсе),
-   тонкий круг с перекрестием — как на постере. */
-:root[data-style='aura'] {
-	--bg: #e8e8ec;
-	--surface: #f8f8fa;
-	--surface-2: #efeff3;
-	--surface-3: #e1e1e7;
-	--border: #dadae1;
-	--border-strong: #c6c6cf;
-	--pop: var(--pal-pop, #d6ff3d);
-	--pop-text: #0b0b0c;
-	--shadow-1: none;
-	--shadow-2: 0 20px 40px -28px rgb(16 18 24 / 0.35);
-}
-:root[data-style='aura']:not([data-accent]) {
-	--mesh-1: #ff3d8b;
-	--mesh-2: #ffb020;
-	--mesh-3: #3558ff;
-}
-:root[data-style='aura'] body::before {
-	background:
-		radial-gradient(
-			34% 30% at 94% 4%,
-			color-mix(in srgb, var(--mesh-1) 62%, transparent),
-			transparent 72%
-		),
-		radial-gradient(
-			26% 24% at 78% 20%,
-			color-mix(in srgb, var(--mesh-2) 50%, transparent),
-			transparent 72%
-		),
-		radial-gradient(
-			44% 40% at 0% 100%,
-			color-mix(in srgb, var(--mesh-3) 52%, transparent),
-			transparent 74%
-		),
-		radial-gradient(
-			24% 22% at 22% 78%,
-			color-mix(in srgb, var(--mesh-1) 30%, transparent),
-			transparent 70%
-		);
-}
-/* Круг с перекрестием и узлами на линии — тонко, за карточками. */
-:root[data-style='aura'] body::after {
-	content: '';
-	position: fixed;
-	top: 9vh;
-	right: 5vw;
-	z-index: -1;
-	width: 300px;
-	height: 300px;
-	pointer-events: none;
-	background: var(--text);
-	opacity: 0.14;
-	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300' fill='none' stroke='%23000' stroke-width='1.2'%3E%3Ccircle cx='150' cy='150' r='84'/%3E%3Cpath d='M150 0v300M30 150h240'/%3E%3Ccircle cx='150' cy='8' r='4'/%3E%3Ccircle cx='150' cy='292' r='4'/%3E%3C/svg%3E")
-		center / contain no-repeat;
-	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300' fill='none' stroke='%23000' stroke-width='1.2'%3E%3Ccircle cx='150' cy='150' r='84'/%3E%3Cpath d='M150 0v300M30 150h240'/%3E%3Ccircle cx='150' cy='8' r='4'/%3E%3Ccircle cx='150' cy='292' r='4'/%3E%3C/svg%3E")
-		center / contain no-repeat;
-}
-@media (max-width: 899px) {
-	:root[data-style='aura'] body::after {
-		top: auto;
-		right: -60px;
-		bottom: 18vh;
-		width: 220px;
-		height: 220px;
-		opacity: 0.1;
-	}
-}
-:root[data-style='aura'] :is(.card:not(.urgent), .list) {
-	box-shadow: none;
-}
-/* Телефон: активный раздел нижней панели — той же кислотной плашкой. */
-:root[data-style='aura'] .bottom-nav .pill {
-	background: var(--pop);
-	box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--pop) 70%, transparent);
-}
-:root[data-style='aura'] .sidebar {
-	background: transparent;
-	border-right-color: transparent;
-}
-/* Выбранное — кислотной плашкой с чёрным текстом, как «Практики» на постере. */
-:root[data-style='aura'] :is(.sidebar .main a.active, .chip.accent) {
-	background: var(--pop);
-	color: var(--pop-text);
-}
-:root[data-style='aura'] :is(h1, h2) {
-	font-weight: 800;
-	letter-spacing: -0.045em;
-	line-height: 1.05;
-}
-:root[data-style='aura'] h3 {
-	font-weight: 750;
-	letter-spacing: -0.02em;
-}
-
 /* Дизайны в тёмной теме: кромка и свет слабее, тени глубже, свечение ярче. */
-:root[data-theme='dark'][data-style='aura'] {
-	--bg: #050506;
-	--surface: #0f0f12;
-	--surface-2: #17171b;
-	--surface-3: #222228;
-	--border: #1c1c21;
-	--border-strong: #2f2f36;
-	--accent: var(--pop);
-	--accent-hover: color-mix(in srgb, var(--pop) 85%, #fff);
-	--accent-soft: color-mix(in srgb, var(--pop) 18%, transparent);
-	--accent-text: var(--pop-text);
-	--focus: var(--pop);
-}
-:root[data-theme='dark'][data-style='aura'] :is(.card:not(.urgent), .list) {
-	box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07);
-}
 
 :root[data-theme='dark'][data-style='glass'] :is(.card:not(.urgent), .list) {
 	background-color: color-mix(in srgb, var(--surface) 50%, transparent);
@@ -479,22 +365,6 @@
 	opacity: 0.16;
 }
 @media (prefers-color-scheme: dark) {
-	:root:not([data-theme='light'])[data-style='aura'] {
-		--bg: #050506;
-		--surface: #0f0f12;
-		--surface-2: #17171b;
-		--surface-3: #222228;
-		--border: #1c1c21;
-		--border-strong: #2f2f36;
-		--accent: var(--pop);
-		--accent-hover: color-mix(in srgb, var(--pop) 85%, #fff);
-		--accent-soft: color-mix(in srgb, var(--pop) 18%, transparent);
-		--accent-text: var(--pop-text);
-		--focus: var(--pop);
-	}
-	:root:not([data-theme='light'])[data-style='aura'] :is(.card:not(.urgent), .list) {
-		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07);
-	}
 	:root:not([data-theme='light'])[data-style='glass'] :is(.card:not(.urgent), .list) {
 		background-color: color-mix(in srgb, var(--surface) 50%, transparent);
 		box-shadow:
@@ -538,7 +408,7 @@
 /* ---------- Своя картинка на фоне (Настройки → Оформление, lib/looks.ts) ----------
    Под всем, неподвижная и в своих цветах: сверху только нейтральная вуаль — белая в светлой теме,
    чёрная в тёмной, без оттенка основного цвета. Насколько приглушить (--bg-dim) и размыть ли,
-   выбирает сам человек. Пятна света и зерно дизайнов поверх картинки не рисуются (кроме «Ауры»). */
+   выбирает сам человек. Пятна света и зерно дизайнов поверх картинки не рисуются. */
 :root[data-bg='custom']::before {
 	content: '';
 	position: fixed;
@@ -555,12 +425,6 @@
 }
 :root[data-bg='custom'] body::before {
 	display: none;
-}
-/* «Аура» и на своей картинке остаётся «Аурой»: пятна цвета по краям и круг поверх картинки —
-   без них дизайн неотличим от «Классики». Картинка в середине — в своих цветах. */
-:root[data-bg='custom'][data-style='aura'] body::before {
-	display: block;
-	opacity: 0.7;
 }
 
 /* Приложение проявляется вместе с уходом заставки: чуть приближается из глубины. */
@@ -738,6 +602,22 @@ button {
 	}
 	.small {
 		font-size: 14px;
+	}
+}
+/* 2560 и шире (27–32″ без масштабирования): всё заметно крупнее, чтобы не было «мелко и пусто». */
+@media (min-width: 2400px) {
+	:root {
+		--content: 1440px;
+		--sidebar: 340px;
+	}
+	body {
+		font-size: 18px;
+	}
+	h1 {
+		font-size: 38px;
+	}
+	.small {
+		font-size: 15px;
 	}
 }
 .sr-only {

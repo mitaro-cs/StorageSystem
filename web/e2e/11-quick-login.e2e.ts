@@ -11,8 +11,9 @@ test('вход без ввода логина: выбор аккаунта и QR
 	await login(phone, STUDENT);
 
 	// Выход и повторный вход: логин не вводим — выбираем себя.
-	await phone.goto('/profile?tab=data');
-	await phone.getByRole('button', { name: 'Выйти' }).click();
+	// «Выйти» — внизу меню профиля.
+	await phone.goto('/profile');
+	await phone.getByRole('button', { name: /^Выйти/ }).click();
 	await expect(phone.getByText('Кто входит?')).toBeVisible();
 	await phone.getByRole('button', { name: /^Ким Олег/ }).click();
 	await expect(phone.getByRole('heading', { level: 1 })).toHaveText('Здравствуйте, Олег');
@@ -21,39 +22,33 @@ test('вход без ввода логина: выбор аккаунта и QR
 	await phone.getByRole('button', { name: 'Войти' }).click();
 	await expect(phone.getByRole('heading', { level: 1 })).toContainText('Привет');
 
-	// Ноутбук показывает QR, телефон подтверждает — ноутбук входит сам.
+	// Телефон (уже вошли) показывает код; ноутбук открывает QR-ссылку — как камерой — и входит.
+	await phone.goto('/profile?tab=security');
+	await phone.getByRole('button', { name: 'Показать код' }).click();
+	const shown = phone.getByRole('dialog', { name: 'Вход на другом устройстве' });
+	const box = shown.locator('[data-code]');
+	await expect(box).toBeVisible();
+	await phone.screenshot({ path: 'test-results/shots/show-code-mobile.png' });
+	const code = await box.getAttribute('data-code');
 	const laptopCtx = await browser.newContext({ locale: 'ru-RU' });
 	const laptop = await laptopCtx.newPage();
-	await laptop.goto('/login');
-	await laptop.getByRole('tab', { name: 'С другого устройства' }).click();
-	const box = laptop.locator('[data-code]');
-	await expect(box).toBeVisible();
-	await laptop.screenshot({ path: 'test-results/shots/login-qr-desktop.png' });
-	const code = await box.getAttribute('data-code');
-	await phone.goto(`/link/${code}`);
-	await expect(phone.getByRole('heading', { name: 'Войти на другом устройстве?' })).toBeVisible();
-	await phone.getByRole('button', { name: 'Разрешить вход' }).click();
-	await expect(phone.getByRole('heading', { name: 'Готово' })).toBeVisible();
+	await laptop.goto(`/enter/${code}`);
 	await expect(laptop.getByRole('heading', { level: 1 })).toContainText('Привет, Олег', {
 		timeout: 10_000
 	});
+	// Телефон видит, что вход состоялся.
+	await expect(shown.getByText('Готово!')).toBeVisible({ timeout: 10_000 });
+	await shown.locator('footer').getByRole('button', { name: 'Закрыть' }).click();
 
-	// Без камеры: второй ноутбук показывает 6 цифр, их вводят в профиле на телефоне.
+	// Без камеры: 6 цифр вводят на странице входа второго ноутбука — «По коду».
+	await phone.getByRole('button', { name: 'Показать код' }).click();
+	const pin = (await shown.locator('.pin').innerText()).replace(/\D/g, '');
+	expect(pin).toMatch(/^\d{6}$/);
 	const otherCtx = await browser.newContext({ locale: 'ru-RU' });
 	const other = await otherCtx.newPage();
 	await other.goto('/login');
-	await other.getByRole('tab', { name: 'С другого устройства' }).click();
-	const pin = (await other.locator('.pin strong').innerText()).replace(/\D/g, '');
-	expect(pin).toMatch(/^\d{6}$/);
-	await phone.goto('/profile?tab=security');
-	await phone.getByRole('button', { name: 'Ввести код' }).click();
-	await phone
-		.getByRole('dialog')
-		.getByRole('textbox')
-		.fill(`${pin.slice(0, 3)} ${pin.slice(3)}`);
-	await phone.getByRole('button', { name: 'Дальше' }).click();
-	await expect(phone.getByRole('heading', { name: 'Войти на другом устройстве?' })).toBeVisible();
-	await phone.getByRole('button', { name: 'Разрешить вход' }).click();
+	await other.getByRole('tab', { name: 'По коду' }).click();
+	await other.getByLabel('Или 6 цифр').fill(`${pin.slice(0, 3)} ${pin.slice(3)}`);
 	await expect(other.getByRole('heading', { level: 1 })).toContainText('Привет, Олег', {
 		timeout: 10_000
 	});

@@ -3,8 +3,8 @@
 	import { onDestroy } from 'svelte';
 	import Modal from '$lib/ui/Modal.svelte';
 
-	// Сканер QR внутри приложения: нужен установленному приложению на iPhone — у него своя сессия,
-	// отдельная от Safari, поэтому камера телефона тут не поможет.
+	// Сканер QR кода входа (страница входа → «По коду»): нужен установленному приложению на
+	// iPhone — у него своя сессия, отдельная от Safari, поэтому камера телефона тут не поможет.
 	let { open = $bindable(false) }: { open?: boolean } = $props();
 
 	let video: HTMLVideoElement | undefined = $state();
@@ -77,13 +77,12 @@
 		tick();
 	}
 
-	/** Путь /link/… только с нашего же сайта. */
+	/** Код входа с другого устройства — путь /enter/… (0.7); адрес сайта может отличаться от этого
+	 * (туннель и локальная сеть), поэтому берём только путь. */
 	function linkPath(text: string): string | null {
 		try {
 			const u = new URL(text);
-			return u.origin === location.origin && /^\/link\/[\w-]+$/.test(u.pathname)
-				? u.pathname
-				: null;
+			return /^\/enter\/[\w-]+$/.test(u.pathname) ? u.pathname : null;
 		} catch {
 			return null;
 		}
@@ -101,7 +100,9 @@
 		<video bind:this={video} playsinline muted></video>
 		<span class="frame" aria-hidden="true"></span>
 	</div>
-	<p class="muted small">Наведите камеру на QR-код на экране компьютера или другого телефона.</p>
+	<p class="muted small">
+		Наведите камеру на QR-код — его показывает устройство, где вы уже вошли.
+	</p>
 	{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 </Modal>
 

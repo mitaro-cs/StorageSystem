@@ -14,7 +14,6 @@
 	import Button from '$lib/ui/Button.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
-	import NewsFeed from '$lib/content/NewsFeed.svelte';
 
 	let subject = $state<Subject | null>(null);
 	let missing = $state(false);
@@ -28,18 +27,19 @@
 	let refresh = $state(0);
 
 	const id = $derived(Number(page.params.id));
-	const tab = $derived(page.url.searchParams.get('tab') ?? 'feed');
+	// Первая вкладка — задания, новости предмета — сразу за ними (0.6, просьба владельца).
+	const tab = $derived(page.url.searchParams.get('tab') ?? 'homework');
 	// «Пары» — если у предмета есть расписание.
 	const tabs = $derived(
 		[
-			{ value: 'feed', label: 'Лента' },
 			{ value: 'homework', label: 'ДЗ' },
+			{ value: 'feed', label: 'Новости' },
 			...(subject?.lessons ? [{ value: 'lessons', label: 'Пары' }] : []),
 			{ value: 'materials', label: 'Материалы' },
 			{ value: 'members', label: 'Участники' }
 		].map((t) => ({
 			...t,
-			href: t.value === 'feed' ? `/subjects/${id}` : `/subjects/${id}?tab=${t.value}`
+			href: t.value === 'homework' ? `/subjects/${id}` : `/subjects/${id}?tab=${t.value}`
 		}))
 	);
 
@@ -97,14 +97,14 @@
 	/** Добавили — открываем вкладку, где это видно, и обновляем её. */
 	function added(tab: 'feed' | 'homework' | 'materials') {
 		refresh++;
-		goto(`/subjects/${id}${tab === 'feed' ? '' : `?tab=${tab}`}`, {
+		goto(`/subjects/${id}?tab=${tab}`, {
 			replaceState: true,
 			noScroll: true,
 			keepFocus: true
 		});
 	}
 
-	// Редкое — в меню «…»: общий предмет, архив, «не мой предмет».
+	// Редкое — в меню «…»: общий предмет, архив, «не мой предмет», подгруппы, удалить.
 	const actions = $derived.by((): MenuItem[] => {
 		if (!subject) return [];
 		const s = subject;
@@ -129,6 +129,17 @@
 					}
 				}
 			});
+		if (s.can.edit) {
+			out.push({
+				label: 'Разделить на подгруппы…',
+				onclick: () => import('$lib/content/subjectAdmin').then((m) => m.splitSubject(s))
+			});
+			out.push({
+				label: 'Удалить предмет…',
+				danger: true,
+				onclick: () => import('$lib/content/subjectAdmin').then((m) => m.deleteSubject(s))
+			});
+		}
 		return out;
 	});
 
@@ -154,6 +165,11 @@
 					current={subject.id}
 				/>{/await}
 		</div>
+	{/if}
+
+	<!-- Подгруппы «№1», «№2»: выбор своей (код — только у таких предметов). -->
+	{#if /№\s*\d|\(\s*\d+\s*\)|\d\s*(под)?гр/i.test(subject.name)}
+		{#await import('$lib/content/SubgroupSwitch.svelte') then m}<m.default {subject} />{/await}
 	{/if}
 
 	{#if subject.mine === false}
@@ -245,7 +261,7 @@
 		{/each}
 	</nav>
 
-	<!-- Вкладки подгружаются при открытии: код ДЗ, материалов и участников не нужен для ленты. -->
+	<!-- Вкладки подгружаются при открытии: страница предмета — самая тяжёлая, грузим только нужное. -->
 	{#key refresh}
 		{#if tab === 'homework'}
 			{#await import('$lib/content/HomeworkBoard.svelte')}<Skeleton lines={4} />{:then m}<m.default
@@ -266,7 +282,11 @@
 					groupIds={subject.groups.map((g) => g.id)}
 				/>{/await}
 		{:else}
-			<NewsFeed subjectId={subject.id} compose={false} />
+			<!-- Новости предмета — вторая вкладка (0.6): код грузится, когда её открыли. -->
+			{#await import('$lib/content/NewsFeed.svelte')}<Skeleton lines={4} />{:then m}<m.default
+					subjectId={subject.id}
+					compose={false}
+				/>{/await}
 		{/if}
 	{/key}
 

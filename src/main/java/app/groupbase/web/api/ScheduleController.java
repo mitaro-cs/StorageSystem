@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -53,6 +54,13 @@ class ScheduleController {
   LessonService.Lesson update(
       Actor actor, @PathVariable long id, @RequestBody LessonService.Input in) {
     return lessons.update(actor, id, in);
+  }
+
+  record Flag(Boolean value) {}
+
+  @PutMapping("/api/lessons/{id}/cancelled")
+  LessonService.Lesson cancelled(Actor actor, @PathVariable long id, @RequestBody Flag in) {
+    return lessons.setCancelled(actor, id, Boolean.TRUE.equals(in.value()));
   }
 
   @DeleteMapping("/api/lessons/{id}")

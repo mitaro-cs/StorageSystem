@@ -72,6 +72,8 @@ test('компьютер хоста выключен: вместо ответа 
 	const page = await ctx.newPage();
 	await login(page, STUDENT);
 	await page.goto('/profile#offline');
+	// Копия на устройстве скачана: раздел показан и в нём есть время последней загрузки.
+	await expect(page.locator('#offline')).toBeVisible();
 	await expect(page.locator('#offline').getByText('ещё ни разу')).toHaveCount(0, {
 		timeout: 15_000
 	});

@@ -84,48 +84,31 @@ class AuthController {
     return out;
   }
 
-  record QrStartBody(String device) {}
+  record LinkStatusBody(String code) {}
 
-  record QrPollBody(String poll) {}
+  record RedeemBody(String code, String pin, String device) {}
 
-  /** Вход по QR: новое устройство получает код для показа и секрет для опроса. */
+  /**
+   * Вход на другом устройстве (0.7): здесь, где уже вошли, — код (QR и 6 цифр) для нового
+   * устройства.
+   */
+  @PostMapping("/link")
+  DeviceLinks.Issued linkIssue(Actor actor) {
+    return links.issue(actor);
+  }
+
+  /** Вошли ли уже по коду — опрос с устройства, которое его показывает. */
+  @PostMapping("/link/status")
+  DeviceLinks.Status linkStatus(Actor actor, @RequestBody LinkStatusBody b) {
+    return links.status(actor, b.code());
+  }
+
+  /** Новое устройство: код из QR или 6 цифр → сессия. */
   @Public
-  @PostMapping("/qr")
-  DeviceLinks.Started qrStart(@RequestBody QrStartBody b, HttpServletRequest req) {
-    return links.start(req.getRemoteAddr(), b.device());
-  }
-
-  /** Что подтверждает человек на своём телефоне. */
-  @GetMapping("/qr/{code}")
-  DeviceLinks.Info qrInfo(@PathVariable String code) {
-    return links.info(code);
-  }
-
-  /** Без камеры: 6 цифр с экрана нового устройства. */
-  @GetMapping("/qr/pin/{pin}")
-  DeviceLinks.Info pinInfo(Actor actor, @PathVariable String pin) {
-    return links.infoByPin(actor, pin);
-  }
-
-  @PostMapping("/qr/pin/{pin}/approve")
-  Map<String, String> pinApprove(Actor actor, @PathVariable String pin) {
-    links.approveByPin(actor, pin);
-    return Map.of("status", "ok");
-  }
-
-  @PostMapping("/qr/{code}/approve")
-  Map<String, String> qrApprove(Actor actor, @PathVariable String code) {
-    links.approve(actor, code);
-    return Map.of("status", "ok");
-  }
-
-  @Public
-  @PostMapping("/qr/poll")
-  Map<String, String> qrPoll(@RequestBody QrPollBody b, HttpServletResponse res) {
-    Long userId = links.poll(b.poll());
-    if (userId == null) {
-      return Map.of("status", "waiting");
-    }
+  @PostMapping("/link/redeem")
+  Map<String, String> linkRedeem(
+      @RequestBody RedeemBody b, HttpServletRequest req, HttpServletResponse res) {
+    long userId = links.redeem(req.getRemoteAddr(), b.code(), b.pin(), b.device());
     User user = users.find(userId).orElseThrow(ApiException::unauthorized);
     if (user.status() != User.Status.ACTIVE) {
       throw ApiException.forbidden();

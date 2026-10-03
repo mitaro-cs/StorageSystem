@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { Lesson } from '$lib/types';
+import { abbr } from './month';
 import {
 	addDays,
+	monthWeeks,
+	studyWeek,
 	byDay,
+	dayStats,
+	durationText,
+	shortName,
 	kindsText,
 	lessonKind,
 	lessonName,
@@ -77,5 +83,54 @@ describe('расписание', () => {
 		]);
 		expect([...days.keys()]).toEqual([at('2026-09-01T00:00'), at('2026-09-02T00:00')]);
 		expect(days.get(at('2026-09-02T00:00'))!.map((l) => l.id)).toEqual([2, 3]);
+	});
+
+	it('сводка дня: пары, часы, начало, конец и окна от 30 минут', () => {
+		const s = dayStats([
+			lesson('2026-09-28T13:00', '2026-09-28T14:30', { id: 3, kind: 'practice' }),
+			lesson('2026-09-28T09:30', '2026-09-28T11:00', { id: 1 }),
+			lesson('2026-09-28T11:15', '2026-09-28T12:45', { id: 2 })
+		]);
+		expect(s.count).toBe(3);
+		expect(durationText(s.minutes)).toBe('4 ч 30 мин');
+		expect(s.first?.id).toBe(1);
+		expect(s.last?.id).toBe(3);
+		// 11:00–11:15 — перемена, не окно; 12:45–13:00 — тоже.
+		expect(s.gaps).toEqual([]);
+		const w = dayStats([
+			lesson('2026-09-28T09:30', '2026-09-28T11:00'),
+			lesson('2026-09-28T15:10', '2026-09-28T16:40', { id: 2 })
+		]);
+		expect(w.gaps).toEqual([{ from: at('2026-09-28T11:00'), to: at('2026-09-28T15:10') }]);
+		expect(dayStats([]).first).toBeNull();
+	});
+
+	it('преподаватель — коротко: фамилия и инициалы', () => {
+		expect(shortName('Иванов Иван Иванович')).toBe('Иванов И. И.');
+		expect(shortName('Петров А. В.')).toBe('Петров А. В.');
+		expect(shortName('Smith')).toBe('Smith');
+		expect(durationText(45)).toBe('45 мин');
+		expect(durationText(120)).toBe('2 ч');
+	});
+});
+
+describe('месяц и неделя', () => {
+	it('чётность от 1 сентября и 1 февраля', () => {
+		expect(studyWeek(new Date(2026, 8, 1).getTime())).toEqual({ n: 1, odd: true });
+		expect(studyWeek(new Date(2026, 8, 9).getTime())).toEqual({ n: 2, odd: false });
+		expect(studyWeek(new Date(2026, 9, 5).getTime()).n).toBe(6);
+		expect(studyWeek(new Date(2027, 0, 11).getTime()).n).toBeGreaterThan(18);
+		expect(studyWeek(new Date(2027, 1, 3).getTime())).toEqual({ n: 1, odd: true });
+	});
+	it('сокращения названий', () => {
+		expect(abbr('Высшая математика')).toBe('ВМ');
+		expect(abbr('Теория вероятностей и математическая статистика')).toBe('ТВМС');
+		expect(abbr('Физика')).toBe('Физ');
+		expect(abbr('Английский язык №2')).toBe('АЯ');
+	});
+	it('недели месяца', () => {
+		const w = monthWeeks(new Date(2026, 9, 15).getTime());
+		expect(w).toHaveLength(5);
+		expect(new Date(w[0]).getDate()).toBe(28);
 	});
 });

@@ -86,13 +86,15 @@
 	.strip-wrap {
 		--fade: 56px;
 		position: relative;
-		margin: 0 calc(-1 * var(--s4));
 	}
+	/* Полоса — в границах колонки (раньше выходила за неё на --s4, и крайние предметы уходили под
+	   фон страницы); запас по краям — под увеличенный текущий предмет и тень. */
 	.strip {
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		padding: 6px var(--s4);
+		padding: 8px 6px;
+		scroll-padding-inline: 6px;
 		overflow-x: auto;
 		scrollbar-width: none;
 		scroll-behavior: smooth;

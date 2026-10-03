@@ -2,7 +2,8 @@
 	import { offline } from '$lib/offline/engine';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Download, ExternalLink, Eye } from '@lucide/svelte';
+	import { Copy, Download, ExternalLink, Eye } from '@lucide/svelte';
+	import { copy } from '$lib/copy';
 	import { get } from '$lib/api';
 	import { track } from '$lib/recent';
 	import { fmtAgo, fmtSize } from '$lib/format';
@@ -87,7 +88,7 @@
 	<Crumbs items={crumbs} />
 
 	<article class="card head">
-		<FileIcon mime={m.file?.mime} link={m.kind === 'link'} size={24} />
+		<FileIcon mime={m.file?.mime} link={m.kind === 'link'} note={m.kind === 'note'} size={24} />
 		<div class="info">
 			<h1>{m.title}</h1>
 			<p class="faint small num">
@@ -102,6 +103,9 @@
 			{:else}
 				<Button variant="primary" href="{src}?download=true"><Download size={16} /> Скачать</Button>
 			{/if}
+		{:else if m.kind === 'note'}
+			{@const text = m.description}
+			<Button onclick={() => copy(text, 'Текст скопирован')}><Copy size={16} /> Скопировать</Button>
 		{:else if m.url}
 			<a class="btn-link" href={m.url} target="_blank" rel="noopener noreferrer nofollow"
 				><ExternalLink size={16} /> Открыть</a

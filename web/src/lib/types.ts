@@ -68,6 +68,10 @@ export interface Me {
 		onboarded?: boolean;
 		/** Закрытые подсказки разделов; «*» — все (с 0.6, у старых серверов поля нет). */
 		tips?: string[];
+		/** Оформление для всех устройств (lib/looksSync.ts); null — не выбирал, нет поля — сервер до 0.6. */
+		appearance?: Record<string, unknown> | null;
+		/** Своя картинка фона на сервере: /api/avatars/<id>-1920.webp. */
+		background?: string | null;
 	};
 	restriction: 'password_change_required' | 'totp_setup_required' | null;
 	instance: {
@@ -208,6 +212,8 @@ export interface Lesson {
 	/** Сколько заданий и материалов к этой паре. */
 	homework: number;
 	materials: number;
+	/** Пары не было — отметил староста. */
+	cancelled?: boolean;
 	can: { edit: boolean };
 }
 
@@ -361,7 +367,8 @@ export interface Material {
 	subjectName: string;
 	subjectColor: string;
 	folderId: number | null;
-	kind: 'file' | 'link';
+	/** note — сообщение: текст в description (с 0.6). */
+	kind: 'file' | 'link' | 'note';
 	title: string;
 	description: string;
 	url: string | null;
@@ -371,9 +378,12 @@ export interface Material {
 	hidden: boolean;
 	createdAt: number;
 	comments: number;
-	can: { edit: boolean; delete: boolean; moderate: boolean };
+	/** pin — можно закрепить сверху (с 0.6). */
+	can: { edit: boolean; delete: boolean; moderate: boolean; pin?: boolean };
 	/** Пара из расписания, к которой материал (с 0.4.12). */
 	lessonId?: number | null;
+	/** Закреплён сверху (с 0.6); null — нет. */
+	pinnedAt?: number | null;
 	/** Создано без сети и ещё не отправлено на сервер. */
 	pending?: boolean;
 }

@@ -118,9 +118,7 @@ export function accentVars({ hue, sat }: Accent): Record<string, string> {
 		'--pald-accent-hover': oklch(0.85, 0.035 + 0.18 * k, h),
 		'--pald-accent-soft': oklch(0.31, 0.025 + 0.1 * k, h),
 		'--pald-accent-text': oklch(0.2, 0.02 + 0.06 * k, h),
-		// Яркая плашка «Ауры» (активный пункт, отметки) — светлая, текст на ней чёрный.
-		'--pal-pop': oklch(0.9, 0.07 + 0.18 * k, h),
-		// Пятна света для «Стекла», «Сияния» и «Ауры»: основной цвет и два соседних оттенка.
+		// Пятна света для «Стекла» и «Сияния»: основной цвет и два соседних оттенка.
 		'--mesh-1': oklch(0.68, 0.07 + 0.22 * k, h),
 		'--mesh-2': oklch(0.74, 0.06 + 0.18 * k, (h + 48) % 360),
 		'--mesh-3': oklch(0.72, 0.06 + 0.19 * k, (h + 312) % 360),
@@ -180,6 +178,7 @@ export function setAccent(a: Accent, smooth = true) {
 		/* приватный режим — просто не запоминаем */
 	}
 	if (smooth) setTimeout(() => root.classList.remove('theme-switching'), 300);
+	window.dispatchEvent(new Event('gb:looks'));
 }
 
 /** Тема из прежней версии (gb-palette): один раз переводим в цвет — без мигания в следующий раз. */
