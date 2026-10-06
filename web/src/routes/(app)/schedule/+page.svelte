@@ -246,7 +246,9 @@
 	<h1>Расписание</h1>
 	{#if manageGroup}
 		<div class="row head-actions">
-			<Button onclick={() => (importOpen = true)}><Upload size={16} /> Из файла<span class="long"> календаря</span></Button>
+			<Button onclick={() => (importOpen = true)}
+				><Upload size={16} /> Из файла<span class="long"> календаря</span></Button
+			>
 			<Button variant="primary" onclick={() => (editorOpen = true)}><Plus size={17} /> Пара</Button>
 			<Menu items={more} label="Ещё действия с расписанием" />
 		</div>
