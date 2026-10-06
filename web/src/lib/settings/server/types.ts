@@ -151,4 +151,7 @@ export interface PeerView {
 		here: boolean;
 	}[];
 	code: { code: string; expiresAt: number; url: string | null } | null;
+	/** Другие компьютеры просят подключиться — ждут «Разрешить» здесь. */
+	requests: { id: string; name: string }[];
+	ask: { phase: string; message: string | null; url: string | null };
 }

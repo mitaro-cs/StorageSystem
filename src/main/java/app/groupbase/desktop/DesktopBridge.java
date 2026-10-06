@@ -67,6 +67,9 @@ public class DesktopBridge {
 
   private volatile Runnable onRestart = () -> {};
 
+  /** «Разрешить» / «Отклонить» подключение другого компьютера — из диалога оболочки. */
+  private volatile java.util.function.BiConsumer<String, Boolean> onPeerAnswer = (id, allow) -> {};
+
   public DesktopBridge(GroupbaseProperties props, Clock clock) {
     this.enabled = props.desktop().enabled();
     this.port = props.http().port();
@@ -109,6 +112,15 @@ public class DesktopBridge {
   }
 
   /** Перезапуск сервера оболочкой: восстановление из копии, смена сетевого режима. */
+  public void onPeerAnswer(java.util.function.BiConsumer<String, Boolean> handler) {
+    this.onPeerAnswer = handler;
+  }
+
+  /** Команда оболочки {@code peer-allow <id>} или {@code peer-deny <id>}. */
+  public void peerAnswer(String id, boolean allow) {
+    onPeerAnswer.accept(id, allow);
+  }
+
   public void requestRestart() {
     if (!enabled) {
       return;

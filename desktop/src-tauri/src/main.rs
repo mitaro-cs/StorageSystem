@@ -725,6 +725,13 @@ fn on_event(app: &AppHandle, v: &Value) {
             let app = app.clone();
             thread::spawn(move || choose_data(&app));
         }
+        // Другой компьютер просит подключиться к сайту: спрашиваем здесь, даже если окно закрыто.
+        "peer-request" => {
+            let app = app.clone();
+            let id = text("id");
+            let name = text("name");
+            thread::spawn(move || ask_peer(&app, &id, &name));
+        }
         // «Обновить» в «Настройки → Сервер → Состояние».
         "update" => install_update(app),
         // «Состояние» открыли раньше, чем оболочка проверила обновления сама.
@@ -737,6 +744,36 @@ fn short(url: &str) -> String {
     url.trim_start_matches("https://")
         .trim_start_matches("http://")
         .to_string()
+}
+
+/// «Разрешить подключение?» — ответ уходит серверу командой `peer-allow` / `peer-deny`.
+fn ask_peer(app: &AppHandle, id: &str, name: &str) {
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return;
+    }
+    let who = if name.is_empty() {
+        "Другой компьютер"
+    } else {
+        name
+    };
+    let yes = app
+        .dialog()
+        .message(format!(
+            "«{who}» хочет подключиться к сайту и работать с ним вместе с этим компьютером: \
+             получит все данные сайта и будет их обновлять.\n\nРазрешайте, только если это ваш компьютер."
+        ))
+        .title("Подключить компьютер?")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Разрешить".to_string(),
+            "Отклонить".to_string(),
+        ))
+        .blocking_show();
+    let st = app.state::<App>();
+    let mut server = st.server.lock().unwrap();
+    send(
+        &mut server,
+        &format!("{} {id}", if yes { "peer-allow" } else { "peer-deny" }),
+    );
 }
 
 fn send(server: &mut Server, command: &str) {

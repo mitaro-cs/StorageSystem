@@ -1,5 +1,6 @@
 package app.groupbase.web;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
@@ -34,9 +36,28 @@ class ApiErrorHandler {
     return m;
   }
 
+  /**
+   * Поток событий ({@code /api/live}) не умеет JSON: ошибку отдаём одним кодом, без тела. Иначе
+   * Spring не находит, чем записать ответ, и вместо 401 уходит 500 (EventSource после выхода
+   * переподключается без cookie).
+   */
+  private static boolean eventStream(HttpServletRequest req) {
+    String accept = req.getHeader("Accept");
+    return accept != null && accept.contains("text/event-stream");
+  }
+
   @ExceptionHandler(ApiException.class)
-  ResponseEntity<Map<String, Object>> api(ApiException e) {
+  ResponseEntity<Map<String, Object>> api(ApiException e, HttpServletRequest req) {
+    if (eventStream(req)) {
+      return ResponseEntity.status(e.status()).build();
+    }
     return ResponseEntity.status(e.status()).body(body(e.code(), e.getMessage(), e.details()));
+  }
+
+  /** Клиент ушёл посреди потока событий — отвечать некому, это не ошибка сервера. */
+  @ExceptionHandler(AsyncRequestNotUsableException.class)
+  void gone(AsyncRequestNotUsableException e) {
+    log.debug("Клиент отключился: {}", e.getMessage());
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -81,8 +102,11 @@ class ApiErrorHandler {
   }
 
   @ExceptionHandler(Exception.class)
-  ResponseEntity<Map<String, Object>> unexpected(Exception e) {
+  ResponseEntity<Map<String, Object>> unexpected(Exception e, HttpServletRequest req) {
     log.error("Необработанная ошибка: {}", e.getClass().getName(), e);
+    if (eventStream(req)) {
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(body("internal", "Внутренняя ошибка сервера", null));
   }
