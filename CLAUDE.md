@@ -88,6 +88,10 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
 `npm run check`, `npm run build` и `node scripts/bundle-size.mjs 102400` (самая тяжёлая страница
 ≤ 100 КБ gzip; редкое — через `{#await import(...)}`), `npx playwright test` против свежего jar.
 
+Выпуск: тег `v*` — только на `miaro` **после** слияния PR и зелёной CI (`git log v… -1` должен
+показать слитый коммит). В 0.9.0 тег поставили до слияния — выпуск вышел с кодом 0.8.0, исправлено
+выпуском 0.9.1 (версию с тем же номером приложения повторно не скачивают).
+
 Бэкенд без фронта собирается и работает (отдаёт заглушку). Требуется JDK 21+ и Node 22+;
 для приложения хоста — Rust (rustup) и `scripts/desktop-resources.sh` (кладёт jlink-Java и jar в
 `desktop/src-tauri/resources`).
