@@ -43,6 +43,8 @@
 	let difficulty = $state<number | null>(null);
 	let kind = $state<HomeworkKind>('homework');
 	let place = $state('');
+	// Тест: когда откроется (закроется — в срок). Пусто — открыт сразу.
+	let opens = $state('');
 	// Пара, к которой задание, и ближайшие пары выбранного предмета — выбрать срок одним нажатием.
 	let lessonId = $state<number | null>(null);
 	let upcoming = $state<{ id: number; startsAt: number }[]>([]);
@@ -100,6 +102,7 @@
 		const k = edit?.kind ?? initialKind;
 		kind = k;
 		place = edit?.place ?? '';
+		opens = edit?.opensAt ? toLocalInput(edit.opensAt) : '';
 		dueTouched = !!lesson;
 		due = edit ? toLocalInput(edit.dueAt) : lesson ? toLocalInput(lesson.startsAt) : defaultDue(k);
 		lessonId = edit?.lesson?.id ?? lesson?.id ?? null;
@@ -166,7 +169,8 @@
 				difficulty: difficulty ?? 0,
 				kind,
 				place: isExam(kind) ? place : '',
-				lessonId: lessonId ?? 0
+				lessonId: lessonId ?? 0,
+				opensAt: kind === 'test' && opens ? fromLocalInput(opens) : 0
 			};
 			const item = edit
 				? await patch<Homework>(`/api/homework/${edit.id}`, payload)
@@ -193,7 +197,9 @@
 				</select>
 			</div>
 			<div>
-				<label class="label" for="hw-due">{isExam(kind) ? 'Когда' : 'Сдать до'}</label>
+				<label class="label" for="hw-due"
+					>{isExam(kind) ? 'Когда' : kind === 'test' ? 'Закроется' : 'Сдать до'}</label
+				>
 				<input
 					id="hw-due"
 					class="input num"
@@ -204,6 +210,14 @@
 				/>
 			</div>
 		</div>
+		{#if kind === 'test'}
+			<div>
+				<label class="label" for="hw-opens"
+					>Откроется <span class="faint">(необязательно — иначе открыт сразу)</span></label
+				>
+				<input id="hw-opens" class="input num" type="datetime-local" bind:value={opens} />
+			</div>
+		{/if}
 		{#if lessonChips.length}
 			<div class="to-lesson" role="group" aria-label="Срок — к паре">
 				<span class="faint small">К паре:</span>

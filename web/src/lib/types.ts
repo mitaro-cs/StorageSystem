@@ -187,6 +187,8 @@ export interface Homework {
 	can: ItemCan;
 	/** Пара из расписания, к которой задание (с 0.4.12); null — просто срок. */
 	lesson?: LessonRef | null;
+	/** Тест: когда откроется (закроется — в срок, dueAt); null — открыт сразу. */
+	opensAt?: number | null;
 	/** Создано без сети и ещё не отправлено на сервер. */
 	pending?: boolean;
 }

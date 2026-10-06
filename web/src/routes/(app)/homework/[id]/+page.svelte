@@ -160,8 +160,14 @@
 					<dd><KindBadge kind={item.kind} /></dd>
 				</div>
 			{/if}
+			{#if item.opensAt}
+				<div>
+					<dt>Откроется</dt>
+					<dd class="num">{fmtDue(item.opensAt, now)}</dd>
+				</div>
+			{/if}
 			<div>
-				<dt>{isExam(item.kind) ? 'Когда' : 'Срок'}</dt>
+				<dt>{isExam(item.kind) ? 'Когда' : item.opensAt ? 'Закроется' : 'Срок'}</dt>
 				<dd class="num">{fmtDue(item.dueAt, now)}</dd>
 			</div>
 			{#if item.place}
