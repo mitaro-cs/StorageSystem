@@ -14,6 +14,8 @@ import java.io.OutputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
+import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ContentDisposition;
@@ -22,6 +24,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -35,6 +39,13 @@ class FileController {
   private static final Logger log = LoggerFactory.getLogger(FileController.class);
 
   record Uploaded(long id, String name, String mime, long size) {}
+
+  record Ids(List<Long> ids) {}
+
+  record Missing(List<Long> missing) {}
+
+  /** Сколько сохранённых файлов телефон спрашивает за раз. */
+  private static final int MAX_IDS = 1000;
 
   private final FileStore files;
   private final MaterialService materials;
@@ -85,7 +96,8 @@ class FileController {
       throw new ApiException(
           HttpStatus.NOT_FOUND,
           "file_missing",
-          "Файла нет на сервере — попросите старосту загрузить его заново");
+          "Файла пока нет на сервере. Он вернётся сам, когда сайт откроет тот, у кого файл сохранён,"
+              + " — или попросите старосту загрузить его заново");
     }
     boolean inline = !download && Mime.inline(f.mime());
     res.setContentType(f.mime().equals("text/plain") ? "text/plain; charset=utf-8" : f.mime());
@@ -108,6 +120,39 @@ class FileController {
     try (in;
         OutputStream out = res.getOutputStream()) {
       in.transferTo(out);
+    }
+  }
+
+  /**
+   * Каких из этих файлов (сохранённых на устройстве) нет на диске сервера: телефон дошлёт их сам.
+   * Только те, что человек и так может открыть.
+   */
+  @PostMapping("/api/files/missing")
+  Missing missing(Actor actor, @RequestBody Ids body) {
+    List<Long> ids = body.ids() == null ? List.of() : body.ids();
+    if (ids.size() > MAX_IDS) {
+      ids = ids.subList(0, MAX_IDS);
+    }
+    return new Missing(
+        ids.stream()
+            .distinct()
+            .map(files::find)
+            .flatMap(java.util.Optional::stream)
+            .filter(f -> !files.present(f) && materials.canRead(actor, f))
+            .map(StoredFile::id)
+            .toList());
+  }
+
+  /** Содержимое файла, которого нет на сервере, с устройства участника. Проверяется SHA-256. */
+  @PutMapping("/api/files/{id}/content")
+  Map<String, Boolean> restore(Actor actor, @PathVariable long id, HttpServletRequest req)
+      throws IOException {
+    StoredFile f = files.find(id).orElseThrow(ApiException::notFound);
+    if (!materials.canRead(actor, f)) {
+      throw ApiException.notFound();
+    }
+    try (InputStream body = req.getInputStream()) {
+      return Map.of("restored", files.restore(f, body));
     }
   }
 }

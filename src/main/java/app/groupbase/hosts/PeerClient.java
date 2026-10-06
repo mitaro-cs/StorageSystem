@@ -105,6 +105,10 @@ final class PeerClient {
         send(
             request("/api/host/peer/state").timeout(Duration.ofSeconds(15)).GET().build(),
             HttpResponse.BodyHandlers.ofString());
+    if (r.statusCode() == 409 && r.body().contains("\"not_main\"")) {
+      // Адрес ведёт на компьютер, который сайт уже отдал: сайт сейчас нигде не работает.
+      throw new NoServer();
+    }
     if (r.statusCode() != 200) {
       throw new IOException(message(r.body()));
     }
@@ -139,6 +143,34 @@ final class PeerClient {
       throw e;
     }
     Files.move(part, target, StandardCopyOption.REPLACE_EXISTING);
+  }
+
+  /** Попросить сайт себе: снимок базы — в файл, ответ — поколение того компьютера. */
+  long handover(Path target) throws IOException {
+    HttpResponse<InputStream> r =
+        send(
+            request("/api/host/peer/handover")
+                .timeout(Duration.ofMinutes(10))
+                .header("X-CSRF-Token", csrf())
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build(),
+            HttpResponse.BodyHandlers.ofInputStream());
+    if (r.statusCode() != 200) {
+      String body;
+      try (InputStream in = r.body()) {
+        body = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+      }
+      if (body.contains("\"not_main\"")) {
+        throw new NoServer();
+      }
+      throw new IOException(message(body));
+    }
+    long epoch = r.headers().firstValueAsLong("X-Groupbase-Epoch").orElse(0);
+    Files.createDirectories(target.getParent());
+    try (InputStream in = new GZIPInputStream(r.body())) {
+      Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+    }
+    return epoch;
   }
 
   /** Файлы на главном: «files/…» и «avatars/…». */

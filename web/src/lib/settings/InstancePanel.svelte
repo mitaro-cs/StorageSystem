@@ -6,6 +6,7 @@
 	import type { InstanceRole } from '$lib/types';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import Permissions from './Permissions.svelte';
+	import TermsPanel from './TermsPanel.svelte';
 	import SectionHead from '$lib/ui/SectionHead.svelte';
 	import { Crown, Info, KeyRound, ShieldCheck, SlidersHorizontal } from '@lucide/svelte';
 	import { ask } from '$lib/ui/ask.svelte';
@@ -156,6 +157,8 @@
 		</fieldset>
 	</section>
 {/if}
+
+<TermsPanel />
 
 <section class="card form">
 	<SectionHead

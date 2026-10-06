@@ -66,7 +66,7 @@ public class PeerForwardFilter extends OncePerRequestFilter {
     if (req.getAttribute(AuthFilter.PEER) != null) {
       // Изменение пришло с другого компьютера: принимает его только главный.
       if (peers.role() != PeerService.Role.MAIN) {
-        deny(res, "not_main", "Этот компьютер сейчас не главный");
+        deny(res, "not_main", "Сайт сейчас работает не на этом компьютере");
         return;
       }
       chain.doFilter(req, res);

@@ -47,7 +47,9 @@ class MeController {
       boolean onboarded,
       List<String> tips,
       Map<String, Object> appearance,
-      String background) {}
+      String background,
+      // Принял ли действующие правила сайта; нет — интерфейс спросит согласие.
+      boolean termsAccepted) {}
 
   record GroupView(
       long id,
@@ -100,7 +102,11 @@ class MeController {
    * @param appearance оформление этого человека для всех устройств (см. {@link Appearance})
    */
   record PreferencesBody(
-      Boolean manageMode, Boolean onboarded, String tip, Map<String, Object> appearance) {}
+      Boolean manageMode,
+      Boolean onboarded,
+      String tip,
+      Map<String, Object> appearance,
+      String terms) {}
 
   record PasswordBody(String current, String password) {}
 
@@ -120,6 +126,8 @@ class MeController {
   private final PublicUrl publicUrl;
   private final GroupChatStore chats;
   private final java.time.Clock clock;
+  private final app.groupbase.accounts.Terms terms;
+  private final app.groupbase.audit.AuditService audit;
 
   MeController(
       UserStore users,
@@ -132,7 +140,9 @@ class MeController {
       GroupbaseProperties props,
       PublicUrl publicUrl,
       GroupChatStore chats,
-      java.time.Clock clock) {
+      java.time.Clock clock,
+      app.groupbase.accounts.Terms terms,
+      app.groupbase.audit.AuditService audit) {
     this.users = users;
     this.groups = groups;
     this.authz = authz;
@@ -145,6 +155,8 @@ class MeController {
     this.publicUrl = publicUrl;
     this.chats = chats;
     this.clock = clock;
+    this.terms = terms;
+    this.audit = audit;
   }
 
   @AllowRestricted
@@ -179,7 +191,8 @@ class MeController {
             users.onboarded(u.id()),
             users.tips(u.id()),
             Appearance.parse(users.appearance(u.id())),
-            users.background(u.id())),
+            users.background(u.id()),
+            terms.version().equals(users.termsAccepted(u.id()))),
         actor.restriction() == null ? null : actor.restriction().id(),
         new InstanceView(
             name,
@@ -210,6 +223,14 @@ class MeController {
     }
     if (b.appearance() != null) {
       users.setAppearance(actor.id(), Appearance.clean(b.appearance()));
+    }
+    if (b.terms() != null) {
+      // Принимают ту версию, которую видели: правила успели поменяться — спросим ещё раз.
+      if (!terms.version().equals(b.terms())) {
+        throw ApiException.conflict("terms_changed", "Правила обновились — прочитайте их ещё раз");
+      }
+      users.setTermsAccepted(actor.id(), b.terms());
+      audit.log(actor, null, "user.terms_accept", "user", actor.id(), Map.of("version", b.terms()));
     }
     return Map.of(
         "manageMode", users.manageMode(actor.id()), "onboarded", users.onboarded(actor.id()));

@@ -15,6 +15,8 @@
 
 	const overdue = $derived(!item.done && item.dueAt < now);
 	const soon = $derived(!item.done && !overdue && item.dueAt - now < 24 * 3600 * 1000);
+	// Тест ещё не открылся — показываем, когда откроется.
+	const closed = $derived(!!item.opensAt && item.opensAt > now);
 </script>
 
 <!-- Вся строка — ссылка на задание (растянутая ссылка названия); кружок «сделано» — поверх неё. -->
@@ -43,7 +45,9 @@
 				>{/if}
 		</div>
 	</div>
-	<span class="due num" class:overdue class:soon>{fmtDue(item.dueAt, now)}</span>
+	<span class="due num" class:overdue class:soon
+		>{closed ? `откроется ${fmtDue(item.opensAt!, now)}` : fmtDue(item.dueAt, now)}</span
+	>
 </div>
 
 <style>

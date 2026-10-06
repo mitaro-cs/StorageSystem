@@ -39,6 +39,53 @@ class SessionIT extends IntegrationTest {
   }
 
   @Test
+  void testOpensAndClosesAtGivenTimes() {
+    long g = newGroup("Тест");
+    TestUser headman = newUser(g, "headman");
+    long s = subject(headman, g, "Физика");
+    long now = clock.millis();
+    JsonNode t =
+        homework(
+            headman,
+            Map.of(
+                "subjectId",
+                s,
+                "title",
+                "Тест 1",
+                "kind",
+                "test",
+                "opensAt",
+                now + DAY,
+                "dueAt",
+                now + DAY + 3_600_000L));
+    assertThat(t.get("opensAt").asLong()).isEqualTo(now + DAY);
+    long id = t.get("id").asLong();
+
+    // Открыться позже, чем закроется, нельзя; правка без opensAt его сохраняет, 0 — убирает.
+    var bad =
+        headman
+            .api()
+            .post(
+                "/api/homework",
+                Map.of(
+                    "subjectId",
+                    s,
+                    "title",
+                    "Тест 2",
+                    "kind",
+                    "test",
+                    "opensAt",
+                    now + 2 * DAY,
+                    "dueAt",
+                    now + DAY));
+    assertThat(bad.status()).isEqualTo(400);
+    var kept = headman.api().patch("/api/homework/" + id, Map.of("title", "Тест 1 (физика)"));
+    assertThat(kept.json().get("opensAt").asLong()).isEqualTo(now + DAY);
+    var cleared = headman.api().patch("/api/homework/" + id, Map.of("opensAt", 0));
+    assertThat(cleared.json().get("opensAt").isNull()).isTrue();
+  }
+
+  @Test
   void examHasKindAndPlaceAndLandsInExamsView() {
     long g = newGroup("Сессия");
     TestUser headman = newUser(g, "headman");

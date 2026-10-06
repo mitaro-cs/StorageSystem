@@ -19,10 +19,13 @@ export interface ViewportState {
 
 /** На сколько опустить прижатое к низу, чтобы оно снова стояло у видимого края (0 — всё в порядке). */
 export function viewportShift(v: ViewportState): number {
-	if (Math.abs(v.scale - 1) > 0.01 || v.screenHeight <= 0) return 0;
+	// Страницу оттягивают за край (offsetTop < 0) — это не ошибка iOS, панель не трогаем: раньше
+	// она в этот момент уезжала на середину экрана.
+	if (Math.abs(v.scale - 1) > 0.01 || v.screenHeight <= 0 || v.offsetTop < 0) return 0;
 	const shift = v.screenHeight + v.offsetTop - v.fixedBottom;
-	// Меньше пикселя — округление; больше 300 — что-то другое (клавиатура, поворот), не лечим.
-	return Math.abs(shift) < 1 || Math.abs(shift) > 300 ? 0 : Math.round(shift);
+	// Ошибка iOS поднимает панель — лечение только опускает (вверх не двигаем никогда). Меньше
+	// пикселя — округление; больше 300 — что-то другое (клавиатура, поворот), не лечим.
+	return shift < 1 || shift > 300 ? 0 : Math.round(shift);
 }
 
 /** Поле, в котором сейчас печатают: над ним открыта клавиатура. */

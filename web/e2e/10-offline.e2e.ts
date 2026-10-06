@@ -12,6 +12,8 @@ test('без интернета: читать, отмечать, коммент�
 
 	// Дождаться копии на устройстве и service worker, который отдаёт приложение без сети.
 	await page.goto('/profile#offline');
+	// Раздел показан — иначе проверка ниже прошла бы впустую, не дождавшись копии.
+	await expect(page.locator('#offline')).toBeVisible();
 	await expect(page.locator('#offline').getByText('ещё ни разу')).toHaveCount(0, {
 		timeout: 15_000
 	});
@@ -45,7 +47,7 @@ test('без интернета: читать, отмечать, коммент�
 
 	await ctx.setOffline(true);
 	await page.getByRole('link', { name: 'Домашние задания' }).click();
-	await expect(page.getByText(/Нет сети — показаны сохранённые данные/)).toBeVisible();
+	await expect(page.getByRole('status').getByText('Нет сети')).toBeVisible();
 	await page.getByRole('link', { name: 'Типовой расчёт №1' }).first().click();
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Типовой расчёт №1');
 	const hwId = Number(page.url().split('/').pop());
@@ -58,7 +60,7 @@ test('без интернета: читать, отмечать, коммент�
 	await page.getByRole('button', { name: 'Отправить' }).click();
 	await expect(page.getByText('Сделал без интернета')).toBeVisible();
 	await expect(page.getByText('ждёт отправки').first()).toBeVisible();
-	await expect(page.getByText(/отправится позже: 2/)).toBeVisible();
+	await expect(page.locator('.net')).toContainText('Нет сети2');
 	await page.screenshot({ path: 'test-results/shots/offline-homework.png', fullPage: true });
 
 	// Перезагрузка без сети: приложение и данные — с устройства.

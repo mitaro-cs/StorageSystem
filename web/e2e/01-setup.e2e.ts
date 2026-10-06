@@ -11,6 +11,8 @@ test('первый запуск создаёт группу и админист�
 	await page.getByLabel('Имя пользователя для входа').fill(ADMIN.username);
 	await page.getByLabel('Пароль', { exact: true }).fill(ADMIN.password);
 	await page.getByLabel('Повторите пароль').fill(ADMIN.password);
+	// Правила сайта — обязательная галочка.
+	await page.getByRole('checkbox', { name: /Принимаю правила/ }).check();
 	await page.getByRole('button', { name: 'Создать' }).click();
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Привет, Анна');
 

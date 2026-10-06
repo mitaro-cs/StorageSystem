@@ -56,7 +56,7 @@ const LABELS: Record<string, string> = {
 	'news.unhide': 'вернул новость',
 	'hosts.peer_add': 'подключил второй компьютер хоста',
 	'hosts.peer_code': 'взял код для второго компьютера хоста',
-	'hosts.peer_main': 'сделал этот компьютер главным',
+	'hosts.peer_here': 'перенёс сайт на этот компьютер',
 	'hosts.peer_remove': 'отключил второй компьютер хоста',
 	'lesson.cancel': 'отметил, что пары не было',
 	'lesson.create': 'добавил пару в расписание',

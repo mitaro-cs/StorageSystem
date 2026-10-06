@@ -88,6 +88,10 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
 `npm run check`, `npm run build` и `node scripts/bundle-size.mjs 102400` (самая тяжёлая страница
 ≤ 100 КБ gzip; редкое — через `{#await import(...)}`), `npx playwright test` против свежего jar.
 
+Выпуск: тег `v*` — только на `miaro` **после** слияния PR и зелёной CI (`git log v… -1` должен
+показать слитый коммит). В 0.9.0 тег поставили до слияния — выпуск вышел с кодом 0.8.0, исправлено
+выпуском 0.9.1 (версию с тем же номером приложения повторно не скачивают).
+
 Бэкенд без фронта собирается и работает (отдаёт заглушку). Требуется JDK 21+ и Node 22+;
 для приложения хоста — Rust (rustup) и `scripts/desktop-resources.sh` (кладёт jlink-Java и jar в
 `desktop/src-tauri/resources`).
@@ -152,11 +156,18 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   `/file`). `PeerForwardFilter`: изменения окна второго пересылаются главному, затем копия
   обновляется; нет связи — применяется здесь и в очередь (`peer/queue`, `X-Groupbase-Queued: 1`).
   Главный без подтверждённой связи (`journaling`) тоже пишет изменения окна в очередь. Страница
-  туннеля (`PeerClient.NoServer`) дольше 3 мин — второй становится главным (поколение +1, журнал
+  туннеля (`PeerClient.NoServer`) дольше 1 мин — второй становится главным (поколение +1, журнал
   `changes` +1000, туннель здесь); вернувшийся главный видит старшее поколение → `demote`: база в
-  `peer/aside`, очередь — новому главному. Тест — `PeerIT` (два сервера и прокси-«туннель»).
-  С облачной папкой не совмещается. Интерфейс — `settings/server/PeerPanel`, при первом запуске —
-  «Второй компьютер для сайта?».
+  `peer/aside`, очередь — новому главному. Копия на `/api/host/peer/*` отвечает 409 `not_main` —
+  для другого это тоже `NoServer` (сайт нигде не работает). Тест — `PeerIT` (два сервера и
+  прокси-«туннель»). С облачной папкой не совмещается.
+- С 0.9 компьютеры в интерфейсе **равные** (просьба владельца): слов «главный/второй» нет,
+  `MAIN/SECOND` остались внутри. «Группа сейчас на …» — `View.serving` (у копии — имя компьютера из
+  последнего `/state`). «Перенести сайт сюда» (`POST /api/host/peers/here` → `moveHere`): тот
+  компьютер по `POST /api/host/peer/handover` замирает (`lockWrites`), становится копией и отдаёт
+  снимок базы в ответе (поколение — `X-Groupbase-Epoch`), этот — `takeOver`. Интерфейс —
+  `settings/server/PeerPanel` («Показать код» / «Ввести код»), при первом запуске — «Сайт уже есть
+  на другом компьютере?».
 - Папка данных (0.8): оболочка читает `location.json` в стандартном каталоге приложения; «Сменить
   папку…» (`POST /api/desktop/data-folder`, при первом запуске — `/api/setup/data-folder`) → событие
   `choose-data` → выбор, копия со сверкой, перезапуск (`choose_data` в main.rs). Диска нет — окно
@@ -396,4 +407,24 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
 - Ключи входа: подсказка в поле логина (`mediation: 'conditional'`, у полей `autocomplete="…
   webauthn"`), кнопка её отменяет. «Ключ безопасности» — `authenticatorAttachment: cross-platform`
   и `hints: ['security-key']`.
+- Файлы с телефонов (0.9): файла нет на диске сервера (`FileStore.present`), а он есть в
+  `files-v1` на устройстве — `lib/offline/files.ts shareMissing` после синхронизации (раз в 10 мин)
+  спрашивает `POST /api/files/missing {ids}` и шлёт `PUT /api/files/{id}/content`
+  (`FileStore.restore`: размер и SHA-256 — как в базе, иначе 409 `file_mismatch`).
+- Плашка связи (0.9) — `.net` в макете `(app)`: «Нет сети» (нет интернета), «Сервер не работает»
+  (`pwa.network` есть, ответа сервера с `X-Groupbase` нет), «Отправляем» + число в очереди.
+- Правила сайта (0.9): `accounts/Terms` (версия «1.N»: база текста — на фронте
+  `lib/terms/TermsText.svelte`, N растёт с правкой правил группы, `settings` `terms.*`),
+  `users.terms_accepted` (V28), `GET /api/terms`, `PUT /api/admin/terms`, согласие — `PATCH
+  /api/me/preferences {terms}`; `Me.user.termsAccepted === false` → `TermsGate` в макете. Формы
+  регистрации — `AgreeTerms`. В e2e — `acceptTermsIfAsked` после входа.
+- Тест «откроется» (0.9): `homework.opens_at` (V27), только у `kind = test`, раньше срока
+  (`HomeworkService.opens`); в списке — «откроется …».
+- Масштаб окна хоста (0.9): `zoom_for` в main.rs (ширина / 1760, 0,85–1,25), свой — `POST
+  /api/desktop/zoom {value: 0 | 50–200}` → событие `zoom`, оболочка помнит в `prefs`.
+- Новая версия у установленного сайта (0.9): `pwa.svelte.ts` — `registration.update()` при показе
+  вкладки и раз в 30 мин; сменился контроллер — перезагрузка, когда не печатают и нет окна
+  (`reloadWhenSafe`), иначе — при скрытии. `Hotkeys` в макете — лениво (бюджет «Сегодня»).
+- iPhone (0.9): `viewportShift` не двигает панель вверх (оттягивание страницы, `offsetTop < 0`), у
+  `html, body` — `overscroll-behavior: none`.
 - У каждого пакета сервера — свои тесты (`EveryPackageHasTestsTest`).

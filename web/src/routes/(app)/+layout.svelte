@@ -5,7 +5,6 @@
 	import BottomNav from '$lib/shell/BottomNav.svelte';
 	import MobileBar from '$lib/shell/MobileBar.svelte';
 	import { palette } from '$lib/shell/palette.svelte';
-	import Hotkeys from '$lib/shell/Hotkeys.svelte';
 	import SwipeBack from '$lib/shell/SwipeBack.svelte';
 	import { viewer } from '$lib/files/viewer.svelte';
 	import { forgetServiceWorker, initPwa, pwa, registerServiceWorker } from '$lib/pwa.svelte';
@@ -173,21 +172,15 @@
 	<div class="desktop-only"><Sidebar bind:collapsed /></div>
 	<div class="main-col">
 		{#if !detail}<div class="mobile-only"><MobileBar /></div>{/if}
-		{#if pwa.offline && pwa.network}
-			<div class="offline" role="status" transition:slide>
-				<CloudOff size={15} /> Сервер группы выключен — показаны сохранённые данные{offline.pending
-					? ` · отправится, когда он включится: ${offline.pending}`
-					: ''}
-			</div>
-		{:else if pwa.offline}
-			<div class="offline" role="status" transition:slide>
-				<WifiOff size={15} /> Нет сети — показаны сохранённые данные{offline.pending
-					? ` · отправится позже: ${offline.pending}`
-					: ''}
-			</div>
-		{:else if offline.pending}
-			<div class="offline sending" role="status" transition:slide>
-				<CloudUpload size={15} /> Отправляем сделанное без сети: {offline.pending}
+		<!-- Связь с сервером: небольшая плашка над страницей (данные — из копии на устройстве). -->
+		{#if pwa.offline || offline.pending}
+			<div class="net" role="status" transition:slide>
+				<span class="pill" class:send={!pwa.offline}>
+					{#if !pwa.offline}<CloudUpload size={14} /> Отправляем
+					{:else if pwa.network}<CloudOff size={14} /> Сервер не работает
+					{:else}<WifiOff size={14} /> Нет сети{/if}{#if offline.pending}<b>{offline.pending}</b
+						>{/if}
+				</span>
 			</div>
 		{/if}
 		<main id="content" tabindex="-1" class:narrow>
@@ -209,10 +202,15 @@
 		/>{/await}
 {/if}
 <!-- Тур по сайту: код грузится, только когда он нужен. -->
+{#if session.me?.user.termsAccepted === false}
+	<!-- Правила сайта: кто был здесь до них (или они поменялись) — принять один раз. -->
+	{#await import('$lib/terms/TermsGate.svelte') then m}<m.default />{/await}
+{/if}
 {#if welcome.open}
 	{#await import('$lib/tour/Tour.svelte') then m}<m.default />{/await}
 {/if}
-<Hotkeys />
+<!-- Горячие клавиши — отдельным файлом: на телефоне они не нужны, а главной странице важен вес. -->
+{#await import('$lib/shell/Hotkeys.svelte') then m}<m.default />{/await}
 <SwipeBack />
 <!-- Просмотр файлов: код грузится при первом открытии файла. -->
 {#if viewer.open}
@@ -252,20 +250,35 @@
 			padding: var(--s6) var(--s5) var(--s7);
 		}
 	}
-	.offline {
+	.net {
 		display: flex;
-		align-items: center;
 		justify-content: center;
-		gap: 8px;
-		padding: 8px 16px;
+		padding: 6px 16px 0;
+	}
+	.pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 12px;
+		border-radius: var(--r-full);
 		background: var(--amber-soft);
 		color: var(--amber);
-		font-size: 13.5px;
-		font-weight: 550;
+		font-size: 12.5px;
+		font-weight: 650;
 	}
-	.offline.sending {
+	.pill.send {
 		background: var(--surface-2);
 		color: var(--text-2);
+	}
+	.pill b {
+		min-width: 18px;
+		padding: 0 5px;
+		border-radius: var(--r-full);
+		background: currentColor;
+		text-align: center;
+	}
+	.pill b {
+		color: var(--surface);
 	}
 	.skip {
 		position: absolute;

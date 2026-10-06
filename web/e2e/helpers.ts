@@ -13,6 +13,21 @@ export async function login(page: Page, user: { username: string; password: stri
 	await page.getByLabel('Пароль', { exact: true }).fill(user.password);
 	await page.getByRole('button', { name: 'Войти' }).click();
 	await expect(page.getByRole('heading', { level: 1 })).toContainText('Привет');
+	await acceptTermsIfAsked(page);
+}
+
+/** Аккаунт создан без формы регистрации (администратором) — правила примем в окне согласия. */
+export async function acceptTermsIfAsked(page: Page) {
+	const accepted = await page.evaluate(() =>
+		fetch('/api/me')
+			.then((r) => r.json())
+			.then((m) => m.user?.termsAccepted !== false)
+	);
+	if (accepted) return;
+	const gate = page.getByRole('dialog', { name: 'Правила сайта' });
+	await gate.getByRole('checkbox').check();
+	await gate.getByRole('button', { name: 'Принимаю' }).click();
+	await expect(gate).toBeHidden();
 }
 
 /** Собирает ошибки консоли: CSP-нарушения и исключения должны ломать тест. */

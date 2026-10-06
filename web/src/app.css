@@ -466,10 +466,14 @@ html {
 	touch-action: manipulation;
 	/* Ничто не должно быть шире экрана: иначе телефон «ужимает» страницу, чтобы всё влезло. */
 	overflow-x: hidden;
+	/* Страница не оттягивается за края окна (резинка iOS, «обновить» потягиванием в Chrome) —
+	   как у приложения: под ней нечего показывать. */
+	overscroll-behavior: none;
 }
 
 body {
 	margin: 0;
+	overscroll-behavior: none;
 	width: 100%;
 	max-width: 100vw;
 	overflow-x: clip;

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import AgreeTerms from '$lib/terms/AgreeTerms.svelte';
+	import { acceptTerms } from '$lib/terms/terms';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -153,6 +155,7 @@
 				},
 				{ anonymous: true }
 			);
+			await acceptTerms().catch(() => {});
 			await goto('/', { replaceState: true, invalidateAll: true });
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Ошибка';
@@ -234,9 +237,10 @@
 				{/if}
 			{:else}
 				<div class="grow">
-					<strong>Второй компьютер для сайта?</strong>
+					<strong>Сайт уже есть на другом компьютере?</strong>
 					<p class="faint small">
-						Сайт работает на другом компьютере, а этот будет держать копию и работать с ней.
+						Свяжите их — компьютеры будут равными, с одними данными: сайт для группы работает на
+						том, что включён.
 					</p>
 				</div>
 				<Button onclick={() => (byPeer = true)}>Подключить</Button>
@@ -377,6 +381,7 @@
 			<PasswordFields bind:password bind:confirm />
 
 			{#if error}<p class="error-text" role="alert">{error}</p>{/if}
+			<AgreeTerms />
 			<Button variant="primary" type="submit" loading={busy}>Создать</Button>
 		</form>
 	{/if}

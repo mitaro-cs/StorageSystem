@@ -14,10 +14,9 @@ test('service worker не зацикливает переход на служе�
 
 	// Раньше service worker подменял ответ сервера сохранённой страницей, и окно хоста бесконечно
 	// возвращалось на /api/desktop/enter. Теперь такие переходы идут прямо на сервер.
+	// Считаем настоящие загрузки страницы: смена адреса без перезагрузки (replaceState) — не цикл.
 	let navigations = 0;
-	page.on('framenavigated', (f) => {
-		if (f === page.mainFrame()) navigations++;
-	});
+	page.on('load', () => navigations++);
 	await page.goto('/api/desktop/enter?t=not-a-real-token');
 	await expect(page).not.toHaveURL(/\/api\/desktop\/enter/, { timeout: 10_000 });
 	await page.waitForTimeout(1500);

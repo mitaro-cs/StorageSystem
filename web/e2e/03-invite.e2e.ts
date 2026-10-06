@@ -20,6 +20,8 @@ test('студент регистрируется по инвайту, види�
 	await student.getByLabel('Имя пользователя для входа').fill(STUDENT.username);
 	await student.getByLabel('Пароль', { exact: true }).fill(STUDENT.password);
 	await student.getByLabel('Повторите пароль').fill(STUDENT.password);
+	// Правила сайта — обязательная галочка.
+	await student.getByRole('checkbox', { name: /Принимаю правила/ }).check();
 	await student.getByRole('button', { name: 'Присоединиться' }).click();
 	await expect(student.getByRole('heading', { level: 1 })).toHaveText('Привет, Олег');
 	// Тур — сразу после регистрации; пропустить можно в любой момент.

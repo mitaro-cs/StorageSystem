@@ -79,6 +79,7 @@ public class HomeworkService {
    * @param place аудитория или ссылка; при изменении null — не менять
    * @param lessonId пара из расписания, к которой задание; при изменении null — не менять, 0 —
    *     отвязать
+   * @param opensAt когда откроется (тест): раньше срока; при изменении null — не менять, 0 — убрать
    */
   public record Input(
       Long subjectId,
@@ -90,7 +91,33 @@ public class HomeworkService {
       Integer difficulty,
       String kind,
       String place,
-      Long lessonId) {
+      Long lessonId,
+      Long opensAt) {
+
+    public Input(
+        Long subjectId,
+        String title,
+        String body,
+        Long dueAt,
+        List<Long> groupIds,
+        List<Long> attachments,
+        Integer difficulty,
+        String kind,
+        String place,
+        Long lessonId) {
+      this(
+          subjectId,
+          title,
+          body,
+          dueAt,
+          groupIds,
+          attachments,
+          difficulty,
+          kind,
+          place,
+          lessonId,
+          null);
+    }
 
     public Input(
         Long subjectId,
@@ -102,7 +129,18 @@ public class HomeworkService {
         Integer difficulty,
         String kind,
         String place) {
-      this(subjectId, title, body, dueAt, groupIds, attachments, difficulty, kind, place, null);
+      this(
+          subjectId,
+          title,
+          body,
+          dueAt,
+          groupIds,
+          attachments,
+          difficulty,
+          kind,
+          place,
+          null,
+          null);
     }
   }
 
@@ -128,7 +166,9 @@ public class HomeworkService {
       List<MaterialService.FileInfo> attachments,
       Can can,
       // Пара из расписания, к которой задание; null — просто срок.
-      LessonRef lesson) {}
+      LessonRef lesson,
+      // Когда откроется (тест); закрывается в срок. null — открыто сразу.
+      Long opensAt) {}
 
   public record Published(
       long id,
@@ -159,7 +199,8 @@ public class HomeworkService {
       long updatedAt,
       boolean done,
       int comments,
-      LessonRef lesson) {}
+      LessonRef lesson,
+      Long opensAt) {}
 
   private static final long DAY = 24L * 60 * 60 * 1000;
   static final long EXAMS_BEFORE = 45 * DAY;
@@ -237,7 +278,8 @@ public class HomeworkService {
                     rs.getLong("updated_at"),
                     Rows.bool(rs, "done"),
                     rs.getInt("comment_count"),
-                    lesson(rs)))
+                    lesson(rs),
+                    Rows.longOrNull(rs, "opens_at")))
         .list();
   }
 
@@ -395,6 +437,17 @@ public class HomeworkService {
     return rows.getFirst();
   }
 
+  /** Когда откроется: 0 или null — сразу; должно быть раньше срока. */
+  static Long opens(Long value, long due) {
+    if (value == null || value <= 0) {
+      return null;
+    }
+    if (value >= due) {
+      throw ApiException.invalid("opensAt", "Тест должен открыться раньше, чем закроется");
+    }
+    return value;
+  }
+
   @Transactional
   public Item create(Actor actor, Input in) {
     if (in.subjectId() == null) {
@@ -412,13 +465,15 @@ public class HomeworkService {
     if (lesson != null) {
       LessonRef.check(db, access, actor, lesson, in.subjectId());
     }
+    Long opens = opens(in.opensAt(), due);
     long now = clock.millis();
     long id =
         db.sql(
                 """
                 INSERT INTO homework (subject_id, author_id, title, body_md, body_html, due_at,
-                                      difficulty, kind, place, lesson_id, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                                      difficulty, kind, place, lesson_id, opens_at, created_at,
+                                      updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """)
             .params(
                 in.subjectId(),
@@ -431,6 +486,7 @@ public class HomeworkService {
                 kind.id(),
                 place,
                 lesson,
+                opens,
                 now,
                 now)
             .query(Long.class)
@@ -467,10 +523,14 @@ public class HomeworkService {
         LessonRef.check(db, access, actor, lesson, r.subjectId());
       }
     }
+    Long opens =
+        in.opensAt() == null
+            ? (r.opensAt() != null && r.opensAt() < due ? r.opensAt() : null)
+            : opens(in.opensAt(), due);
     db.sql(
             "UPDATE homework SET title = ?, body_md = ?, body_html = ?, due_at = ?,"
-                + " difficulty = ?, kind = ?, place = ?, lesson_id = ?, updated_at = ?"
-                + " WHERE id = ?")
+                + " difficulty = ?, kind = ?, place = ?, lesson_id = ?, opens_at = ?,"
+                + " updated_at = ? WHERE id = ?")
         .params(
             title,
             md,
@@ -480,6 +540,7 @@ public class HomeworkService {
             kind.id(),
             place,
             lesson,
+            opens,
             clock.millis(),
             id)
         .update();
@@ -631,7 +692,8 @@ public class HomeworkService {
               r.comments(),
               files.getOrDefault(r.id(), List.of()),
               new Can(canEdit(actor, r, tg), isAuthor(actor, r) || mod, mod),
-              r.lesson()));
+              r.lesson(),
+              r.opensAt()));
     }
     return out;
   }
