@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { Copy, Laptop, MonitorSmartphone, RefreshCw, Crown, Unplug } from '@lucide/svelte';
+	import {
+		ArrowDownToLine,
+		Copy,
+		KeyRound,
+		Laptop,
+		MonitorSmartphone,
+		RefreshCw,
+		Unplug
+	} from '@lucide/svelte';
 	import { del, get, post } from '$lib/api';
 	import { copy } from '$lib/copy';
 	import { fmtAgo } from '$lib/format';
@@ -11,8 +19,8 @@
 	import Button from '$lib/ui/Button.svelte';
 	import type { PeerView } from './types';
 
-	// Два компьютера хоста напрямую (0.8): главный — сайт для группы, второй — полная копия, изменения
-	// из его окна уходят главному; главный пропал — второй становится главным сам.
+	// Два компьютера хоста (0.8.1 — равные): данные одни, сайт для группы работает на том, что
+	// включён; выключили — через минуту переезжает на другой, а «Перенести сайт сюда» — когда угодно.
 	let v = $state<PeerView | null>(null);
 	let busy = $state(false);
 	let joining = $state(false);
@@ -39,6 +47,7 @@
 	const others = $derived(v?.peers.filter((p) => !p.here) ?? []);
 	const short = (u: string) => u.replace(/^https?:\/\//, '');
 	const left = $derived(v?.code ? Math.max(0, Math.ceil((v.code.expiresAt - now) / 60_000)) : 0);
+	const here = $derived(v?.role === 'main');
 
 	async function run<T>(action: () => Promise<T>) {
 		busy = true;
@@ -62,38 +71,41 @@
 	async function remove(p: PeerView['peers'][number]) {
 		if (
 			!(await ask(
-				`«${p.name}» больше не будет получать данные сайта и не сможет стать главным. Подключить его снова можно по новому коду.`,
-				{ title: 'Отключить компьютер?', ok: 'Отключить', danger: true }
+				`«${p.name}» больше не будет получать данные сайта и не сможет его принять. Связать снова можно по новому коду.`,
+				{ title: 'Отвязать компьютер?', ok: 'Отвязать', danger: true }
 			))
 		)
 			return;
 		run(() => del(`/api/host/peers/${encodeURIComponent(p.computerId)}`));
 	}
 
-	async function makeMain() {
+	async function moveHere() {
 		if (
 			!(await ask(
-				'Сайт для группы будет работать здесь. Делайте так, только если главный компьютер не вернётся (сломался, его продали): если он включится, он увидит, что главный теперь этот, и станет вторым.',
-				{ title: 'Сделать этот компьютер главным?', ok: 'Сделать главным', danger: true }
+				'Сайт для группы переедет на этот компьютер за несколько секунд, ничего не потеряется. Адрес для группы тот же.',
+				{ title: 'Перенести сайт сюда?', ok: 'Перенести' }
 			))
 		)
 			return;
-		run(() => post('/api/host/peers/main'));
+		run(async () => {
+			await post('/api/host/peers/here');
+			toast('Сайт теперь работает на этом компьютере', 'ok');
+		});
 	}
 
-	const minutes = (ms: number) => Math.max(1, Math.round(ms / 60_000));
+	const seconds = (ms: number) => Math.max(0, Math.round((60_000 - ms) / 1000));
 </script>
 
 {#if v?.available}
-	<h2 class="head">Второй компьютер</h2>
+	<h2 class="head">Два компьютера</h2>
 	{#if v.role === 'off'}
 		<section class="card pane intro">
 			<p class="lead">
 				<MonitorSmartphone size={20} />
 				<span
-					>Дома — компьютер, в вузе — ноутбук: работать можно на обоих, данные одни. Сайт для группы
-					работает на главном, второй держит полную копию, а если главный выключат — сам станет
-					главным.</span
+					>Дома — компьютер, в вузе — ноутбук: оба равные, данные одни. Сайт для группы работает на
+					том, что включён, а выключили его — через минуту переезжает на другой. Адрес для группы не
+					меняется.</span
 				>
 			</p>
 			{#if v.cloud}
@@ -104,18 +116,21 @@
 			{:else if !joining}
 				<div class="row wrap">
 					<Button variant="primary" loading={busy} onclick={newCode}
-						><Crown size={16} /> Этот — главный: получить код</Button
+						><KeyRound size={16} /> Показать код</Button
 					>
 					{#if hostWindow}
-						<Button onclick={() => (joining = true)}><Laptop size={16} /> Этот — второй</Button>
+						<Button onclick={() => (joining = true)}><Laptop size={16} /> Ввести код</Button>
 					{/if}
 				</div>
+				<p class="small faint">
+					Код показывает компьютер, где сайт уже работает, вводят — на другом.
+				</p>
 			{:else}
 				<p class="small muted">
-					На главном компьютере нажмите «Этот — главный: получить код», а здесь введите адрес сайта
+					На компьютере, где сайт уже работает, нажмите «Показать код», а здесь введите адрес сайта
 					и код. Данные этого компьютера заменятся данными сайта (прежние отложатся в папку данных).
 				</p>
-				<PullForm endpoint="/api/host/peers/join" label="Подключить" bind:busy={pulling} />
+				<PullForm endpoint="/api/host/peers/join" label="Связать" bind:busy={pulling} />
 				{#if !pulling}
 					<div>
 						<Button size="s" variant="ghost" onclick={() => (joining = false)}>Отмена</Button>
@@ -123,30 +138,60 @@
 				{/if}
 			{/if}
 		</section>
-	{:else if v.role === 'main'}
+	{:else}
 		<section class="card pane">
-			<p class="lead">
-				<Crown size={20} />
-				<span><strong>Этот компьютер — главный.</strong> Сайт для группы работает здесь.</span>
+			<p class="where" class:wait={v.state === 'nobody'}>
+				<span class="dot" aria-hidden="true"></span>
+				{#if here}Группа сейчас на <strong>этом компьютере</strong>
+				{:else if v.state === 'nobody'}Сайт не отвечает — через {seconds(v.nobodyFor)} с он заработает
+					здесь
+				{:else if v.serving}Группа сейчас на <strong>«{v.serving}»</strong>
+				{:else}Группа сейчас на другом компьютере{/if}
 			</p>
-			{#if v.message}<p class="small warn">{v.message}</p>{/if}
-			{#if others.length}
-				<ul class="peers">
-					{#each others as p (p.computerId)}
-						<li>
-							<Laptop size={18} />
-							<span class="grow">
-								<strong>{p.name}</strong>
-								<span class="faint small"
-									>{p.seenAt ? `на связи ${fmtAgo(p.seenAt)}` : 'ещё не выходил на связь'}</span
-								>
-							</span>
-							<Button size="s" variant="ghost" label="Отключить" onclick={() => remove(p)}
+			{#if v.message && v.state !== 'nobody'}<p class="small warn">{v.message}</p>{/if}
+			<ul class="peers">
+				{#each v.peers as p (p.computerId)}
+					<li>
+						<Laptop size={18} />
+						<span class="grow">
+							<strong>{p.name}{p.here ? ' — этот' : ''}</strong>
+							<span class="faint small"
+								>{p.here
+									? here
+										? 'сайт работает здесь'
+										: v.syncedAt
+											? `данные свежие, ${fmtAgo(v.syncedAt)}`
+											: 'держит копию'
+									: p.seenAt
+										? `на связи ${fmtAgo(p.seenAt)}`
+										: here
+											? 'ещё не выходил на связь'
+											: ''}</span
+							>
+						</span>
+						{#if !p.here && here}
+							<Button size="s" variant="ghost" label="Отвязать" onclick={() => remove(p)}
 								><Unplug size={15} /></Button
 							>
-						</li>
-					{/each}
-				</ul>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+			{#if v.queued || v.filesMissing}
+				<dl class="kv">
+					{#if v.queued}
+						<div>
+							<dt>Ждут отправки</dt>
+							<dd class="num">{v.queued}</dd>
+						</div>
+					{/if}
+					{#if v.filesMissing}
+						<div>
+							<dt>Файлы</dt>
+							<dd class="num bad">не докачано: {v.filesMissing}</dd>
+						</div>
+					{/if}
+				</dl>
 			{/if}
 			{#if v.code}
 				<div class="code-card">
@@ -175,62 +220,25 @@
 						>
 					</div>
 					<p class="small muted">
-						Действует ещё {left} мин. На втором компьютере: «Управление → Сервер → Второй компьютер →
-						Этот — второй» (или при первом запуске — «Подключить к сайту»).
+						Действует ещё {left} мин. На другом компьютере: «Управление → Сервер → Два компьютера → Ввести
+						код» (или при первом запуске — «Сайт уже есть на другом компьютере?»).
 					</p>
 				</div>
-			{:else}
-				<div>
-					<Button loading={busy} onclick={newCode}
-						><Laptop size={16} />
-						{others.length ? 'Подключить ещё компьютер' : 'Подключить второй компьютер'}</Button
-					>
-				</div>
 			{/if}
-		</section>
-	{:else}
-		<section class="card pane">
-			<p class="lead">
-				<Laptop size={20} />
-				<span
-					><strong>Это второй компьютер.</strong> Сайт для группы работает на главном{v.url
-						? ` (${short(v.url)})`
-						: ''}; изменения отсюда сразу уходят туда.</span
-				>
-			</p>
-			<dl class="kv">
-				<div>
-					<dt>Связь с главным</dt>
-					<dd class:bad={v.state !== 'ok'}>
-						{#if v.state === 'ok'}{v.syncedAt
-								? `синхронизировано ${fmtAgo(v.syncedAt)}`
-								: 'на связи'}
-						{:else if v.state === 'nobody'}главный не отвечает {minutes(v.nobodyFor)} мин — скоро этот
-							станет главным
-						{:else}{v.message ?? 'нет связи'}{/if}
-					</dd>
-				</div>
-				{#if v.queued}
-					<div>
-						<dt>Ждут отправки</dt>
-						<dd class="num">{v.queued}</dd>
-					</div>
-				{/if}
-				{#if v.filesMissing}
-					<div>
-						<dt>Файлы</dt>
-						<dd class="num bad">не докачано: {v.filesMissing}</dd>
-					</div>
-				{/if}
-			</dl>
 			{#if hostWindow}
 				<div class="row wrap">
-					<Button size="s" loading={busy} onclick={sync}
-						><RefreshCw size={15} /> Синхронизировать сейчас</Button
-					>
-					<Button size="s" variant="ghost" onclick={makeMain}
-						><Crown size={15} /> Сделать главным</Button
-					>
+					{#if !here}
+						<Button size="s" variant="primary" loading={busy} onclick={moveHere}
+							><ArrowDownToLine size={15} /> Перенести сайт сюда</Button
+						>
+						<Button size="s" loading={busy} onclick={sync}
+							><RefreshCw size={15} /> Синхронизировать</Button
+						>
+					{:else if !v.code && !others.length}
+						<Button size="s" loading={busy} onclick={newCode}
+							><KeyRound size={15} /> Показать код</Button
+						>
+					{/if}
 				</div>
 			{/if}
 		</section>
@@ -255,6 +263,24 @@
 	.lead :global(svg) {
 		flex: none;
 		margin-top: 2px;
+	}
+	.where {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin: 0;
+	}
+	.dot {
+		width: 8px;
+		height: 8px;
+		flex: none;
+		border-radius: 50%;
+		background: var(--ok, #22a06b);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok, #22a06b) 22%, transparent);
+	}
+	.where.wait .dot {
+		background: var(--warn, #d08a00);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn, #d08a00) 22%, transparent);
 	}
 	.peers {
 		margin: 0;

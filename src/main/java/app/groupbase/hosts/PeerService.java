@@ -96,7 +96,7 @@ public class PeerService implements SmartLifecycle {
   static final long TICK_MS = 5_000;
   static final long PROBE_MS = 30_000;
   static final long FILES_MS = 60_000;
-  static final long TAKEOVER_MS = 3 * 60_000;
+  static final long TAKEOVER_MS = 60_000;
   static final Duration CODE_TTL = Duration.ofMinutes(15);
   static final int MAX_WRONG = 5;
   static final int KEEP_ASIDE = 3;
@@ -115,6 +115,7 @@ public class PeerService implements SmartLifecycle {
    * @param state ok, offline (нет связи), nobody (главный не отвечает), behind (версии разные),
    *     checking (главный проверяет, не работает ли сайт на другом компьютере)
    * @param nobodyFor сколько главный уже не отвечает (мс) — до перехода сюда
+   * @param serving имя компьютера, на котором сайт сейчас работает для группы (null — неизвестно)
    */
   public record View(
       boolean available,
@@ -128,6 +129,7 @@ public class PeerService implements SmartLifecycle {
       int queued,
       int filesMissing,
       long nobodyFor,
+      String serving,
       boolean cloud,
       List<Peer> peers,
       Code code) {}
@@ -170,6 +172,9 @@ public class PeerService implements SmartLifecycle {
   private volatile long lastProbe;
   private volatile long lastFiles;
   private volatile boolean checking;
+
+  /** На каком компьютере сайт, по последнему ответу адреса сайта (у копии). */
+  private volatile String holder;
 
   /** Главный убедился, что адрес сайта ведёт сюда: журнал изменений без связи не нужен. */
   private volatile boolean confirmedHere;
@@ -221,12 +226,12 @@ public class PeerService implements SmartLifecycle {
     } else if (role == Role.MAIN) {
       checking = true;
       state = "checking";
-      access.suspend("Проверяем, не работает ли сайт на втором компьютере…");
+      access.suspend("Проверяем, не работает ли сайт на другом компьютере…");
     }
   }
 
   static final String SECOND_MESSAGE =
-      "Это второй компьютер хоста: сайт для группы работает на главном.";
+      "Сайт для группы сейчас работает на другом компьютере, здесь — его копия.";
 
   public Role role() {
     return role;
@@ -259,14 +264,15 @@ public class PeerService implements SmartLifecycle {
               + " напрямую");
     }
     if (role == Role.SECOND) {
-      throw new Problem("Код даёт главный компьютер — тот, где сайт работает для группы");
+      throw new Problem(
+          "Код показывает компьютер, на котором сейчас сайт, — или нажмите здесь «Перенести сайт сюда»");
     }
     try {
       // https — или адрес в локальной сети: по нему второй компьютер найдёт этот.
       TransferClient.normalize(publicUrl.get().orElse(""));
     } catch (IOException e) {
       throw new Problem(
-          "Сначала включите доступ для группы по адресу https://… — по нему второй компьютер"
+          "Сначала включите доступ для группы по адресу https://… — по нему другой компьютер"
               + " найдёт этот");
     }
     if (role == Role.OFF) {
@@ -299,11 +305,11 @@ public class PeerService implements SmartLifecycle {
   /** Второй компьютер пришёл с кодом: выдать ему ключ. */
   public synchronized Map<String, Object> pair(String given, String computerId, String name) {
     if (role != Role.MAIN) {
-      throw new Problem("Этот компьютер сейчас не главный — возьмите код там, где работает сайт");
+      throw new Problem("Сайт сейчас не на этом компьютере — возьмите код там, где он работает");
     }
     if (code == null || clock.millis() > codeExpires) {
       code = null;
-      throw new Problem("Код устарел или не выдавался — возьмите новый на главном компьютере");
+      throw new Problem("Код устарел или не выдавался — возьмите новый");
     }
     String g = TransferService.normalize(given);
     if (!MessageDigest.isEqual(
@@ -399,7 +405,7 @@ public class PeerService implements SmartLifecycle {
   /** Отвечать второму может только главный (сайт работает здесь). */
   public void requireMain() {
     if (role != Role.MAIN) {
-      throw new Problem("Этот компьютер сейчас не главный");
+      throw new Problem("Сайт сейчас работает не на этом компьютере");
     }
   }
 
@@ -427,6 +433,10 @@ public class PeerService implements SmartLifecycle {
   /** Согласованный снимок базы, сжатый. */
   public void writeDb(OutputStream out) throws IOException {
     requireMain();
+    snapshotTo(out);
+  }
+
+  private void snapshotTo(OutputStream out) throws IOException {
     Path dir = props.dataDir().resolve("peer");
     Files.createDirectories(dir);
     Path snap =
@@ -617,6 +627,7 @@ public class PeerService implements SmartLifecycle {
       replay(c);
       PeerClient.State st = c.state();
       nobodySince = 0;
+      holder = st.computer();
       if (st.computer().equals(cfg.computerId())) {
         return; // адрес сайта ведёт сюда — так быть не должно; подождём
       }
@@ -630,8 +641,8 @@ public class PeerService implements SmartLifecycle {
         state = "behind";
         message =
             st.schema() > mine
-                ? "На главном компьютере groupbase новее — обновите и этот"
-                : "На этом компьютере groupbase новее — обновите главный";
+                ? "На другом компьютере groupbase новее — обновите и этот"
+                : "На этом компьютере groupbase новее — обновите другой";
         return;
       }
       boolean pulled = false;
@@ -651,15 +662,16 @@ public class PeerService implements SmartLifecycle {
       if (nobodySince == 0) {
         nobodySince = now;
       }
+      holder = null;
       state = "nobody";
-      message = "Главный компьютер не отвечает";
+      message = "Сайт сейчас не отвечает — через минуту он заработает на этом компьютере";
       if (now - nobodySince >= takeoverMs) {
         takeOver("главный компьютер не отвечает");
       }
     } catch (IOException e) {
       nobodySince = 0;
       state = "offline";
-      message = "Нет связи с главным компьютером — изменения подождут здесь";
+      message = "Нет связи с сайтом — изменения подождут здесь";
     }
   }
 
@@ -867,24 +879,94 @@ public class PeerService implements SmartLifecycle {
     log.info("Этот компьютер стал главным: {}", why);
   }
 
-  /** «Сделать главным» вручную — когда главный точно не вернётся (сломался, продан). */
-  public View makeMain() {
-    requireApp();
-    if (role != Role.SECOND) {
-      throw new Problem("Этот компьютер и так главный");
+  /**
+   * Другой компьютер попросил сайт себе («Перенести сюда»): изменения здесь на миг замирают, этот
+   * становится копией (свои новые изменения окна — в очередь, туннель — вниз), а снимок базы уходит
+   * в ответ. Поколение у того компьютера вырастет, и этот дальше выравнивается по нему.
+   */
+  public long handOver(OutputStream out) throws IOException {
+    long epoch;
+    synchronized (this) {
+      requireMain();
+      hosts.lockWrites(clock.millis() + 30_000);
+      access.suspend(SECOND_MESSAGE);
+      cfg.setPeerRole(Role.SECOND.id());
+      cfg.setPeerUrl(publicUrl.get().orElse(cfg.peerUrl()));
+      cfg.setPeerApplied(-1);
+      saveCfg();
+      role = Role.SECOND;
+      checking = false;
+      confirmedHere = false;
+      nobodySince = 0;
+      epoch = cfg.peerEpoch();
+    }
+    log.info("Сайт переезжает на другой компьютер по его просьбе — этот становится копией");
+    try {
+      // Запросы, начатые до переключения, успевают записаться и попасть в снимок.
+      Thread.sleep(500);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
     try {
-      client().state();
-      throw new Problem(
-          "Главный компьютер на связи — сайт работает там. Закройте приложение на нём, и этот"
-              + " станет главным сам");
-    } catch (PeerClient.NoServer e) {
-      takeOver("вручную");
+      snapshotTo(out);
+    } finally {
+      hosts.lockWrites(0);
+    }
+    putAside();
+    return epoch;
+  }
+
+  /**
+   * «Перенести сайт сюда» — с любого из двух компьютеров. Тот, где сайт сейчас, отдаёт свежую базу
+   * и становится копией; никто не отвечает — сайт просто поднимается здесь.
+   */
+  public View moveHere() {
+    requireApp();
+    if (role == Role.MAIN) {
+      throw new Problem("Сайт и так работает на этом компьютере");
+    }
+    if (role != Role.SECOND) {
+      throw new Problem("Сначала свяжите компьютеры");
+    }
+    stepLock.lock();
+    Path incoming = props.dataDir().resolve("peer").resolve("handover.db");
+    try {
+      PeerClient c = client();
+      replay(c);
+      long epoch;
+      try {
+        epoch = c.handover(incoming);
+      } catch (PeerClient.NoServer e) {
+        takeOver("перенос сюда, другой компьютер не отвечал");
+        return view();
+      }
+      try {
+        check(incoming);
+        dataLock.lock();
+        try {
+          applySnapshot(incoming);
+        } finally {
+          dataLock.unlock();
+        }
+      } catch (IOException | Problem e) {
+        // Тот компьютер уже отдал сайт: поднимаем здесь с последней копией, его база — в
+        // peer/aside там.
+        log.warn("Снимок при переезде не применился: {}", e.getMessage());
+      }
+      cfg.setPeerEpoch(Math.max(cfg.peerEpoch(), epoch));
+      takeOver("перенос сюда");
+      return view();
     } catch (IOException e) {
       throw new Problem(
-          "Нет интернета — сделать этот компьютер главным можно, когда связь появится");
+          "Нет связи с компьютером, где сейчас сайт: " + e.getMessage() + ". Попробуйте ещё раз");
+    } finally {
+      stepLock.unlock();
+      try {
+        Files.deleteIfExists(incoming);
+      } catch (IOException ignored) {
+        // уберётся при следующем переезде
+      }
     }
-    return view();
   }
 
   /**
@@ -1008,9 +1090,18 @@ public class PeerService implements SmartLifecycle {
         queue.size(),
         filesMissing,
         nobodySince == 0 ? 0 : now - nobodySince,
+        !available ? null : role == Role.MAIN ? cfg.computerName() : nameOf(peers, holder),
         available && hosts.cloudEnabled(),
         peers,
         role == Role.MAIN ? code() : null);
+  }
+
+  private static String nameOf(List<Peer> peers, String computerId) {
+    return peers.stream()
+        .filter(p -> p.computerId().equals(computerId))
+        .map(Peer::name)
+        .findFirst()
+        .orElse(null);
   }
 
   private void requireApp() {

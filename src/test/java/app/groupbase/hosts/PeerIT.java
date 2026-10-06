@@ -273,6 +273,26 @@ class PeerIT extends IntegrationTest {
       try (var aside = Files.list(props.dataDir().resolve("peer").resolve("aside"))) {
         assertThat(aside.count()).isEqualTo(1);
       }
+
+      // Компьютеры равны: «Перенести сайт сюда» с A, когда B включён, — B отдаёт свежую базу и
+      // становится копией, ничего не теряется.
+      String lastOnB = "Последнее на B " + uniq();
+      assertThat(b.post("/api/groups", Map.of("name", lastOnB, "university", "МТУСИ")).status())
+          .isEqualTo(200);
+      var here = wa.post("/api/host/peers/here", Map.of());
+      assertThat(here.status()).as(here.body()).isEqualTo(200);
+      assertThat(peers.role()).isEqualTo(PeerService.Role.MAIN);
+      assertThat(peersB.role()).isEqualTo(PeerService.Role.SECOND);
+      assertThat(peers.view().epoch()).isEqualTo(3);
+      assertThat(groups(a)).contains(lastOnB);
+      // Адрес сайта теперь ведёт на A; B выравнивается по нему.
+      tunnel.target = port;
+      String afterMove = "После переезда " + uniq();
+      assertThat(a.post("/api/groups", Map.of("name", afterMove, "university", "МТУСИ")).status())
+          .isEqualTo(200);
+      peersB.tick();
+      assertThat(groups(b)).contains(afterMove, lastOnB);
+      assertThat(peersB.view().serving()).isEqualTo(peers.view().computer());
     } finally {
       if (ctxB != null) {
         ctxB.close();

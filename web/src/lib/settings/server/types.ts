@@ -130,7 +130,7 @@ export interface PullProgress {
 export interface PeerView {
 	available: boolean;
 	role: 'off' | 'main' | 'second';
-	/** ok, offline, nobody (главный не отвечает), behind (версии разные), checking. */
+	/** ok, offline, nobody (сайт не отвечает), behind (версии разные), checking. */
 	state: string;
 	message: string | null;
 	computer: string | null;
@@ -140,6 +140,8 @@ export interface PeerView {
 	queued: number;
 	filesMissing: number;
 	nobodyFor: number;
+	/** Имя компьютера, на котором сайт сейчас работает для группы. */
+	serving: string | null;
 	cloud: boolean;
 	peers: {
 		computerId: string;

@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -90,15 +91,6 @@ class PeerController {
     return run(peers::syncNow);
   }
 
-  /** «Сделать главным» — когда прежний главный не вернётся. */
-  @PostMapping("/api/host/peers/main")
-  PeerService.View makeMain(Actor actor, HttpServletRequest req) {
-    requireWindow(actor, req);
-    PeerService.View v = run(peers::makeMain);
-    audit.log(actor, null, "hosts.peer_main", "instance", null);
-    return v;
-  }
-
   /** Подключить этот компьютер вторым — по адресу сайта и коду с главного. */
   @PostMapping("/api/host/peers/join")
   Map<String, String> join(Actor actor, HttpServletRequest req, @RequestBody JoinBody b) {
@@ -120,7 +112,28 @@ class PeerController {
   @GetMapping("/api/host/peer/state")
   Map<String, Object> state(HttpServletRequest req) {
     requirePeer(req);
+    requireMain();
     return run(peers::state);
+  }
+
+  /** Другой компьютер забирает сайт себе: в ответ — свежий снимок базы. */
+  @PostMapping("/api/host/peer/handover")
+  void handover(HttpServletRequest req, HttpServletResponse res) throws IOException {
+    requirePeer(req);
+    requireMain();
+    res.setContentType("application/gzip");
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Groupbase-Epoch", String.valueOf(peers.view().epoch()));
+    peers.handOver(res.getOutputStream());
+  }
+
+  /** «Перенести сайт сюда» — с любого из связанных компьютеров. */
+  @PostMapping("/api/host/peers/here")
+  PeerService.View moveHere(Actor actor, HttpServletRequest req) {
+    requireWindow(actor, req);
+    PeerService.View v = run(peers::moveHere);
+    audit.log(actor, null, "hosts.peer_here", "instance", null);
+    return v;
   }
 
   @GetMapping("/api/host/peer/copy")
@@ -181,12 +194,12 @@ class PeerController {
     return n.length() > 40 ? n.substring(0, 40) : n;
   }
 
+  /** Отвечает другому компьютеру только тот, где сайт: иначе «not_main» — сайт сейчас не здесь. */
   private void requireMain() {
-    run(
-        () -> {
-          peers.requireMain();
-          return null;
-        });
+    if (peers.role() != PeerService.Role.MAIN) {
+      throw new ApiException(
+          HttpStatus.CONFLICT, "not_main", "Сайт сейчас работает не на этом компьютере");
+    }
   }
 
   /** Запрос подписан ключом сопряжённого компьютера (проверил AuthFilter). */
