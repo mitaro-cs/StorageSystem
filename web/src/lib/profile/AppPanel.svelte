@@ -124,9 +124,10 @@
 			<dd class="num">groupbase {me.instance.version}</dd>
 		</div>
 	</dl>
-	{#if isAdmin()}
-		<div><Button href="/settings?tab=updates">Проверить обновления</Button></div>
-	{/if}
+	<div class="row wrap">
+		{#if isAdmin()}<Button href="/settings?tab=updates">Проверить обновления</Button>{/if}
+		<Button variant="ghost" href="/terms">Правила и конфиденциальность</Button>
+	</div>
 </section>
 
 <style>

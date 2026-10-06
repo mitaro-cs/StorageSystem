@@ -217,6 +217,19 @@ public class UserStore {
         == 1;
   }
 
+  /** Какую версию правил сайта человек принял ("" — ещё никакую). */
+  public String termsAccepted(long id) {
+    return db.sql("SELECT terms_accepted FROM users WHERE id = ?")
+        .param(id)
+        .query(String.class)
+        .optional()
+        .orElse("");
+  }
+
+  public void setTermsAccepted(long id, String version) {
+    db.sql("UPDATE users SET terms_accepted = ? WHERE id = ?").params(version, id).update();
+  }
+
   public void setOnboarded(long id, long now) {
     db.sql("UPDATE users SET onboarded_at = ? WHERE id = ? AND onboarded_at IS NULL")
         .params(now, id)

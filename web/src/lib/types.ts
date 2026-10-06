@@ -72,6 +72,8 @@ export interface Me {
 		appearance?: Record<string, unknown> | null;
 		/** Своя картинка фона на сервере: /api/avatars/<id>-1920.webp. */
 		background?: string | null;
+		/** Принял действующие правила сайта; false — спросить согласие. */
+		termsAccepted?: boolean;
 	};
 	restriction: 'password_change_required' | 'totp_setup_required' | null;
 	instance: {

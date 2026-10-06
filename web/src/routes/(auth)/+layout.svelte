@@ -30,7 +30,9 @@
 	<div class="card panel" in:fly={{ y: 12 }}>
 		{@render children()}
 	</div>
-	<p class="foot faint small">Данные группы хранятся только на её сервере</p>
+	<p class="foot faint small">
+		Данные группы хранятся только на её сервере · <a href="/terms">Правила</a>
+	</p>
 </main>
 
 <style>

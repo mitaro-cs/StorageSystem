@@ -1,4 +1,6 @@
 <script lang="ts">
+	import AgreeTerms from '$lib/terms/AgreeTerms.svelte';
+	import { acceptTerms } from '$lib/terms/terms';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -153,6 +155,7 @@
 				},
 				{ anonymous: true }
 			);
+			await acceptTerms().catch(() => {});
 			await goto('/', { replaceState: true, invalidateAll: true });
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Ошибка';
@@ -377,6 +380,7 @@
 			<PasswordFields bind:password bind:confirm />
 
 			{#if error}<p class="error-text" role="alert">{error}</p>{/if}
+			<AgreeTerms />
 			<Button variant="primary" type="submit" loading={busy}>Создать</Button>
 		</form>
 	{/if}

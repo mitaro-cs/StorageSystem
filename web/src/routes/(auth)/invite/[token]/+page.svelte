@@ -1,4 +1,6 @@
 <script lang="ts">
+	import AgreeTerms from '$lib/terms/AgreeTerms.svelte';
+	import { acceptTerms } from '$lib/terms/terms';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -74,6 +76,8 @@
 				{ username, displayName, password },
 				{ anonymous: true }
 			);
+			// Галочку поставили в форме — согласие записываем сразу, окно правил не всплывёт.
+			await acceptTerms().catch(() => {});
 			await goto('/', { replaceState: true, invalidateAll: true });
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Ошибка';
@@ -201,6 +205,7 @@
 							>, регистрироваться второй раз не нужно.{/if}
 					</p>
 				{/if}
+				<AgreeTerms />
 				<Button variant="primary" type="submit" loading={busy}>Присоединиться</Button>
 			</form>
 		{/if}

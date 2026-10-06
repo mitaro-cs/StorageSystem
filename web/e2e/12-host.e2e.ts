@@ -85,15 +85,13 @@ test('компьютер хоста выключен: вместо ответа 
 		route.fulfill({ status: 404, contentType: 'text/html', body: '<h1>Tunnel not found</h1>' })
 	);
 	await page.getByRole('link', { name: 'Домашние задания' }).first().click();
-	await expect(
-		page.getByText(/Сервер группы выключен — показаны сохранённые данные/)
-	).toBeVisible();
+	await expect(page.getByRole('status').getByText('Сервер не работает')).toBeVisible();
 	await expect(page.getByText('Типовой расчёт №1').first()).toBeVisible();
 	await page.screenshot({ path: 'test-results/shots/host-offline.png' });
 
 	// Сервер вернулся — баннер пропадает при следующем запросе.
 	await page.unroute('**/api/**');
 	await page.getByRole('link', { name: 'Сегодня' }).first().click();
-	await expect(page.getByText(/Сервер группы выключен/)).toHaveCount(0, { timeout: 10_000 });
+	await expect(page.getByText('Сервер не работает')).toHaveCount(0, { timeout: 10_000 });
 	await ctx.close();
 });

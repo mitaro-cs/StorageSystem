@@ -1,4 +1,6 @@
 <script lang="ts">
+	import AgreeTerms from '$lib/terms/AgreeTerms.svelte';
+	import { acceptTerms } from '$lib/terms/terms';
 	import { firstName } from '$lib/names';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -42,6 +44,7 @@
 				{ password },
 				{ anonymous: true }
 			);
+			if (r.status !== 'login' && info?.purpose !== 'reset') await acceptTerms().catch(() => {});
 			await goto(r.status === 'login' ? '/login' : '/', {
 				replaceState: true,
 				invalidateAll: true
@@ -70,6 +73,7 @@
 	<form onsubmit={submit}>
 		<input type="text" autocomplete="username" value={info.username} hidden readonly />
 		<PasswordFields bind:password bind:confirm />
+		{#if info.purpose !== 'reset'}<AgreeTerms />{/if}
 		{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 		<Button variant="primary" type="submit" loading={busy}>Сохранить и войти</Button>
 	</form>
