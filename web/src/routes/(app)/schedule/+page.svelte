@@ -246,7 +246,7 @@
 	<h1>Расписание</h1>
 	{#if manageGroup}
 		<div class="row head-actions">
-			<Button onclick={() => (importOpen = true)}><Upload size={16} /> Из файла календаря</Button>
+			<Button onclick={() => (importOpen = true)}><Upload size={16} /> Из файла<span class="long"> календаря</span></Button>
 			<Button variant="primary" onclick={() => (editorOpen = true)}><Plus size={17} /> Пара</Button>
 			<Menu items={more} label="Ещё действия с расписанием" />
 		</div>
@@ -283,7 +283,7 @@
 			class="input"
 			type="search"
 			bind:value={query}
-			placeholder="Предмет, преподаватель или аудитория"
+			placeholder="Предмет, препод, ауд."
 			aria-label="Поиск по расписанию"
 		/>
 	</label>
@@ -532,6 +532,15 @@
 	.head-actions {
 		flex-wrap: wrap;
 		gap: var(--s2);
+	}
+	/* Телефон: три кнопки в одну строку, «⋮» не уезжает отдельно. */
+	@media (max-width: 480px) {
+		.head-actions {
+			flex-wrap: nowrap;
+		}
+		.long {
+			display: none;
+		}
 	}
 	.weeks {
 		display: flex;

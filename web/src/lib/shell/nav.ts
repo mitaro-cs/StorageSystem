@@ -2,7 +2,7 @@ import {
 	Bell,
 	BookOpen,
 	CalendarCheck,
-	CalendarDays,
+	Clock,
 	FolderOpen,
 	GraduationCap,
 	House,
@@ -18,7 +18,7 @@ export const mainNav = [
 	{ href: '/', label: t.nav.today, icon: House, key: 'h' },
 	{ href: '/news', label: t.nav.news, icon: Newspaper, key: 'n' },
 	{ href: '/homework', label: t.nav.homeworkLong, icon: CalendarCheck, key: 'd' },
-	{ href: '/schedule', label: t.nav.schedule, icon: CalendarDays, key: 'c' },
+	{ href: '/schedule', label: t.nav.schedule, icon: Clock, key: 'c' },
 	{ href: '/session', label: t.nav.session, icon: GraduationCap, key: 'e' },
 	{ href: '/materials', label: t.nav.materials, icon: FolderOpen, key: 'm' },
 	{ href: '/subjects', label: t.nav.subjects, icon: BookOpen, key: 's' },
@@ -37,7 +37,7 @@ export const bottomNav = [
 	{ href: '/', label: t.nav.today, icon: House },
 	{ href: '/news', label: t.nav.news, icon: Newspaper },
 	{ href: '/homework', label: t.nav.homework, icon: CalendarCheck },
-	{ href: '/schedule', label: t.nav.schedule, icon: CalendarDays },
+	{ href: '/schedule', label: t.nav.schedule, icon: Clock },
 	{ href: '/subjects', label: t.nav.subjects, icon: BookOpen },
 	{ href: '/profile', label: t.nav.profile, icon: UserRound }
 ];
