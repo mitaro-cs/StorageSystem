@@ -145,7 +145,7 @@
 				<span class="muted small"
 					>На iPhone уведомления приходят только в установленном приложении. <a href="/install"
 						>Как установить</a
-					>, потом откройте groupbase с экрана «Домой».</span
+					>, потом откройте campus с экрана «Домой».</span
 				>
 			{:else if s && !s.pushEnabled}
 				<strong>Push-уведомления выключены на сервере</strong>

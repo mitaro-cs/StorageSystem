@@ -51,7 +51,7 @@ final class TransferClient {
   }
 
   /**
-   * Адрес, который ввёл человек: «groupbase.cloudpub.ru», «https://…/», «http://192.168.1.5:17380».
+   * Адрес, который ввёл человек: «campus.cloudpub.ru», «https://…/», «http://192.168.1.5:17380».
    * Через интернет — только https: копия с ключами не должна ехать открытым текстом. http — только
    * в локальной сети.
    */
@@ -154,7 +154,7 @@ final class TransferClient {
     }
   }
 
-  /** Отвечает ли по адресу сервер groupbase (после переноса прежний компьютер молчит). */
+  /** Отвечает ли по адресу сервер campus (после переноса прежний компьютер молчит). */
   boolean serverAnswers() {
     try {
       HttpResponse<Void> r =
@@ -185,7 +185,7 @@ final class TransferClient {
         return c.getValue();
       }
     }
-    throw new IOException("Сервер не выдал ключ защиты запроса — обновите groupbase там");
+    throw new IOException("Сервер не выдал ключ защиты запроса — обновите campus там");
   }
 
   private <T> HttpResponse<T> send(HttpRequest req, HttpResponse.BodyHandler<T> handler)
@@ -199,7 +199,7 @@ final class TransferClient {
       throw new IOException(
           "Не удалось связаться с сайтом по адресу "
               + base.getHost()
-              + " — проверьте адрес и интернет, и что там открыт groupbase",
+              + " — проверьте адрес и интернет, и что там открыт campus",
           e);
     }
   }
@@ -208,7 +208,7 @@ final class TransferClient {
   private static void requireServer(HttpResponse<?> r) throws IOException {
     if (r.headers().firstValue("X-Groupbase").isEmpty()) {
       throw new IOException(
-          "По этому адресу сейчас не отвечает groupbase — компьютер с сайтом выключен или адрес"
+          "По этому адресу сейчас не отвечает campus — компьютер с сайтом выключен или адрес"
               + " другой");
     }
   }

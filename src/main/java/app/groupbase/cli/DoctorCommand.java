@@ -177,8 +177,7 @@ public class DoctorCommand implements Callable<Integer> {
     }
     if (version > latest) {
       return new Check(
-          Level.FAIL,
-          "База от более новой версии groupbase (" + version + ") — обновите программу");
+          Level.FAIL, "База от более новой версии campus (" + version + ") — обновите программу");
     }
     return version < latest
         ? new Check(

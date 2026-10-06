@@ -12,7 +12,7 @@
 	});
 </script>
 
-<svelte:head><title>Правила и конфиденциальность · groupbase</title></svelte:head>
+<svelte:head><title>Правила и конфиденциальность · campus</title></svelte:head>
 
 <h1>Правила и конфиденциальность</h1>
 <TermsText extraHtml={terms?.extraHtml ?? ''} />

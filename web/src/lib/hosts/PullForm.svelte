@@ -83,7 +83,7 @@
 				id="pull-url"
 				class="input"
 				bind:value={url}
-				placeholder="groupbase.cloudpub.ru"
+				placeholder="campus.cloudpub.ru"
 				autocomplete="off"
 				autocapitalize="none"
 				spellcheck="false"
@@ -93,7 +93,7 @@
 			/>
 		</div>
 		<div>
-			<label class="label" for="pull-code">Код переноса</label>
+			<label class="label" for="pull-code">Код</label>
 			<input
 				id="pull-code"
 				class="input num code"
@@ -106,8 +106,13 @@
 				disabled={busy}
 			/>
 			<p class="hint">
-				Код — на компьютере, где сайт работает сейчас: «Настройки → Сервер → Перенос на другой
-				компьютер». Можно взять и с телефона, если вы администратор.
+				{#if endpoint.includes('peer')}
+					На компьютере, где сайт работает сейчас: «Управление → Сервер → Два компьютера → Показать
+					код». Оба компьютера будут работать вместе, с одними данными.
+				{:else}
+					На компьютере, где сайт работает сейчас: «Два компьютера → Показать код» — оба будут
+					работать вместе, или «Перенос на другой компьютер» — сайт уедет сюда целиком.
+				{/if}
 			</p>
 		</div>
 		{#if busy}

@@ -28,7 +28,7 @@ describe('explainPushTest — что сказать после «Провери�
 		const r = explainPushTest(report({ status: 403, reason: 'BadJwtToken' }));
 		expect(r.again).toBeUndefined();
 		expect(r.text).toContain('BadJwtToken');
-		expect(r.text).toContain('Обновите groupbase');
+		expect(r.text).toContain('Обновите campus');
 	});
 
 	it('нет связи со службой и прочие ответы', () => {

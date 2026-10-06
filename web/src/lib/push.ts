@@ -169,7 +169,7 @@ export function explainPushTest(r: PushReport): { ok: boolean; text: string; aga
 	if (r.status === 401 || r.status === 403)
 		return {
 			ok: false,
-			text: `Служба уведомлений не приняла подпись сервера${why}. Обновите groupbase на компьютере, где работает сайт`
+			text: `Служба уведомлений не приняла подпись сервера${why}. Обновите campus на компьютере, где работает сайт`
 		};
 	if (r.status === 429)
 		return { ok: false, text: 'Служба уведомлений просит подождать — попробуйте через минуту' };

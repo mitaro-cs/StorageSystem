@@ -72,7 +72,7 @@
 	}
 </script>
 
-<svelte:head><title>Сессия · groupbase</title></svelte:head>
+<svelte:head><title>Сессия · campus</title></svelte:head>
 
 <div class="page-head">
 	<h1>Сессия</h1>

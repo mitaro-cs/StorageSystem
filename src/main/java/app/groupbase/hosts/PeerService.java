@@ -321,7 +321,7 @@ public class PeerService implements SmartLifecycle {
     }
     String id = computerId == null ? "" : computerId.strip();
     if (!id.matches("[0-9a-fA-F-]{8,64}") || id.equals(cfg.computerId())) {
-      throw new Problem("Не похоже на компьютер groupbase — обновите приложение там");
+      throw new Problem("Не похоже на компьютер campus — обновите приложение там");
     }
     code = null;
     String token = Tokens.newToken();
@@ -641,8 +641,8 @@ public class PeerService implements SmartLifecycle {
         state = "behind";
         message =
             st.schema() > mine
-                ? "На другом компьютере groupbase новее — обновите и этот"
-                : "На этом компьютере groupbase новее — обновите другой";
+                ? "На другом компьютере campus новее — обновите и этот"
+                : "На этом компьютере campus новее — обновите другой";
         return;
       }
       boolean pulled = false;

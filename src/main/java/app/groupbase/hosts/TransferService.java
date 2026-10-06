@@ -174,6 +174,25 @@ public class TransferService {
     }
   }
 
+  /** Это действующий код переноса (без счёта ошибок) — для подсказки, если его ввели не туда. */
+  public synchronized boolean matches(String given) {
+    expire();
+    return code != null
+        && MessageDigest.isEqual(
+            normalize(given).getBytes(StandardCharsets.US_ASCII),
+            code.getBytes(StandardCharsets.US_ASCII));
+  }
+
+  /**
+   * Тот компьютер не знает такого кода переноса (так отвечают и прежние версии). Возможно, это код
+   * «связать два компьютера» — его пробуем там.
+   */
+  public static boolean unknownCode(String message) {
+    return message != null
+        && (message.startsWith("Код устарел или не выдавался")
+            || message.startsWith("Неверный код переноса"));
+  }
+
   static String normalize(String given) {
     return given == null ? "" : given.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
   }

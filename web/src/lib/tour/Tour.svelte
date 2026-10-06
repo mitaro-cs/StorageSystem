@@ -157,7 +157,7 @@
 	class="tour"
 	role="dialog"
 	aria-modal="true"
-	aria-label="Знакомство с groupbase"
+	aria-label="Знакомство с campus"
 	tabindex="-1"
 	bind:this={root}
 	onkeydown={keydown}

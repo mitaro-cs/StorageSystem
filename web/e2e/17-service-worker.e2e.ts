@@ -33,7 +33,7 @@ test('сайт не открылся — заставка называет пр�
 	await page.route('**/_app/immutable/**', (r) => r.abort());
 	await page.goto('/login');
 	const splash = page.locator('#splash');
-	await expect(splash.getByText('Не получается открыть groupbase')).toBeVisible({
+	await expect(splash.getByText('Не получается открыть campus')).toBeVisible({
 		timeout: 15_000
 	});
 	await expect(splash.getByRole('button', { name: /Код ошибки GB-106/ })).toBeVisible();

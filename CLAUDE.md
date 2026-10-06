@@ -1,4 +1,13 @@
-# groupbase — заметки для Claude Code
+# campus (бывший groupbase) — заметки для Claude Code
+
+**Сервис называется campus** (с 0.9.1, решение владельца). Везде, что видят люди, — «campus»:
+заголовки страниц, заставка, тексты, `t.app` в `ru.ts`, manifest, окно, трей и диалоги приложения
+хоста, сообщения сервера, TOTP issuer, имя ключа входа. Внутренние имена остаются `groupbase` —
+их смена сломала бы обновление и данные: Java-пакеты `app.groupbase`, `groupbase.jar`,
+`groupbase.toml`, `groupbase.db`, `identifier` и `productName` приложения (`app.groupbase` —
+каталог данных и обновления; имя пакета .app/.exe меняется только отдельным решением),
+`X-Groupbase*`, `GROUPBASE_*`, cookie и ключи `gb_*`/`gb-*`, базы IndexedDB `groupbase-<id>`,
+папка `groupbase-site`, команды CLI (`groupbase init`). В новых текстах пишите «campus».
 
 Self-hosted сервис для студенческих групп: новости, ДЗ, материалы по предметам. Один экземпляр (инстанс)
 обслуживает одну группу (`single`) или несколько (`multi`, например поток). Всё на русском: интерфейс,
@@ -172,6 +181,10 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   папку…» (`POST /api/desktop/data-folder`, при первом запуске — `/api/setup/data-folder`) → событие
   `choose-data` → выбор, копия со сверкой, перезапуск (`choose_data` в main.rs). Диска нет — окно
   с сообщением, пустой сайт не запускается.
+- Коды переноса и связи выглядят одинаково (12 знаков). Первый запуск: код связи в форме «Перенос
+  по коду» — `SetupController.transfer` видит «код не выдавался» (`TransferService.unknownCode`, так
+  отвечают и старые версии) и делает `peers.join`; код переноса в форме связи — `PeerController.pair`
+  отвечает подсказкой (`TransferService.matches`).
 - Перенос по коду (без облачной папки): `TransferService` (код 12 знаков на 15 минут, 5 ошибок —
   код сгорел; отдаёт ту же копию, что `BackupService.write`, пока идёт — `HostService.lockWrites`:
   изменения отвечают 503 `moving`), `TransferClient` (новый компьютер: CSRF-cookie с

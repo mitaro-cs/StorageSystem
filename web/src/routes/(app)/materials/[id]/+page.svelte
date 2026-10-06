@@ -71,7 +71,7 @@
 	}
 </script>
 
-<svelte:head><title>{m?.title ?? 'Материал'} · groupbase</title></svelte:head>
+<svelte:head><title>{m?.title ?? 'Материал'} · campus</title></svelte:head>
 
 <BackBar
 	href={m ? `/subjects/${m.subjectId}?tab=materials` : '/materials'}

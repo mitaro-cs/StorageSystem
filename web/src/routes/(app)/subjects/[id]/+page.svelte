@@ -147,7 +147,7 @@
 	const activeTabs = $derived(tabs.map((t) => ({ ...t, active: t.value === tab })));
 </script>
 
-<svelte:head><title>{subject?.name ?? 'Предмет'} · groupbase</title></svelte:head>
+<svelte:head><title>{subject?.name ?? 'Предмет'} · campus</title></svelte:head>
 
 {#if missing}
 	<div class="card">

@@ -28,7 +28,7 @@ class ExportController {
 
   @GetMapping("/api/me/export")
   void me(Actor actor, HttpServletResponse res) throws IOException {
-    zip(res, "groupbase-мои-данные-" + exports.day(clock.millis()) + ".zip");
+    zip(res, "campus-мои-данные-" + exports.day(clock.millis()) + ".zip");
     exports.user(actor, res.getOutputStream());
   }
 

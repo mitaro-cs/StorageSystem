@@ -124,7 +124,7 @@ fn main() {
                          groupbase снова.",
                         gone.display()
                     ))
-                    .title("groupbase")
+                    .title("campus")
                     .show(move |_| handle.exit(1));
                 return Ok(());
             }
@@ -155,7 +155,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("не удалось запустить groupbase");
+        .expect("не удалось запустить campus");
 
     app.run(|app, event| match event {
         // ⌘Q, «Выйти» в меню или завершение системы: сначала аккуратно останавливаем сервер.
@@ -191,7 +191,7 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
     let popup = app.clone();
     let downloads = app.clone();
     let window = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("index.html".into()))
-        .title("groupbase")
+        .title("campus")
         .inner_size(1180.0, 800.0)
         .min_inner_size(380.0, 560.0)
         .visible(visible)
@@ -820,7 +820,7 @@ fn current_status(app: AppHandle) -> Status {
 // ---------- трей ----------
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Открыть groupbase", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Открыть campus", true, None::<&str>)?;
     let copy = MenuItem::with_id(
         app,
         "copy",
@@ -881,7 +881,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     TrayIconBuilder::with_id("main")
         .icon(icon)
         .icon_as_template(cfg!(target_os = "macos"))
-        .tooltip("groupbase — сервер группы")
+        .tooltip("campus — сервер группы")
         .menu(&menu)
         .show_menu_on_left_click(cfg!(target_os = "macos"))
         .on_menu_event(move |app, event| match event.id().as_ref() {
@@ -976,7 +976,7 @@ fn check_update(app: &AppHandle, interactive: bool) {
             Ok(None) => {
                 remember_update(&app, None);
                 if interactive {
-                    info(&app, "У вас последняя версия groupbase.");
+                    info(&app, "У вас последняя версия campus.");
                 }
             }
             Err(e) => {
@@ -1010,7 +1010,7 @@ fn remember_update(app: &AppHandle, version: Option<&str>) {
 }
 
 fn info(app: &AppHandle, text: &str) {
-    app.dialog().message(text).title("groupbase").show(|_| {});
+    app.dialog().message(text).title("campus").show(|_| {});
 }
 
 fn ask_update(app: &AppHandle, version: &str) {
@@ -1020,7 +1020,7 @@ fn ask_update(app: &AppHandle, version: &str) {
             "Вышла новая версия groupbase {version}. Обновить сейчас?\n\nСайт группы будет недоступен \
              около минуты, данные сохранятся."
         ))
-        .title("Обновление groupbase")
+        .title("Обновление campus")
         .buttons(MessageDialogButtons::OkCancelCustom(
             "Обновить".to_string(),
             "Позже".to_string(),
@@ -1072,7 +1072,7 @@ fn install_update(app: &AppHandle) {
                 remember_update(&app, None);
                 set_status(&app, "Готово", false);
                 send_enter(&app);
-                info(&app, "У вас уже последняя версия groupbase.");
+                info(&app, "У вас уже последняя версия campus.");
                 return;
             }
             Err(e) => return fail(&app, e.to_string()),
@@ -1370,8 +1370,8 @@ fn set_awake(app: &AppHandle, on: bool) {
     *guard = if on {
         keepawake::Builder::default()
             .idle(true)
-            .reason("groupbase: сервер группы работает")
-            .app_name("groupbase")
+            .reason("campus: сервер группы работает")
+            .app_name("campus")
             .app_reverse_domain("app.groupbase")
             .create()
             .ok()

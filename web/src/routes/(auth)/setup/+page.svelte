@@ -165,7 +165,7 @@
 	}
 </script>
 
-<svelte:head><title>Первый запуск · groupbase</title></svelte:head>
+<svelte:head><title>Первый запуск · campus</title></svelte:head>
 
 <h1>Первый запуск</h1>
 <p class="muted">
@@ -195,7 +195,7 @@
 			{#each sites as s (s.path)}
 				<div class="site">
 					<div class="info">
-						<strong>{s.name || 'Сайт groupbase'}</strong>
+						<strong>{s.name || 'Сайт campus'}</strong>
 						<span class="faint small"
 							>{s.cloud}{s.host ? ` · работает на «${s.host}»` : ''}{s.at
 								? ` · ${fmtAgo(s.at)}`
@@ -307,7 +307,7 @@
 					<label class="label" for="iname">Название сайта</label>
 					<input id="iname" class="input" bind:value={instanceName} placeholder="Поток БИН-25" />
 					<p class="hint">
-						Сайт — это весь ваш groupbase: все группы потока, общие настройки и администраторы.
+						Сайт — это весь ваш campus: все группы потока, общие настройки и администраторы.
 					</p>
 				</div>
 			{/if}

@@ -107,7 +107,7 @@
 	}
 </script>
 
-<svelte:head><title>Приглашение · groupbase</title></svelte:head>
+<svelte:head><title>Приглашение · campus</title></svelte:head>
 
 {#if invalid}
 	<h1>Приглашение не работает</h1>

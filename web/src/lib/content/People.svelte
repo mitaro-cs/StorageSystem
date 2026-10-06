@@ -90,7 +90,7 @@
 		</div>{/if}
 	<div class="linkbox"><code>{reset?.link}</code></div>
 	{#snippet footer()}
-		{#if canShare()}<Button onclick={() => reset && share(reset.link, 'Новый пароль для groupbase')}
+		{#if canShare()}<Button onclick={() => reset && share(reset.link, 'Новый пароль для campus')}
 				>Поделиться</Button
 			>{/if}
 		<Button variant="primary" onclick={() => reset && copy(reset.link, 'Ссылка скопирована')}

@@ -25,7 +25,7 @@ test('студент регистрируется по инвайту, види�
 	await student.getByRole('button', { name: 'Присоединиться' }).click();
 	await expect(student.getByRole('heading', { level: 1 })).toHaveText('Привет, Олег');
 	// Тур — сразу после регистрации; пропустить можно в любой момент.
-	const welcome = student.getByRole('dialog', { name: 'Знакомство с groupbase' });
+	const welcome = student.getByRole('dialog', { name: 'Знакомство с campus' });
 	await expect(welcome.getByRole('heading', { name: 'Привет, Олег!' })).toBeVisible();
 	await welcome.getByRole('button', { name: 'Поехали' }).click();
 	// На телефоне подсветка — на нижней панели.

@@ -17,7 +17,7 @@
 	function asText(): string {
 		const who = session.me?.user.username ?? '';
 		return [
-			'groupbase — резервные коды для входа',
+			'campus — резервные коды для входа',
 			`Сайт: ${siteUrl()}`,
 			who ? `Пользователь: ${who}` : '',
 			`Создано: ${new Date().toLocaleString('ru-RU')}`,
@@ -35,7 +35,7 @@
 		const url = URL.createObjectURL(new Blob([asText()], { type: 'text/plain;charset=utf-8' }));
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = 'groupbase-резервные-коды.txt';
+		a.download = 'campus-резервные-коды.txt';
 		a.click();
 		setTimeout(() => URL.revokeObjectURL(url), 1000);
 		saved = true;

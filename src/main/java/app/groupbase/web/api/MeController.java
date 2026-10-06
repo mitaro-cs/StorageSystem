@@ -269,7 +269,7 @@ class MeController {
   @AllowRestricted
   @PostMapping("/totp/setup")
   TotpService.Setup totpSetup(Actor actor) {
-    String issuer = settings.name().isBlank() ? "groupbase" : "groupbase · " + settings.name();
+    String issuer = settings.name().isBlank() ? "campus" : "campus · " + settings.name();
     return totp.begin(actor, issuer);
   }
 
