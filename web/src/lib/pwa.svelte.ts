@@ -41,8 +41,46 @@ export function registerServiceWorker() {
 		.then(() => sw.ready)
 		.then((reg) => warmLater(() => reg.active))
 		.catch(() => {});
-	// Пришла новая версия — докачать и её.
-	sw.addEventListener('controllerchange', () => warmLater(() => sw.controller));
+	// Пришла новая версия — докачать и её, а открытую страницу перезагрузить: установленное на
+	// экран «Домой» приложение почти не перезапускается (iPhone возвращает его из фона), и без
+	// этого оставалось на старой версии.
+	let updating = !!sw.controller;
+	sw.addEventListener('controllerchange', () => {
+		warmLater(() => sw.controller);
+		if (updating) reloadWhenSafe();
+		updating = true;
+	});
+	// Новую версию ищем при каждом возврате в приложение и раз в полчаса.
+	const check = () =>
+		sw
+			.getRegistration()
+			.then((r) => r?.update())
+			.catch(() => {});
+	addEventListener('visibilitychange', () => {
+		if (document.visibilityState === 'visible') check();
+	});
+	setInterval(check, 30 * 60_000);
+}
+
+/**
+ * Перезагрузить на новую версию, не мешая: сейчас — если человек ничего не печатает и не открыто
+ * окно с формой, иначе — как только приложение уйдёт с экрана.
+ */
+function reloadWhenSafe() {
+	const busy = () => {
+		const el = document.activeElement as HTMLElement | null;
+		const typing = !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+		return typing || !!document.querySelector('[aria-modal="true"]');
+	};
+	if (document.visibilityState === 'hidden' || !busy()) {
+		location.reload();
+		return;
+	}
+	addEventListener('visibilitychange', function onHide() {
+		if (document.visibilityState !== 'hidden') return;
+		removeEventListener('visibilitychange', onHide);
+		location.reload();
+	});
 }
 
 /**
