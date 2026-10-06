@@ -67,4 +67,11 @@ class LiveIT extends IntegrationTest {
     // Без входа поток не отдаётся.
     assertThat(client().get("/api/live").status()).isEqualTo(401);
   }
+
+  @Test
+  void streamWithoutLoginIsUnauthorizedNotServerError() {
+    // EventSource после выхода переподключается без cookie: нужен 401, а не 500.
+    var r = client().header("Accept", "text/event-stream").get("/api/live");
+    assertThat(r.status()).isEqualTo(401);
+  }
 }

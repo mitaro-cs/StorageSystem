@@ -1,6 +1,6 @@
 # campus (бывший groupbase) — заметки для Claude Code
 
-**Сервис называется campus** (с 0.9.1, решение владельца). Везде, что видят люди, — «campus»:
+**Сервис называется campus** (с 0.9.2, решение владельца). Везде, что видят люди, — «campus»:
 заголовки страниц, заставка, тексты, `t.app` в `ru.ts`, manifest, окно, трей и диалоги приложения
 хоста, сообщения сервера, TOTP issuer, имя ключа входа. Внутренние имена остаются `groupbase` —
 их смена сломала бы обновление и данные: Java-пакеты `app.groupbase`, `groupbase.jar`,
@@ -181,6 +181,18 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   папку…» (`POST /api/desktop/data-folder`, при первом запуске — `/api/setup/data-folder`) → событие
   `choose-data` → выбор, копия со сверкой, перезапуск (`choose_data` в main.rs). Диска нет — окно
   с сообщением, пустой сайт не запускается.
+- Без кода (0.9.3, просьба владельца: «всегда без кода, хоста выбираю сам»): `hosts/PeerDiscovery`
+  — UDP 17391 (`groupbase.peers.discovery-port`, 0 — выкл.), вопрос `campus-discover-1`, ответ —
+  `PeerService.discoverable()` (сайт, компьютер, имя, адрес сайта; кодов и ключей по UDP нет).
+  Подключение — `PeerService.startAsk(url)`: `POST /api/host/peer/request` → там `request()`,
+  событие оболочке `peer-request` → диалог «Разрешить» → stdin `peer-allow|peer-deny <id>` →
+  `bridge.peerAnswer` → `answer()` (код связи внутри, человек его не видит); новый компьютер опрашивает
+  `/api/host/peer/request/answer` секретом и делает `join`. До 3 запросов, 3 минуты. Окно:
+  `GET /api/host/peers/discover`, `POST /api/host/peers/ask`, `POST /api/host/peers/requests/{id}`,
+  первый запуск — `/api/setup/peer/discover|ask`. Фронт — `lib/hosts/PeerJoin.svelte`. «Сделать
+  хостом» — `POST /api/host/peers/host {computer}` → `makeHost`: себя — `moveHere`; другого (здесь
+  хост) — `moveTo` в `/state`, копия видит свой id и делает `moveHere`. Старые ручки с кодом
+  (`/peers/code`, `/peers/join`) остались для совместимости.
 - Коды переноса и связи выглядят одинаково (12 знаков). Первый запуск: код связи в форме «Перенос
   по коду» — `SetupController.transfer` видит «код не выдавался» (`TransferService.unknownCode`, так
   отвечают и старые версии) и делает `peers.join`; код переноса в форме связи — `PeerController.pair`

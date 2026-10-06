@@ -5,6 +5,7 @@ import app.groupbase.auth.Actor;
 import app.groupbase.auth.Authz;
 import app.groupbase.auth.Permission;
 import app.groupbase.desktop.DesktopBridge;
+import app.groupbase.hosts.PeerDiscovery;
 import app.groupbase.hosts.PeerService;
 import app.groupbase.hosts.TransferService;
 import app.groupbase.web.ApiException;
@@ -43,19 +44,32 @@ class PeerController {
 
   record PairBody(String code, String computer, String name) {}
 
+  record JoinRequestBody(String computer, String name) {}
+
+  record SecretBody(String secret) {}
+
+  record AnswerBody(Boolean allow) {}
+
+  record UrlBody(String url) {}
+
+  record HostBody(String computer) {}
+
   private final PeerService peers;
   private final DesktopBridge bridge;
   private final Authz authz;
   private final AuditService audit;
   private final TransferService transfers;
+  private final PeerDiscovery discovery;
 
   PeerController(
       PeerService peers,
       DesktopBridge bridge,
       Authz authz,
       AuditService audit,
-      TransferService transfers) {
+      TransferService transfers,
+      PeerDiscovery discovery) {
     this.transfers = transfers;
+    this.discovery = discovery;
     this.peers = peers;
     this.bridge = bridge;
     this.authz = authz;
@@ -107,7 +121,58 @@ class PeerController {
     return Map.of("status", "restarting", "message", message);
   }
 
+  /** Сайты в локальной сети — для «Подключить» без адреса и кода. */
+  @GetMapping("/api/host/peers/discover")
+  List<PeerDiscovery.Found> discover(Actor actor, HttpServletRequest req) {
+    requireWindow(actor, req);
+    return discovery.discover();
+  }
+
+  /** Подключить этот компьютер по адресу сайта: там спросят «Разрешить?». */
+  @PostMapping("/api/host/peers/ask")
+  PeerService.Ask ask(Actor actor, HttpServletRequest req, @RequestBody UrlBody b) {
+    requireWindow(actor, req);
+    return run(() -> peers.startAsk(b.url()));
+  }
+
+  /** «Разрешить» / «Отклонить» запрос другого компьютера. */
+  @PostMapping("/api/host/peers/requests/{id}")
+  PeerService.View answer(Actor actor, @PathVariable String id, @RequestBody AnswerBody b) {
+    requireAdmin(actor);
+    boolean allow = Boolean.TRUE.equals(b.allow());
+    run(
+        () -> {
+          peers.answer(id, allow);
+          return null;
+        });
+    if (allow) {
+      audit.log(actor, null, "hosts.peer_allow", "instance", null);
+    }
+    return peers.view();
+  }
+
+  /** «Сделать хостом» — этот компьютер или другой из связанных. */
+  @PostMapping("/api/host/peers/host")
+  PeerService.View makeHost(Actor actor, HttpServletRequest req, @RequestBody HostBody b) {
+    requireWindow(actor, req);
+    PeerService.View v = run(() -> peers.makeHost(b.computer()));
+    audit.log(actor, null, "hosts.peer_host", "instance", null);
+    return v;
+  }
+
   // ---------- обмен между компьютерами ----------
+
+  /** Другой компьютер просит подключиться — без кода; ответ даст человек здесь. */
+  @PostMapping("/api/host/peer/request")
+  Map<String, String> request(@RequestBody JoinRequestBody b) {
+    return Map.of("secret", run(() -> peers.request(b.computer(), b.name())));
+  }
+
+  /** Что ответили на запрос — только тому, у кого секрет запроса. */
+  @PostMapping("/api/host/peer/request/answer")
+  PeerService.Answer requestAnswer(@RequestBody SecretBody b) {
+    return peers.answerFor(b.secret());
+  }
 
   /** Второй компьютер пришёл с кодом — без ключа (ключ он получит здесь). */
   @PostMapping("/api/host/peer/pair")

@@ -47,6 +47,17 @@ class PeerIT extends IntegrationTest {
     r.add("groupbase.hosts.tick-ms", () -> "3600000");
     r.add("groupbase.peers.tick-ms", () -> "0");
     r.add("groupbase.peers.takeover-ms", () -> "0");
+    r.add("groupbase.peers.discovery-port", () -> String.valueOf(DISCOVERY_PORT));
+  }
+
+  static final int DISCOVERY_PORT = freeUdpPort();
+
+  private static int freeUdpPort() {
+    try (var s = new java.net.DatagramSocket(0)) {
+      return s.getLocalPort();
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   @Autowired PeerService peers;
@@ -150,6 +161,7 @@ class PeerIT extends IntegrationTest {
             "groupbase.hosts.tick-ms=3600000",
             "groupbase.peers.tick-ms=0",
             "groupbase.peers.takeover-ms=0",
+            "groupbase.peers.discovery-port=0",
             "groupbase.update-check.enabled=false")
         .run();
   }
@@ -319,6 +331,62 @@ class PeerIT extends IntegrationTest {
       peersB.tick();
       assertThat(groups(b)).contains(afterMove, lastOnB);
       assertThat(peersB.view().serving()).isEqualTo(peers.view().computer());
+
+      // «Сделать хостом» на компьютере, где сайт: выбрали B — B сам забирает сайт.
+      var chosen = wa.post("/api/host/peers/host", Map.of("computer", peersB.computerId()));
+      assertThat(chosen.status()).as(chosen.body()).isEqualTo(200);
+      peersB.tick();
+      for (int i = 0; i < 50 && peersB.role() != PeerService.Role.MAIN; i++) {
+        Thread.sleep(100);
+      }
+      assertThat(peersB.role()).isEqualTo(PeerService.Role.MAIN);
+      assertThat(peers.role()).isEqualTo(PeerService.Role.SECOND);
+      // И обратно — с этого компьютера, «Сделать хостом» себя.
+      tunnel.target = portOf(ctxB);
+      var back = wa.post("/api/host/peers/host", Map.of("computer", peers.computerId()));
+      assertThat(back.status()).as(back.body()).isEqualTo(200);
+      assertThat(peers.role()).isEqualTo(PeerService.Role.MAIN);
+      tunnel.target = port;
+
+      // Без кода: компьютер с сайтом отвечает на поиск в локальной сети адресом сайта.
+      try (var udp = new java.net.DatagramSocket()) {
+        udp.setSoTimeout(3000);
+        byte[] ask = PeerDiscovery.MAGIC.getBytes(StandardCharsets.US_ASCII);
+        udp.send(
+            new java.net.DatagramPacket(
+                ask, ask.length, java.net.InetAddress.getLoopbackAddress(), DISCOVERY_PORT));
+        var reply = new java.net.DatagramPacket(new byte[2048], 2048);
+        udp.receive(reply);
+        PeerDiscovery.Found f =
+            PeerDiscovery.parse(
+                new String(reply.getData(), 0, reply.getLength(), StandardCharsets.UTF_8));
+        assertThat(f).isNotNull();
+        assertThat(f.url()).isEqualTo(tunnel.url());
+      }
+
+      // Третий компьютер знает только адрес: просит подключиться, здесь «Разрешить» — и всё.
+      // Приложение хоста занимает свой порт (8080 и дальше) — B больше не нужен.
+      ctxB.close();
+      ctxB = null;
+      Path dataC = Files.createTempDirectory("groupbase-peer-c");
+      ConfigurableApplicationContext ctxC = startB(dataC);
+      try {
+        PeerService peersC = ctxC.getBean(PeerService.class);
+        peersC.startAsk(tunnel.url());
+        for (int i = 0; i < 50 && peers.requests().isEmpty(); i++) {
+          Thread.sleep(100);
+        }
+        assertThat(peers.requests()).hasSize(1);
+        // Ответ из диалога оболочки приходит командой peer-allow.
+        bridge.peerAnswer(peers.requests().get(0).id(), true);
+        for (int i = 0; i < 100 && peersC.role() != PeerService.Role.SECOND; i++) {
+          Thread.sleep(100);
+        }
+        assertThat(peersC.ask().phase()).as(String.valueOf(peersC.ask())).isEqualTo("joining");
+        assertThat(peersC.role()).isEqualTo(PeerService.Role.SECOND);
+      } finally {
+        ctxC.close();
+      }
     } finally {
       if (ctxB != null) {
         ctxB.close();

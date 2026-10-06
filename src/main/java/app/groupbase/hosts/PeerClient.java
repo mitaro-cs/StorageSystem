@@ -35,7 +35,7 @@ final class PeerClient {
   /**
    * Состояние главного: какой сайт, кто отвечает, поколение, номер журнала изменений и версия базы.
    */
-  record State(String site, String computer, long epoch, long seq, int schema) {}
+  record State(String site, String computer, long epoch, long seq, int schema, String moveTo) {}
 
   /** Ответ главного на пересланное изменение. */
   record Reply(int status, String contentType, byte[] body) {}
@@ -100,6 +100,43 @@ final class PeerClient {
         j.path("epoch").asLong(1));
   }
 
+  /** Попросить подключиться — секрет запроса, по нему потом спрашиваем ответ. */
+  String askToJoin(String name) throws IOException {
+    String computer = auth.substring(0, auth.indexOf(' '));
+    HttpResponse<String> r =
+        send(
+            json("/api/host/peer/request")
+                .POST(
+                    HttpRequest.BodyPublishers.ofString(
+                        SiteFolder.JSON.writeValueAsString(
+                            Map.of("computer", computer, "name", name == null ? "" : name))))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+    if (r.statusCode() != 200) {
+      throw new IOException(message(r.body()));
+    }
+    return SiteFolder.JSON.readTree(r.body()).path("secret").asString("");
+  }
+
+  /** Ответ на запрос: waiting, approved (и код), denied, expired. */
+  PeerService.Answer answer(String secret) throws IOException {
+    HttpResponse<String> r =
+        send(
+            json("/api/host/peer/request/answer")
+                .POST(
+                    HttpRequest.BodyPublishers.ofString(
+                        SiteFolder.JSON.writeValueAsString(Map.of("secret", secret))))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+    if (r.statusCode() != 200) {
+      throw new IOException(message(r.body()));
+    }
+    JsonNode j = SiteFolder.JSON.readTree(r.body());
+    String code = j.path("code").asString("");
+    return new PeerService.Answer(
+        j.path("status").asString("expired"), code.isEmpty() ? null : code);
+  }
+
   State state() throws IOException {
     HttpResponse<String> r =
         send(
@@ -118,7 +155,8 @@ final class PeerClient {
         j.path("computer").asString(""),
         j.path("epoch").asLong(0),
         j.path("seq").asLong(0),
-        j.path("schema").asInt(0));
+        j.path("schema").asInt(0),
+        j.path("moveTo").asString(""));
   }
 
   /** Скачать в файл (временный рядом, потом переименование); gzip — распаковать. */

@@ -6,6 +6,7 @@ import app.groupbase.backup.RestoreStager;
 import app.groupbase.config.GroupbaseProperties;
 import app.groupbase.desktop.DesktopBridge;
 import app.groupbase.hosts.HostService;
+import app.groupbase.hosts.PeerDiscovery;
 import app.groupbase.hosts.PeerService;
 import app.groupbase.hosts.TransferService;
 import app.groupbase.web.ApiException;
@@ -50,6 +51,7 @@ class SetupController {
   private final DesktopBridge bridge;
   private final GroupbaseProperties props;
   private final PeerService peers;
+  private final PeerDiscovery discovery;
 
   SetupController(
       SetupService setup,
@@ -59,7 +61,9 @@ class SetupController {
       TransferService transfers,
       DesktopBridge bridge,
       GroupbaseProperties props,
-      PeerService peers) {
+      PeerService peers,
+      PeerDiscovery discovery) {
+    this.discovery = discovery;
     this.setup = setup;
     this.http = http;
     this.restore = restore;
@@ -113,6 +117,41 @@ class SetupController {
       return new RestoreStager.Result("restarting", peers.join(b.url(), b.code()));
     } catch (PeerService.Problem e) {
       throw ApiException.badRequest(e.getMessage());
+    }
+  }
+
+  /** Первый запуск: сайты в локальной сети. */
+  @GetMapping("/peer/discover")
+  List<PeerDiscovery.Found> discover(@RequestParam String code, HttpServletRequest req) {
+    requirePeerSetup(code, req);
+    return discovery.discover();
+  }
+
+  /** Первый запуск: подключиться к сайту по адресу — там спросят «Разрешить?». */
+  @PostMapping("/peer/ask")
+  PeerService.Ask ask(
+      @RequestParam String code, @RequestBody TransferBody b, HttpServletRequest req) {
+    requirePeerSetup(code, req);
+    try {
+      return peers.startAsk(b.url());
+    } catch (PeerService.Problem e) {
+      throw ApiException.badRequest(e.getMessage());
+    }
+  }
+
+  @GetMapping("/peer/ask")
+  PeerService.Ask askStatus(@RequestParam String code, HttpServletRequest req) {
+    requirePeerSetup(code, req);
+    return peers.ask();
+  }
+
+  private void requirePeerSetup(String code, HttpServletRequest req) {
+    setup.checkCode(code);
+    if (!setup.needed()) {
+      throw ApiException.conflict("already_setup", "Сайт уже настроен");
+    }
+    if (!bridge.enabled() || !Requests.fromThisComputer(req)) {
+      throw ApiException.forbidden("Доступно только в приложении на компьютере хоста");
     }
   }
 

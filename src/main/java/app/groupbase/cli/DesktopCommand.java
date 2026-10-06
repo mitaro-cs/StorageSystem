@@ -145,6 +145,11 @@ public class DesktopCommand implements Callable<Integer> {
           bridge.setAvailableUpdate(cmd.substring("update-available".length()));
           continue;
         }
+        if (cmd.startsWith("peer-allow ") || cmd.startsWith("peer-deny ")) {
+          bridge.peerAnswer(
+              cmd.substring(cmd.indexOf(' ') + 1).strip(), cmd.startsWith("peer-allow"));
+          continue;
+        }
         if (cmd.equals("updating")) {
           // Следом придёт quit: сервер остановят ради обновления, и он скоро вернётся.
           bridge.markUpdating();

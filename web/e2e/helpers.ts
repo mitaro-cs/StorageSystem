@@ -37,5 +37,10 @@ export function watchConsole(page: Page): string[] {
 		if (m.type() === 'error' && !m.text().includes('401')) errors.push(m.text());
 	});
 	page.on('pageerror', (e) => errors.push(e.message));
+	// Какой запрос ответил ошибкой сервера — в консоли браузера адреса нет.
+	page.on('response', (r) => {
+		if (r.status() >= 500)
+			errors.push(`${r.status()} ${r.request().method()} ${new URL(r.url()).pathname}`);
+	});
 	return errors;
 }

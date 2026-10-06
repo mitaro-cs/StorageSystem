@@ -132,7 +132,9 @@ public class PeerService implements SmartLifecycle {
       String serving,
       boolean cloud,
       List<Peer> peers,
-      Code code) {}
+      Code code,
+      List<Request> requests,
+      Ask ask) {}
 
   /** Ошибка, понятная пользователю. */
   public static final class Problem extends RuntimeException {
@@ -228,6 +230,15 @@ public class PeerService implements SmartLifecycle {
       state = "checking";
       access.suspend("Проверяем, не работает ли сайт на другом компьютере…");
     }
+    // «Разрешить» в диалоге оболочки приходит командой в stdin.
+    bridge.onPeerAnswer(
+        (id, allow) -> {
+          try {
+            answer(id, allow);
+          } catch (Problem e) {
+            log.info("Ответ на запрос подключения не применён: {}", e.getMessage());
+          }
+        });
   }
 
   static final String SECOND_MESSAGE =
@@ -421,7 +432,9 @@ public class PeerService implements SmartLifecycle {
         "seq",
         seq(),
         "schema",
-        schema());
+        schema(),
+        "moveTo",
+        moveTo());
   }
 
   /** Полная копия (как резервная, с ключами и файлами) — для первого подключения второго. */
@@ -517,6 +530,241 @@ public class PeerService implements SmartLifecycle {
                 + " WHERE success = 1")
         .query(Integer.class)
         .single();
+  }
+
+  // ---------- подключение без ввода: запрос и подтверждение ----------
+
+  static final Duration REQUEST_TTL = Duration.ofMinutes(3);
+  static final int MAX_REQUESTS = 3;
+
+  /** Запрос другого компьютера «подключиться»; ждёт ответа здесь. */
+  private static final class Pending {
+    final String secret;
+    final String id;
+    final String name;
+    final long expires;
+    volatile String status = "waiting";
+    volatile String code;
+
+    Pending(String secret, String id, String name, long expires) {
+      this.secret = secret;
+      this.id = id;
+      this.name = name;
+      this.expires = expires;
+    }
+  }
+
+  /** Запрос в интерфейсе компьютера с сайтом (без секрета). */
+  public record Request(String id, String name) {}
+
+  /** Ответ на запрос: waiting, approved (с кодом связи), denied, expired. */
+  public record Answer(String status, String code) {}
+
+  private final Map<String, Pending> requests = new ConcurrentHashMap<>();
+
+  /** Подключение здесь, на новом компьютере: idle, asking, waiting, joining, error. */
+  public record Ask(String phase, String message, String url) {}
+
+  private volatile Ask ask = new Ask("idle", null, null);
+
+  /** Хост попросил другой компьютер стать хостом (выбор в окне хоста); до этого времени. */
+  private volatile String moveTo;
+
+  private volatile long moveToUntil;
+
+  /**
+   * Другой компьютер просит подключиться (знает только адрес сайта). Здесь появится вопрос
+   * «Разрешить?» — в окне и диалогом оболочки; секрет запроса знает только тот компьютер.
+   */
+  public synchronized String request(String computerId, String name) {
+    if (cfg == null || hosts.cloudEnabled() || role == Role.SECOND) {
+      throw new Problem("Сайт сейчас работает не на этом компьютере");
+    }
+    String id = computerId == null ? "" : computerId.strip();
+    if (!id.matches("[0-9a-fA-F-]{8,64}") || id.equals(cfg.computerId())) {
+      throw new Problem("Не похоже на компьютер campus — обновите приложение там");
+    }
+    long now = clock.millis();
+    requests.values().removeIf(r -> r.expires < now);
+    if (requests.size() >= MAX_REQUESTS) {
+      throw new Problem("Слишком много запросов — подождите пару минут");
+    }
+    String secret = Tokens.newToken();
+    String shortId = Tokens.newToken().replaceAll("[^A-Za-z0-9]", "").substring(0, 8);
+    Pending p = new Pending(secret, shortId, cleanName(name), now + REQUEST_TTL.toMillis());
+    requests.put(secret, p);
+    bridge.event("peer-request", Map.of("id", p.id, "name", p.name));
+    log.info("Другой компьютер просит подключиться к сайту");
+    return secret;
+  }
+
+  /** Как ответили на запрос — спрашивает тот компьютер своим секретом. */
+  public Answer answerFor(String secret) {
+    Pending p = secret == null ? null : requests.get(secret);
+    if (p == null || p.expires < clock.millis()) {
+      if (p != null) {
+        requests.remove(secret);
+      }
+      return new Answer("expired", null);
+    }
+    if (!"waiting".equals(p.status)) {
+      requests.remove(secret);
+    }
+    return new Answer(p.status, p.code);
+  }
+
+  /** Запросы, которые ждут ответа здесь. */
+  public List<Request> requests() {
+    long now = clock.millis();
+    return requests.values().stream()
+        .filter(r -> r.expires >= now && "waiting".equals(r.status))
+        .map(r -> new Request(r.id, r.name))
+        .toList();
+  }
+
+  /** «Разрешить» или «Отклонить» — в окне или в диалоге оболочки. */
+  public synchronized void answer(String id, boolean allow) {
+    Pending p =
+        requests.values().stream()
+            .filter(r -> r.id.equals(id) && "waiting".equals(r.status))
+            .findFirst()
+            .orElseThrow(() -> new Problem("Запрос устарел — пусть тот компьютер попросит снова"));
+    if (allow) {
+      p.code = newCode().code();
+      p.status = "approved";
+      log.info("Подключение другого компьютера разрешено");
+    } else {
+      p.status = "denied";
+    }
+  }
+
+  public Ask ask() {
+    return ask;
+  }
+
+  /**
+   * «Сделать хостом» в списке компьютеров — на любом из двух. Этот компьютер — сразу «Перенести
+   * сайт сюда»; другой (а здесь хост) — тот увидит просьбу в следующем {@code /state} и заберёт
+   * сайт сам, без потерь.
+   */
+  public View makeHost(String computerId) {
+    requireApp();
+    if (computerId == null || computerId.equals(cfg.computerId())) {
+      return moveHere();
+    }
+    if (role != Role.MAIN) {
+      throw new Problem(
+          "Сайт сейчас не на этом компьютере — нажмите «Сделать хостом» на том, где он работает,"
+              + " или на нужном компьютере");
+    }
+    boolean known =
+        db.sql("SELECT COUNT(*) FROM host_peers WHERE computer_id = ?")
+                .param(computerId)
+                .query(Integer.class)
+                .single()
+            > 0;
+    if (!known) {
+      throw new Problem("Такого компьютера среди связанных нет");
+    }
+    moveTo = computerId;
+    moveToUntil = clock.millis() + 2 * 60_000;
+    log.info("Хостом станет другой компьютер — ждём, когда он заберёт сайт");
+    return view();
+  }
+
+  private String moveTo() {
+    return moveTo != null && clock.millis() < moveToUntil ? moveTo : "";
+  }
+
+  /**
+   * Подключить этот компьютер к сайту, зная только его адрес: запрос туда, ждём «Разрешить» на том
+   * компьютере, дальше — как по коду.
+   */
+  public synchronized Ask startAsk(String siteUrl) {
+    requireApp();
+    if (hosts.cloudEnabled()) {
+      throw new Problem(
+          "Выключите перенос через облачную папку — компьютеры будут связаны напрямую");
+    }
+    if (role != Role.OFF) {
+      throw new Problem("Этот компьютер уже связан с другим");
+    }
+    if (List.of("asking", "waiting", "joining").contains(ask.phase())) {
+      return ask;
+    }
+    String url;
+    try {
+      url = TransferClient.normalize(siteUrl).toString();
+    } catch (IOException e) {
+      throw new Problem(e.getMessage());
+    }
+    ask = new Ask("asking", null, url);
+    Thread.ofVirtual().name("peer-ask").start(() -> runAsk(url));
+    return ask;
+  }
+
+  private void runAsk(String url) {
+    try {
+      PeerClient c = new PeerClient(url, cfg.computerId(), "-");
+      String secret = c.askToJoin(cfg.computerName());
+      ask = new Ask("waiting", null, url);
+      long deadline = clock.millis() + REQUEST_TTL.toMillis();
+      while (clock.millis() < deadline) {
+        Thread.sleep(1500);
+        Answer a = c.answer(secret);
+        switch (a.status()) {
+          case "approved" -> {
+            ask = new Ask("joining", null, url);
+            String message = join(url, a.code());
+            ask = new Ask("joining", message, url);
+            return;
+          }
+          case "denied" -> {
+            ask = new Ask("error", "На том компьютере отказали", url);
+            return;
+          }
+          case "expired" -> {
+            ask = new Ask("error", "Не дождались ответа — попробуйте ещё раз", url);
+            return;
+          }
+          default -> {
+            // ждём
+          }
+        }
+      }
+      ask = new Ask("error", "Не дождались ответа — попробуйте ещё раз", url);
+    } catch (PeerClient.NoServer e) {
+      ask = new Ask("error", "По этому адресу сейчас не отвечает campus", url);
+    } catch (IOException | Problem e) {
+      ask = new Ask("error", e.getMessage(), url);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      ask = new Ask("error", "Прервано", url);
+    }
+  }
+
+  /** Отвечает ли этот компьютер на поиск в локальной сети: здесь сайт, и у него есть адрес. */
+  public Optional<Map<String, String>> discoverable() {
+    if (cfg == null || role == Role.SECOND || hosts.cloudEnabled()) {
+      return Optional.empty();
+    }
+    String url = publicUrl.get().orElse("");
+    try {
+      TransferClient.normalize(url);
+    } catch (IOException e) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        Map.of(
+            "site", siteId(),
+            "computer", cfg.computerId(),
+            "name", cfg.computerName(),
+            "url", url));
+  }
+
+  /** Этот компьютер: чтобы при поиске не находить себя. */
+  public String computerId() {
+    return cfg == null ? "" : cfg.computerId();
   }
 
   // ---------- второй: подключиться ----------
@@ -628,6 +876,18 @@ public class PeerService implements SmartLifecycle {
       PeerClient.State st = c.state();
       nobodySince = 0;
       holder = st.computer();
+      if (cfg.computerId().equals(st.moveTo())) {
+        // На хосте выбрали этот компьютер хостом — забираем сайт (moveHere берёт тот же замок).
+        CompletableFuture.runAsync(
+            () -> {
+              try {
+                moveHere();
+              } catch (RuntimeException e) {
+                message = e.getMessage();
+              }
+            });
+        return;
+      }
       if (st.computer().equals(cfg.computerId())) {
         return; // адрес сайта ведёт сюда — так быть не должно; подождём
       }
@@ -898,6 +1158,7 @@ public class PeerService implements SmartLifecycle {
       checking = false;
       confirmedHere = false;
       nobodySince = 0;
+      moveTo = null;
       epoch = cfg.peerEpoch();
     }
     log.info("Сайт переезжает на другой компьютер по его просьбе — этот становится копией");
@@ -931,6 +1192,10 @@ public class PeerService implements SmartLifecycle {
     stepLock.lock();
     Path incoming = props.dataDir().resolve("peer").resolve("handover.db");
     try {
+      if (role != Role.SECOND) {
+        // Пока ждали замка, сайт уже переехал сюда (второй вызов того же переезда).
+        return view();
+      }
       PeerClient c = client();
       replay(c);
       long epoch;
@@ -998,7 +1263,10 @@ public class PeerService implements SmartLifecycle {
     try {
       Files.createDirectories(dir);
       db.sql("VACUUM INTO ?")
-          .param(dir.resolve("before-" + clock.millis() + ".db").toAbsolutePath().toString())
+          .param(
+              dir.resolve("before-" + clock.millis() + "-" + UUID.randomUUID() + ".db")
+                  .toAbsolutePath()
+                  .toString())
           .update();
       try (Stream<Path> files = Files.list(dir)) {
         List<Path> all = files.filter(f -> f.toString().endsWith(".db")).sorted().toList();
@@ -1093,7 +1361,9 @@ public class PeerService implements SmartLifecycle {
         !available ? null : role == Role.MAIN ? cfg.computerName() : nameOf(peers, holder),
         available && hosts.cloudEnabled(),
         peers,
-        role == Role.MAIN ? code() : null);
+        role == Role.MAIN ? code() : null,
+        available ? requests() : List.of(),
+        ask);
   }
 
   private static String nameOf(List<Peer> peers, String computerId) {

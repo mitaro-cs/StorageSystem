@@ -206,5 +206,5 @@ jobs:
           v="${{ needs.jar.outputs.version }}"
           notes=$(awk -v h="## $v" '$0==h{f=1;next} /^## /{f=0} f' CHANGELOG.md 2>/dev/null)
           [ -n "$notes" ] || notes="Скачайте установщик для своего компьютера — инструкция в README."
-          gh release create "$GITHUB_REF_NAME" dist/* --title "groupbase $v" --notes "$notes" \
+          gh release create "$GITHUB_REF_NAME" dist/* --title "campus $v" --notes "$notes" \
             || gh release upload "$GITHUB_REF_NAME" dist/* --clobber

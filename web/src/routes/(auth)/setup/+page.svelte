@@ -216,15 +216,10 @@
 	{#if dataDir && !byCode}
 		<section class="by-code" class:open={byPeer}>
 			{#if byPeer}
-				<p class="head"><Laptop size={18} /> <strong>Второй компьютер</strong></p>
-				<p class="faint small">
-					На главном компьютере: «Управление → Сервер → Второй компьютер → Этот — главный: получить
-					код». Здесь — адрес сайта и этот код.
-				</p>
+				<p class="head"><Laptop size={18} /> <strong>Подключить к сайту</strong></p>
 				{#if code.trim()}
-					{#await import('$lib/hosts/PullForm.svelte') then m}<m.default
-							endpoint={`/api/setup/peer?code=${encodeURIComponent(code.trim())}`}
-							label="Подключить"
+					{#await import('$lib/hosts/PeerJoin.svelte') then m}<m.default
+							setupCode={code.trim()}
 							bind:busy={pulling}
 						/>{/await}
 				{:else}
