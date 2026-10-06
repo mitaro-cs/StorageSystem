@@ -66,7 +66,7 @@
 	}
 </script>
 
-<svelte:head><title>Безопасность · groupbase</title></svelte:head>
+<svelte:head><title>Безопасность · campus</title></svelte:head>
 
 {#if recoveryCodes}
 	<h1>Сохраните резервные коды</h1>
@@ -95,7 +95,7 @@
 			<div class="qr"><QrCode value={uri} label="QR-код" /></div>
 			<p class="hint">
 				Не сканируется? Введите ключ вручную: <code class="num">{groupKey(secret)}</code>. Если
-				запись groupbase уже была в приложении — удалите её и добавьте заново.
+				запись campus уже была в приложении — удалите её и добавьте заново.
 			</p>
 		{/if}
 		<div>

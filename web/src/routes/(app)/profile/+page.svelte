@@ -114,9 +114,7 @@
 	}
 </script>
 
-<svelte:head
-	><title>{menuOnly ? '' : `${current.label} · `}Настройки · groupbase</title></svelte:head
->
+<svelte:head><title>{menuOnly ? '' : `${current.label} · `}Настройки · campus</title></svelte:head>
 
 <div class="page-head"><h1>{t.nav.mySettings}</h1></div>
 

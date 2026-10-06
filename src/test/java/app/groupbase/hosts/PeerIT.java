@@ -190,11 +190,37 @@ class PeerIT extends IntegrationTest {
       assertThat(code.json().get("role").asString()).isEqualTo("main");
       String pairing = code.json().get("code").get("code").asString();
 
-      // Второй компьютер подключается: ключ по коду, полная копия, перезапуск.
+      // Код переноса и код связи выглядят одинаково: код переноса для связи не годится — понятно
+      // почему.
+      var moveCode = a.post("/api/host/transfer/code", Map.of());
+      assertThat(moveCode.status()).as(moveCode.body()).isEqualTo(200);
+      var wrongKind =
+          client()
+              .post(
+                  "/api/host/peer/pair",
+                  Map.of(
+                      "code",
+                      moveCode.json().get("code").asString(),
+                      "computer",
+                      "11111111-2222-3333-4444-555555555555",
+                      "name",
+                      "Чужой"));
+      assertThat(wrongKind.body()).contains("код переноса");
+      assertThat(a.delete("/api/host/transfer/code").status()).isLessThan(300);
+
+      // Второй компьютер подключается при первом запуске — код связи введён в форму «Перенос по
+      // коду»: сервер сам понимает, что это код связи. Ключ, полная копия, перезапуск.
       Path dataB = Files.createTempDirectory("groupbase-peer-b");
       ctxB = startB(dataB);
       PeerService peersB = ctxB.getBean(PeerService.class);
-      assertThat(peersB.join(tunnel.url(), pairing)).contains("перезапускаемся");
+      String setupB = ctxB.getBean(app.groupbase.accounts.SetupService.class).setupCode();
+      var joined =
+          new ApiClient(portOf(ctxB))
+              .post(
+                  "/api/setup/transfer?code=" + setupB,
+                  Map.of("url", tunnel.url(), "code", pairing));
+      assertThat(joined.status()).as(joined.body()).isEqualTo(200);
+      assertThat(joined.body()).contains("перезапускаемся");
       ctxB.close();
       assertThat(PendingRestore.apply(dataB, s -> {})).isTrue();
       ctxB = startB(dataB);

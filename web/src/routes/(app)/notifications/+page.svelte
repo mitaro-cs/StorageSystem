@@ -88,7 +88,7 @@
 	}
 </script>
 
-<svelte:head><title>Уведомления · groupbase</title></svelte:head>
+<svelte:head><title>Уведомления · campus</title></svelte:head>
 
 <div class="page-head">
 	<h1>Уведомления</h1>

@@ -83,6 +83,14 @@ class SetupController {
     try {
       return new RestoreStager.Result("restarting", transfers.pull(b.url(), b.code()));
     } catch (HostService.Problem e) {
+      // Коды переноса и «связать два компьютера» выглядят одинаково: ввели второй — связываем.
+      if (TransferService.unknownCode(e.getMessage()) && bridge.enabled()) {
+        try {
+          return new RestoreStager.Result("restarting", peers.join(b.url(), b.code()));
+        } catch (PeerService.Problem ignored) {
+          // и не код связи — покажем, что ответил тот компьютер про перенос
+        }
+      }
       throw ApiException.badRequest(e.getMessage());
     }
   }

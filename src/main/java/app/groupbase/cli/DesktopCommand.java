@@ -181,7 +181,7 @@ public class DesktopCommand implements Callable<Integer> {
         return new Problem("GB-201", "Порт уже занят другой программой. Перезапустите приложение.");
       }
       if (m.contains("уже запущен")) {
-        return new Problem("GB-202", "groupbase уже запущен на этом компьютере.");
+        return new Problem("GB-202", "campus уже запущен на этом компьютере.");
       }
       if (m.contains("No space left") || m.contains("SQLITE_FULL")) {
         return new Problem(

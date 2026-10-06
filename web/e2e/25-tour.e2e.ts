@@ -19,7 +19,7 @@ test('подсказка раздела — один раз, тур — снов
 	// «Как пользоваться» в профиле — тот же тур; Esc закрывает.
 	await page.goto('/profile?tab=app');
 	await page.getByRole('button', { name: 'Пройти тур' }).click();
-	const tour = page.getByRole('dialog', { name: 'Знакомство с groupbase' });
+	const tour = page.getByRole('dialog', { name: 'Знакомство с campus' });
 	await tour.getByRole('button', { name: 'Поехали' }).click();
 	await expect(page).toHaveURL(/\/$/);
 	await expect(tour.getByRole('heading', { name: 'Всё главное — на «Сегодня»' })).toBeVisible();

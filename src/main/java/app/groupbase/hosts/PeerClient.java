@@ -49,7 +49,7 @@ final class PeerClient {
    */
   static final class NoServer extends IOException {
     NoServer() {
-      super("По адресу сайта сейчас не отвечает groupbase");
+      super("По адресу сайта сейчас не отвечает campus");
     }
   }
 
@@ -261,8 +261,7 @@ final class PeerClient {
         return csrf;
       }
     }
-    throw new IOException(
-        "Главный компьютер не выдал ключ защиты запроса — обновите там groupbase");
+    throw new IOException("Главный компьютер не выдал ключ защиты запроса — обновите там campus");
   }
 
   /** Ответ не от groupbase (страница туннеля) — {@link NoServer}; нет связи — IOException. */

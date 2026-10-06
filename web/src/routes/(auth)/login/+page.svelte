@@ -166,7 +166,7 @@
 	}
 </script>
 
-<svelte:head><title>Вход · groupbase</title></svelte:head>
+<svelte:head><title>Вход · campus</title></svelte:head>
 
 <h1>
 	{ticket

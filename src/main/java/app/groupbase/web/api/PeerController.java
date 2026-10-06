@@ -6,6 +6,7 @@ import app.groupbase.auth.Authz;
 import app.groupbase.auth.Permission;
 import app.groupbase.desktop.DesktopBridge;
 import app.groupbase.hosts.PeerService;
+import app.groupbase.hosts.TransferService;
 import app.groupbase.web.ApiException;
 import app.groupbase.web.AuthFilter;
 import app.groupbase.web.Public;
@@ -46,8 +47,15 @@ class PeerController {
   private final DesktopBridge bridge;
   private final Authz authz;
   private final AuditService audit;
+  private final TransferService transfers;
 
-  PeerController(PeerService peers, DesktopBridge bridge, Authz authz, AuditService audit) {
+  PeerController(
+      PeerService peers,
+      DesktopBridge bridge,
+      Authz authz,
+      AuditService audit,
+      TransferService transfers) {
+    this.transfers = transfers;
     this.peers = peers;
     this.bridge = bridge;
     this.authz = authz;
@@ -104,6 +112,12 @@ class PeerController {
   /** Второй компьютер пришёл с кодом — без ключа (ключ он получит здесь). */
   @PostMapping("/api/host/peer/pair")
   Map<String, Object> pair(@RequestBody PairBody b) {
+    if (transfers.matches(b.code())) {
+      // Коды выглядят одинаково; код переноса увёз бы сайт целиком, а не связал компьютеры.
+      throw ApiException.badRequest(
+          "Это код переноса сайта, а не код связи. На том компьютере откройте «Управление → Сервер"
+              + " → Два компьютера» и нажмите «Показать код»");
+    }
     Map<String, Object> p = run(() -> peers.pair(b.code(), b.computer(), b.name()));
     audit.log(null, null, "hosts.peer_add", "instance", null, Map.of("name", nameOf(b.name())));
     return p;

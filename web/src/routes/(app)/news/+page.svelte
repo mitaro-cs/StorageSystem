@@ -3,7 +3,7 @@
 	import { tipOpen } from '$lib/onboarding.svelte';
 </script>
 
-<svelte:head><title>Новости · groupbase</title></svelte:head>
+<svelte:head><title>Новости · campus</title></svelte:head>
 
 {#if tipOpen('news')}
 	{#await import('$lib/tour/Tip.svelte') then m}<m.default

@@ -97,7 +97,7 @@
 	const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 </script>
 
-<svelte:head><title>{item?.title ?? 'Задание'} · groupbase</title></svelte:head>
+<svelte:head><title>{item?.title ?? 'Задание'} · campus</title></svelte:head>
 
 <BackBar href="/homework" label="Задания"><Menu items={actions} /></BackBar>
 

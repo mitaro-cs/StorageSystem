@@ -11,6 +11,6 @@ describe('typo', () => {
 	});
 	it('длинные слова не трогает', () => {
 		expect(typo('Задания и новости')).toBe('Задания и новости');
-		expect(typo('groupbase работает')).toBe('groupbase работает');
+		expect(typo('campus работает')).toBe('campus работает');
 	});
 });

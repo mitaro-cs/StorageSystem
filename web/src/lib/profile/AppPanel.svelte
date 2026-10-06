@@ -93,7 +93,7 @@
 	</div>
 	<p class="muted small">
 		{installed()
-			? 'Уже установлено: groupbase открывается с экрана «Домой», без адресной строки.'
+			? 'Уже установлено: campus открывается с экрана «Домой», без адресной строки.'
 			: 'Установите сайт как приложение: откроется без адресной строки, со своим значком, а задания и новости будут под рукой без сети.'}
 	</p>
 	<div class="row wrap">
@@ -121,7 +121,7 @@
 	<dl class="kv">
 		<div>
 			<dt>Версия</dt>
-			<dd class="num">groupbase {me.instance.version}</dd>
+			<dd class="num">campus {me.instance.version}</dd>
 		</div>
 	</dl>
 	<div class="row wrap">
