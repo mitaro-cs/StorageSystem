@@ -12,6 +12,8 @@ test('без интернета: читать, отмечать, коммент�
 
 	// Дождаться копии на устройстве и service worker, который отдаёт приложение без сети.
 	await page.goto('/profile#offline');
+	// Раздел показан — иначе проверка ниже прошла бы впустую, не дождавшись копии.
+	await expect(page.locator('#offline')).toBeVisible();
 	await expect(page.locator('#offline').getByText('ещё ни разу')).toHaveCount(0, {
 		timeout: 15_000
 	});
