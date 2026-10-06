@@ -129,6 +129,54 @@ public class FileStore {
     return FileCrypto.decrypt(Files.newInputStream(path(f.uuid())), key, f.uuid());
   }
 
+  /** Есть ли зашифрованное содержимое файла на диске. */
+  public boolean present(StoredFile f) {
+    return Files.isRegularFile(path(f.uuid()));
+  }
+
+  /**
+   * Возвращает на диск содержимое, которого там нет (прислал телефон, у которого файл сохранён).
+   * Принимается только то же самое: размер и SHA-256 — как в базе. Файл уже на месте — false.
+   */
+  public boolean restore(StoredFile f, InputStream body) throws IOException {
+    Path target = path(f.uuid());
+    if (Files.isRegularFile(target)) {
+      return false;
+    }
+    Files.createDirectories(target.getParent());
+    Path part = target.resolveSibling(f.uuid() + "." + UUID.randomUUID() + ".part");
+    MessageDigest sha = sha256();
+    long size = 0;
+    try {
+      try (InputStream in = body;
+          OutputStream enc = FileCrypto.encrypt(Files.newOutputStream(part), key, f.uuid());
+          OutputStream out = new DigestOutputStream(enc, sha)) {
+        byte[] buf = new byte[32 * 1024];
+        int n;
+        while ((n = in.read(buf)) != -1) {
+          size += n;
+          if (size > f.size()) {
+            break;
+          }
+          out.write(buf, 0, n);
+        }
+      }
+      if (size != f.size() || !HexFormat.of().formatHex(sha.digest()).equals(f.sha256())) {
+        throw new ApiException(
+            HttpStatus.CONFLICT, "file_mismatch", "Это другой файл — содержимое не совпало");
+      }
+      try {
+        Files.move(part, target, StandardCopyOption.ATOMIC_MOVE);
+      } catch (java.nio.file.FileAlreadyExistsException e) {
+        return false; // одновременно прислал другой телефон
+      }
+    } finally {
+      Files.deleteIfExists(part);
+    }
+    log.info("Файл {} возвращён на диск с устройства участника", f.id());
+    return true;
+  }
+
   public void delete(StoredFile f) {
     try {
       Files.deleteIfExists(path(f.uuid()));

@@ -1,3 +1,4 @@
+import { request } from '$lib/api';
 import type { FileInfo } from '$lib/types';
 import type { Snapshot } from './local';
 
@@ -44,11 +45,11 @@ let prefetching = false;
 
 export async function prefetchFiles(s: Snapshot) {
 	const policy = filesPolicy();
-	if (!available() || policy === 'opened' || prefetching || !navigator.onLine) return;
+	if (!available() || prefetching || !navigator.onLine) return;
 	prefetching = true;
 	try {
 		const cache = await caches.open(FILES_CACHE);
-		for (const f of wanted(s)) {
+		for (const f of policy === 'opened' ? [] : wanted(s)) {
 			if (policy === 'small' && f.size > SMALL) continue;
 			const url = `/api/files/${f.id}`;
 			if (await cache.match(url, { ignoreSearch: true })) continue;
@@ -59,8 +60,39 @@ export async function prefetchFiles(s: Snapshot) {
 				break;
 			}
 		}
+		await shareMissing(cache);
 	} finally {
 		prefetching = false;
+	}
+}
+
+/**
+ * Файлы, которых нет на сервере (восстановили копию без них, компьютер хоста потерял), но есть
+ * здесь: досылаем. Сервер сверяет SHA-256 и принимает только тот же самый файл.
+ */
+let lastShare = 0;
+
+async function shareMissing(cache: Cache) {
+	// Синхронизация бывает часто, а потерянный файл — редкость: спрашиваем раз в 10 минут.
+	if (Date.now() - lastShare < 10 * 60_000) return;
+	lastShare = Date.now();
+	const saved = new Map<number, Request>();
+	for (const req of await cache.keys()) {
+		const id = Number(/\/api\/files\/(\d+)/.exec(new URL(req.url).pathname)?.[1]);
+		if (id > 0) saved.set(id, req);
+	}
+	if (!saved.size) return;
+	try {
+		const { missing } = await request<{ missing: number[] }>('/api/files/missing', {
+			body: { ids: [...saved.keys()].slice(0, 1000) }
+		});
+		for (const id of missing) {
+			const res = await cache.match(saved.get(id)!);
+			if (!res?.ok) continue;
+			await request(`/api/files/${id}/content`, { method: 'PUT', raw: await res.blob() });
+		}
+	} catch {
+		/* сети нет или файл не тот — попробуем при следующей синхронизации */
 	}
 }
 

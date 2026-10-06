@@ -354,6 +354,43 @@ class MaterialsIT extends IntegrationTest {
   }
 
   @Test
+  void phoneSendsBackAFileTheServerLost() throws IOException {
+    long g = newGroup("Файл с телефона");
+    TestUser headman = newUser(g, "headman");
+    TestUser student = newUser(g, "student");
+    TestUser stranger = newUser(newGroup("Чужая"), "student");
+    long s = subject(g);
+    byte[] content = "%PDF-1.4 конспект с телефона %%EOF".getBytes(StandardCharsets.UTF_8);
+    long id = headman.api().upload("notes.pdf", content).json().get("id").asLong();
+    headman.api().post("/api/subjects/" + s + "/materials", Map.of("kind", "file", "fileId", id));
+    var ids = Map.of("ids", List.of(id));
+    assertThat(student.api().post("/api/files/missing", ids).json().get("missing").size()).isZero();
+
+    Files.delete(store.path(store.find(id).orElseThrow().uuid()));
+    // Чужому не говорим, что файл вообще есть.
+    assertThat(stranger.api().post("/api/files/missing", ids).json().get("missing").size())
+        .isZero();
+    assertThat(student.api().post("/api/files/missing", ids).json().get("missing").get(0).asLong())
+        .isEqualTo(id);
+
+    // Не тот файл — не принимаем; чужой — не находит.
+    var wrong = student.api().putRaw("/api/files/" + id + "/content", "%PDF-1.4 другое".getBytes());
+    assertThat(wrong.status()).isEqualTo(409);
+    assertThat(stranger.api().putRaw("/api/files/" + id + "/content", content).status())
+        .isEqualTo(404);
+
+    var ok = student.api().putRaw("/api/files/" + id + "/content", content);
+    assertThat(ok.status()).as(ok.body()).isEqualTo(200);
+    assertThat(ok.json().get("restored").asBoolean()).isTrue();
+    var r = headman.api().download("/api/files/" + id);
+    assertThat(r.statusCode()).isEqualTo(200);
+    assertThat(r.body()).isEqualTo(content);
+    // Второй раз — уже на месте.
+    var again = student.api().putRaw("/api/files/" + id + "/content", content);
+    assertThat(again.json().get("restored").asBoolean()).isFalse();
+  }
+
+  @Test
   void notesArePastedAndPinnedOnTop() {
     long g = newGroup("Сообщения");
     TestUser headman = newUser(g, "headman");

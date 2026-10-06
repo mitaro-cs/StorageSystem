@@ -46,6 +46,8 @@ export interface RequestOptions {
 	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 	body?: unknown;
 	form?: FormData;
+	/** Тело как есть (файл): без JSON. */
+	raw?: Blob;
 	signal?: AbortSignal;
 	fetch?: Fetch;
 	/** Не перенаправлять на вход при 401 (страницы входа и регистрации). */
@@ -73,12 +75,15 @@ export function hasFresh(path: string): boolean {
 /** Запрос к API по сети: JSON, CSRF для мутаций, ошибки → ApiError с текстом по-русски. */
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 	const f = opts.fetch ?? fetch;
-	const method = opts.method ?? (opts.body !== undefined || opts.form ? 'POST' : 'GET');
+	const method = opts.method ?? (opts.body !== undefined || opts.form || opts.raw ? 'POST' : 'GET');
 	const headers: Record<string, string> = { Accept: 'application/json' };
 	if (method !== 'GET') headers['X-CSRF-Token'] = await csrfToken(f);
 	let body: BodyInit | undefined;
 	if (opts.form) body = opts.form;
-	else if (opts.body !== undefined) {
+	else if (opts.raw) {
+		headers['Content-Type'] = 'application/octet-stream';
+		body = opts.raw;
+	} else if (opts.body !== undefined) {
 		headers['Content-Type'] = 'application/json';
 		body = JSON.stringify(opts.body);
 	}
