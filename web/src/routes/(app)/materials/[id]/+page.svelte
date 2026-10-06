@@ -136,6 +136,10 @@
 				<video {src} controls preload="metadata"></video>
 			{:else if mime.startsWith('audio/')}
 				<audio {src} controls preload="metadata"></audio>
+			{:else if kind === 'markdown'}
+				{#await import('$lib/files/MarkdownNote.svelte') then v}<v.default
+						fileId={m.file.id}
+					/>{/await}
 			{:else if kind === 'text'}
 				<button class="no-preview open-text" onclick={view}
 					><FileIcon {mime} size={22} /> Открыть текст</button

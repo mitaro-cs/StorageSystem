@@ -318,6 +318,9 @@ public class PeerService implements SmartLifecycle {
     if (role != Role.MAIN) {
       throw new Problem("Сайт сейчас не на этом компьютере — возьмите код там, где он работает");
     }
+    if (keyMatches(given)) {
+      return issue(computerId, name);
+    }
     if (code == null || clock.millis() > codeExpires) {
       code = null;
       throw new Problem("Код устарел или не выдавался — возьмите новый");
@@ -330,11 +333,16 @@ public class PeerService implements SmartLifecycle {
       }
       throw new Problem("Неверный код");
     }
+    code = null;
+    return issue(computerId, name);
+  }
+
+  /** Выдать компьютеру ключ (код или ключ сайта уже проверены). */
+  private Map<String, Object> issue(String computerId, String name) {
     String id = computerId == null ? "" : computerId.strip();
     if (!id.matches("[0-9a-fA-F-]{8,64}") || id.equals(cfg.computerId())) {
       throw new Problem("Не похоже на компьютер campus — обновите приложение там");
     }
-    code = null;
     String token = Tokens.newToken();
     savePeer(id, cleanName(name), token);
     log.info("Второй компьютер хоста подключён");
@@ -530,6 +538,93 @@ public class PeerService implements SmartLifecycle {
                 + " WHERE success = 1")
         .query(Integer.class)
         .single();
+  }
+
+  // ---------- ключ сайта: вставить один раз — компьютер связан навсегда ----------
+
+  static final String KEY_SETTING = "peers.key";
+  static final String KEY_PREFIX = "campus-";
+
+  /**
+   * Ключ сайта: адрес сайта и секрет одной строкой. Вставили на другом компьютере — тот сразу
+   * подключается (без «Разрешить» и кодов) и дальше помнит свой ключ компьютера сам. Ключ живёт,
+   * пока его не сменят; лежит в базе сайта — показать его можно на любом из связанных компьютеров.
+   */
+  public synchronized String siteKey() {
+    requireApp();
+    if (hosts.cloudEnabled()) {
+      throw new Problem(
+          "Включён перенос через облачную папку — выключите его, чтобы связать компьютеры"
+              + " напрямую");
+    }
+    String url;
+    try {
+      url = TransferClient.normalize(publicUrl.get().orElse("")).toString();
+    } catch (IOException e) {
+      throw new Problem(
+          "Сначала включите доступ для группы по адресу https://… — по нему другой компьютер"
+              + " найдёт этот");
+    }
+    String secret =
+        settings
+            .get(KEY_SETTING)
+            .filter(k -> !k.isBlank())
+            .orElseGet(
+                () -> {
+                  String k = Tokens.newToken();
+                  settings.set(KEY_SETTING, k);
+                  return k;
+                });
+    if (role == Role.OFF) {
+      becomeMain(Math.max(1, cfg.peerEpoch()));
+    }
+    String raw = url + "\n" + secret;
+    return KEY_PREFIX
+        + java.util.Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+  }
+
+  /** «Сменить ключ»: старый перестаёт подключать новые компьютеры (связанные остаются). */
+  public synchronized String newSiteKey() {
+    requireApp();
+    settings.set(KEY_SETTING, Tokens.newToken());
+    return siteKey();
+  }
+
+  private boolean keyMatches(String given) {
+    String key = settings.get(KEY_SETTING).orElse("");
+    return !key.isBlank()
+        && given != null
+        && MessageDigest.isEqual(
+            given.strip().getBytes(StandardCharsets.UTF_8), key.getBytes(StandardCharsets.UTF_8));
+  }
+
+  /** Адрес сайта и секрет из ключа. */
+  static String[] parseKey(String key) {
+    String k = key == null ? "" : key.strip();
+    if (!k.startsWith(KEY_PREFIX)) {
+      throw new Problem("Это не ключ сайта — скопируйте его целиком в «Два компьютера»");
+    }
+    try {
+      String raw =
+          new String(
+              java.util.Base64.getUrlDecoder().decode(k.substring(KEY_PREFIX.length())),
+              StandardCharsets.UTF_8);
+      int nl = raw.indexOf('\n');
+      if (nl <= 0 || nl == raw.length() - 1) {
+        throw new IllegalArgumentException();
+      }
+      return new String[] {raw.substring(0, nl), raw.substring(nl + 1)};
+    } catch (IllegalArgumentException e) {
+      throw new Problem("Ключ сайта повреждён — скопируйте его целиком ещё раз");
+    }
+  }
+
+  /** Подключить этот компьютер ключом сайта: сразу, без подтверждения там. */
+  public String joinByKey(String key) {
+    String[] k = parseKey(key);
+    return join(k[0], k[1]);
   }
 
   // ---------- подключение без ввода: запрос и подтверждение ----------
@@ -802,6 +897,8 @@ public class PeerService implements SmartLifecycle {
         cfg.setPeerUrl(url);
         cfg.setPeerEpoch(p.epoch());
         cfg.setPeerApplied(0);
+        // Сайт с этого компьютера раньше перенесли по коду («moved») — теперь он снова в деле.
+        cfg.setMoved(0);
         saveCfg();
         role = Role.SECOND;
         access.suspend(SECOND_MESSAGE);

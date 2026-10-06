@@ -46,8 +46,29 @@
 					var dim = localStorage.getItem('gb-bg-dim');
 					if (/^\d{1,2}$/.test(dim || '') && +dim <= 80)
 						document.documentElement.style.setProperty('--bg-dim', String(dim / 100));
-					if (localStorage.getItem('gb-bg-blur') === '1')
+					var bl = localStorage.getItem('gb-bg-blur');
+					bl = bl === '1' ? 16 : +bl;
+					if (bl > 0 && bl <= 40) {
 						document.documentElement.setAttribute('data-bg-blur', '');
+						document.documentElement.style.setProperty('--bg-blur', bl + 'px');
+					}
+				}
+				// Масштаб интерфейса на этом устройстве (Профиль → Приложение); в окне хоста — свой.
+				var sc = +localStorage.getItem('gb-ui-scale');
+				if (sc >= 80 && sc <= 150 && sc !== 100 && !/[?&]enter=/.test(location.search))
+					document.documentElement.style.zoom = String(sc / 100);
+				// Своей картинки нет — фон сайта, как на странице входа (lib/looks.ts applySiteBackground).
+				if (!img) {
+					var sb = localStorage.getItem('gb-login-bg') || 'preset:aurora';
+					var m = /^image:([0-9a-f]{20})$/.exec(sb);
+					var pr = /^preset:(aurora|paper|notebook|night)$/.exec(sb);
+					if (m) {
+						document.documentElement.setAttribute('data-bg', 'site');
+						document.documentElement.style.setProperty(
+							'--bg-image',
+							'url("/api/appearance/background/' + m[1] + '.webp")'
+						);
+					} else if (pr) document.documentElement.setAttribute('data-site-bg', pr[1]);
 				}
 				var ic = localStorage.getItem('gb-icon');
 			} catch (e) {}

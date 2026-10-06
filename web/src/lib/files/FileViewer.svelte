@@ -128,7 +128,7 @@
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			class="stage"
-			class:scroll={kind === 'pdf' || kind === 'text' || zoom !== 1}
+			class:scroll={kind === 'pdf' || kind === 'text' || kind === 'markdown' || zoom !== 1}
 			onpointerdown={down}
 			onpointerup={up}
 		>
@@ -158,6 +158,11 @@
 							<FileIcon mime={file.mime} size={34} />
 							<audio {src} controls preload="metadata"></audio>
 						</div>
+					{:else if kind === 'markdown'}
+						{#await import('./MarkdownNote.svelte') then m}<m.default
+								fileId={file.id}
+								dark
+							/>{/await}
 					{:else if kind === 'text'}
 						{#if textError}<p class="none">{textError}</p>
 						{:else if text === null}<p class="none faint">Открываем…</p>
@@ -334,7 +339,8 @@
 		border-radius: 8px;
 		background: black;
 	}
-	.content.text {
+	.content.text,
+	.content.markdown {
 		width: min(100%, 980px);
 		margin: 0 auto;
 	}

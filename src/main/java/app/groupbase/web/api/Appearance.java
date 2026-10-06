@@ -49,10 +49,12 @@ final class Appearance {
       out.put("dim", number(in, "dim", 0, 80));
     }
     if (in.containsKey("blur")) {
-      if (!(in.get("blur") instanceof Boolean b)) {
-        throw bad("blur");
+      // Размытие в px (0–40); прежние версии присылали true/false.
+      if (in.get("blur") instanceof Boolean b) {
+        out.put("blur", b ? 16 : 0);
+      } else {
+        out.put("blur", number(in, "blur", 0, 40));
       }
-      out.put("blur", b);
     }
     if (in.containsKey("at")) {
       out.put("at", (long) number(in, "at", 0, Long.MAX_VALUE));

@@ -5,6 +5,7 @@ import app.groupbase.auth.Actor;
 import app.groupbase.auth.Authz;
 import app.groupbase.auth.Permission;
 import app.groupbase.desktop.DesktopBridge;
+import app.groupbase.hosts.HostService;
 import app.groupbase.hosts.PeerDiscovery;
 import app.groupbase.hosts.PeerService;
 import app.groupbase.hosts.TransferService;
@@ -54,12 +55,15 @@ class PeerController {
 
   record HostBody(String computer) {}
 
+  record KeyBody(String key) {}
+
   private final PeerService peers;
   private final DesktopBridge bridge;
   private final Authz authz;
   private final AuditService audit;
   private final TransferService transfers;
   private final PeerDiscovery discovery;
+  private final HostService hosts;
 
   PeerController(
       PeerService peers,
@@ -67,7 +71,9 @@ class PeerController {
       Authz authz,
       AuditService audit,
       TransferService transfers,
-      PeerDiscovery discovery) {
+      PeerDiscovery discovery,
+      HostService hosts) {
+    this.hosts = hosts;
     this.transfers = transfers;
     this.discovery = discovery;
     this.peers = peers;
@@ -158,6 +164,66 @@ class PeerController {
     PeerService.View v = run(() -> peers.makeHost(b.computer()));
     audit.log(actor, null, "hosts.peer_host", "instance", null);
     return v;
+  }
+
+  /** Ключ сайта — показать (и создать, если ещё нет). */
+  @GetMapping("/api/host/peers/key")
+  Map<String, String> key(Actor actor, HttpServletRequest req) {
+    requireWindow(actor, req);
+    return Map.of("key", run(peers::siteKey));
+  }
+
+  /** «Сменить ключ»: старым больше не подключиться. */
+  @PostMapping("/api/host/peers/key")
+  Map<String, String> newKey(Actor actor, HttpServletRequest req) {
+    requireWindow(actor, req);
+    String key = run(peers::newSiteKey);
+    audit.log(actor, null, "hosts.peer_key", "instance", null);
+    return Map.of("key", key);
+  }
+
+  /** Подключить этот компьютер ключом сайта. */
+  @PostMapping("/api/host/peers/join-key")
+  Map<String, String> joinKey(Actor actor, HttpServletRequest req, @RequestBody KeyBody b) {
+    requireWindow(actor, req);
+    return Map.of("status", "restarting", "message", run(() -> peers.joinByKey(b.key())));
+  }
+
+  // ---------- экран ожидания: сайт не здесь, входа нет ----------
+
+  @PostMapping("/api/host/standby/key")
+  Map<String, String> standbyKey(HttpServletRequest req, @RequestBody KeyBody b) {
+    requireStandby(req);
+    return Map.of("status", "restarting", "message", run(() -> peers.joinByKey(b.key())));
+  }
+
+  /** Поиск сайта в сети — с экрана ожидания, только с этого компьютера (входа там нет). */
+  @GetMapping("/api/host/standby/discover")
+  List<PeerDiscovery.Found> standbyDiscover(HttpServletRequest req) {
+    requireStandby(req);
+    return discovery.discover();
+  }
+
+  @PostMapping("/api/host/standby/ask")
+  PeerService.Ask standbyAsk(HttpServletRequest req, @RequestBody UrlBody b) {
+    requireStandby(req);
+    return run(() -> peers.startAsk(b.url()));
+  }
+
+  @GetMapping("/api/host/standby/ask")
+  PeerService.Ask standbyAskStatus(HttpServletRequest req) {
+    requireStandby(req);
+    return peers.ask();
+  }
+
+  /** Данные этого компьютера заменятся данными сайта — поэтому только когда сайт не здесь. */
+  private void requireStandby(HttpServletRequest req) {
+    if (!here(req)) {
+      throw ApiException.forbidden("Доступно только в приложении на компьютере хоста");
+    }
+    if (hosts.serving()) {
+      throw ApiException.badRequest("Сайт работает на этом компьютере");
+    }
   }
 
   // ---------- обмен между компьютерами ----------

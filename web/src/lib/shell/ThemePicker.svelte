@@ -14,6 +14,7 @@
 	import { DEFAULT_SAT, PRESETS, currentAccent, oklch, setAccent, type Accent } from '$lib/colors';
 	import {
 		ICONS,
+		MAX_BLUR,
 		MAX_DIM,
 		backgroundBlur,
 		backgroundDim,
@@ -28,7 +29,6 @@
 	import { session } from '$lib/session.svelte';
 	import { toast } from '$lib/toasts.svelte';
 	import Button from '$lib/ui/Button.svelte';
-	import Switch from '$lib/ui/Switch.svelte';
 
 	// Оформление под себя: режим, один из пяти дизайнов, основной цвет и его насыщенность, своя
 	// картинка на фоне и значок. Меняется сразу, хранится на этом устройстве.
@@ -38,7 +38,7 @@
 	let custom = $state(false);
 	let bgImage = $state<string | null>(null);
 	let dim = $state(0);
-	let blur = $state(false);
+	let blur = $state(0);
 	let fileInput: HTMLInputElement | undefined = $state();
 
 	onMount(() => {
@@ -257,7 +257,7 @@
 			<span
 				class="bgp"
 				class:img={!!bgImage}
-				class:blur={blur && !!bgImage}
+				class:blur={blur > 0 && !!bgImage}
 				style:background-image={bgImage ? `url("${bgImage}")` : undefined}
 				style:--dim={dim / 100}
 				aria-hidden="true"
@@ -275,6 +275,9 @@
 				{/if}
 			</div>
 		</div>
+		{#if !bgImage}
+			<p class="muted small">Пока своей нет — фон сайта, как на странице входа.</p>
+		{/if}
 		{#if bgImage}
 			<!-- Картинка — в своих цветах; приглушить и размыть — если текст на ней теряется. -->
 			<label class="slider">
@@ -292,10 +295,24 @@
 					oninput={(e) => slideDim(Number(e.currentTarget.value))}
 				/>
 			</label>
-			<div class="blur-row">
-				<span>Размыть картинку</span>
-				<Switch bind:checked={blur} label="Размыть картинку" onchange={setBackgroundBlur} />
-			</div>
+			<label class="slider">
+				<span class="row-label"
+					>Размыть <span class="value num">{blur === 0 ? 'нет' : `${blur} px`}</span></span
+				>
+				<input
+					type="range"
+					class="dim"
+					min="0"
+					max={MAX_BLUR}
+					step="2"
+					value={blur}
+					aria-label="Размыть картинку"
+					oninput={(e) => {
+						blur = Number(e.currentTarget.value);
+						setBackgroundBlur(blur);
+					}}
+				/>
+			</label>
 		{/if}
 		<input
 			bind:this={fileInput}
@@ -778,15 +795,6 @@
 	}
 	.dim {
 		--track: linear-gradient(90deg, #8a8f99, rgb(var(--veil)));
-	}
-	.blur-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-		margin-top: var(--s3);
-		font-size: 14px;
-		font-weight: 550;
 	}
 	.icons {
 		display: grid;

@@ -1,4 +1,5 @@
 import { DEFAULT_ICON, appIcon, iconSrc, type AppIcon } from './appIcon.svelte';
+import { cachedBackground, parseBackground } from './appearance';
 
 /**
  * Своя картинка на фоне страниц (Настройки → Оформление): хранится на этом устройстве, уменьшенной,
@@ -45,26 +46,67 @@ export function backgroundDim(): number {
 	}
 }
 
-export function backgroundBlur(): boolean {
+/** Насколько размыть картинку, px (0 — не размывать). Прежнее «включено» («1») — 16 px. */
+export const MAX_BLUR = 40;
+export function backgroundBlur(): number {
 	try {
-		return localStorage.getItem(BLUR_KEY) === '1';
+		const raw = localStorage.getItem(BLUR_KEY);
+		if (raw === '1') return 16;
+		const v = Number(raw);
+		return raw !== null && Number.isInteger(v) && v >= 0 && v <= MAX_BLUR ? v : 0;
 	} catch {
-		return false;
+		return 0;
 	}
+}
+
+function applyBlur(px: number) {
+	const root = document.documentElement;
+	root.toggleAttribute('data-bg-blur', px > 0);
+	if (px > 0) root.style.setProperty('--bg-blur', `${px}px`);
+	else root.style.removeProperty('--bg-blur');
+}
+
+/**
+ * Фон сайта (тот, что на странице входа) — у всех, кто не выбрал свою картинку: картинка
+ * администратора (data-bg='site') или встроенный рисунок (data-site-bg).
+ */
+export function applySiteBackground(value: string = cachedBackground()) {
+	const root = document.documentElement;
+	if (currentBackground() === 'custom') {
+		root.removeAttribute('data-site-bg');
+		return;
+	}
+	const bg = parseBackground(value);
+	if (bg.image) {
+		root.removeAttribute('data-site-bg');
+		root.setAttribute('data-bg', 'site');
+		root.style.setProperty('--bg-image', `url("${bg.image}")`);
+		root.style.setProperty('--bg-dim', String(backgroundDim() / 100));
+		applyBlur(backgroundBlur());
+		return;
+	}
+	if (root.getAttribute('data-bg') === 'site') {
+		root.removeAttribute('data-bg');
+		root.style.removeProperty('--bg-image');
+	}
+	if (bg.preset) root.setAttribute('data-site-bg', bg.preset);
+	else root.removeAttribute('data-site-bg');
 }
 
 function applyBackground(image: string | null) {
 	const root = document.documentElement;
 	if (image) {
+		root.removeAttribute('data-site-bg');
 		root.setAttribute('data-bg', 'custom');
 		root.style.setProperty('--bg-image', `url("${image}")`);
 		root.style.setProperty('--bg-dim', String(backgroundDim() / 100));
-		root.toggleAttribute('data-bg-blur', backgroundBlur());
+		applyBlur(backgroundBlur());
 	} else {
 		root.removeAttribute('data-bg');
-		root.removeAttribute('data-bg-blur');
+		applyBlur(0);
 		root.style.removeProperty('--bg-image');
 		root.style.removeProperty('--bg-dim');
+		applySiteBackground();
 	}
 }
 
@@ -80,14 +122,15 @@ export function setBackgroundDim(percent: number) {
 	window.dispatchEvent(new Event('gb:looks'));
 }
 
-export function setBackgroundBlur(on: boolean) {
+export function setBackgroundBlur(px: number) {
+	const v = Math.round(Math.min(MAX_BLUR, Math.max(0, px)));
 	try {
-		if (on) localStorage.setItem(BLUR_KEY, '1');
+		if (v > 0) localStorage.setItem(BLUR_KEY, String(v));
 		else localStorage.removeItem(BLUR_KEY);
 	} catch {
 		/* приватный режим */
 	}
-	document.documentElement.toggleAttribute('data-bg-blur', on);
+	applyBlur(v);
 	window.dispatchEvent(new Event('gb:looks'));
 }
 

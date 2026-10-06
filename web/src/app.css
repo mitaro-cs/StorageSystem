@@ -409,7 +409,7 @@
    Под всем, неподвижная и в своих цветах: сверху только нейтральная вуаль — белая в светлой теме,
    чёрная в тёмной, без оттенка основного цвета. Насколько приглушить (--bg-dim) и размыть ли,
    выбирает сам человек. Пятна света и зерно дизайнов поверх картинки не рисуются. */
-:root[data-bg='custom']::before {
+:root:is([data-bg='custom'], [data-bg='site'])::before {
 	content: '';
 	position: fixed;
 	inset: 0;
@@ -419,11 +419,12 @@
 		linear-gradient(rgb(var(--veil) / var(--bg-dim, 0.25)), rgb(var(--veil) / var(--bg-dim, 0.25))),
 		var(--bg-image) center / cover no-repeat;
 }
-:root[data-bg='custom'][data-bg-blur]::before {
-	inset: -40px;
-	filter: blur(16px);
+:root:is([data-bg='custom'], [data-bg='site'])[data-bg-blur]::before {
+	/* Края размытой картинки светлеют — растягиваем слой за экран на два радиуса. */
+	inset: calc(-2 * var(--bg-blur, 16px));
+	filter: blur(var(--bg-blur, 16px));
 }
-:root[data-bg='custom'] body::before {
+:root:is([data-bg='custom'], [data-bg='site'], [data-site-bg]) body::before {
 	display: none;
 }
 
@@ -1189,12 +1190,22 @@ button.list-row {
 	box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
-/* ---------- Фоны страниц входа и регистрации (выбираются в «Настройки → Внешний вид») ---------- */
+/* ---------- Фоны страниц входа и регистрации (выбираются в «Настройки → Внешний вид») ----------
+   С 0.9.3 тот же фон — и внутри сайта у всех, кто не выбрал свою картинку (data-site-bg на <html>,
+   lib/looks.ts applySiteBackground; картинка администратора — data-bg='site'). */
+:root[data-site-bg]::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: -2;
+	pointer-events: none;
+}
 main.auth {
 	background: var(--bg);
 }
 main.login-bg-aurora,
-.login-bg-aurora {
+.login-bg-aurora,
+:root[data-site-bg='aurora']::before {
 	background:
 		radial-gradient(40rem 28rem at 12% 6%, rgb(99 102 241 / 0.3), transparent 62%),
 		radial-gradient(36rem 26rem at 90% 16%, rgb(20 184 166 / 0.26), transparent 62%),
@@ -1211,13 +1222,15 @@ main.login-bg-aurora,
 	}
 }
 main.login-bg-paper,
-.login-bg-paper {
+.login-bg-paper,
+:root[data-site-bg='paper']::before {
 	background:
 		radial-gradient(rgb(120 96 50 / 0.16) 1px, transparent 1.3px) 0 0 / 22px 22px,
 		radial-gradient(80rem 50rem at 50% -10%, #fffaf1, #f1e9da);
 }
 main.login-bg-notebook,
-.login-bg-notebook {
+.login-bg-notebook,
+:root[data-site-bg='notebook']::before {
 	background:
 		linear-gradient(90deg, transparent 56px, rgb(229 72 77 / 0.35) 56px 58px, transparent 58px),
 		linear-gradient(rgb(59 130 246 / 0.15) 1px, transparent 1px) 0 0 / 24px 24px,
@@ -1225,7 +1238,8 @@ main.login-bg-notebook,
 		#fbfdff;
 }
 main.login-bg-night,
-.login-bg-night {
+.login-bg-night,
+:root[data-site-bg='night']::before {
 	background:
 		radial-gradient(1.6px 1.6px at 14% 22%, rgb(255 255 255 / 0.85), transparent),
 		radial-gradient(1.2px 1.2px at 32% 70%, rgb(255 255 255 / 0.6), transparent),
@@ -1237,13 +1251,15 @@ main.login-bg-night,
 		linear-gradient(180deg, #0a0f24, #161b41);
 }
 :root[data-theme='dark'] main.login-bg-paper,
-:root[data-theme='dark'] .login-bg-paper {
+:root[data-theme='dark'] .login-bg-paper,
+:root[data-theme='dark'][data-site-bg='paper']::before {
 	background:
 		radial-gradient(rgb(255 240 210 / 0.08) 1px, transparent 1.3px) 0 0 / 22px 22px,
 		radial-gradient(80rem 50rem at 50% -10%, #2a2419, #17140f);
 }
 :root[data-theme='dark'] main.login-bg-notebook,
-:root[data-theme='dark'] .login-bg-notebook {
+:root[data-theme='dark'] .login-bg-notebook,
+:root[data-theme='dark'][data-site-bg='notebook']::before {
 	background:
 		linear-gradient(90deg, transparent 56px, rgb(229 72 77 / 0.35) 56px 58px, transparent 58px),
 		linear-gradient(rgb(96 165 250 / 0.12) 1px, transparent 1px) 0 0 / 24px 24px,

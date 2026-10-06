@@ -36,6 +36,29 @@
 		}
 	}
 
+	// Масштаб интерфейса в браузере и на телефоне (0.9.3): свой на каждом устройстве, CSS zoom на
+	// <html>; ставит его ещё скрипт в app.html до отрисовки (gb-ui-scale).
+	const SCALES = [80, 90, 100, 110, 125, 150];
+	let scale = $state(readScale());
+	function readScale(): number {
+		try {
+			const v = Number(localStorage.getItem('gb-ui-scale'));
+			return SCALES.includes(v) ? v : 100;
+		} catch {
+			return 100;
+		}
+	}
+	function setScale(v: number) {
+		scale = v;
+		document.documentElement.style.zoom = v === 100 ? '' : String(v / 100);
+		try {
+			if (v === 100) localStorage.removeItem('gb-ui-scale');
+			else localStorage.setItem('gb-ui-scale', String(v));
+		} catch {
+			/* приватный режим — масштаб до перезагрузки */
+		}
+	}
+
 	async function setManage(on: boolean) {
 		try {
 			await setManageMode(on);
@@ -80,6 +103,27 @@
 					aria-checked={zoom === z}
 					class:on={zoom === z}
 					onclick={() => setZoom(z)}>{z ? `${z}%` : 'Авто'}</button
+				>
+			{/each}
+		</div>
+	</section>
+{/if}
+
+{#if !me.hostWindow}
+	<section class="card pane">
+		<div class="pane-title">
+			<ZoomIn size={18} />
+			<h3>Масштаб интерфейса</h3>
+		</div>
+		<p class="muted small">Крупнее или мельче всё сразу — только на этом устройстве.</p>
+		<div class="zooms" role="radiogroup" aria-label="Масштаб интерфейса">
+			{#each SCALES as z (z)}
+				<button
+					type="button"
+					role="radio"
+					aria-checked={scale === z}
+					class:on={scale === z}
+					onclick={() => setScale(z)}>{z === 100 ? 'Обычный' : `${z}%`}</button
 				>
 			{/each}
 		</div>

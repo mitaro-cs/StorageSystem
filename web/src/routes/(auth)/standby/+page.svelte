@@ -6,7 +6,6 @@
 	import { waitForRestart } from '$lib/settings/server/restart';
 	import type { Hosts } from '$lib/settings/server/types';
 	import PullForm from '$lib/hosts/PullForm.svelte';
-	import { ask } from '$lib/ui/ask.svelte';
 	import Button from '$lib/ui/Button.svelte';
 
 	// Этот компьютер хоста сейчас не хост: сайт работает на другом (или ждёт данных из облака).
@@ -41,7 +40,6 @@
 	});
 
 	async function takeOver() {
-		if (h?.action === 'return') return returnHere();
 		error = '';
 		busy = true;
 		try {
@@ -54,27 +52,6 @@
 				restarting = true;
 				await waitForRestart();
 			}
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Не получилось';
-		} finally {
-			busy = false;
-		}
-	}
-
-	/** После переноса по коду: сайт так и не заработал на новом компьютере — вернуть сюда. */
-	async function returnHere() {
-		if (
-			!(await ask(
-				'Сайт снова заработает здесь — с данными на момент переноса. Делайте так, только если на новом компьютере campus закрыт или не запустился: иначе будут два разных сайта.',
-				{ title: 'Вернуть сайт сюда', ok: 'Вернуть', danger: true }
-			))
-		)
-			return;
-		error = '';
-		busy = true;
-		try {
-			h = await request<Hosts>('/api/host/return', { method: 'POST', body: {}, quiet401: true });
-			location.replace('/');
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Не получилось';
 		} finally {
@@ -109,12 +86,12 @@
 	const actionLabel = $derived(
 		h?.action === 'request'
 			? 'Перенести сюда'
-			: h?.action === 'back' || h?.action === 'return'
+			: h?.action === 'back'
 				? 'Вернуть сайт сюда'
 				: 'Запустить здесь'
 	);
 	// Забрать сюда по коду можно, пока здесь ничего не происходит само.
-	const canPull = $derived(!!h && (h.role === 'standby' || h.role === 'moved'));
+	const canPull = $derived(!!h && h.role === 'standby');
 </script>
 
 <svelte:head><title>Сайт на другом компьютере · campus</title></svelte:head>
@@ -143,9 +120,12 @@
 		<!-- Для «работает на другом» и «перенесён» заголовок уже всё сказал. -->
 		{#if h.role === 'moved'}
 			<p class="muted">
-				Теперь он работает там — по тому же адресу. Здесь остались данные на момент переноса.
-				Вернуть его сюда — кодом переноса с того компьютера.
+				Теперь он работает там — по тому же адресу. Подключите этот компьютер к сайту: данные будут
+				одни, а хоста потом выберете сами. Кода не нужно.
 			</p>
+			<div class="join">
+				{#await import('$lib/hosts/PeerJoin.svelte') then m}<m.default standby />{/await}
+			</div>
 		{:else if h.message && !(h.role === 'standby' && h.plan === 'live')}
 			<p class="muted">{h.message}</p>
 		{/if}
@@ -182,21 +162,15 @@
 				{#if byCode}
 					<PullForm endpoint="/api/host/pull" label="Перенести сюда по коду" />
 				{:else}
-					<Button
-						variant={h.role === 'moved' ? 'primary' : 'secondary'}
-						onclick={() => (byCode = true)}>Перенести сюда по коду</Button
+					<Button variant="secondary" onclick={() => (byCode = true)}>Перенести сюда по коду</Button
 					>
 				{/if}
 			</div>
 		{/if}
 
-		{#if h.action && !byCode}
+		{#if h.action && h.action !== 'return' && !byCode}
 			<div class="act">
-				<Button
-					variant={h.action === 'return' ? 'ghost' : 'primary'}
-					loading={busy}
-					onclick={takeOver}>{actionLabel}</Button
-				>
+				<Button variant="primary" loading={busy} onclick={takeOver}>{actionLabel}</Button>
 				{#if h.action === 'request'}
 					<p class="faint small">
 						«{other}» сохранит последние изменения и остановится, а сайт продолжит работу здесь —
@@ -229,6 +203,10 @@
 		align-items: center;
 		gap: 12px;
 		text-align: center;
+	}
+	.join {
+		width: 100%;
+		max-width: 440px;
 	}
 	h1 {
 		margin: 4px 0 0;

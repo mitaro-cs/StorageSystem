@@ -188,6 +188,15 @@ class AvatarsIT extends IntegrationTest {
     assertThat(me.get("appearance").get("theme").asString()).isEqualTo("dark");
     assertThat(me.get("appearance").get("hue").asInt()).isEqualTo(150);
     assertThat(me.get("appearance").has("junk")).isFalse();
+    // Размытие — в px; прежнее «включено» стало 16.
+    assertThat(me.get("appearance").get("blur").asInt()).isEqualTo(16);
+    assertThat(
+            u.api()
+                .patch(
+                    "/api/me/preferences",
+                    java.util.Map.of("appearance", java.util.Map.of("blur", 24)))
+                .status())
+        .isEqualTo(200);
     assertThat(
             u.api()
                 .patch(

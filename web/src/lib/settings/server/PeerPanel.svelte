@@ -1,6 +1,15 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { Crown, Laptop, MonitorSmartphone, RefreshCw, Unplug } from '@lucide/svelte';
+	import {
+		Copy,
+		Crown,
+		KeyRound,
+		Laptop,
+		MonitorSmartphone,
+		RefreshCw,
+		Unplug
+	} from '@lucide/svelte';
+	import { copy } from '$lib/copy';
 	import { del, get, post } from '$lib/api';
 	import { fmtAgo } from '$lib/format';
 	import PeerJoin from '$lib/hosts/PeerJoin.svelte';
@@ -64,7 +73,7 @@
 				p.here
 					? 'Сайт для группы переедет на этот компьютер за несколько секунд, ничего не потеряется. Адрес тот же.'
 					: `Сайт для группы переедет на «${p.name}» — он заберёт его сам в течение минуты, если включён. Адрес тот же.`,
-				{ title: 'Сделать хостом?', ok: 'Сделать хостом' }
+				{ title: 'Сделать основным?', ok: 'Сделать основным' }
 			))
 		)
 			return;
@@ -77,7 +86,7 @@
 	async function remove(p: PeerView['peers'][number]) {
 		if (
 			!(await ask(
-				`«${p.name}» больше не будет получать данные сайта и не сможет стать хостом. Подключить снова — «Подключить к сайту» на нём.`,
+				`«${p.name}» больше не будет получать данные сайта и не сможет стать основным. Подключить снова — «Подключить к сайту» на нём.`,
 				{ title: 'Отвязать компьютер?', ok: 'Отвязать', danger: true }
 			))
 		)
@@ -85,8 +94,44 @@
 		run(() => del(`/api/host/peers/${encodeURIComponent(p.computerId)}`));
 	}
 
+	let siteKey = $state('');
+	const showKey = () =>
+		run(async () => {
+			siteKey = (await get<{ key: string }>('/api/host/peers/key')).key;
+		});
+	async function changeKey() {
+		if (
+			!(await ask(
+				'Старым ключом больше нельзя будет подключить новый компьютер. Уже связанные компьютеры продолжат работать.',
+				{ title: 'Сменить ключ сайта?', ok: 'Сменить' }
+			))
+		)
+			return;
+		run(async () => {
+			siteKey = (await post<{ key: string }>('/api/host/peers/key')).key;
+			toast('Ключ сменён', 'ok');
+		});
+	}
+
 	const seconds = (ms: number) => Math.max(0, Math.round((60_000 - ms) / 1000));
 </script>
+
+{#snippet keyCard()}
+	<div class="key-card">
+		<p class="small">
+			<strong>Ключ сайта</strong> — вставьте на другом компьютере в «Подключить к сайту». Он подключится
+			сразу и запомнит его навсегда.
+		</p>
+		<code class="key">{siteKey}</code>
+		<div class="row wrap">
+			<Button size="s" variant="primary" onclick={() => copy(siteKey)}
+				><Copy size={15} /> Скопировать</Button
+			>
+			<Button size="s" variant="ghost" onclick={changeKey}>Сменить ключ</Button>
+		</div>
+		<p class="faint small">Ключ даёт доступ ко всем данным сайта — не показывайте его другим.</p>
+	</div>
+{/snippet}
 
 {#if v?.available}
 	<h2 class="head">Два компьютера</h2>
@@ -113,8 +158,8 @@
 			<p class="lead">
 				<MonitorSmartphone size={20} />
 				<span
-					>Дома — компьютер, в вузе — ноутбук: оба равные, данные одни. Хост — тот, кого вы
-					выберете; выключили его — через минуту сайт сам переедет на другой. Адрес для группы не
+					>Дома — компьютер, в вузе — ноутбук: оба равные, данные одни. Основной — тот, кого вы
+					выберете; выключили его — через минуту сайт сам заработает на другом. Адрес для группы не
 					меняется.</span
 				>
 			</p>
@@ -130,26 +175,29 @@
 				</div>
 			{:else}
 				<p class="small muted">
-					<strong>Сайт уже работает на другом компьютере?</strong> Подключите этот к нему — кода не
-					нужно. <strong>Сайт работает здесь?</strong> Нажмите «Подключить к сайту» на другом компьютере
-					— здесь спросят «Разрешить?».
+					<strong>Этот компьютер — основной?</strong> Покажите ключ сайта и вставьте его на другом.
+					<strong>Сайт уже работает на другом?</strong> «Подключить к сайту» и вставьте ключ оттуда.
 				</p>
 				{#if hostWindow}
-					<div>
-						<Button variant="primary" onclick={() => (joining = true)}>Подключить к сайту</Button>
+					<div class="row wrap">
+						<Button variant="primary" loading={busy} onclick={showKey}
+							><KeyRound size={16} /> Ключ сайта</Button
+						>
+						<Button onclick={() => (joining = true)}>Подключить к сайту</Button>
 					</div>
 				{/if}
+				{#if siteKey}{@render keyCard()}{/if}
 			{/if}
 		</section>
 	{:else}
 		<section class="card pane">
 			<p class="where" class:wait={v.state === 'nobody'}>
 				<span class="dot" aria-hidden="true"></span>
-				{#if here}Хост — <strong>этот компьютер</strong>, группа работает здесь
-				{:else if v.state === 'nobody'}Хост не отвечает — через {seconds(v.nobodyFor)} с хостом станет
-					этот компьютер
-				{:else if v.serving}Хост — <strong>«{v.serving}»</strong>, здесь копия
-				{:else}Хост — другой компьютер, здесь копия{/if}
+				{#if here}Основной — <strong>этот компьютер</strong>, сайт работает здесь
+				{:else if v.state === 'nobody'}Основной не отвечает — через {seconds(v.nobodyFor)} с основным
+					станет этот компьютер
+				{:else if v.serving}Основной — <strong>«{v.serving}»</strong>, изменения отсюда уходят туда
+				{:else}Основной — другой компьютер, изменения отсюда уходят туда{/if}
 			</p>
 			{#if v.message && v.state !== 'nobody'}<p class="small warn">{v.message}</p>{/if}
 			<ul class="peers">
@@ -160,7 +208,7 @@
 							<strong>{p.name}{p.here ? ' — этот' : ''}</strong>
 							<span class="faint small"
 								>{isHost(p)
-									? 'хост'
+									? 'основной'
 									: p.here
 										? v.syncedAt
 											? `копия, свежая ${fmtAgo(v.syncedAt)}`
@@ -171,7 +219,7 @@
 							>
 						</span>
 						{#if hostWindow && !isHost(p) && (p.here || here)}
-							<Button size="s" loading={busy} onclick={() => makeHost(p)}>Сделать хостом</Button>
+							<Button size="s" loading={busy} onclick={() => makeHost(p)}>Сделать основным</Button>
 						{/if}
 						{#if !p.here && here}
 							<Button size="s" variant="ghost" label="Отвязать" onclick={() => remove(p)}
@@ -204,10 +252,15 @@
 					>
 				</div>
 			{/if}
-			{#if here}
-				<p class="faint small">
-					Ещё компьютер — на нём «Подключить к сайту», здесь спросят «Разрешить?».
-				</p>
+			{#if hostWindow}
+				{#if siteKey}{@render keyCard()}
+				{:else}
+					<div>
+						<Button size="s" variant="ghost" loading={busy} onclick={showKey}
+							><KeyRound size={15} /> Ключ сайта — подключить ещё компьютер</Button
+						>
+					</div>
+				{/if}
 			{/if}
 		</section>
 	{/if}
@@ -261,6 +314,26 @@
 	}
 	.req .grow {
 		flex: 1 1 220px;
+	}
+	.key-card {
+		display: flex;
+		flex-direction: column;
+		gap: var(--s2);
+		padding: var(--s3);
+		border-radius: var(--r);
+		background: var(--surface-2);
+	}
+	.key-card p {
+		margin: 0;
+	}
+	.key {
+		display: block;
+		padding: 8px 10px;
+		border-radius: var(--r-sm, 8px);
+		background: var(--surface);
+		font-size: 12px;
+		overflow-wrap: anywhere;
+		user-select: all;
 	}
 	.peers {
 		margin: 0;

@@ -6,9 +6,10 @@
 	import { del, get, patch, post } from '$lib/api';
 	import { fly, stagger } from '$lib/motion';
 	import { toastError } from '$lib/toasts.svelte';
-	import type { MaterialListing } from '$lib/types';
+	import type { MaterialListing, Material } from '$lib/types';
 	import { materialActions } from './materialActions';
 	import MaterialRow from './MaterialRow.svelte';
+	import TypeChips from './TypeChips.svelte';
 	import MaterialAdd from './MaterialAdd.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Menu from '$lib/ui/Menu.svelte';
@@ -101,6 +102,8 @@
 			toastError(e);
 		}
 	}
+
+	let shown = $state<Material[]>([]);
 </script>
 
 {#if !data}
@@ -155,9 +158,11 @@
 		</div>
 	{/if}
 
-	{#if data.materials.length}
+	<TypeChips list={data.materials} onshown={(l) => (shown = l)} />
+
+	{#if shown.length}
 		<div class="list">
-			{#each data.materials as m, i (m.id)}
+			{#each shown as m, i (m.id)}
 				<div in:fly={{ y: 8, delay: stagger(i) }}>
 					<MaterialRow {m} actions={materialActions(m, load)} />
 				</div>

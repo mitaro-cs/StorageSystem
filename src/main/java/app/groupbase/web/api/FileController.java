@@ -1,8 +1,10 @@
 package app.groupbase.web.api;
 
 import app.groupbase.auth.Actor;
+import app.groupbase.content.Markdown;
 import app.groupbase.content.MaterialService;
 import app.groupbase.files.FileStore;
+import app.groupbase.files.MarkdownDocx;
 import app.groupbase.files.Mime;
 import app.groupbase.files.StoredFile;
 import app.groupbase.web.ApiException;
@@ -153,6 +155,50 @@ class FileController {
     }
     try (InputStream body = req.getInputStream()) {
       return Map.of("restored", files.restore(f, body));
+    }
+  }
+
+  /** Конспект в Markdown — как страница (HTML после санитайзера), для просмотра. */
+  @GetMapping("/api/files/{id}/html")
+  Map<String, String> markdownHtml(Actor actor, @PathVariable long id) throws IOException {
+    return Map.of("html", Markdown.render(markdownText(actor, id).text()));
+  }
+
+  /** Конспект в Markdown — документом Word. */
+  @GetMapping("/api/files/{id}/docx")
+  void markdownDocx(Actor actor, @PathVariable long id, HttpServletResponse res)
+      throws IOException {
+    Note n = markdownText(actor, id);
+    String base = n.file().name().replaceFirst("(?i)\\.(md|markdown)$", "");
+    res.setContentType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader(
+        HttpHeaders.CONTENT_DISPOSITION,
+        ContentDisposition.attachment()
+            .filename(base + ".docx", StandardCharsets.UTF_8)
+            .build()
+            .toString());
+    res.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
+    MarkdownDocx.write(n.text(), base, res.getOutputStream());
+  }
+
+  private record Note(StoredFile file, String text) {}
+
+  /** Текст конспекта: только Markdown, не больше 2 МБ, только тому, кто может его читать. */
+  private Note markdownText(Actor actor, long id) throws IOException {
+    StoredFile f = files.find(id).orElseThrow(ApiException::notFound);
+    if (!materials.canRead(actor, f)) {
+      throw ApiException.notFound();
+    }
+    if (!MarkdownDocx.isMarkdown(f.mime(), f.name())) {
+      throw ApiException.badRequest("Это не конспект в Markdown (.md)");
+    }
+    if (f.size() > 2 * 1024 * 1024) {
+      throw ApiException.badRequest("Конспект больше 2 МБ — скачайте файл");
+    }
+    try (InputStream in = files.open(f)) {
+      return new Note(f, new String(in.readAllBytes(), StandardCharsets.UTF_8));
+    } catch (NoSuchFileException e) {
+      throw new ApiException(HttpStatus.NOT_FOUND, "file_missing", "Файла пока нет на сервере");
     }
   }
 }

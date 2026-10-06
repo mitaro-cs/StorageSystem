@@ -1,5 +1,5 @@
 /** Как открыть файл внутри приложения. */
-export type FileKind = 'image' | 'pdf' | 'video' | 'audio' | 'text' | 'other';
+export type FileKind = 'image' | 'pdf' | 'video' | 'audio' | 'markdown' | 'text' | 'other';
 
 const IMAGES = new Set([
 	'image/png',
@@ -20,6 +20,8 @@ export function fileKind(mime: string | null | undefined, name = ''): FileKind {
 	if (IMAGES.has(m)) return 'image';
 	if (m.startsWith('video/')) return 'video';
 	if (m.startsWith('audio/')) return 'audio';
+	// Конспект в Markdown — страницей (сервер превращает в HTML), есть «В Word».
+	if (/^text\/(x-web-)?markdown$/.test(m) || /\.(md|markdown)$/i.test(name)) return 'markdown';
 	if (TEXT_MIME.test(m) || ((m === '' || m === 'application/octet-stream') && TEXT_EXT.test(name)))
 		return 'text';
 	if (m.startsWith('text/') && m !== 'text/html') return 'text';
@@ -32,5 +34,5 @@ export const TEXT_LIMIT = 2 * 1024 * 1024;
 
 export function canPreview(mime: string | null | undefined, name = '', size = 0): boolean {
 	const k = fileKind(mime, name);
-	return k !== 'other' && !(k === 'text' && size > TEXT_LIMIT);
+	return k !== 'other' && !((k === 'text' || k === 'markdown') && size > TEXT_LIMIT);
 }

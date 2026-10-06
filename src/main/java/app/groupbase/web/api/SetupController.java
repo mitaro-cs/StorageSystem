@@ -120,6 +120,20 @@ class SetupController {
     }
   }
 
+  record KeyBody(String key) {}
+
+  /** Первый запуск: подключиться ключом сайта — сразу, без подтверждения там. */
+  @PostMapping("/peer/key")
+  RestoreStager.Result peerKey(
+      @RequestParam String code, @RequestBody KeyBody b, HttpServletRequest req) {
+    requirePeerSetup(code, req);
+    try {
+      return new RestoreStager.Result("restarting", peers.joinByKey(b.key()));
+    } catch (PeerService.Problem e) {
+      throw ApiException.badRequest(e.getMessage());
+    }
+  }
+
   /** Первый запуск: сайты в локальной сети. */
   @GetMapping("/peer/discover")
   List<PeerDiscovery.Found> discover(@RequestParam String code, HttpServletRequest req) {

@@ -121,10 +121,8 @@ test('расписание из файла календаря: загрузка,
 
 	// Задание к паре — сразу на её странице.
 	await page
-		.getByRole('toolbar', { name: 'Добавить к паре' })
-		.getByRole('button', {
-			name: 'Задание к паре'
-		})
+		.getByRole('region', { name: 'Задания' })
+		.getByRole('button', { name: 'Добавить' })
 		.click();
 	const hw = page.getByRole('dialog', { name: 'Новое задание' });
 	await expect(hw.getByRole('group', { name: 'Срок — к паре' })).toBeVisible();
@@ -195,8 +193,15 @@ test('своя картинка на фоне — в своих цветах и 
 		el.dispatchEvent(new Event('input', { bubbles: true }));
 	});
 	expect(await veil()).toContain('rgba(255, 255, 255, 0)');
-	await page.getByRole('switch', { name: 'Размыть картинку' }).click();
+	// Размытие — ползунком, в пикселях.
+	await page.getByLabel('Размыть картинку').evaluate((el: HTMLInputElement) => {
+		el.value = '16';
+		el.dispatchEvent(new Event('input', { bubbles: true }));
+	});
 	await expect(html).toHaveAttribute('data-bg-blur', '');
+	expect(
+		await page.evaluate(() => document.documentElement.style.getPropertyValue('--bg-blur'))
+	).toBe('16px');
 
 	// Оформление общее для всех устройств: на телефоне — та же картинка, тот же цвет и размытие.
 	const phoneCtx = await browser.newContext({

@@ -33,7 +33,8 @@ interface Looks {
 	hue?: number | null;
 	sat?: number;
 	dim?: number;
-	blur?: boolean;
+	/** px; у прежних версий — true/false. */
+	blur?: number | boolean;
 	icon?: string;
 	at?: number;
 }
@@ -152,7 +153,8 @@ function apply(s: Looks) {
 			if (next.hue !== a.hue || next.sat !== a.sat) setAccent(next, false);
 		}
 		if (typeof s.dim === 'number' && s.dim !== backgroundDim()) setBackgroundDim(s.dim);
-		if (typeof s.blur === 'boolean' && s.blur !== backgroundBlur()) setBackgroundBlur(s.blur);
+		const blur = typeof s.blur === 'boolean' ? (s.blur ? 16 : 0) : s.blur;
+		if (typeof blur === 'number' && blur !== backgroundBlur()) setBackgroundBlur(blur);
 		if (isAppIcon(s.icon) && s.icon !== currentIcon()) setIcon(s.icon);
 	} finally {
 		applying = false;
