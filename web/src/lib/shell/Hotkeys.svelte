@@ -39,7 +39,7 @@
 	}
 
 	function onkeydown(e: KeyboardEvent) {
-		// По физической клавише: при русской раскладке e.key — «л», и Ctrl K не срабатывал.
+		// По физической клавише: при русской раскладке e.key – «л», и Ctrl K не срабатывал.
 		const key = hotkey(e);
 		if ((e.metaKey || e.ctrlKey) && key === 'k') {
 			e.preventDefault();

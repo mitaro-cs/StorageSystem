@@ -10,7 +10,7 @@
 	}: { password: string; confirm: string; autocomplete?: 'new-password' } = $props();
 
 	const mismatch = $derived(confirm.length > 0 && confirm !== password);
-	// «Придумать за меня»: фраза из четырёх слов — показываем её, чтобы человек её сохранил.
+	// «Придумать за меня»: фраза из четырёх слов – показываем её, чтобы человек её сохранил.
 	let generated = $state(false);
 	function generate() {
 		password = confirm = passphrase();

@@ -8,7 +8,7 @@
 		size?: number;
 		kind?: 'user' | 'group' | 'subject';
 		square?: boolean;
-		/** Ровное кольцо вокруг — рисуется на самом аватаре, а не на родителе со строчной высотой. */
+		/** Ровное кольцо вокруг – рисуется на самом аватаре, а не на родителе со строчной высотой. */
 		ring?: boolean;
 	}
 
@@ -26,7 +26,7 @@
 		hueFor(id + (kind === 'group' ? 1_000_003 : kind === 'subject' ? 2_000_029 : 0))
 	);
 	const src = $derived(avatar ? `/api/avatars/${avatar}-${size > 64 ? 256 : 64}.webp` : null);
-	// Файла картинки нет (восстановили копию без неё) — буквы на цвете, а не «битая» картинка.
+	// Файла картинки нет (восстановили копию без неё) – буквы на цвете, а не «битая» картинка.
 	let broken = $state<string | null>(null);
 	const letters = $derived(initials(name || '?'));
 </script>

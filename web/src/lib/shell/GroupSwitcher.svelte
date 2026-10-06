@@ -16,7 +16,7 @@
 			title={t.nav.allGroups}
 			onclick={() => selectGroup(null)}
 		>
-			<!-- «Все группы» — логотип сайта -->
+			<!-- «Все группы» – логотип сайта -->
 			<span class="ring"><img src={iconSrc(appIcon.id)} alt="" width="32" height="32" /></span>
 		</button>
 		{#each groups() as g (g.id)}

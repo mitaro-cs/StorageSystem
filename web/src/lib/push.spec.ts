@@ -9,12 +9,12 @@ const report = (r: Partial<Parameters<typeof explainPushTest>[0]>) => ({
 	...r
 });
 
-describe('explainPushTest — что сказать после «Проверить»', () => {
+describe('explainPushTest – что сказать после «Проверить»', () => {
 	it('доставлено', () => {
 		expect(explainPushTest(report({ delivered: 1 }))).toMatchObject({ ok: true });
 	});
 
-	it('подписки больше нет или она со старым ключом — включить заново', () => {
+	it('подписки больше нет или она со старым ключом – включить заново', () => {
 		for (const r of [
 			report({ devices: 0 }),
 			report({ status: 410 }),
@@ -24,11 +24,11 @@ describe('explainPushTest — что сказать после «Провери�
 			expect(explainPushTest(r)).toMatchObject({ ok: false, again: true });
 	});
 
-	it('служба отвергла подпись сервера — дело в сервере, не в телефоне', () => {
+	it('служба отвергла подпись сервера – дело в сервере, не в телефоне', () => {
 		const r = explainPushTest(report({ status: 403, reason: 'BadJwtToken' }));
 		expect(r.again).toBeUndefined();
 		expect(r.text).toContain('BadJwtToken');
-		expect(r.text).toContain('Обновите campus');
+		expect(r.text).toContain('Обновите Campus');
 	});
 
 	it('нет связи со службой и прочие ответы', () => {

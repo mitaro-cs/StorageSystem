@@ -6,7 +6,7 @@
 	import SubjectGlyph from '$lib/ui/SubjectGlyph.svelte';
 
 	let { onnavigate }: { onnavigate?: () => void } = $props();
-	// Свои предметы: предметы другой подгруппы, скрытые у себя, — только в «Предметах».
+	// Свои предметы: предметы другой подгруппы, скрытые у себя, – только в «Предметах».
 	const list = $derived(sortedSubjects(session.groupId, true));
 </script>
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { ChevronRight, Upload } from '@lucide/svelte';
 	import { sortedSubjects } from '$lib/data.svelte';
 	import { can, session } from '$lib/session.svelte';
 	import type { Subject } from '$lib/types';
@@ -8,7 +9,7 @@
 	import MaterialAdd from './MaterialAdd.svelte';
 
 	// «Загрузить файл» с главной и из палитры: сначала предмет, потом то же окно, что во вкладке
-	// «Материалы» предмета. Кто не может выкладывать сразу — предлагает на проверку старосте.
+	// «Материалы» предмета. Кто не может выкладывать сразу – предлагает на проверку старосте.
 	let { open = $bindable() }: { open: boolean } = $props();
 
 	const canUpload = (s: Subject) => s.groups.some((g) => can('upload_materials', g.id));
@@ -27,13 +28,18 @@
 	}
 </script>
 
-<Modal bind:open title="Загрузить файл">
-	<p class="muted small lead">В какой предмет? Файл появится во вкладке «Материалы».</p>
+<Modal
+	bind:open
+	title="Загрузить файл"
+	subtitle="В какой предмет? Файл появится во вкладке «Материалы»"
+	icon={Upload}
+>
 	<div class="subjects">
 		{#each list as s (s.id)}
 			<button class="subject" onclick={() => pick(s)}>
 				<SubjectGlyph name={s.name} color={s.color} icon={s.icon} size={34} />
 				<span>{s.name}</span>
+				<ChevronRight size={16} />
 			</button>
 		{:else}
 			<p class="faint">Нет предметов, куда вы можете загружать файлы.</p>
@@ -52,9 +58,6 @@
 {/if}
 
 <style>
-	.lead {
-		margin-bottom: var(--s3);
-	}
 	.subjects {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -64,10 +67,10 @@
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		min-height: 56px;
+		min-height: 58px;
 		padding: 8px 12px;
 		border: 1px solid var(--border);
-		border-radius: var(--r);
+		border-radius: 14px;
 		background: var(--surface);
 		color: var(--text);
 		font: inherit;
@@ -78,7 +81,11 @@
 		background: var(--surface-2);
 		border-color: var(--border-strong);
 	}
+	.subject :global(svg:last-child) {
+		color: var(--text-3);
+	}
 	.subject span {
+		flex: 1;
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;

@@ -1,17 +1,18 @@
 import { DEFAULT_ICON, appIcon, iconSrc, type AppIcon } from './appIcon.svelte';
+import { cachedBackground, parseBackground } from './appearance';
 
 /**
  * Своя картинка на фоне страниц (Настройки → Оформление): хранится на этом устройстве, уменьшенной,
- * в localStorage. Правило — в app.css (:root[data-bg='custom']), применяется до отрисовки скриптом
- * в app.html. Картинка — в своих цветах: поверх только нейтральная вуаль (насколько приглушить —
- * выбирает человек) и, по желанию, размытие. Узоры и градиенты фона — часть дизайнов (lib/theme.ts).
+ * в localStorage. Правило – в app.css (:root[data-bg='custom']), применяется до отрисовки скриптом
+ * в app.html. Картинка – в своих цветах: поверх только нейтральная вуаль (насколько приглушить –
+ * выбирает человек) и, по желанию, размытие. Узоры и градиенты фона – часть дизайнов (lib/theme.ts).
  */
 export type Background = 'none' | 'custom';
 const BG_KEY = 'gb-bg';
 const BG_IMAGE_KEY = 'gb-bg-image';
 const DIM_KEY = 'gb-bg-dim';
 const BLUR_KEY = 'gb-bg-blur';
-/** Приглушить картинку, % (0–80): по умолчанию слегка — текст на ней читается. */
+/** Приглушить картинку, % (0–80): по умолчанию слегка – текст на ней читается. */
 export const DEFAULT_DIM = 25;
 export const MAX_DIM = 80;
 
@@ -34,7 +35,7 @@ export function customBackground(): string | null {
 	}
 }
 
-/** Насколько приглушена картинка, % (0 — как есть). */
+/** Насколько приглушена картинка, % (0 – как есть). */
 export function backgroundDim(): number {
 	try {
 		const raw = localStorage.getItem(DIM_KEY);
@@ -45,49 +46,91 @@ export function backgroundDim(): number {
 	}
 }
 
-export function backgroundBlur(): boolean {
+/** Насколько размыть картинку, px (0 – не размывать). Прежнее «включено» («1») – 16 px. */
+export const MAX_BLUR = 40;
+export function backgroundBlur(): number {
 	try {
-		return localStorage.getItem(BLUR_KEY) === '1';
+		const raw = localStorage.getItem(BLUR_KEY);
+		if (raw === '1') return 16;
+		const v = Number(raw);
+		return raw !== null && Number.isInteger(v) && v >= 0 && v <= MAX_BLUR ? v : 0;
 	} catch {
-		return false;
+		return 0;
 	}
+}
+
+function applyBlur(px: number) {
+	const root = document.documentElement;
+	root.toggleAttribute('data-bg-blur', px > 0);
+	if (px > 0) root.style.setProperty('--bg-blur', `${px}px`);
+	else root.style.removeProperty('--bg-blur');
+}
+
+/**
+ * Фон сайта (тот, что на странице входа) – у всех, кто не выбрал свою картинку: картинка
+ * администратора (data-bg='site') или встроенный рисунок (data-site-bg).
+ */
+export function applySiteBackground(value: string = cachedBackground()) {
+	const root = document.documentElement;
+	if (currentBackground() === 'custom') {
+		root.removeAttribute('data-site-bg');
+		return;
+	}
+	const bg = parseBackground(value);
+	if (bg.image) {
+		root.removeAttribute('data-site-bg');
+		root.setAttribute('data-bg', 'site');
+		root.style.setProperty('--bg-image', `url("${bg.image}")`);
+		root.style.setProperty('--bg-dim', String(backgroundDim() / 100));
+		applyBlur(backgroundBlur());
+		return;
+	}
+	if (root.getAttribute('data-bg') === 'site') {
+		root.removeAttribute('data-bg');
+		root.style.removeProperty('--bg-image');
+	}
+	if (bg.preset) root.setAttribute('data-site-bg', bg.preset);
+	else root.removeAttribute('data-site-bg');
 }
 
 function applyBackground(image: string | null) {
 	const root = document.documentElement;
 	if (image) {
+		root.removeAttribute('data-site-bg');
 		root.setAttribute('data-bg', 'custom');
 		root.style.setProperty('--bg-image', `url("${image}")`);
 		root.style.setProperty('--bg-dim', String(backgroundDim() / 100));
-		root.toggleAttribute('data-bg-blur', backgroundBlur());
+		applyBlur(backgroundBlur());
 	} else {
 		root.removeAttribute('data-bg');
-		root.removeAttribute('data-bg-blur');
+		applyBlur(0);
 		root.style.removeProperty('--bg-image');
 		root.style.removeProperty('--bg-dim');
+		applySiteBackground();
 	}
 }
 
-/** Приглушить картинку (ползунок — сразу, без плавного перехода) и запомнить. */
+/** Приглушить картинку (ползунок – сразу, без плавного перехода) и запомнить. */
 export function setBackgroundDim(percent: number) {
 	const v = Math.round(Math.min(MAX_DIM, Math.max(0, percent)));
 	try {
 		localStorage.setItem(DIM_KEY, String(v));
 	} catch {
-		/* приватный режим — просто не запоминаем */
+		/* приватный режим – просто не запоминаем */
 	}
 	document.documentElement.style.setProperty('--bg-dim', String(v / 100));
 	window.dispatchEvent(new Event('gb:looks'));
 }
 
-export function setBackgroundBlur(on: boolean) {
+export function setBackgroundBlur(px: number) {
+	const v = Math.round(Math.min(MAX_BLUR, Math.max(0, px)));
 	try {
-		if (on) localStorage.setItem(BLUR_KEY, '1');
+		if (v > 0) localStorage.setItem(BLUR_KEY, String(v));
 		else localStorage.removeItem(BLUR_KEY);
 	} catch {
 		/* приватный режим */
 	}
-	document.documentElement.toggleAttribute('data-bg-blur', on);
+	applyBlur(v);
 	window.dispatchEvent(new Event('gb:looks'));
 }
 
@@ -103,7 +146,7 @@ export function removeCustomBackground() {
 }
 
 /**
- * Своя картинка: уменьшаем до 1600 точек по длинной стороне и сохраняем JPEG — чтобы поместилась в
+ * Своя картинка: уменьшаем до 1600 точек по длинной стороне и сохраняем JPEG – чтобы поместилась в
  * хранилище браузера и не тормозила. Возвращает false, если сохранить не вышло (мало места).
  */
 export async function setCustomBackground(file: Blob): Promise<boolean> {
@@ -126,8 +169,8 @@ export async function setCustomBackground(file: Blob): Promise<boolean> {
 }
 
 /**
- * Значок сайта (Профиль → Оформление): во вкладке меняется сразу, на экране «Домой» — при установке
- * (Android обновляет сам, iPhone — если добавить сайт заново). По умолчанию — тёмный (DEFAULT_ICON). Файлы — static/icons/v и
+ * Значок сайта (Профиль → Оформление): во вкладке меняется сразу, на экране «Домой» – при установке
+ * (Android обновляет сам, iPhone – если добавить сайт заново). По умолчанию – тёмный (DEFAULT_ICON). Файлы – static/icons/v и
  * manifest-*.webmanifest (java scripts/Icons.java variants), применяется скриптом в app.html.
  */
 export const ICONS = [
@@ -159,7 +202,7 @@ export function setIcon(icon: AppIcon) {
 		if (icon === DEFAULT_ICON) localStorage.removeItem(ICON_KEY);
 		else localStorage.setItem(ICON_KEY, icon);
 	} catch {
-		/* приватный режим — просто не запоминаем */
+		/* приватный режим – просто не запоминаем */
 	}
 	const light = icon === 'light';
 	const link = (rel: string) => document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);

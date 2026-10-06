@@ -3,7 +3,7 @@
 	import People from '$lib/content/People.svelte';
 </script>
 
-<svelte:head><title>{t.nav.members} · campus</title></svelte:head>
+<svelte:head><title>{t.nav.members} · Campus</title></svelte:head>
 
 <div class="page-head">
 	<h1>{t.nav.members}</h1>

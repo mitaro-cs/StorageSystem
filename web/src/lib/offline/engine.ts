@@ -63,7 +63,7 @@ interface Op {
 let userId: number | null = null;
 
 /**
- * Обычная копия данных: состояние Svelte — это прокси, а IndexedDB умеет сохранять только
+ * Обычная копия данных: состояние Svelte – это прокси, а IndexedDB умеет сохранять только
  * «простые» объекты.
  */
 const plain = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
@@ -115,8 +115,8 @@ export async function hasCopy(): Promise<boolean> {
 }
 
 /**
- * Ответ на GET из копии; undefined — без сети этого нет. Разбор запросов (local.ts, с поиском) нужен
- * только без сети или при медленной — грузится тогда же, а не на каждой странице.
+ * Ответ на GET из копии; undefined – без сети этого нет. Разбор запросов (local.ts, с поиском) нужен
+ * только без сети или при медленной – грузится тогда же, а не на каждой странице.
  */
 export async function resolveLocal(path: string): Promise<unknown> {
 	const { NotFound, resolve } = await import('./local');
@@ -140,7 +140,7 @@ export async function initOffline(me: Me) {
 	}
 	await setMeta('me', plain(me));
 	offline.ready = true;
-	// Разбор запросов по копии понадобится без сети — загрузим его, пока сеть есть.
+	// Разбор запросов по копии понадобится без сети – загрузим его, пока сеть есть.
 	import('./local').catch(() => {});
 	offline.lastSync = (await getMeta<number>('lastSync')) ?? 0;
 	offline.pending = (await all('outbox')).length;
@@ -154,7 +154,7 @@ export async function initOffline(me: Me) {
 	run();
 }
 
-/** Профиль обновился — копия тоже. */
+/** Профиль обновился – копия тоже. */
 export async function rememberMe(me: Me) {
 	if (offline.ready && userId === me.user.id) {
 		await setMeta('me', plain(me));
@@ -192,7 +192,7 @@ export function syncNow(): Promise<void> {
 const CONTENT: StoreName[] = ['news', 'homework', 'materials', 'folders', 'comments'];
 
 /**
- * Пары расписания — одним списком в meta (их немного, сотни): без нового хранилища IndexedDB, иначе
+ * Пары расписания – одним списком в meta (их немного, сотни): без нового хранилища IndexedDB, иначе
  * открытая вкладка прежней версии не дала бы обновить базу.
  */
 async function nextLessons(d: Delta<Lesson>, full: boolean): Promise<Lesson[]> {
@@ -209,8 +209,8 @@ async function doSync() {
 	try {
 		const cursor = (await getMeta<number>('cursor')) ?? 0;
 		const lastFull = (await getMeta<number>('lastFull')) ?? 0;
-		// Раз в сутки — полный снимок: заодно уходит то, что стало невидимым незаметно. Копия без
-		// расписания (до 0.4.12) тоже берёт полный снимок — иначе пар из прошлых изменений не будет.
+		// Раз в сутки – полный снимок: заодно уходит то, что стало невидимым незаметно. Копия без
+		// расписания (до 0.4.12) тоже берёт полный снимок – иначе пар из прошлых изменений не будет.
 		const withLessons = (await getMeta<Lesson[]>('lessons')) !== undefined;
 		const after = Date.now() - lastFull > DAY || !withLessons ? 0 : cursor;
 		const r = await request<SyncResult>(`/api/sync?after=${after}`);
@@ -250,7 +250,7 @@ async function doSync() {
 		else mirror = null;
 		prefetchFiles(await snapshot());
 	} catch {
-		/* сеть пропала или сервер недоступен — попробуем позже */
+		/* сеть пропала или сервер недоступен – попробуем позже */
 	} finally {
 		offline.syncing = false;
 	}
@@ -509,7 +509,7 @@ export async function flushOutbox(): Promise<void> {
 				}
 				sent++;
 			} catch (e) {
-				// Нет сети или сессия кончилась — остальное отправим позже, по порядку.
+				// Нет сети или сессия кончилась – остальное отправим позже, по порядку.
 				if (e instanceof ApiError && (e.status === 0 || e.status === 401)) break;
 				failed.push(`${op.label}: ${e instanceof Error ? e.message : 'ошибка'}`);
 				await write(['outbox', 'blobs'], (st) => {
@@ -525,12 +525,12 @@ export async function flushOutbox(): Promise<void> {
 	if (sent + failed.length > 0) {
 		await dropTemporary();
 		changed();
-		failed.forEach((f) => toast(`Не отправлено — ${f}`, 'error', 8000));
+		failed.forEach((f) => toast(`Не отправлено – ${f}`, 'error', 8000));
 		if (sent) toast(`Отправлено из очереди: ${sent}`, 'ok');
 	}
 }
 
-/** Временные копии уходят — настоящие придут со следующей синхронизацией. */
+/** Временные копии уходят – настоящие придут со следующей синхронизацией. */
 async function dropTemporary() {
 	if (offline.pending > 0) return;
 	const s = await snapshot();

@@ -5,7 +5,7 @@
 	import LessonCard from './LessonCard.svelte';
 	import { addDays } from './lessons';
 
-	// «Сегодня»: оставшиеся пары дня (идущая — с полоской), а когда на сегодня всё — пары завтра.
+	// «Сегодня»: оставшиеся пары дня (идущая – с полоской), а когда на сегодня всё – пары завтра.
 	let { lessons, now }: { lessons: Lesson[]; now: number } = $props();
 
 	const today = $derived(lessons.filter((l) => startOfDay(l.startsAt) === startOfDay(now)));
@@ -34,7 +34,7 @@
 				{plural(passed, ['пара', 'пары', 'пар'])} сегодня уже {passed === 1 ? 'прошла' : 'прошли'}.
 			</p>
 		{:else if !left.length && today.length}
-			<p class="faint small passed">Сегодня пары закончились — вот что завтра.</p>
+			<p class="faint small passed">Сегодня пары закончились – вот что завтра.</p>
 		{/if}
 	</section>
 {/if}

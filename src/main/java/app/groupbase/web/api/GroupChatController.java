@@ -79,7 +79,7 @@ class GroupChatController {
   private static String title(ChatBody b) {
     String t = b.title() == null ? "" : b.title().strip();
     if (t.length() > 40) {
-      throw ApiException.invalid("title", "Название — до 40 символов");
+      throw ApiException.invalid("title", "Название – до 40 символов");
     }
     return t.isEmpty() ? "Чат группы" : t;
   }

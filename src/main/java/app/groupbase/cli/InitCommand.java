@@ -44,12 +44,12 @@ public class InitCommand implements Callable<Integer> {
   @Option(
       names = "--login",
       paramLabel = "ЛОГИН",
-      description = "Логин латиницей; по умолчанию — из ФИО.")
+      description = "Логин латиницей; по умолчанию – из ФИО.")
   String login;
 
   @Option(
       names = "--multi",
-      description = "Несколько групп на одном сайте (поток); по умолчанию — одна группа.")
+      description = "Несколько групп на одном сайте (поток); по умолчанию – одна группа.")
   boolean multi;
 
   @Option(
@@ -68,7 +68,7 @@ public class InitCommand implements Callable<Integer> {
     try (var ctx = target.open()) {
       SetupService setup = ctx.getBean(SetupService.class);
       if (!setup.needed()) {
-        err.println("Сайт уже настроен. Аккаунты — groupbase user list.");
+        err.println("Сайт уже настроен. Аккаунты – groupbase user list.");
         return 1;
       }
       String username = login == null || login.isBlank() ? Names.suggestUsername(name) : login;
@@ -81,7 +81,7 @@ public class InitCommand implements Callable<Integer> {
                   username,
                   name,
                   password));
-      out.println("Готово: группа «" + group + "», староста — " + admin.displayName() + ".");
+      out.println("Готово: группа «" + group + "», староста – " + admin.displayName() + ".");
       out.println("Логин для входа: " + admin.username());
       return 0;
     } catch (ApiException e) {
@@ -98,7 +98,7 @@ public class InitCommand implements Callable<Integer> {
     }
     java.io.Console console = System.console();
     if (console == null) {
-      err.println("Нет терминала для ввода пароля — используйте --password-stdin");
+      err.println("Нет терминала для ввода пароля – используйте --password-stdin");
       return null;
     }
     char[] first = console.readPassword("Пароль старосты (от 10 символов): ");

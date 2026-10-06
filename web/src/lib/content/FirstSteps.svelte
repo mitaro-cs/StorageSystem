@@ -7,7 +7,7 @@
 	import { can, currentGroup, isAdmin, session } from '$lib/session.svelte';
 	import { slide } from '$lib/motion';
 
-	// Чек-лист «Первые шаги»: старосте — наполнить группу, всем — поставить приложение и уведомления.
+	// Чек-лист «Первые шаги»: старосте – наполнить группу, всем – поставить приложение и уведомления.
 	let { oncreate }: { oncreate: () => void } = $props();
 
 	interface Progress {

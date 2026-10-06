@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-// Логотип нарисован один раз — static/logo.svg; заставки сайта и приложения хоста держат его копию
+// Логотип нарисован один раз – static/logo.svg; заставки сайта и приложения хоста держат его копию
 // (им нужен сразу, до загрузки файлов). Копии не должны разойтись с оригиналом.
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const pick = (text: string, re: RegExp) => text.match(re)?.[1];
@@ -17,7 +17,7 @@ describe('логотип', () => {
 	});
 
 	for (const page of ['../app.html', '../../../desktop/ui/index.html']) {
-		it(`${page.split('/').slice(-2).join('/')} — тот же логотип`, () => {
+		it(`${page.split('/').slice(-2).join('/')} – тот же логотип`, () => {
 			const html = read(page);
 			expect(pick(html, /class="fig"\s+d="([^"]+)"/)).toBe(figure);
 			expect(pick(html, /<circle class="ball" (cx="[^"]+" cy="[^"]+" r="[^"]+")/)).toBe(globe);

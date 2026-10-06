@@ -143,13 +143,13 @@ public class Passkeys {
       }
     }
     if (count(u.id()) >= MAX_KEYS) {
-      throw ApiException.conflict("too_many", "Ключей уже " + MAX_KEYS + " — удалите старый");
+      throw ApiException.conflict("too_many", "Ключей уже " + MAX_KEYS + " – удалите старый");
     }
     String challenge =
         challenge(new Pending(u.id(), true, origin, ip, expiry(), seq.incrementAndGet()));
     Map<String, Object> o = new LinkedHashMap<>();
     o.put("challenge", challenge);
-    o.put("rp", Map.of("id", rpId(origin), "name", siteName.isBlank() ? "campus" : siteName));
+    o.put("rp", Map.of("id", rpId(origin), "name", siteName.isBlank() ? "Campus" : siteName));
     o.put(
         "user",
         Map.of(
@@ -214,7 +214,7 @@ public class Passkeys {
         throw ApiException.conflict("exists", "Этот ключ уже добавлен");
       }
       if (count(actor.id()) >= MAX_KEYS) {
-        throw ApiException.conflict("too_many", "Ключей уже " + MAX_KEYS + " — удалите старый");
+        throw ApiException.conflict("too_many", "Ключей уже " + MAX_KEYS + " – удалите старый");
       }
       long now = clock.millis();
       long keyId =
@@ -346,7 +346,7 @@ public class Passkeys {
       throw new ApiException(
           HttpStatus.UNAUTHORIZED,
           "passkey_failed",
-          "Ключ не подошёл. Войдите по паролю — и добавьте ключ заново в профиле");
+          "Ключ не подошёл. Войдите по паролю – и добавьте ключ заново в профиле");
     }
   }
 

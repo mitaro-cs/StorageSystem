@@ -387,6 +387,35 @@ class PeerIT extends IntegrationTest {
       } finally {
         ctxC.close();
       }
+
+      // Ключ сайта: вставили один раз — подключился сразу, без «Разрешить».
+      var key = wa.get("/api/host/peers/key");
+      assertThat(key.status()).as(key.body()).isEqualTo(200);
+      String siteKey = key.json().get("key").asString();
+      assertThat(siteKey).startsWith("campus-");
+      Path dataD = Files.createTempDirectory("groupbase-peer-d");
+      ConfigurableApplicationContext ctxD = startB(dataD);
+      try {
+        PeerService peersD = ctxD.getBean(PeerService.class);
+        assertThat(peersD.joinByKey(siteKey)).contains("перезапускаемся");
+        assertThat(peersD.role()).isEqualTo(PeerService.Role.SECOND);
+        // Сменили ключ — старый больше не подключает.
+        assertThat(wa.post("/api/host/peers/key", Map.of()).status()).isEqualTo(200);
+        var wrong =
+            client()
+                .post(
+                    "/api/host/peer/pair",
+                    Map.of(
+                        "code",
+                        PeerService.parseKey(siteKey)[1],
+                        "computer",
+                        "22222222-3333-4444-5555-666666666666",
+                        "name",
+                        "Старый ключ"));
+        assertThat(wrong.status()).isEqualTo(400);
+      } finally {
+        ctxD.close();
+      }
     } finally {
       if (ctxB != null) {
         ctxB.close();

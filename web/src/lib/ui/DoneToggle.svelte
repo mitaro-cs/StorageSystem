@@ -1,7 +1,7 @@
 <script lang="ts">
 	let { done, onchange, label }: { done: boolean; onchange: (v: boolean) => void; label: string } =
 		$props();
-	// Отметили «сделано» — от кружка разлетаются искорки (только по нажатию, не при загрузке).
+	// Отметили «сделано» – от кружка разлетаются искорки (только по нажатию, не при загрузке).
 	let burst = $state(0);
 </script>
 

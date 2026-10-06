@@ -12,7 +12,7 @@ test('без интернета: читать, отмечать, коммент�
 
 	// Дождаться копии на устройстве и service worker, который отдаёт приложение без сети.
 	await page.goto('/profile#offline');
-	// Раздел показан — иначе проверка ниже прошла бы впустую, не дождавшись копии.
+	// Раздел показан – иначе проверка ниже прошла бы впустую, не дождавшись копии.
 	await expect(page.locator('#offline')).toBeVisible();
 	await expect(page.locator('#offline').getByText('ещё ни разу')).toHaveCount(0, {
 		timeout: 15_000
@@ -23,7 +23,7 @@ test('без интернета: читать, отмечать, коммент�
 		for (let i = 0; i < 50 && !navigator.serviceWorker.controller; i++)
 			await new Promise((r) => setTimeout(r, 100));
 	});
-	// Код всех разделов service worker докачивает фоном после первого экрана — дождёмся метки
+	// Код всех разделов service worker докачивает фоном после первого экрана – дождёмся метки
 	// «сохранено целиком».
 	await expect
 		.poll(
@@ -38,7 +38,7 @@ test('без интернета: читать, отмечать, коммент�
 		)
 		.toBe(true);
 
-	// Файлы материалов скачиваются на устройство фоном после синхронизации — дождёмся.
+	// Файлы материалов скачиваются на устройство фоном после синхронизации – дождёмся.
 	await expect
 		.poll(() => page.evaluate(async () => (await (await caches.open('files-v1')).keys()).length), {
 			timeout: 20_000
@@ -52,7 +52,7 @@ test('без интернета: читать, отмечать, коммент�
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Типовой расчёт №1');
 	const hwId = Number(page.url().split('/').pop());
 
-	// Отметка и комментарий без сети — сразу видны и ждут отправки.
+	// Отметка и комментарий без сети – сразу видны и ждут отправки.
 	const cta = page.getByRole('button', { name: /Отметить выполненным|Вернуть в работу/ });
 	const wasDone = (await cta.textContent())?.includes('Вернуть');
 	await cta.click();
@@ -63,7 +63,7 @@ test('без интернета: читать, отмечать, коммент�
 	await expect(page.locator('.net')).toContainText('Нет сети2');
 	await page.screenshot({ path: 'test-results/shots/offline-homework.png', fullPage: true });
 
-	// Перезагрузка без сети: приложение и данные — с устройства.
+	// Перезагрузка без сети: приложение и данные – с устройства.
 	await page.reload();
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Типовой расчёт №1');
 	await expect(page.getByText('Сделал без интернета')).toBeVisible();
@@ -83,7 +83,7 @@ test('без интернета: читать, отмечать, коммент�
 	expect(fileStatus.saved).toBeGreaterThan(0);
 	expect(fileStatus.status).toBe(200);
 
-	// Сеть вернулась — очередь уходит на сервер по порядку.
+	// Сеть вернулась – очередь уходит на сервер по порядку.
 	await ctx.setOffline(false);
 	await page.evaluate(() => dispatchEvent(new Event('online')));
 	await expect(page.getByText(/Отправлено из очереди: 2/)).toBeVisible({ timeout: 15_000 });

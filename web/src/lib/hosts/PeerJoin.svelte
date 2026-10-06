@@ -1,14 +1,18 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
-	import { Laptop, RefreshCw, Wifi } from '@lucide/svelte';
+	import { onDestroy } from 'svelte';
+	import { KeyRound, Laptop, RefreshCw, Wifi } from '@lucide/svelte';
 	import { request } from '$lib/api';
 	import { waitForRestart } from '$lib/settings/server/restart';
 	import Button from '$lib/ui/Button.svelte';
 
 	// Подключить этот компьютер к сайту без кода (0.9.3): сайт в локальной сети находится сам, или
-	// вводят его адрес; на компьютере с сайтом всплывает «Разрешить?». setupCode — на первом запуске.
-	let { setupCode = '', busy = $bindable(false) }: { setupCode?: string; busy?: boolean } =
-		$props();
+	// вводят его адрес; на компьютере с сайтом всплывает «Разрешить?». setupCode – на первом запуске,
+	// standby – на экране ожидания (сайт перенесли отсюда, входа там нет).
+	let {
+		setupCode = '',
+		standby = false,
+		busy = $bindable(false)
+	}: { setupCode?: string; standby?: boolean; busy?: boolean } = $props();
 
 	interface Found {
 		site: string;
@@ -23,9 +27,11 @@
 	}
 
 	const q = () => (setupCode ? `?code=${encodeURIComponent(setupCode)}` : '');
-	const discoverUrl = () =>
-		setupCode ? `/api/setup/peer/discover${q()}` : '/api/host/peers/discover';
-	const askUrl = () => (setupCode ? `/api/setup/peer/ask${q()}` : '/api/host/peers/ask');
+	const base = () =>
+		setupCode ? '/api/setup/peer' : standby ? '/api/host/standby' : '/api/host/peers';
+	const discoverUrl = () => `${base()}/discover${q()}`;
+	const askUrl = () => `${base()}/ask${q()}`;
+	const keyUrl = () => (setupCode || standby ? `${base()}/key${q()}` : '/api/host/peers/join-key');
 
 	let found = $state<Found[] | null>(null);
 	let searching = $state(false);
@@ -33,6 +39,9 @@
 	let ask = $state<Ask | null>(null);
 	let error = $state('');
 	let target = $state('');
+	let key = $state('');
+	let joined = $state('');
+	let other = $state(false);
 	let timer: ReturnType<typeof setInterval> | undefined;
 	onDestroy(() => clearInterval(timer));
 
@@ -46,10 +55,13 @@
 			searching = false;
 		}
 	}
-	onMount(search);
+	// Поиск в сети – только когда выбрали «нет ключа».
+	$effect(() => {
+		if (other && found === null && !searching) search();
+	});
 
 	async function status(): Promise<Ask> {
-		if (setupCode) return await request<Ask>(askUrl(), { anonymous: true });
+		if (setupCode || standby) return await request<Ask>(askUrl(), { anonymous: true });
 		return (await request<{ ask: Ask }>('/api/host/peers', { quiet401: true })).ask;
 	}
 
@@ -68,7 +80,7 @@
 				try {
 					ask = await status();
 				} catch {
-					// Сервер перезапускается с данными сайта — это и есть успех.
+					// Сервер перезапускается с данными сайта – это и есть успех.
 					if (ask?.phase === 'joining') {
 						clearInterval(timer);
 						await waitForRestart();
@@ -90,6 +102,25 @@
 		}
 	}
 
+	/** Ключ сайта: сразу подключаемся, без «Разрешить» на том компьютере. */
+	async function byKey(e: SubmitEvent) {
+		e.preventDefault();
+		error = '';
+		busy = true;
+		try {
+			const r = await request<{ message: string }>(keyUrl(), {
+				method: 'POST',
+				body: { key: key.trim() },
+				anonymous: true
+			});
+			joined = r.message;
+			await waitForRestart();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Не получилось';
+			busy = false;
+		}
+	}
+
 	function submit(e: SubmitEvent) {
 		e.preventDefault();
 		if (url.trim()) connect(url.trim(), '');
@@ -98,7 +129,12 @@
 	const host = (u: string) => u.replace(/^https?:\/\//, '').replace(/\/$/, '');
 </script>
 
-{#if busy && ask}
+{#if joined}
+	<div class="state" role="status">
+		<span class="spinner" aria-hidden="true"></span>
+		<p>{joined}</p>
+	</div>
+{:else if busy && ask}
 	<div class="state" role="status">
 		<span class="spinner" aria-hidden="true"></span>
 		<p>
@@ -110,54 +146,80 @@
 	</div>
 {:else}
 	<div class="join">
-		<div class="found">
-			<p class="head">
-				<Wifi size={16} />
-				<span>{searching ? 'Ищем сайт в этой сети…' : 'В этой сети'}</span>
-				{#if !searching}<Button size="s" variant="ghost" label="Искать снова" onclick={search}
-						><RefreshCw size={14} /></Button
-					>{/if}
-			</p>
-			{#if found?.length}
-				<ul>
-					{#each found as f (f.site + f.computer)}
-						<li>
-							<Laptop size={18} />
-							<span class="grow">
-								<strong>{f.name || 'Компьютер с сайтом'}</strong>
-								<span class="faint small">{host(f.url)}</span>
-							</span>
-							<Button size="s" variant="primary" onclick={() => connect(f.url, f.name)}
-								>Подключить</Button
-							>
-						</li>
-					{/each}
-				</ul>
-			{:else if found && !searching}
-				<p class="faint small">
-					Не нашли — компьютер с сайтом в другой сети или выключен. Введите адрес сайта ниже.
-				</p>
-			{/if}
-		</div>
-		<form onsubmit={submit}>
-			<label class="label" for="peer-url">Адрес сайта</label>
+		<form onsubmit={byKey}>
+			<label class="label" for="peer-key"><KeyRound size={15} /> Ключ сайта</label>
 			<div class="line">
 				<input
-					id="peer-url"
-					class="input"
-					bind:value={url}
-					placeholder="campus.cloudpub.ru"
-					autocomplete="url"
+					id="peer-key"
+					class="input mono"
+					bind:value={key}
+					placeholder="campus-…"
+					autocomplete="off"
 					spellcheck="false"
 				/>
-				<Button type="submit" disabled={!url.trim()}>Подключить</Button>
+				<Button type="submit" variant="primary" loading={busy} disabled={!key.trim()}
+					>Подключить</Button
+				>
 			</div>
 			<p class="hint">
-				Тот же адрес, по которому заходит группа. Кода не нужно: на компьютере с сайтом спросят
-				«Разрешить?».
+				Ключ – на основном компьютере: «Управление → Сервер → Два компьютера → Ключ сайта». Вставьте
+				один раз – компьютер запомнит его навсегда, входить не нужно.
 			</p>
 		</form>
 		{#if error}<p class="error-text" role="alert">{error}</p>{/if}
+		{#if !other}
+			<button type="button" class="linklike small" onclick={() => (other = true)}
+				>Нет ключа под рукой? Найти сайт в сети или по адресу</button
+			>
+		{:else}
+			<div class="found">
+				<p class="head">
+					<Wifi size={16} />
+					<span>{searching ? 'Ищем сайт в этой сети…' : 'В этой сети'}</span>
+					{#if !searching}<Button size="s" variant="ghost" label="Искать снова" onclick={search}
+							><RefreshCw size={14} /></Button
+						>{/if}
+				</p>
+				{#if found?.length}
+					<ul>
+						{#each found as f (f.site + f.computer)}
+							<li>
+								<Laptop size={18} />
+								<span class="grow">
+									<strong>{f.name || 'Компьютер с сайтом'}</strong>
+									<span class="faint small">{host(f.url)}</span>
+								</span>
+								<Button size="s" variant="primary" onclick={() => connect(f.url, f.name)}
+									>Подключить</Button
+								>
+							</li>
+						{/each}
+					</ul>
+				{:else if found && !searching}
+					<p class="faint small">
+						Не нашли – компьютер с сайтом в другой сети или выключен. Введите адрес сайта ниже.
+					</p>
+				{/if}
+			</div>
+			<form onsubmit={submit}>
+				<label class="label" for="peer-url">Адрес сайта</label>
+				<div class="line">
+					<input
+						id="peer-url"
+						class="input"
+						bind:value={url}
+						placeholder="campus.cloudpub.ru"
+						autocomplete="url"
+						spellcheck="false"
+					/>
+					<Button type="submit" disabled={!url.trim()}>Подключить</Button>
+				</div>
+				<p class="hint">
+					Тот же адрес, по которому заходит группа. Кода не нужно: на компьютере с сайтом спросят
+					«Разрешить?».
+				</p>
+			</form>
+		{/if}
 	</div>
 {/if}
 
@@ -210,6 +272,15 @@
 	.line input {
 		flex: 1;
 		min-width: 0;
+	}
+	.mono {
+		font-family: var(--font-mono, ui-monospace, monospace);
+		font-size: 13px;
+	}
+	.label {
+		display: flex;
+		align-items: center;
+		gap: 6px;
 	}
 	.state {
 		display: flex;

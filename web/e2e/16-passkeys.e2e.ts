@@ -1,17 +1,17 @@
 import { expect, test } from '@playwright/test';
 import { STUDENT, watchConsole } from './helpers';
 
-test('вход по ключу: добавляется в профиле, потом вход без пароля — подсказкой и кнопкой', async ({
+test('вход по ключу: добавляется в профиле, потом вход без пароля – подсказкой и кнопкой', async ({
 	page,
 	context
 }) => {
 	const errors = watchConsole(page);
-	// WebAuthn не работает по IP — открываем сайт как localhost.
+	// WebAuthn не работает по IP – открываем сайт как localhost.
 	const site = new URL(test.info().project.use.baseURL!);
 	site.hostname = 'localhost';
 	const at = (path: string) => new URL(path, site).toString();
 
-	// Виртуальный ключ Chromium: как Touch ID — с подтверждением человека и хранением на устройстве.
+	// Виртуальный ключ Chromium: как Touch ID – с подтверждением человека и хранением на устройстве.
 	const cdp = await context.newCDPSession(page);
 	await cdp.send('WebAuthn.enable');
 	await cdp.send('WebAuthn.addVirtualAuthenticator', {
@@ -39,7 +39,7 @@ test('вход по ключу: добавляется в профиле, пот
 	await expect(dialog).toBeHidden({ timeout: 20_000 });
 	await expect(page.getByText(/^добавлен /)).toBeVisible();
 
-	// Выходим совсем (без куки): ключ подсказывается прямо в поле логина, как сохранённый пароль, —
+	// Выходим совсем (без куки): ключ подсказывается прямо в поле логина, как сохранённый пароль, –
 	// выбрали и вошли. Виртуальный ключ Chromium подтверждает выбор сам.
 	await context.clearCookies();
 	await page.goto(at('/login'));
@@ -47,7 +47,7 @@ test('вход по ключу: добавляется в профиле, пот
 		timeout: 20_000
 	});
 
-	// Кнопкой — где браузер не умеет подсказывать ключ в поле.
+	// Кнопкой – где браузер не умеет подсказывать ключ в поле.
 	await page.addInitScript(() => {
 		Object.defineProperty(PublicKeyCredential, 'isConditionalMediationAvailable', {
 			value: async () => false

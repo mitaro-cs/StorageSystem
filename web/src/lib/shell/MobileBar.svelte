@@ -5,11 +5,11 @@
 	import ThemeToggle from './ThemeToggle.svelte';
 	import Bell from './Bell.svelte';
 
-	// Разделы на телефоне — в нижней панели (как в боковой панели компьютера), поиск — здесь,
-	// участники и настройки — в профиле, поэтому отдельного меню нет.
+	// Разделы на телефоне – в нижней панели (как в боковой панели компьютера), поиск – здесь,
+	// участники и настройки – в профиле, поэтому отдельного меню нет.
 	const title = $derived(
 		currentGroup()?.name ??
-			(isMulti() ? t.nav.allGroups : (session.me?.groups[0]?.name ?? 'campus'))
+			(isMulti() ? t.nav.allGroups : (session.me?.groups[0]?.name ?? 'Campus'))
 	);
 </script>
 
@@ -61,7 +61,7 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	/* Переключатель групп: настоящий select поверх подписи — системный выбор на телефоне */
+	/* Переключатель групп: настоящий select поверх подписи – системный выбор на телефоне */
 	.pick {
 		position: relative;
 		display: flex;

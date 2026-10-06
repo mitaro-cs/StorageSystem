@@ -28,7 +28,7 @@
 	let busy = $state(false);
 	let restarting = $state(false);
 	let qr = $state(false);
-	// CloudPub: вход почтой и паролем или ключом API (если вход в CloudPub — через Яндекс или VK).
+	// CloudPub: вход почтой и паролем или ключом API (если вход в CloudPub – через Яндекс или VK).
 	let cpEmail = $state('');
 	let cpPassword = $state('');
 	let cpToken = $state('');
@@ -47,7 +47,7 @@
 	}
 	onMount(load);
 
-	// Пока идёт вход или подключение — обновляем состояние.
+	// Пока идёт вход или подключение – обновляем состояние.
 	$effect(() => {
 		if (!a) return;
 		const waiting = a.state === 'starting' || a.state === 'retrying' || !!a.fxtunnel.login;
@@ -96,11 +96,11 @@
 				: mode === 'manual'
 					? { mode, url: manual }
 					: { mode };
-		// fxTunnel и CloudPub подключаются несколько секунд — состояние обновится само.
+		// fxTunnel и CloudPub подключаются несколько секунд – состояние обновится само.
 		if (!(await run(() => put<Access>('/api/admin/access', body)))) return;
 		await loadMe();
 		if (mode === 'lan' || wasLan) {
-			// Сервер начнёт или перестанет слушать сеть — приложение его перезапустит.
+			// Сервер начнёт или перестанет слушать сеть – приложение его перезапустит.
 			restarting = true;
 			await waitForRestart();
 			return;
@@ -165,7 +165,7 @@
 			{
 				value: 'cloudpub' as const,
 				icon: Cloud,
-				label: 'Интернет — CloudPub',
+				label: 'Интернет – CloudPub',
 				badge: 'бесплатно',
 				hint: 'Работает с VPN и без, в любой Wi‑Fi: только обычный HTTPS',
 				show: true
@@ -173,7 +173,7 @@
 			{
 				value: 'fxtunnel' as const,
 				icon: Globe,
-				label: 'Интернет — fxTunnel',
+				label: 'Интернет – fxTunnel',
 				badge: 'бесплатно',
 				hint: 'Свой адрес вида имя.fxtun.ru',
 				show: true
@@ -191,7 +191,7 @@
 				icon: Link2,
 				label: 'Свой адрес',
 				badge: '',
-				hint: 'Есть домен или сервер — для опытных',
+				hint: 'Есть домен или сервер – для опытных',
 				show: true
 			},
 			{
@@ -211,7 +211,7 @@
 		<span class="spinner" aria-hidden="true"></span>
 		<div>
 			<strong>Перезапускаем сервер…</strong>
-			<p class="small muted">Несколько секунд — страница обновится сама.</p>
+			<p class="small muted">Несколько секунд – страница обновится сама.</p>
 		</div>
 	</section>
 {:else if a}
@@ -238,7 +238,7 @@
 
 	{#if a.fixed}
 		<p class="tip small">
-			<span>Адрес сайта задан в настройках сервера (base-url) — меняйте его там.</span>
+			<span>Адрес сайта задан в настройках сервера (base-url) – меняйте его там.</span>
 		</p>
 	{:else}
 		<h3 class="sub">Как одногруппники попадают на сайт</h3>
@@ -265,7 +265,7 @@
 			{#if pick === 'cloudpub'}
 				{#if !a.cloudpub.loggedIn}
 					<p>
-						CloudPub — российский сервис: даёт сайту с этого компьютера постоянную ссылку вида
+						CloudPub – российский сервис: даёт сайту с этого компьютера постоянную ссылку вида
 						<code>слово-слово-слово.cloudpub.ru</code>. Связь идёт через обычный HTTPS, поэтому
 						ссылка открывается и с включённым VPN, и без него, и в Wi‑Fi вуза или общежития.
 					</p>
@@ -273,7 +273,7 @@
 						Нет аккаунта?
 						<a href="https://cloudpub.ru/auth/sign-up/" target="_blank" rel="noreferrer"
 							>Зарегистрируйтесь на cloudpub.ru</a
-						> — это бесплатно, затем войдите здесь.
+						> – это бесплатно, затем войдите здесь.
 					</p>
 					<form class="stack" onsubmit={cloudpubLogin}>
 						{#if cpWithToken}
@@ -329,7 +329,7 @@
 					{#if a.cloudpub.url}
 						<p>Постоянный адрес: <code>{a.cloudpub.url}</code></p>
 					{:else}
-						<p>Адрес выдаст CloudPub при первом подключении — он больше не изменится.</p>
+						<p>Адрес выдаст CloudPub при первом подключении – он больше не изменится.</p>
 					{/if}
 					<div class="row wrap">
 						{#if a.mode !== 'cloudpub'}
@@ -341,7 +341,7 @@
 					</div>
 				{/if}
 				<p class="faint small">
-					CloudPub — российский сервис (<a
+					CloudPub – российский сервис (<a
 						href="https://github.com/ermak-dev/cloudpub"
 						target="_blank"
 						rel="noreferrer">открытый клиент</a
@@ -353,7 +353,7 @@
 					{#if a.fxtunnel.login}
 						<ol class="steps">
 							<li>
-								Откройте страницу fxTunnel и войдите — почтой или через соцсеть.
+								Откройте страницу fxTunnel и войдите – почтой или через соцсеть.
 								<div>
 									<Button
 										href={a.fxtunnel.login.url}
@@ -380,8 +380,8 @@
 						</p>
 					{:else}
 						<p>
-							fxTunnel — бесплатный сервис: он даёт сайту с этого компьютера постоянную ссылку,
-							которая открывается с любого телефона. Нужен аккаунт — вход займёт минуту.
+							fxTunnel – бесплатный сервис: он даёт сайту с этого компьютера постоянную ссылку,
+							которая открывается с любого телефона. Нужен аккаунт – вход займёт минуту.
 						</p>
 						<div>
 							<Button variant="primary" loading={busy} onclick={login}
@@ -433,11 +433,11 @@
 					<span
 						>Бесплатный адрес не закреплён за вами: если компьютер долго выключен, его может занять
 						другой пользователь fxTunnel. Для постоянной группы закрепите адрес в личном кабинете
-						fxTunnel (тариф Base) — или используйте свой домен.</span
+						fxTunnel (тариф Base) – или используйте свой домен.</span
 					>
 				</p>
 				<p class="faint small">
-					fxTunnel — открытый проект
+					fxTunnel – открытый проект
 					<a href="https://github.com/mephistofox/fxtun.dev" target="_blank" rel="noreferrer"
 						>github.com/mephistofox/fxtun.dev</a
 					>. Через его сервер идёт трафик, как через любого провайдера; данные группы хранятся
@@ -461,12 +461,12 @@
 							><Wifi size={16} /> Открыть в локальной сети</Button
 						>
 					</div>
-					<p class="faint small">Приложение перезапустит сервер — это займёт несколько секунд.</p>
+					<p class="faint small">Приложение перезапустит сервер – это займёт несколько секунд.</p>
 				{/if}
 			{:else if pick === 'manual'}
 				<p>
 					Если у вас есть свой домен, сервер или платный туннель, который ведёт на этот компьютер,
-					укажите адрес — по нему будут строиться ссылки-приглашения и QR-коды.
+					укажите адрес – по нему будут строиться ссылки-приглашения и QR-коды.
 				</p>
 				<label class="label" for="manual-url">Адрес сайта</label>
 				<input
@@ -487,7 +487,7 @@
 			{:else if pick === 'off'}
 				<p>
 					Сайт будет виден только на этом компьютере. У одногруппников останутся сохранённые данные
-					— их можно смотреть без связи, а сделанное отправится, когда доступ снова откроется.
+					– их можно смотреть без связи, а сделанное отправится, когда доступ снова откроется.
 				</p>
 				{#if a.mode !== 'off'}
 					<div>

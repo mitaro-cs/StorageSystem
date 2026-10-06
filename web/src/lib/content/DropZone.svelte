@@ -46,10 +46,10 @@
 	let input: HTMLInputElement | undefined = $state();
 	let camera: HTMLInputElement | undefined = $state();
 	let seq = 0;
-	// Кнопка «Сфотографировать» — только там, где есть камера и палец, а не мышь.
+	// Кнопка «Сфотографировать» – только там, где есть камера и палец, а не мышь.
 	const touch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
-	/** Фото с телефона — 4–10 МБ; для новости хватит 2048 точек и JPEG (~300–600 КБ). */
+	/** Фото с телефона – 4–10 МБ; для новости хватит 2048 точек и JPEG (~300–600 КБ). */
 	async function smaller(file: File): Promise<File> {
 		if (!shrink || !/^image\/(jpeg|png|webp|heic|heif)$/.test(file.type) || file.size < 700_000)
 			return file;
@@ -91,7 +91,7 @@
 		}
 	}
 
-	// Файл или скриншот из буфера обмена (Ctrl+V / ⌘V) — сразу во вложения.
+	// Файл или скриншот из буфера обмена (Ctrl+V / ⌘V) – сразу во вложения.
 	function onpaste(e: ClipboardEvent) {
 		const list = Array.from(e.clipboardData?.files ?? []);
 		if (!list.length) return;

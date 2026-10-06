@@ -5,11 +5,12 @@
 		ChevronLeft,
 		ChevronRight,
 		Clock,
+		FileText,
+		FolderOpen,
 		MapPin,
 		NotebookPen,
 		Pencil,
 		Plus,
-		Upload,
 		UserRound
 	} from '@lucide/svelte';
 	import { del, get, patch, put } from '$lib/api';
@@ -39,7 +40,7 @@
 	} from '$lib/schedule/lessons';
 
 	// Пара: когда, где, у кого, тема; задания к ней и материалы (слайды, конспект). Добавить задание
-	// или файл отсюда — они сразу привязаны к паре.
+	// или файл отсюда – они сразу привязаны к паре.
 	let data = $state<LessonDetail | null>(null);
 	let missing = $state(false);
 	let editor = $state(false);
@@ -101,7 +102,7 @@
 				danger: true,
 				onclick: async () => {
 					if (
-						!(await ask('Задания и материалы к ней останутся — просто без пары.', {
+						!(await ask('Задания и материалы к ней останутся – просто без пары.', {
 							title: 'Удалить пару?',
 							ok: 'Удалить',
 							danger: true
@@ -138,7 +139,7 @@
 		`${lessonKind(n.kind).label}, ${fmtWeekdayShort(n.startsAt)} ${fmtDate(n.startsAt, now)}`;
 </script>
 
-<svelte:head><title>{l ? `${lessonName(l)} · ${kind.label}` : 'Пара'} · campus</title></svelte:head>
+<svelte:head><title>{l ? `${lessonName(l)} · ${kind.label}` : 'Пара'} · Campus</title></svelte:head>
 
 <BackBar href={l ? `/schedule?week=${iso(l.startsAt)}` : '/schedule'} label="Расписание"
 	><Menu items={actions} label="Действия с парой" /></BackBar
@@ -196,93 +197,92 @@
 		</nav>
 	{/if}
 
-	{#if canHomework || canFiles || l.can.edit}
-		<div class="toolbar" role="toolbar" aria-label="Добавить к паре">
-			{#if canHomework}
-				<Button size="s" variant="primary" onclick={() => (hwOpen = true)}
-					><Plus size={16} /> Задание к паре</Button
-				>
-			{/if}
-			{#if canFiles}
-				<Button size="s" onclick={() => (fileOpen = true)}
-					><Upload size={16} /> {canUpload ? 'Материал' : 'Предложить материал'}</Button
-				>
-			{/if}
-			{#if l.can.edit}
-				<Button size="s" variant="ghost" onclick={() => (editor = true)}
-					><Pencil size={15} /> Изменить пару</Button
-				>
-			{/if}
+	{#if l.can.edit}
+		<div class="toolbar" role="toolbar" aria-label="Пара">
+			<Button size="s" variant="ghost" onclick={() => (editor = true)}
+				><Pencil size={15} /> Изменить пару</Button
+			>
 		</div>
 	{/if}
 
-	<section class="block">
-		<div class="section-head">
-			<h2>Тема и заметки</h2>
-			{#if l.can.edit && !noteEdit}
-				<button class="linklike small" onclick={() => ((noteDraft = l.note), (noteEdit = true))}
-					>{l.note ? 'Изменить' : 'Добавить'}</button
-				>
-			{/if}
-		</div>
-		{#if noteEdit}
-			<div class="card note-card">
+	<div class="parts" style:--subject={l.subject?.color ?? 'var(--accent)'}>
+		<section class="card part note-part" aria-labelledby="part-note">
+			<div class="part-head">
+				<span class="ico" aria-hidden="true"><FileText size={18} /></span>
+				<h2 id="part-note">Тема и заметки</h2>
+				{#if l.can.edit && !noteEdit}
+					<Button size="s" variant="ghost" onclick={() => ((noteDraft = l.note), (noteEdit = true))}
+						><Pencil size={14} /> {l.note ? 'Изменить' : 'Добавить'}</Button
+					>
+				{/if}
+			</div>
+			{#if noteEdit}
 				<textarea
 					class="textarea"
 					rows="4"
 					maxlength="2000"
 					bind:value={noteDraft}
 					aria-label="Тема и заметки"
-					placeholder="Лекция 3. Производные — принести калькулятор"></textarea>
+					placeholder="Лекция 3. Производные – принести калькулятор"></textarea>
 				<div class="row note-actions">
 					<Button size="s" onclick={() => (noteEdit = false)}>Отмена</Button>
 					<Button size="s" variant="primary" loading={savingNote} onclick={saveNote}
 						>Сохранить</Button
 					>
 				</div>
-			</div>
-		{:else if l.note}
-			<p class="card note">{l.note}</p>
-		{:else}
-			<p class="faint">Тема не указана.</p>
-		{/if}
-	</section>
+			{:else if l.note}
+				<p class="note">{l.note}</p>
+			{:else}
+				<p class="faint empty">Тема не указана.</p>
+			{/if}
+		</section>
 
-	<section class="block">
-		<div class="section-head">
-			<h2>Задания к паре</h2>
-			{#if data.homework.length}<span class="aside num">{data.homework.length}</span>{/if}
-		</div>
-		{#if data.homework.length}
-			<div class="list">
-				{#each data.homework as h (h.id)}
-					<HomeworkRow item={h} {now} ontoggle={toggleDone} />
-				{/each}
+		<section class="card part" aria-labelledby="part-hw">
+			<div class="part-head">
+				<span class="ico" aria-hidden="true"><NotebookPen size={18} /></span>
+				<h2 id="part-hw">Задания</h2>
+				{#if data.homework.length}<span class="count num">{data.homework.length}</span>{/if}
+				{#if canHomework}
+					<Button size="s" variant="ghost" onclick={() => (hwOpen = true)}
+						><Plus size={16} /> Добавить</Button
+					>
+				{/if}
 			</div>
-		{:else}
-			<p class="faint empty-line">
-				<NotebookPen size={16} /> К этой паре ничего не задано{canHomework
-					? ' — добавьте, если задали'
-					: ''}.
-			</p>
-		{/if}
-	</section>
+			{#if data.homework.length}
+				<div class="list">
+					{#each data.homework as h (h.id)}
+						<HomeworkRow item={h} {now} ontoggle={toggleDone} />
+					{/each}
+				</div>
+			{:else}
+				<p class="faint empty">
+					К этой паре ничего не задано{canHomework ? ' – добавьте, если задали' : ''}.
+				</p>
+			{/if}
+		</section>
 
-	<section class="block">
-		<div class="section-head">
-			<h2>Материалы</h2>
-			{#if data.materials.length}<span class="aside num">{data.materials.length}</span>{/if}
-		</div>
-		{#if data.materials.length}
-			<div class="list">
-				{#each data.materials as m (m.id)}<MaterialRow {m} />{/each}
+		<section class="card part" aria-labelledby="part-files">
+			<div class="part-head">
+				<span class="ico" aria-hidden="true"><FolderOpen size={18} /></span>
+				<h2 id="part-files">Материалы</h2>
+				{#if data.materials.length}<span class="count num">{data.materials.length}</span>{/if}
+				{#if canFiles}
+					<Button size="s" variant="ghost" onclick={() => (fileOpen = true)}
+						><Plus size={16} /> {canUpload ? 'Добавить' : 'Предложить'}</Button
+					>
+				{/if}
 			</div>
-		{:else}
-			<p class="faint empty-line">
-				Слайдов и конспектов пока нет{canFiles ? ' — загрузите, и они будут и в предмете' : ''}.
-			</p>
-		{/if}
-	</section>
+			{#if data.materials.length}
+				<div class="list">
+					{#each data.materials as m (m.id)}<MaterialRow {m} />{/each}
+				</div>
+			{:else}
+				<p class="faint empty">
+					Слайдов и конспектов пока нет{canFiles ? ' – загрузите, и они будут и в предмете' : ''}.
+				</p>
+			{/if}
+		</section>
+	</div>
 
 	{#if hwOpen && l.subject}
 		{#await import('$lib/content/HomeworkComposer.svelte') then m}
@@ -418,28 +418,77 @@
 		gap: 8px;
 		margin: var(--s3) 0 var(--s5);
 	}
-	.block {
-		margin-bottom: var(--s6);
+	/* Части пары – отдельными карточками: тема на всю ширину, задания и материалы рядом. */
+	.parts {
+		display: grid;
+		gap: var(--s4);
+		grid-template-columns: 1fr;
 	}
-	.note {
-		padding: var(--s4);
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
+	@media (min-width: 1100px) {
+		.parts {
+			grid-template-columns: 1fr 1fr;
+		}
+		.note-part {
+			grid-column: 1 / -1;
+		}
 	}
-	.note-card {
+	.part {
 		display: flex;
 		flex-direction: column;
 		gap: var(--s3);
-		padding: var(--s3);
+		padding: var(--s4);
+		min-width: 0;
+	}
+	.part-head {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-height: 36px;
+	}
+	.part-head h2 {
+		margin: 0;
+		font-size: 17px;
+	}
+	.part-head :global(.btn) {
+		margin-left: auto;
+	}
+	.ico {
+		display: grid;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		flex: none;
+		border-radius: 10px;
+		background: color-mix(in srgb, var(--subject, var(--accent)) 16%, var(--surface-2));
+		color: var(--text);
+	}
+	.count {
+		padding: 1px 8px;
+		border-radius: var(--r-full);
+		background: var(--surface-2);
+		font-size: 13px;
+		font-weight: 650;
+		color: var(--text-2);
+	}
+	.part .list {
+		margin: 0 calc(-1 * var(--s2));
+	}
+	.note {
+		margin: 0;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 	.note-actions {
 		justify-content: flex-end;
 		gap: 8px;
 	}
-	.empty-line {
-		display: flex;
-		align-items: center;
-		gap: 8px;
+	.empty {
+		margin: 0;
+		padding: var(--s3);
+		border: 1px dashed var(--border);
+		border-radius: var(--r);
+		text-align: center;
+		font-size: 14px;
 	}
 	@media (max-width: 520px) {
 		.hero {

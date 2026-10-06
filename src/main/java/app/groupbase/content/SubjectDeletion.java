@@ -53,7 +53,7 @@ public class SubjectDeletion {
     for (long g : groups) {
       if (!access.can(actor, Permission.MANAGE_SUBJECTS, List.of(g))) {
         throw ApiException.forbidden(
-            "Предмет общий с другой группой — сначала отвяжите его или попросите их старосту");
+            "Предмет общий с другой группой – сначала отвяжите его или попросите их старосту");
       }
     }
     // Файлы заданий и материалов: строки в базе уйдут каскадом, а сами файлы на диске — нет.

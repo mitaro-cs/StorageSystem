@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { ADMIN, STUDENT, login, watchConsole } from './helpers';
 
-test('жалоба студента — в «Модерации»: модератор скрывает новость', async ({ page, browser }) => {
+test('жалоба студента – в «Модерации»: модератор скрывает новость', async ({ page, browser }) => {
 	const errors = watchConsole(page);
 	await login(page, ADMIN);
 	await page.goto('/news?new=1');
@@ -22,7 +22,7 @@ test('жалоба студента — в «Модерации»: модера�
 	await ask.getByRole('button', { name: 'Отправить' }).click();
 	await expect(student.getByText('Жалоба отправлена модераторам')).toBeVisible();
 
-	// У модератора — «Модерация» с числом, жалоба с пояснением, без имени.
+	// У модератора – «Модерация» с числом, жалоба с пояснением, без имени.
 	const side = page.getByRole('complementary', { name: 'Навигация' });
 	await page.goto('/moderation');
 	await expect(side.getByRole('link', { name: /Модерация/ })).toBeVisible();
@@ -79,13 +79,13 @@ test('оформление: дизайн, цвет и значок меняют�
 		'href',
 		'/manifest-ocean.webmanifest'
 	);
-	// Значок больше не перекрашивает интерфейс: цвет — тот, что выбран.
+	// Значок больше не перекрашивает интерфейс: цвет – тот, что выбран.
 	await expect(colors.getByRole('radio', { name: 'Зелёный' })).toHaveAttribute(
 		'aria-checked',
 		'true'
 	);
 
-	// После перезагрузки — то же, ещё до отрисовки интерфейса (скрипт в app.html).
+	// После перезагрузки – то же, ещё до отрисовки интерфейса (скрипт в app.html).
 	await page.reload();
 	await expect(html).toHaveAttribute('data-style', 'neon');
 	await expect(html).toHaveAttribute('data-accent', '');
@@ -93,7 +93,7 @@ test('оформление: дизайн, цвет и значок меняют�
 	const manifest = await page.request.get('/manifest-ocean.webmanifest');
 	expect(await manifest.text()).toContain('/icons/v/ocean-192.png');
 
-	// Вернуть как было — для остальных тестов.
+	// Вернуть как было – для остальных тестов.
 	await designs.getByRole('radio', { name: 'Классика' }).click();
 	await colors.getByRole('radio', { name: 'Чернила' }).click();
 	await icons.getByRole('radio', { name: 'Светлый' }).click();

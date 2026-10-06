@@ -20,14 +20,14 @@ export function setTheme(theme: Theme) {
 		if (theme === 'system') localStorage.removeItem(KEY);
 		else localStorage.setItem(KEY, theme);
 	} catch {
-		/* приватный режим — просто не запоминаем */
+		/* приватный режим – просто не запоминаем */
 	}
 	setTimeout(() => root.classList.remove('theme-switching'), 300);
 	// Кнопка темы в панели, «Оформление» и палитра команд показывают одно и то же.
 	window.dispatchEvent(new CustomEvent<Theme>(THEME_EVENT, { detail: theme }));
 }
 
-/** Событие смены темы: подписка — onTheme(). */
+/** Событие смены темы: подписка – onTheme(). */
 const THEME_EVENT = 'gb:theme';
 
 /** Следить за сменой темы из любого места; возвращает отписку (для onMount/$effect). */
@@ -38,12 +38,12 @@ export function onTheme(fn: (t: Theme) => void): () => void {
 }
 
 /**
- * Дизайн (Настройки → Оформление): материал интерфейса — карточки, тени, фон, заголовки. Цельные
- * варианты; «Классика» — как было всегда («Аура» убрана в 0.6 — у выбравших станет «Классикой»). Цвет у каждого
- * — из выбранного основного цвета (lib/colors.ts). Правила — в app.css (:root[data-style]).
+ * Дизайн (Настройки → Оформление): материал интерфейса – карточки, тени, фон, заголовки. Цельные
+ * варианты; «Классика» – как было всегда («Аура» убрана в 0.6 – у выбравших станет «Классикой»). Цвет у каждого
+ * – из выбранного основного цвета (lib/colors.ts). Правила – в app.css (:root[data-style]).
  */
 export const STYLES = [
-	{ id: 'plain', label: 'Классика', hint: 'Строго и чисто — как было всегда' },
+	{ id: 'plain', label: 'Классика', hint: 'Строго и чисто – как было всегда' },
 	{ id: 'glass', label: 'Стекло', hint: 'Матовые панели над мягкими пятнами света' },
 	{ id: 'depth', label: 'Объём', hint: 'Свет сверху, мягкие тени, выпуклые кнопки' },
 	{ id: 'neon', label: 'Сияние', hint: 'Светящиеся кромки в цвет темы и предметов' },
@@ -76,9 +76,9 @@ export function setStyle(style: Style) {
 		if (style === 'plain') localStorage.removeItem(STYLE_KEY);
 		else localStorage.setItem(STYLE_KEY, style);
 	} catch {
-		/* приватный режим — просто не запоминаем */
+		/* приватный режим – просто не запоминаем */
 	}
 	setTimeout(() => root.classList.remove('theme-switching'), 300);
-	// Оформление общее для всех устройств — lib/looksSync.ts отправит его на сервер.
+	// Оформление общее для всех устройств – lib/looksSync.ts отправит его на сервер.
 	window.dispatchEvent(new Event('gb:looks'));
 }

@@ -25,7 +25,7 @@
 	let busy = $state(false);
 	let testing = $state(false);
 	// Окно приложения на компьютере хоста уведомления системы не показывает (нет service worker и
-	// Web Push) — их включают в браузере, открыв там тот же сайт.
+	// Web Push) – их включают в браузере, открыв там тот же сайт.
 	const hostWindow = session.me?.hostWindow ?? false;
 	const supported = !hostWindow && pushSupported();
 	const needsInstall = supported && needsInstallForPush();
@@ -44,7 +44,7 @@
 		}
 		subscribed = (await currentSubscription()) !== null;
 		// Сервер мог удалить подписку после неудачных отправок, а устройство считает, что всё
-		// включено: напоминаем её. Со старым ключом сервера — только включить заново.
+		// включено: напоминаем её. Со старым ключом сервера – только включить заново.
 		if (subscribed && s?.pushEnabled) {
 			const r = await resendSubscription(s.publicKey).catch(() => 'ok' as const);
 			if (r === 'stale') subscribed = false;
@@ -91,7 +91,7 @@
 		testing = true;
 		try {
 			let r = await post<PushReport>('/api/push/test');
-			// Сервер не знает это устройство — напоминаем подписку и пробуем ещё раз.
+			// Сервер не знает это устройство – напоминаем подписку и пробуем ещё раз.
 			if (r.devices === 0 && (await resendSubscription(s?.publicKey)) === 'ok')
 				r = await post<PushReport>('/api/push/test');
 			const result = explainPushTest(r);
@@ -132,10 +132,10 @@
 		</span>
 		<div class="grow">
 			{#if hostWindow}
-				<strong>На этом компьютере — через браузер</strong>
+				<strong>На этом компьютере – через браузер</strong>
 				<span class="muted small"
 					>Окно приложения не показывает уведомления системы. Откройте сайт в Safari, Chrome или
-					Яндекс Браузере и включите их там — будут приходить, даже когда окно закрыто.</span
+					Яндекс Браузере и включите их там – будут приходить, даже когда окно закрыто.</span
 				>
 			{:else if !supported}
 				<strong>Этот браузер не показывает уведомления</strong>
@@ -145,7 +145,7 @@
 				<span class="muted small"
 					>На iPhone уведомления приходят только в установленном приложении. <a href="/install"
 						>Как установить</a
-					>, потом откройте campus с экрана «Домой».</span
+					>, потом откройте Campus с экрана «Домой».</span
 				>
 			{:else if s && !s.pushEnabled}
 				<strong>Push-уведомления выключены на сервере</strong>
@@ -156,7 +156,7 @@
 			{:else}
 				<strong>Уведомления на этом устройстве</strong>
 				<span class="muted small"
-					>Новые задания и напоминания о сроках — даже когда сайт закрыт</span
+					>Новые задания и напоминания о сроках – даже когда сайт закрыт</span
 				>
 			{/if}
 		</div>
@@ -181,7 +181,7 @@
 	<section class="card pane">
 		<div>
 			<h3>Что присылать на телефон</h3>
-			<p class="muted small">В колокольчике на сайте видно всё — это только про уведомления.</p>
+			<p class="muted small">В колокольчике на сайте видно всё – это только про уведомления.</p>
 		</div>
 		<div class="kv prefs">
 			<div>
@@ -277,7 +277,7 @@
 		align-items: center;
 		gap: 14px;
 	}
-	/* Кнопки — под текстом, а не под значком. */
+	/* Кнопки – под текстом, а не под значком. */
 	@media (min-width: 520px) {
 		.device + .row {
 			padding-left: 54px;

@@ -13,7 +13,7 @@
 	import { parseSubjects, pickColors } from './semester';
 	import { dayToMs, phase } from './session';
 
-	// Мастер нового семестра: старые предметы — в архив, новые — списком, даты сессии.
+	// Мастер нового семестра: старые предметы – в архив, новые – списком, даты сессии.
 	let { open = $bindable(), group }: { open: boolean; group: MeGroup } = $props();
 
 	const steps = ['Что продолжается', 'Новые предметы', 'Сессия', 'Проверка'];
@@ -59,7 +59,7 @@
 		if (!subjects.loaded) loadSubjects();
 	});
 	$effect(() => {
-		// Прошлая сессия закончилась — по умолчанию её даты убираем.
+		// Прошлая сессия закончилась – по умолчанию её даты убираем.
 		if (open) clearOld = oldOver;
 	});
 
@@ -130,7 +130,7 @@
 			предмет можно вернуть.
 		</p>
 		{#if current.length === 0}
-			<p class="hint">Предметов пока нет — сразу к новым.</p>
+			<p class="hint">Предметов пока нет – сразу к новым.</p>
 		{:else}
 			<div class="list">
 				{#each current as s (s.id)}
@@ -159,14 +159,14 @@
 		{/if}
 	{:else if step === 1}
 		<p class="muted lead">
-			По одному на строку. Преподавателя можно через тире: «Физика — Иванов И. И.». Иконка
+			По одному на строку. Преподавателя можно через тире: «Физика – Иванов И. И.». Иконка
 			подберётся по названию.
 		</p>
 		<textarea
 			class="input area"
 			bind:value={text}
 			rows="7"
-			placeholder="Физика — Иванов И. И.&#10;Сети связи — Петрова А. А.&#10;Английский язык"
+			placeholder="Физика – Иванов И. И.&#10;Сети связи – Петрова А. А.&#10;Английский язык"
 			aria-label="Новые предметы"></textarea>
 		{#if parsed.length}
 			<div class="list preview">
@@ -181,7 +181,7 @@
 						<span class="txt">
 							<strong>{s.name}</strong>
 							<span class="faint small"
-								>{s.duplicate ? 'уже есть — пропустим' : s.teacher || 'без преподавателя'}</span
+								>{s.duplicate ? 'уже есть – пропустим' : s.teacher || 'без преподавателя'}</span
 							>
 						</span>
 						<span class="faint small num">{i + 1}</span>
@@ -204,11 +204,11 @@
 				<input id="ns-to" class="input num" type="date" bind:value={to} min={from} />
 			</div>
 		</div>
-		{#if !datesValid}<p class="error-text">Укажите оба дня; последний — не раньше первого.</p>{/if}
+		{#if !datesValid}<p class="error-text">Укажите оба дня; последний – не раньше первого.</p>{/if}
 		{#if oldSession && !(from && to)}
 			<label class="check">
 				<input type="checkbox" bind:checked={clearOld} />
-				Убрать прошлые даты ({fmtDate(oldSession.from)} — {fmtDate(oldSession.to)})
+				Убрать прошлые даты ({fmtDate(oldSession.from)} – {fmtDate(oldSession.to)})
 			</label>
 		{/if}
 	{:else}
@@ -229,7 +229,7 @@
 				<span>
 					{#if fresh.length}
 						Новых: <strong>{fresh.length}</strong>
-						{plural(fresh.length, ['предмет', 'предмета', 'предметов'])} — {fresh
+						{plural(fresh.length, ['предмет', 'предмета', 'предметов'])} – {fresh
 							.map((s) => s.name)
 							.join(', ')}
 					{:else}
@@ -241,7 +241,7 @@
 				<Check size={17} />
 				<span>
 					{#if from && to}
-						Сессия: <strong class="num">{fmtDate(dayToMs(from))} — {fmtDate(dayToMs(to))}</strong>
+						Сессия: <strong class="num">{fmtDate(dayToMs(from))} – {fmtDate(dayToMs(to))}</strong>
 					{:else if oldSession && clearOld}
 						Прошлые даты сессии уберём
 					{:else}

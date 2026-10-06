@@ -41,7 +41,7 @@ test('староста загружает материал, студент ег�
 	const ctx = await browser.newContext({ locale: 'ru-RU', viewport: { width: 390, height: 844 } });
 	const student = await ctx.newPage();
 	await login(student, STUDENT);
-	// На телефоне файлы — внутри предмета: «Предметы» в нижней панели → предмет → «Материалы».
+	// На телефоне файлы – внутри предмета: «Предметы» в нижней панели → предмет → «Материалы».
 	await student
 		.getByRole('navigation', { name: 'Основные разделы' })
 		.getByRole('link', { name: 'Предметы' })

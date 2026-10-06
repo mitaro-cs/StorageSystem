@@ -20,7 +20,7 @@ import { currentStyle, currentTheme, isStyle, setStyle, setTheme, type Theme } f
  * Оформление общее для всех устройств человека (0.6): режим, дизайн, цвет, своя картинка фона
  * (приглушение и размытие) и значок. На устройстве всё по-прежнему лежит в localStorage (скрипт в
  * app.html ставит его до отрисовки), а сервер хранит копию: что новее (метка at), то и действует.
- * Грузится отдельно — нужен после входа и при смене оформления.
+ * Грузится отдельно – нужен после входа и при смене оформления.
  */
 
 const AT_KEY = 'gb-looks-at';
@@ -33,7 +33,8 @@ interface Looks {
 	hue?: number | null;
 	sat?: number;
 	dim?: number;
-	blur?: boolean;
+	/** px; у прежних версий – true/false. */
+	blur?: number | boolean;
 	icon?: string;
 	at?: number;
 }
@@ -51,11 +52,11 @@ function write(key: string, value: string | null) {
 		if (value === null) localStorage.removeItem(key);
 		else localStorage.setItem(key, value);
 	} catch {
-		/* приватный режим — синхронизация просто не запоминается */
+		/* приватный режим – синхронизация просто не запоминается */
 	}
 }
 
-/** Применяем чужое (с сервера) — свои же события «оформление изменилось» не отправляем обратно. */
+/** Применяем чужое (с сервера) – свои же события «оформление изменилось» не отправляем обратно. */
 let applying = false;
 export const isApplying = () => applying;
 
@@ -74,7 +75,7 @@ function local(): Looks {
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 
-/** Оформление поменяли здесь — через секунду (ползунки двигают часто) отправляем на сервер. */
+/** Оформление поменяли здесь – через секунду (ползунки двигают часто) отправляем на сервер. */
 export function pushLooks() {
 	if (applying) return;
 	clearTimeout(timer);
@@ -99,7 +100,7 @@ function toBlob(data: string): Blob {
 let sentIcon: string | null = null;
 
 /**
- * Окно приложения хоста: выбранный значок — сразу в Dock на Mac или на панель задач Windows (сервер
+ * Окно приложения хоста: выбранный значок – сразу в Dock на Mac или на панель задач Windows (сервер
  * передаёт его оболочке, она запоминает выбор до следующего запуска).
  */
 export function hostIcon() {
@@ -109,13 +110,13 @@ export function hostIcon() {
 	post('/api/desktop/icon', { icon }).catch(() => (sentIcon = null));
 }
 
-/** Картинка, которая сейчас на фоне, — на сервер (после выбора здесь). */
+/** Картинка, которая сейчас на фоне, – на сервер (после выбора здесь). */
 export function uploadCurrentBackground() {
 	const data = customBackground();
 	if (data) uploadBackground(toBlob(data));
 }
 
-/** Своя картинка выбрана здесь — копия на сервер, чтобы появилась и на других устройствах. */
+/** Своя картинка выбрана здесь – копия на сервер, чтобы появилась и на других устройствах. */
 export async function uploadBackground(image: Blob) {
 	try {
 		const r = await fetch('/api/me/background', {
@@ -125,17 +126,17 @@ export async function uploadBackground(image: Blob) {
 		});
 		if (r.ok) write(BG_ID_KEY, (await r.json()).background);
 		else {
-			// Картинка не подошла серверу — на этом устройстве она есть, на других не появится.
+			// Картинка не подошла серверу – на этом устройстве она есть, на других не появится.
 			const { toast } = await import('./toasts.svelte');
 			const why = await r.json().catch(() => null);
 			toast(why?.message ?? 'Картинка не сохранилась для других устройств', 'error');
 		}
 	} catch {
-		/* нет сети — останется только на этом устройстве, при следующем входе отправим снова */
+		/* нет сети – останется только на этом устройстве, при следующем входе отправим снова */
 	}
 }
 
-/** Картинку убрали здесь — убираем и на сервере. */
+/** Картинку убрали здесь – убираем и на сервере. */
 export async function removeBackground() {
 	write(BG_ID_KEY, null);
 	await del('/api/me/background').catch(() => {});
@@ -152,7 +153,8 @@ function apply(s: Looks) {
 			if (next.hue !== a.hue || next.sat !== a.sat) setAccent(next, false);
 		}
 		if (typeof s.dim === 'number' && s.dim !== backgroundDim()) setBackgroundDim(s.dim);
-		if (typeof s.blur === 'boolean' && s.blur !== backgroundBlur()) setBackgroundBlur(s.blur);
+		const blur = typeof s.blur === 'boolean' ? (s.blur ? 16 : 0) : s.blur;
+		if (typeof blur === 'number' && blur !== backgroundBlur()) setBackgroundBlur(blur);
 		if (isAppIcon(s.icon) && s.icon !== currentIcon()) setIcon(s.icon);
 	} finally {
 		applying = false;
@@ -160,8 +162,8 @@ function apply(s: Looks) {
 }
 
 /**
- * После входа: на сервере новее — применяем здесь, здесь новее (или на сервере пусто) —
- * отправляем. Картинка фона — так же: другая на сервере — скачиваем, своя ещё не отправлена —
+ * После входа: на сервере новее – применяем здесь, здесь новее (или на сервере пусто) –
+ * отправляем. Картинка фона – так же: другая на сервере – скачиваем, своя ещё не отправлена –
  * отправляем.
  */
 export async function pullLooks(me: Me) {
@@ -180,14 +182,14 @@ export async function pullLooks(me: Me) {
 			const r = await fetch(`/api/avatars/${id}-1920.webp`);
 			if (r.ok && (await setCustomBackground(await r.blob()))) write(BG_ID_KEY, id);
 		} catch {
-			/* нет сети — попробуем при следующем открытии */
+			/* нет сети – попробуем при следующем открытии */
 		}
 	} else if (!id && have) {
 		// Убрали на другом устройстве.
 		write(BG_ID_KEY, null);
 		removeCustomBackground();
 	} else if (!id && currentBackground() === 'custom') {
-		// Картинка выбрана до 0.6 — только на этом устройстве: отправляем.
+		// Картинка выбрана до 0.6 – только на этом устройстве: отправляем.
 		uploadCurrentBackground();
 	}
 }

@@ -188,7 +188,7 @@ public class SubjectService {
   public List<SubjectView> split(Actor actor, long id, int count) {
     requireManage(actor, id);
     if (count < 2 || count > 6) {
-      throw ApiException.invalid("count", "Подгрупп — от 2 до 6");
+      throw ApiException.invalid("count", "Подгрупп – от 2 до 6");
     }
     SubjectStore.Row r = subjects.find(id).orElseThrow(ApiException::notFound);
     String base = r.name().replaceAll("\\s*(№\\s*\\d+|\\(\\s*\\d+\\s*\\))\\s*$", "").strip();
@@ -334,7 +334,7 @@ public class SubjectService {
     }
     String teacher = in.teacher() == null ? "" : in.teacher().strip();
     if (teacher.length() > 80) {
-      throw ApiException.invalid("teacher", "Имя преподавателя — до 80 символов");
+      throw ApiException.invalid("teacher", "Имя преподавателя – до 80 символов");
     }
     String color = in.color() == null || in.color().isBlank() ? "#6b7280" : in.color().strip();
     if (!COLOR.matcher(color).matches()) {

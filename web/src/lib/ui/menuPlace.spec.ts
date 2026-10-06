@@ -13,7 +13,7 @@ describe('выпадающее меню', () => {
 		});
 	});
 
-	it('у нижнего края экрана раскрывается вверх — «Сделать замом» не пропадает', () => {
+	it('у нижнего края экрана раскрывается вверх – «Сделать замом» не пропадает', () => {
 		const p = placeMenu({ top: 780, bottom: 812, right: 370 }, menu, screen);
 		expect(p.up).toBe(true);
 		expect(p.top + menu.height).toBeLessThanOrEqual(780);

@@ -196,7 +196,7 @@ class DesktopController {
     }
     int v = b.value() == null ? 0 : b.value();
     if (v != 0 && (v < 50 || v > 200)) {
-      throw ApiException.invalid("value", "Масштаб — от 50 до 200 %");
+      throw ApiException.invalid("value", "Масштаб – от 50 до 200 %");
     }
     bridge.event("zoom", Map.of("value", v));
     return Map.of("status", "ok");

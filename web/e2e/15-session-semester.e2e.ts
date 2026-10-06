@@ -25,7 +25,7 @@ test('сессия: экзамен с аудиторией, даты, отсчё
 	const dialog = page.getByRole('dialog');
 	await dialog.getByRole('radio', { name: 'Экзамен' }).click();
 	await expect(dialog.getByLabel('Когда')).toBeVisible();
-	await dialog.getByLabel('Предмет').selectOption({ label: 'Математический анализ' });
+	await dialog.getByRole('radio', { name: 'Математический анализ' }).click();
 	await dialog.getByLabel('Когда').fill(`${day(7)}T09:00`);
 	await dialog.getByLabel(/Где/).fill('ауд. 305');
 	await dialog.getByLabel('Название').fill('Экзамен по матанализу');
@@ -38,7 +38,7 @@ test('сессия: экзамен с аудиторией, даты, отсчё
 	await expect(row).toContainText('ауд. 305');
 	await expect(row).toContainText('Экзамен');
 
-	// Даты сессии — у старосты.
+	// Даты сессии – у старосты.
 	await page.getByRole('button', { name: 'Даты' }).click();
 	const dates = page.getByRole('dialog', { name: 'Даты сессии' });
 	await dates.getByLabel('Первый день').fill(day(5));
@@ -47,13 +47,13 @@ test('сессия: экзамен с аудиторией, даты, отсчё
 	await expect(dates).toBeHidden();
 	await expect(page.getByText(/начнётся через \d+ д/)).toBeVisible();
 
-	// Отметка «сдано» — личная, прогресс считается сразу.
+	// Отметка «сдано» – личная, прогресс считается сразу.
 	await row.getByRole('checkbox').click();
 	await expect(page.getByText('1/1')).toBeVisible();
 	await row.getByRole('checkbox').click();
 	await expect(page.getByText('0/1')).toBeVisible();
 
-	// На главной — карточка сессии с обратным отсчётом.
+	// На главной – карточка сессии с обратным отсчётом.
 	await page.goto('/');
 	const card = page
 		.getByRole('link', { name: /Сессия/ })
@@ -82,8 +82,8 @@ test('мастер «Новый семестр»: новые предметы с
 
 	await wizard
 		.getByLabel('Новые предметы')
-		.fill('Теория вероятностей — Ким О. С.\nМатематический анализ\nЭлектроника');
-	await expect(wizard.getByText('уже есть — пропустим')).toBeVisible();
+		.fill('Теория вероятностей – Ким О. С.\nМатематический анализ\nЭлектроника');
+	await expect(wizard.getByText('уже есть – пропустим')).toBeVisible();
 	await expect(wizard.getByText('Ким О. С.')).toBeVisible();
 	await wizard.getByRole('button', { name: /Дальше/ }).click();
 	await wizard.getByRole('button', { name: /Дальше/ }).click();

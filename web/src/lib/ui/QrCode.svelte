@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { encode } from 'uqr';
 
-	// QR-код векторно: чёрные модули на белом поле — сканируется в любой теме.
+	// QR-код векторно: чёрные модули на белом поле – сканируется в любой теме.
 	let { value, label = 'QR-код' }: { value: string; label?: string } = $props();
 
 	const qr = $derived.by(() => {

@@ -623,7 +623,7 @@ public class HomeworkService {
       return null;
     }
     if (raw < 1 || raw > 3) {
-      throw ApiException.invalid("difficulty", "Сложность: 1 — легко, 2 — средне, 3 — сложно");
+      throw ApiException.invalid("difficulty", "Сложность: 1 – легко, 2 – средне, 3 – сложно");
     }
     return raw;
   }
@@ -632,7 +632,7 @@ public class HomeworkService {
   static String place(String raw) {
     String p = raw == null ? "" : raw.strip().replaceAll("\\s+", " ");
     if (p.length() > 80) {
-      throw ApiException.invalid("place", "Место — до 80 символов");
+      throw ApiException.invalid("place", "Место – до 80 символов");
     }
     return p;
   }

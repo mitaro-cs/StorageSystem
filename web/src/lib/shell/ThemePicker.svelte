@@ -14,6 +14,7 @@
 	import { DEFAULT_SAT, PRESETS, currentAccent, oklch, setAccent, type Accent } from '$lib/colors';
 	import {
 		ICONS,
+		MAX_BLUR,
 		MAX_DIM,
 		backgroundBlur,
 		backgroundDim,
@@ -28,7 +29,6 @@
 	import { session } from '$lib/session.svelte';
 	import { toast } from '$lib/toasts.svelte';
 	import Button from '$lib/ui/Button.svelte';
-	import Switch from '$lib/ui/Switch.svelte';
 
 	// Оформление под себя: режим, один из пяти дизайнов, основной цвет и его насыщенность, своя
 	// картинка на фоне и значок. Меняется сразу, хранится на этом устройстве.
@@ -38,7 +38,7 @@
 	let custom = $state(false);
 	let bgImage = $state<string | null>(null);
 	let dim = $state(0);
-	let blur = $state(false);
+	let blur = $state(0);
 	let fileInput: HTMLInputElement | undefined = $state();
 
 	onMount(() => {
@@ -49,7 +49,7 @@
 		bgImage = customBackground();
 		dim = backgroundDim();
 		blur = backgroundBlur();
-		// Тему могли сменить кнопкой в панели или из палитры — показываем то же.
+		// Тему могли сменить кнопкой в панели или из палитры – показываем то же.
 		return onTheme((t) => (theme = t));
 	});
 
@@ -81,7 +81,7 @@
 		setAccent(accent);
 	}
 
-	/** Ползунки: без плавного перехода — цвет идёт за пальцем. */
+	/** Ползунки: без плавного перехода – цвет идёт за пальцем. */
 	function slide(next: Partial<Accent>) {
 		accent = { ...accent, ...next };
 		setAccent(accent, false);
@@ -94,11 +94,11 @@
 		if (!file) return;
 		try {
 			if (!(await setCustomBackground(file))) {
-				toast('Картинка не поместилась в память браузера — выберите поменьше', 'error');
+				toast('Картинка не поместилась в память браузера – выберите поменьше', 'error');
 				return;
 			}
 		} catch {
-			toast('Эту картинку не открыть — выберите JPG, PNG или WebP', 'error');
+			toast('Эту картинку не открыть – выберите JPG, PNG или WebP', 'error');
 			return;
 		}
 		bgImage = customBackground();
@@ -117,13 +117,13 @@
 		import('$lib/looksSync').then((m) => m.removeBackground());
 	}
 
-	// Значок — общее состояние (appIcon): логотип в панели и выбор здесь всегда одинаковые.
+	// Значок – общее состояние (appIcon): логотип в панели и выбор здесь всегда одинаковые.
 	const icon = $derived(appIcon.id);
 	function pickIcon(i: AppIcon) {
 		setIcon(i);
 	}
 
-	/** Образец цвета — ярким, как на кнопке. */
+	/** Образец цвета – ярким, как на кнопке. */
 	const dot = (hue: number) => oklch(0.62, 0.25, hue);
 	const satLabel = $derived(
 		accent.sat < 25 ? 'спокойно' : accent.sat < 55 ? 'мягко' : accent.sat < 80 ? 'ярко' : 'сочно'
@@ -162,7 +162,7 @@
 					class:on={style === s.id}
 					onclick={() => pickStyle(s.id)}
 				>
-					<!-- Образец — маленький экран в этом дизайне: заголовок, две карточки и кнопка. -->
+					<!-- Образец – маленький экран в этом дизайне: заголовок, две карточки и кнопка. -->
 					<span class="look {s.id}" aria-hidden="true">
 						<i class="t"></i>
 						<i class="c c1" style:--subject="#4f7df5"><b></b><b class="short"></b></i>
@@ -246,8 +246,8 @@
 		</label>
 		<p class="hint">
 			{accent.hue === null
-				? '«Чернила» — чёрно-белая классика. Выберите цвет — и кнопки, фон и карточки станут в его тонах.'
-				: 'Меньше — спокойнее для глаз, больше — цветнее кнопки, фон и карточки.'}
+				? '«Чернила» – чёрно-белая классика. Выберите цвет – и кнопки, фон и карточки станут в его тонах.'
+				: 'Меньше – спокойнее для глаз, больше – цветнее кнопки, фон и карточки.'}
 		</p>
 	</div>
 
@@ -257,7 +257,7 @@
 			<span
 				class="bgp"
 				class:img={!!bgImage}
-				class:blur={blur && !!bgImage}
+				class:blur={blur > 0 && !!bgImage}
 				style:background-image={bgImage ? `url("${bgImage}")` : undefined}
 				style:--dim={dim / 100}
 				aria-hidden="true"
@@ -275,8 +275,11 @@
 				{/if}
 			</div>
 		</div>
+		{#if !bgImage}
+			<p class="muted small">Пока своей нет – фон сайта, как на странице входа.</p>
+		{/if}
 		{#if bgImage}
-			<!-- Картинка — в своих цветах; приглушить и размыть — если текст на ней теряется. -->
+			<!-- Картинка – в своих цветах; приглушить и размыть – если текст на ней теряется. -->
 			<label class="slider">
 				<span class="row-label"
 					>Приглушить <span class="value num">{dim === 0 ? 'как есть' : `${dim}%`}</span></span
@@ -292,10 +295,24 @@
 					oninput={(e) => slideDim(Number(e.currentTarget.value))}
 				/>
 			</label>
-			<div class="blur-row">
-				<span>Размыть картинку</span>
-				<Switch bind:checked={blur} label="Размыть картинку" onchange={setBackgroundBlur} />
-			</div>
+			<label class="slider">
+				<span class="row-label"
+					>Размыть <span class="value num">{blur === 0 ? 'нет' : `${blur} px`}</span></span
+				>
+				<input
+					type="range"
+					class="dim"
+					min="0"
+					max={MAX_BLUR}
+					step="2"
+					value={blur}
+					aria-label="Размыть картинку"
+					oninput={(e) => {
+						blur = Number(e.currentTarget.value);
+						setBackgroundBlur(blur);
+					}}
+				/>
+			</label>
 		{/if}
 		<input
 			bind:this={fileInput}
@@ -333,11 +350,11 @@
 			{#if session.me?.hostWindow}В приложении хоста значок в Dock (Mac) и на панели задач (Windows)
 				меняется сразу.
 			{/if}Во вкладке браузера меняется сразу. На Android значок на экране обновится сам, на iPhone
-			— если удалить сайт с экрана «Домой» и добавить снова. В тёмном оформлении значков iPhone
-			светлый значок темнеет — там лучше тёмный или цветной.
+			– если удалить сайт с экрана «Домой» и добавить снова. В тёмном оформлении значков iPhone
+			светлый значок темнеет – там лучше тёмный или цветной.
 		</p>
 	</div>
-	<p class="hint">Оформление и картинка — одни на всех ваших устройствах.</p>
+	<p class="hint">Оформление и картинка – одни на всех ваших устройствах.</p>
 </div>
 
 <style>
@@ -384,7 +401,7 @@
 		color: var(--text);
 		box-shadow: 0 1px 3px rgb(16 18 24 / 0.12);
 	}
-	/* На узком экране — без иконок: «Как в системе» должно поместиться целиком. */
+	/* На узком экране – без иконок: «Как в системе» должно поместиться целиком. */
 	@media (max-width: 420px) {
 		.seg button {
 			font-size: 13px;
@@ -778,15 +795,6 @@
 	}
 	.dim {
 		--track: linear-gradient(90deg, #8a8f99, rgb(var(--veil)));
-	}
-	.blur-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-		margin-top: var(--s3);
-		font-size: 14px;
-		font-weight: 550;
 	}
 	.icons {
 		display: grid;

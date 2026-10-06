@@ -124,7 +124,7 @@ fn main() {
                          groupbase снова.",
                         gone.display()
                     ))
-                    .title("campus")
+                    .title("Campus")
                     .show(move |_| handle.exit(1));
                 return Ok(());
             }
@@ -155,7 +155,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("не удалось запустить campus");
+        .expect("не удалось запустить Campus");
 
     app.run(|app, event| match event {
         // ⌘Q, «Выйти» в меню или завершение системы: сначала аккуратно останавливаем сервер.
@@ -191,14 +191,14 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
     let popup = app.clone();
     let downloads = app.clone();
     let window = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("index.html".into()))
-        .title("campus")
+        .title("Campus")
         .inner_size(1180.0, 800.0)
         .min_inner_size(380.0, 560.0)
         .visible(visible)
         // Файлы, перетащенные в окно, должна получить страница (зона «Выберите файл или
         // перетащите сюда»), а не оболочка: иначе вложение к заданию так не прикрепить.
         .disable_drag_drop_handler()
-        // Внутри окна — только сайт группы и заставка; остальные ссылки — в браузере.
+        // Внутри окна – только сайт группы и заставка; остальные ссылки – в браузере.
         .on_navigation(move |url| {
             let inside = is_local_page(url) || is_server_page(&nav, url);
             log(
@@ -223,7 +223,7 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
             let _ = popup.opener().open_url(url.as_str(), None::<&str>);
             NewWindowResponse::Deny
         })
-        // Скачанное (копии, архивы, файлы) — в «Загрузки», затем показываем файл.
+        // Скачанное (копии, архивы, файлы) – в «Загрузки», затем показываем файл.
         .on_download(move |_webview, event| {
             match event {
                 DownloadEvent::Requested { destination, .. } => {
@@ -248,7 +248,7 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
         })
         .on_page_load(|webview, payload| {
             if matches!(payload.event(), PageLoadEvent::Finished) {
-                // После перенаправлений реальный адрес — у самого окна.
+                // После перенаправлений реальный адрес – у самого окна.
                 let url = webview.url().unwrap_or_else(|_| payload.url().clone());
                 log(
                     webview.app_handle(),
@@ -257,7 +257,7 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
             }
         })
         .build()?;
-    // Окно и масштаб — под монитор: на большом мониторе окно больше и всё крупнее.
+    // Окно и масштаб – под монитор: на большом мониторе окно больше и всё крупнее.
     if let Some(z) = window_zoom(&window) {
         let _ = window.set_zoom(z);
         if let Ok(Some(m)) = window.current_monitor() {
@@ -277,7 +277,7 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
             api.prevent_close();
             let _ = w.hide();
         }
-        // Перетащили окно на другой монитор — масштаб под него.
+        // Перетащили окно на другой монитор – масштаб под него.
         WindowEvent::Moved(_) | WindowEvent::ScaleFactorChanged { .. } => {
             if let Some(z) = window_zoom(&w) {
                 let st = w.app_handle().state::<App>();
@@ -293,16 +293,16 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Масштаб интерфейса под монитор (просьба владельца — «везде выглядело одинаково»): сайт
-/// рассчитан на ширину около 1440 точек; на мониторе 1920 всё в 1,35 раза крупнее, на 2560 — в 1,5,
-/// на тесном ноутбуке — чуть мельче. Шаг — 5 %.
+/// Масштаб интерфейса под монитор (просьба владельца – «везде выглядело одинаково»): сайт
+/// рассчитан на ширину около 1440 точек; на мониторе 1920 всё в 1,35 раза крупнее, на 2560 – в 1,5,
+/// на тесном ноутбуке – чуть мельче. Шаг – 5 %.
 fn monitor_zoom(window: &tauri::WebviewWindow) -> Option<f64> {
     let m = window.current_monitor().ok().flatten()?;
     let width = m.size().to_logical::<f64>(m.scale_factor()).width;
     Some(zoom_for(width))
 }
 
-/// Масштаб окна: свой из «Профиль → Приложение → Масштаб окна» или «Авто» — под монитор.
+/// Масштаб окна: свой из «Профиль → Приложение → Масштаб окна» или «Авто» – под монитор.
 fn window_zoom(window: &tauri::WebviewWindow) -> Option<f64> {
     let manual = read_pref_number(window.app_handle(), "zoom");
     if manual >= 50.0 {
@@ -311,13 +311,13 @@ fn window_zoom(window: &tauri::WebviewWindow) -> Option<f64> {
     monitor_zoom(window)
 }
 
-/// «Авто» (0.8.1 — мягче, владельцу на 1920 было слишком крупно): 1920 — 110 %, 2560 и шире —
-/// 125 %, ноутбуки — 85 %. Шаг 5 %.
+/// «Авто» (0.8.1 – мягче, владельцу на 1920 было слишком крупно): 1920 – 110 %, 2560 и шире –
+/// 125 %, ноутбуки – 85 %. Шаг 5 %.
 fn zoom_for(width: f64) -> f64 {
     ((width / 1760.0).clamp(0.85, 1.25) * 20.0).round() / 20.0
 }
 
-/// Выбрали масштаб в окне: применить сразу и запомнить (0 — «Авто»).
+/// Выбрали масштаб в окне: применить сразу и запомнить (0 – «Авто»).
 fn set_window_zoom(app: &AppHandle, value: f64) {
     write_pref_value(app, "zoom", serde_json::json!(value));
     if let Some(w) = app.get_webview_window(MAIN) {
@@ -328,7 +328,7 @@ fn set_window_zoom(app: &AppHandle, value: f64) {
     }
 }
 
-/// Адрес без параметров: в ссылке входа — одноразовый токен, в журнал он не попадает.
+/// Адрес без параметров: в ссылке входа – одноразовый токен, в журнал он не попадает.
 fn without_query(url: &Url) -> String {
     let mut u = url.clone();
     u.set_query(None);
@@ -363,7 +363,7 @@ fn is_server_page(app: &AppHandle, url: &Url) -> bool {
     }
 }
 
-/// Файл с таким именем уже есть — добавляем « (2)», « (3)»…
+/// Файл с таким именем уже есть – добавляем « (2)», « (3)»…
 fn unique(path: PathBuf) -> PathBuf {
     if !path.exists() {
         return path;
@@ -455,7 +455,7 @@ fn to_splash(app: &AppHandle) {
     }
 }
 
-/// Причина по хвосту журнала сервера — там, где сервер не успел сказать её сам.
+/// Причина по хвосту журнала сервера – там, где сервер не успел сказать её сам.
 fn classify(tail: &str) -> Option<(&'static str, &'static str)> {
     if tail.contains("No space left") || tail.contains("SQLITE_FULL") {
         Some((
@@ -499,12 +499,12 @@ fn runtime(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
     if !java.exists() || !jar.exists() {
         return Err(format!(
             "Не найдены файлы приложения (встроенная Java или сервер) в {}. Переустановите \
-             groupbase поверх — данные сохранятся.",
+             Campus поверх – данные сохранятся.",
             res.display()
         ));
     }
     // Приложение скачано из интернета и уже разрешено пользователем, но встроенная Java несёт
-    // свой флаг карантина — снимаем его, чтобы macOS не спрашивала про неё отдельно.
+    // свой флаг карантина – снимаем его, чтобы macOS не спрашивала про неё отдельно.
     #[cfg(target_os = "macos")]
     let _ = Command::new("/usr/bin/xattr")
         .args(["-dr", "com.apple.quarantine"])
@@ -536,7 +536,7 @@ fn start_server(app: &AppHandle) {
         .ok();
     let mut cmd = Command::new(&java);
     // Java на Windows читает аргументы в кодировке системы: путь с кириллицей в имени пользователя
-    // может не дойти. Поэтому jar — относительно рабочего каталога, а каталог данных — через
+    // может не дойти. Поэтому jar – относительно рабочего каталога, а каталог данных – через
     // переменную окружения (она всегда в Юникоде).
     if let Some(dir) = jar.parent() {
         cmd.current_dir(dir);
@@ -573,7 +573,7 @@ fn start_server(app: &AppHandle) {
     log(app, &format!("сервер запущен (pid {})", child.id()));
     let stdout = child.stdout.take();
     let child = Arc::new(Mutex::new(child));
-    // Перезапущенный сервер не знает, что новая версия уже найдена, — иначе кнопка «Обновить»
+    // Перезапущенный сервер не знает, что новая версия уже найдена, – иначе кнопка «Обновить»
     // пропала бы до следующей проверки через 6 часов.
     let known = st.update.lock().unwrap().clone();
     {
@@ -601,7 +601,7 @@ fn start_server(app: &AppHandle) {
     thread::spawn(move || watch(app, child));
 }
 
-/// Ждём завершения сервера: код 3 — перезапуск, иначе (если это не выход) — ошибка на заставке.
+/// Ждём завершения сервера: код 3 – перезапуск, иначе (если это не выход) – ошибка на заставке.
 fn watch(app: AppHandle, child: Arc<Mutex<Child>>) {
     let code = loop {
         if let Ok(Some(status)) = child.lock().unwrap().try_wait() {
@@ -627,7 +627,7 @@ fn watch(app: AppHandle, child: Arc<Mutex<Child>>) {
     }
     let tail = log_tail(&st.data.join("logs").join("java.log"));
     let last = st.server.lock().unwrap().status.clone();
-    // Причина — от самого сервера (он успел сказать), иначе по журналу, иначе — просто «упал».
+    // Причина – от самого сервера (он успел сказать), иначе по журналу, иначе – просто «упал».
     let (code, reason) = if last.error {
         (
             last.code.unwrap_or_else(|| "GB-200".into()),
@@ -678,7 +678,7 @@ fn on_event(app: &AppHandle, v: &Value) {
         "enter" => navigate(app, &text("url")),
         "access" => {
             let url = text("url");
-            // Сайт работает на другом компьютере хоста — сервер присылает, что написать в меню.
+            // Сайт работает на другом компьютере хоста – сервер присылает, что написать в меню.
             let label = text("label");
             let st = app.state::<App>();
             st.server.lock().unwrap().public = if url.is_empty() {
@@ -707,7 +707,7 @@ fn on_event(app: &AppHandle, v: &Value) {
                 &text("message"),
             );
         }
-        // Выбрали значок в окне хоста — Dock на Mac, панель задач на Windows; запоминаем.
+        // Выбрали значок в окне хоста – Dock на Mac, панель задач на Windows; запоминаем.
         "icon" => {
             let id = text("icon");
             if id == "dark" || icon_png(&id).is_some() {
@@ -720,7 +720,7 @@ fn on_event(app: &AppHandle, v: &Value) {
             let value = v.get("value").and_then(Value::as_f64).unwrap_or(0.0);
             set_window_zoom(app, value);
         }
-        // «Сменить папку…» в «Управление → Сервер → Состояние»: диалоги блокирующие — не здесь.
+        // «Сменить папку…» в «Управление → Сервер → Состояние»: диалоги блокирующие – не здесь.
         "choose-data" => {
             let app = app.clone();
             thread::spawn(move || choose_data(&app));
@@ -746,7 +746,7 @@ fn short(url: &str) -> String {
         .to_string()
 }
 
-/// «Разрешить подключение?» — ответ уходит серверу командой `peer-allow` / `peer-deny`.
+/// «Разрешить подключение?» – ответ уходит серверу командой `peer-allow` / `peer-deny`.
 fn ask_peer(app: &AppHandle, id: &str, name: &str) {
     if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric()) {
         return;
@@ -783,7 +783,7 @@ fn send(server: &mut Server, command: &str) {
     }
 }
 
-/// Выход: сервер завершается сам (закрывает базу и туннель), через 15 секунд — принудительно.
+/// Выход: сервер завершается сам (закрывает базу и туннель), через 15 секунд – принудительно.
 fn quit(app: &AppHandle) {
     let st = app.state::<App>();
     let child = {
@@ -857,7 +857,7 @@ fn current_status(app: AppHandle) -> Status {
 // ---------- трей ----------
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Открыть campus", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Открыть Campus", true, None::<&str>)?;
     let copy = MenuItem::with_id(
         app,
         "copy",
@@ -918,7 +918,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     TrayIconBuilder::with_id("main")
         .icon(icon)
         .icon_as_template(cfg!(target_os = "macos"))
-        .tooltip("campus — сервер группы")
+        .tooltip("Campus – сервер группы")
         .menu(&menu)
         .show_menu_on_left_click(cfg!(target_os = "macos"))
         .on_menu_event(move |app, event| match event.id().as_ref() {
@@ -956,7 +956,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            // Windows: щелчок по значку открывает окно (меню — правой кнопкой).
+            // Windows: щелчок по значку открывает окно (меню – правой кнопкой).
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
@@ -985,7 +985,7 @@ fn schedule_update_checks(app: AppHandle) {
     });
 }
 
-/// interactive — пользователь сам нажал «Проверить»: ему ответят и «обновлений нет».
+/// interactive – пользователь сам нажал «Проверить»: ему ответят и «обновлений нет».
 fn check_update(app: &AppHandle, interactive: bool) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -1013,7 +1013,7 @@ fn check_update(app: &AppHandle, interactive: bool) {
             Ok(None) => {
                 remember_update(&app, None);
                 if interactive {
-                    info(&app, "У вас последняя версия campus.");
+                    info(&app, "У вас последняя версия Campus.");
                 }
             }
             Err(e) => {
@@ -1047,7 +1047,7 @@ fn remember_update(app: &AppHandle, version: Option<&str>) {
 }
 
 fn info(app: &AppHandle, text: &str) {
-    app.dialog().message(text).title("campus").show(|_| {});
+    app.dialog().message(text).title("Campus").show(|_| {});
 }
 
 fn ask_update(app: &AppHandle, version: &str) {
@@ -1057,7 +1057,7 @@ fn ask_update(app: &AppHandle, version: &str) {
             "Вышла новая версия groupbase {version}. Обновить сейчас?\n\nСайт группы будет недоступен \
              около минуты, данные сохранятся."
         ))
-        .title("Обновление campus")
+        .title("Обновление Campus")
         .buttons(MessageDialogButtons::OkCancelCustom(
             "Обновить".to_string(),
             "Позже".to_string(),
@@ -1083,7 +1083,7 @@ fn install_update(app: &AppHandle) {
     show_splash(app, "Скачиваем обновление…", false);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        // Не вышло — окно возвращается на сайт (он работает на прежней версии), а причина — в окне
+        // Не вышло – окно возвращается на сайт (он работает на прежней версии), а причина – в окне
         // сообщения: заставка с ошибкой здесь не нужна, сервер ведь не падал.
         let fail = |app: &AppHandle, why: String| {
             log(app, &format!("обновление: {why}"));
@@ -1109,7 +1109,7 @@ fn install_update(app: &AppHandle) {
                 remember_update(&app, None);
                 set_status(&app, "Готово", false);
                 send_enter(&app);
-                info(&app, "У вас уже последняя версия campus.");
+                info(&app, "У вас уже последняя версия Campus.");
                 return;
             }
             Err(e) => return fail(&app, e.to_string()),
@@ -1141,7 +1141,7 @@ fn install_update(app: &AppHandle) {
             Err(e) => return fail(&app, e.to_string()),
         };
         set_status(&app, "Устанавливаем обновление…", false);
-        // Файлы Java и сервера будут заменены — сервер должен остановиться до установки.
+        // Файлы Java и сервера будут заменены – сервер должен остановиться до установки.
         stop_server(&app);
         match update.install(bytes) {
             Ok(()) => {
@@ -1215,8 +1215,8 @@ fn chosen_data(base: &Path) -> Option<PathBuf> {
         .map(|p| plain(&p))
 }
 
-/// Папка для данных в выбранной: сама она, если пустая или в ней уже данные groupbase, иначе —
-/// подпапка «groupbase» (выбрали «Документы» — не мусорим в них).
+/// Папка для данных в выбранной: сама она, если пустая или в ней уже данные groupbase, иначе –
+/// подпапка «groupbase» (выбрали «Документы» – не мусорим в них).
 fn data_target(picked: &Path) -> PathBuf {
     let empty = fs::read_dir(picked)
         .map(|mut d| d.next().is_none())
@@ -1255,7 +1255,7 @@ fn copy_dir(from: &Path, to: &Path) -> std::io::Result<u64> {
     Ok(bytes)
 }
 
-/// Все файлы на месте и того же размера — тогда старую папку можно убрать.
+/// Все файлы на месте и того же размера – тогда старую папку можно убрать.
 fn same_files(from: &Path, to: &Path) -> bool {
     let Ok(entries) = fs::read_dir(from) else {
         return false;
@@ -1311,7 +1311,7 @@ fn remove_old(old: &Path, base: &Path) {
 }
 
 /// Выбрать другую папку для данных сайта: скопировать, проверить, переключиться и перезапуститься.
-/// В папке уже есть данные groupbase — переключиться на них (текущие остаются на месте).
+/// В папке уже есть данные groupbase – переключиться на них (текущие остаются на месте).
 fn choose_data(app: &AppHandle) {
     let current = app.state::<App>().data.clone();
     let Ok(base) = app.path().app_data_dir().map(|p| plain(&p)) else {
@@ -1333,7 +1333,7 @@ fn choose_data(app: &AppHandle) {
     if target.starts_with(&current) {
         info(
             app,
-            "Нельзя перенести данные внутрь их же папки — выберите другую.",
+            "Нельзя перенести данные внутрь их же папки – выберите другую.",
         );
         return;
     }
@@ -1400,15 +1400,15 @@ fn choose_data(app: &AppHandle) {
     app.restart();
 }
 
-/// Пока включено, компьютер не уходит в сон — сайт остаётся доступным группе.
+/// Пока включено, компьютер не уходит в сон – сайт остаётся доступным группе.
 fn set_awake(app: &AppHandle, on: bool) {
     let st = app.state::<App>();
     let mut guard = st.awake.lock().unwrap();
     *guard = if on {
         keepawake::Builder::default()
             .idle(true)
-            .reason("campus: сервер группы работает")
-            .app_name("campus")
+            .reason("Campus: сервер группы работает")
+            .app_name("Campus")
             .app_reverse_domain("app.groupbase")
             .create()
             .ok()
@@ -1461,8 +1461,8 @@ fn write_pref_value(app: &AppHandle, key: &str, value: Value) {
     let _ = fs::write(path, v.to_string());
 }
 
-/// Картинки значков на выбор (web/static/icons, `java scripts/Icons.java variants`). «dark» — значок
-/// приложения по умолчанию: для него — None, ставится родной.
+/// Картинки значков на выбор (web/static/icons, `java scripts/Icons.java variants`). «dark» – значок
+/// приложения по умолчанию: для него – None, ставится родной.
 fn icon_png(id: &str) -> Option<&'static [u8]> {
     Some(match id {
         "light" => include_bytes!("../../../web/static/icons/icon-512.png"),
@@ -1495,7 +1495,7 @@ fn show_icon(_app: &AppHandle, png: Option<&'static [u8]>) {
     unsafe { app.setApplicationIconImage(image.as_deref()) };
 }
 
-/// Windows и Linux: значок окна — он же на панели задач.
+/// Windows и Linux: значок окна – он же на панели задач.
 #[cfg(not(target_os = "macos"))]
 fn show_icon(app: &AppHandle, png: Option<&'static [u8]>) {
     let icon = match png {
@@ -1540,7 +1540,7 @@ mod tests {
         fs::write(to.join("files").join("a"), "ab").unwrap();
         assert!(!same_files(&from, &to));
 
-        // Указатель: в стандартный каталог — не нужен, в другой — записан и читается.
+        // Указатель: в стандартный каталог – не нужен, в другой – записан и читается.
         let base = root.join("base");
         write_location(&base, &to).unwrap();
         assert_eq!(chosen_data(&base), Some(plain(&to)));

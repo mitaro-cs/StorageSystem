@@ -19,7 +19,7 @@
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 
-	// compose={false} — кнопка «+ Задание» уже есть рядом (на странице предмета — в его панели).
+	// compose={false} – кнопка «+ Задание» уже есть рядом (на странице предмета – в его панели).
 	let {
 		subjectId = null,
 		title = true,
@@ -33,7 +33,7 @@
 	let overdueCount = $state(0);
 	let composer = $state(false);
 	const now = Date.now();
-	// Фильтр по типу: зачёты и экзамены — одной кнопкой.
+	// Фильтр по типу: зачёты и экзамены – одной кнопкой.
 	type KindFilter = 'all' | Exclude<HomeworkKind, 'credit' | 'exam'> | 'exams';
 	let kind = $state<KindFilter>('all');
 	const kindKey = (k: string): KindFilter => (isExam(k) ? 'exams' : (k as KindFilter));
@@ -49,7 +49,7 @@
 		items && kind !== 'all' ? items.filter((h) => kindKey(h.kind) === kind) : items
 	);
 	$effect(() => {
-		// Выбранного типа больше нет в списке (другая вкладка) — показываем всё.
+		// Выбранного типа больше нет в списке (другая вкладка) – показываем всё.
 		if (kind !== 'all' && !kindChips.some((c) => c.value === kind)) kind = 'all';
 	});
 
@@ -87,7 +87,7 @@
 		{ label: 'Просрочено', value: 'overdue', count: overdueCount }
 	]);
 
-	/** Выполненные опускаются вниз — с анимацией перестановки. */
+	/** Выполненные опускаются вниз – с анимацией перестановки. */
 	const sortDone = (list: Homework[]) =>
 		[...list].sort((a, b) => Number(a.done) - Number(b.done) || a.dueAt - b.dueAt);
 

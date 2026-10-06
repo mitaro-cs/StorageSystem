@@ -11,6 +11,8 @@ describe('как открыть файл', () => {
 		['video/mp4', 'разбор.mp4', 'video'],
 		['audio/mpeg', 'лекция.mp3', 'audio'],
 		['text/plain', 'readme.txt', 'text'],
+		['text/x-web-markdown', 'Лекция 1.md', 'markdown'],
+		['text/plain', 'конспект.MD', 'markdown'],
 		['application/octet-stream', 'lab.py', 'text'],
 		['text/html', 'page.html', 'text'],
 		['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'ДЗ.docx', 'other'],

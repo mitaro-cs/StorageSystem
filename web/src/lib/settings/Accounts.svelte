@@ -84,7 +84,7 @@
 				: 'При первом входе пароль нужно будет сменить.'}
 			Этот лист больше не покажется.
 		</p>
-		<p class="print-only"><strong>{groupName}</strong> — доступ к сайту группы</p>
+		<p class="print-only"><strong>{groupName}</strong> – доступ к сайту группы</p>
 		<table>
 			<thead>
 				<tr>
@@ -119,7 +119,7 @@
 	<form class="form" class:card={!embedded} class:bare={embedded} onsubmit={create}>
 		{#if !embedded}<h2>Создать аккаунты</h2>{/if}
 		<p class="muted small">
-			Вставьте список: по одному ФИО на строку или CSV <code>username,ФИО</code>. Отчество — если
+			Вставьте список: по одному ФИО на строку или CSV <code>username,ФИО</code>. Отчество – если
 			есть. Логины без указания придумаются сами (Петров Иван → petrov.ivan).
 		</p>
 		<textarea

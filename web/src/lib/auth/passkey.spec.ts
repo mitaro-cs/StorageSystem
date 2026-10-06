@@ -18,7 +18,7 @@ describe('ключи входа', () => {
 		});
 		expect(passkeysSupported(w('bik2401.cloudpub.ru'))).toBe(true);
 		expect(passkeysSupported(w('localhost'))).toBe(true);
-		// Окно хоста (127.0.0.1) и адрес в локальной сети — по IP ключи не работают.
+		// Окно хоста (127.0.0.1) и адрес в локальной сети – по IP ключи не работают.
 		expect(passkeysSupported(w('127.0.0.1'))).toBe(false);
 		expect(passkeysSupported(w('192.168.1.5'))).toBe(false);
 		expect(passkeysSupported(w('site.ru', false))).toBe(false);
@@ -44,7 +44,7 @@ describe('passkeyError', () => {
 		expect(passkeyError(dom('NotAllowedError'))).toMatch(/^Отменено/);
 	});
 
-	it('ключ безопасности без хранения входа — подсказываем, какой нужен', () => {
+	it('ключ безопасности без хранения входа – подсказываем, какой нужен', () => {
 		expect(passkeyError(dom('NotSupportedError'), 'add', true)).toMatch(/FIDO2/);
 		expect(passkeyError(dom('NotSupportedError'))).toMatch(/не умеет/);
 	});

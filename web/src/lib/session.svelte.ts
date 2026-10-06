@@ -4,7 +4,7 @@ import type { Me, MeGroup, Permission } from './types';
 
 const GROUP_KEY = 'gb-group';
 
-/** Текущий пользователь и выбранная группа (null — «все группы» в режиме multi). */
+/** Текущий пользователь и выбранная группа (null – «все группы» в режиме multi). */
 export const session = $state<{ me: Me | null; groupId: number | null }>({
 	me: null,
 	groupId: null
@@ -80,7 +80,7 @@ const MANAGE: ReadonlySet<Permission> = new Set<Permission>([
 ]);
 
 /**
- * Режим управления включён. Выключать его может только хост — администратор сайта: у старосты,
+ * Режим управления включён. Выключать его может только хост – администратор сайта: у старосты,
  * замов и модераторов кнопки управления видны всегда (так решил владелец).
  */
 export function manageMode(): boolean {
@@ -101,7 +101,7 @@ export async function setManageMode(on: boolean): Promise<void> {
 	}
 }
 
-/** Переключатель «Режим управления» — только у администратора сайта (хоста). */
+/** Переключатель «Режим управления» – только у администратора сайта (хоста). */
 export function canToggleManage(): boolean {
 	return session.me?.user.instanceRole === 'admin';
 }
@@ -120,7 +120,7 @@ export function can(perm: Permission, groupId?: number | null): boolean {
 	return realCan(perm, groupId);
 }
 
-/** Право без учёта режима управления — для проверок, которые не про кнопки. */
+/** Право без учёта режима управления – для проверок, которые не про кнопки. */
 export function realCan(perm: Permission, groupId?: number | null): boolean {
 	const me = session.me;
 	if (!me) return false;
@@ -142,7 +142,7 @@ export function isAdmin(): boolean {
 
 /**
  * Права, у которых есть свой раздел в «Управлении». Журнал действий сюда не входит: модератору
- * пункт «Управление» не нужен — его журнал в «Модерации».
+ * пункт «Управление» не нужен – его журнал в «Модерации».
  */
 const SETTINGS_PERMS: Permission[] = [
 	'create_accounts',
@@ -154,7 +154,7 @@ const SETTINGS_PERMS: Permission[] = [
 ];
 
 /**
- * Есть ли чем управлять (пункт «Управление»). Всё своё — тема, уведомления, пароль — в личных
+ * Есть ли чем управлять (пункт «Управление»). Всё своё – тема, уведомления, пароль – в личных
  * настройках (шестерёнка у имени), они есть у каждого.
  */
 export function hasSettings(): boolean {

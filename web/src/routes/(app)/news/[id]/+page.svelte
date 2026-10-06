@@ -31,7 +31,7 @@
 	});
 </script>
 
-<svelte:head><title>{item?.title ?? 'Новость'} · campus</title></svelte:head>
+<svelte:head><title>{item?.title ?? 'Новость'} · Campus</title></svelte:head>
 
 <BackBar href="/news" label="Новости" />
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ADMIN, login, watchConsole } from './helpers';
+import { ADMIN, login, watchConsole, fillFio } from './helpers';
 
 test('первые шаги, QR-приглашение и помощь для новичков', async ({ page, browser }) => {
 	const errors = watchConsole(page);
@@ -32,7 +32,7 @@ test('первые шаги, QR-приглашение и помощь для н
 	const ctx = await browser.newContext({ locale: 'ru-RU', viewport: { width: 390, height: 844 } });
 	const guest = await ctx.newPage();
 	await guest.goto(link!.trim());
-	await guest.getByLabel('ФИО').fill('Петров Иван Сергеевич');
+	await fillFio(guest, 'Петров Иван Сергеевич');
 	await expect(guest.getByLabel('Имя пользователя для входа')).toHaveValue('petrov.ivan');
 	await guest.goto('/login');
 	await guest.getByRole('button', { name: 'Забыли пароль или логин?' }).click();

@@ -101,7 +101,7 @@ public class FxTunnelApi {
   /** Токен недействителен — нужно войти заново. */
   public static final class Unauthorized extends IOException {
     public Unauthorized() {
-      super("Вход в fxTunnel устарел — войдите заново");
+      super("Вход в fxTunnel устарел – войдите заново");
     }
   }
 }

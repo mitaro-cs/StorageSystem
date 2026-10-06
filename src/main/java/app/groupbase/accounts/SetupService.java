@@ -85,7 +85,7 @@ public class SetupService {
   void announce() {
     if (env.matchesProfiles("serve") && needed()) {
       log.warn(
-          "Сайт группы ещё не настроен. Откройте ссылку — код уже в ней: {}"
+          "Сайт группы ещё не настроен. Откройте ссылку – код уже в ней: {}"
               + " (код отдельно: {}; или выполните groupbase init)",
           setupLink(),
           setupCode);
@@ -123,7 +123,7 @@ public class SetupService {
     settings.set(InstanceSettings.MODE, mode.id());
     String name = req.instanceName() == null ? "" : req.instanceName().strip();
     if (name.length() > 60) {
-      throw ApiException.invalid("instanceName", "Название — до 60 символов");
+      throw ApiException.invalid("instanceName", "Название – до 60 символов");
     }
     Group g = req.group() == null ? null : groups.createSystem(req.group());
     if (name.isEmpty() && g != null) {

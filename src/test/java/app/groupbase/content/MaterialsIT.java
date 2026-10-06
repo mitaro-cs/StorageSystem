@@ -439,4 +439,32 @@ class MaterialsIT extends IntegrationTest {
     // Поиск находит сообщение по тексту.
     assertThat(student.api().get("/api/search?q=Ряды").body()).contains("Билеты к экзамену");
   }
+
+  @Test
+  void markdownNotesOpenAsPageAndDownloadAsWord() {
+    long g = newGroup("Конспекты");
+    TestUser headman = newUser(g, "headman");
+    TestUser stranger = newUser(newGroup("Чужие конспекты"), "student");
+    long s = subject(g);
+    byte[] md = "# Лекция 1\n\nТеорема **Ферма**.".getBytes(StandardCharsets.UTF_8);
+    long id = headman.api().upload("Лекция 1.md", md).json().get("id").asLong();
+    headman.api().post("/api/subjects/" + s + "/materials", Map.of("kind", "file", "fileId", id));
+
+    var html = headman.api().get("/api/files/" + id + "/html");
+    assertThat(html.status()).as(html.body()).isEqualTo(200);
+    assertThat(html.json().get("html").asString())
+        .contains("<h1>Лекция 1</h1>", "<strong>Ферма</strong>");
+
+    var word = headman.api().download("/api/files/" + id + "/docx");
+    assertThat(word.statusCode()).isEqualTo(200);
+    assertThat(word.headers().firstValue("Content-Disposition").orElseThrow()).contains(".docx");
+    assertThat(new String(word.body(), 0, 2, StandardCharsets.US_ASCII)).isEqualTo("PK");
+
+    // Чужой не видит; не Markdown — не превращается.
+    assertThat(stranger.api().get("/api/files/" + id + "/html").status()).isEqualTo(404);
+    long pdf =
+        headman.api().upload("a.pdf", "%PDF-1.4 x %%EOF".getBytes()).json().get("id").asLong();
+    headman.api().post("/api/subjects/" + s + "/materials", Map.of("kind", "file", "fileId", pdf));
+    assertThat(headman.api().get("/api/files/" + pdf + "/docx").status()).isEqualTo(400);
+  }
 }

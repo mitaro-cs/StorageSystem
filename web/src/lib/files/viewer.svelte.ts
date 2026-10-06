@@ -8,7 +8,7 @@ export const viewer = $state<{ files: FileInfo[]; index: number; open: boolean; 
 	title: ''
 });
 
-/** Открыть файл (и соседние — листать стрелками или свайпом). */
+/** Открыть файл (и соседние – листать стрелками или свайпом). */
 export function openFiles(files: FileInfo[], index = 0, title = '') {
 	viewer.files = files;
 	viewer.index = Math.max(0, Math.min(index, files.length - 1));

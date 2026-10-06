@@ -184,10 +184,10 @@ public class Notifier implements DisposableBean {
   String homeworkText(HomeworkService.Published e) {
     boolean exam = e.kind() == HomeworkService.Kind.CREDIT || e.kind() == HomeworkService.Kind.EXAM;
     if (!exam) {
-      return e.title() + " — сдать до " + due(e.dueAt());
+      return e.title() + " – сдать до " + due(e.dueAt());
     }
     return e.title()
-        + " — "
+        + " – "
         + due(e.dueAt())
         + (e.place() == null || e.place().isBlank() ? "" : ", " + e.place());
   }

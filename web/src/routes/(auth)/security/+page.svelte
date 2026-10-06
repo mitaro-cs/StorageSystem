@@ -66,7 +66,7 @@
 	}
 </script>
 
-<svelte:head><title>Безопасность · campus</title></svelte:head>
+<svelte:head><title>Безопасность · Campus</title></svelte:head>
 
 {#if recoveryCodes}
 	<h1>Сохраните резервные коды</h1>
@@ -78,7 +78,7 @@
 	/>
 {:else if restriction === 'password_change_required'}
 	<h1>Смените пароль</h1>
-	<p class="muted">Вы вошли по временному паролю. Придумайте свой — его будете знать только вы.</p>
+	<p class="muted">Вы вошли по временному паролю. Придумайте свой – его будете знать только вы.</p>
 	<form onsubmit={submit}>
 		<PasswordFields bind:password bind:confirm />
 		{#if error}<p class="error-text" role="alert">{error}</p>{/if}
@@ -95,7 +95,7 @@
 			<div class="qr"><QrCode value={uri} label="QR-код" /></div>
 			<p class="hint">
 				Не сканируется? Введите ключ вручную: <code class="num">{groupKey(secret)}</code>. Если
-				запись campus уже была в приложении — удалите её и добавьте заново.
+				запись Campus уже была в приложении – удалите её и добавьте заново.
 			</p>
 		{/if}
 		<div>

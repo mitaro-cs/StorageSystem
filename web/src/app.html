@@ -11,9 +11,9 @@
 		<meta name="color-scheme" content="light dark" />
 		<meta name="theme-color" content="#f1f2f4" media="(prefers-color-scheme: light)" />
 		<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
-		<!-- Значок во вкладке, для экрана «Домой» и manifest ставит скрипт ниже — сразу выбранный
+		<!-- Значок во вкладке, для экрана «Домой» и manifest ставит скрипт ниже – сразу выбранный
 		     (lib/looks.ts ICONS): если бы тут стоял стандартный, браузер успевал его прочитать, и
-		     выбранный на телефон не попадал. ?v=3 — иконки кешируются на месяц. -->
+		     выбранный на телефон не попадал. ?v=3 – иконки кешируются на месяц. -->
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<link
@@ -27,14 +27,14 @@
 			try {
 				var t = localStorage.getItem('gb-theme');
 				if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
-				// Основной цвет — до первой отрисовки, чтобы страница не мигнула «Чернилами»: готовые
-				// переменные посчитал lib/colors.ts (только «--pal…:#цвет» — ничего другого не ставим).
+				// Основной цвет – до первой отрисовки, чтобы страница не мигнула «Чернилами»: готовые
+				// переменные посчитал lib/colors.ts (только «--pal…:#цвет» – ничего другого не ставим).
 				var css = localStorage.getItem('gb-accent-css');
 				if (css && /^(--[a-z0-9-]+:[#0-9a-f]+;?)+$/.test(css)) {
 					document.documentElement.style.cssText = css;
 					document.documentElement.setAttribute('data-accent', '');
 				}
-				// Дизайн (Настройки → Оформление): «Классика» — без атрибута.
+				// Дизайн (Настройки → Оформление): «Классика» – без атрибута.
 				var st = localStorage.getItem('gb-style');
 				if (/^(glass|depth|neon|paper)$/.test(st || ''))
 					document.documentElement.setAttribute('data-style', st);
@@ -46,12 +46,33 @@
 					var dim = localStorage.getItem('gb-bg-dim');
 					if (/^\d{1,2}$/.test(dim || '') && +dim <= 80)
 						document.documentElement.style.setProperty('--bg-dim', String(dim / 100));
-					if (localStorage.getItem('gb-bg-blur') === '1')
+					var bl = localStorage.getItem('gb-bg-blur');
+					bl = bl === '1' ? 16 : +bl;
+					if (bl > 0 && bl <= 40) {
 						document.documentElement.setAttribute('data-bg-blur', '');
+						document.documentElement.style.setProperty('--bg-blur', bl + 'px');
+					}
+				}
+				// Масштаб интерфейса на этом устройстве (Профиль → Приложение); в окне хоста – свой.
+				var sc = +localStorage.getItem('gb-ui-scale');
+				if (sc >= 80 && sc <= 150 && sc !== 100 && !/[?&]enter=/.test(location.search))
+					document.documentElement.style.zoom = String(sc / 100);
+				// Своей картинки нет – фон сайта, как на странице входа (lib/looks.ts applySiteBackground).
+				if (!img) {
+					var sb = localStorage.getItem('gb-login-bg') || 'preset:aurora';
+					var m = /^image:([0-9a-f]{20})$/.exec(sb);
+					var pr = /^preset:(aurora|paper|notebook|night)$/.exec(sb);
+					if (m) {
+						document.documentElement.setAttribute('data-bg', 'site');
+						document.documentElement.style.setProperty(
+							'--bg-image',
+							'url("/api/appearance/background/' + m[1] + '.webp")'
+						);
+					} else if (pr) document.documentElement.setAttribute('data-site-bg', pr[1]);
 				}
 				var ic = localStorage.getItem('gb-icon');
 			} catch (e) {}
-			// Значок во вкладке и для установки на экран «Домой». По умолчанию — тёмный: белый
+			// Значок во вкладке и для установки на экран «Домой». По умолчанию – тёмный: белый
 			// логотип виден и в тёмном оформлении значков iPhone (светлый там темнеет целиком).
 			(function (ic) {
 				var light = ic === 'light';
@@ -69,8 +90,8 @@
 				);
 				add('manifest', light ? '/manifest.webmanifest' : '/manifest-' + ic + '.webmanifest');
 			})(/^(light|dark|ocean|forest|sunset|grape)$/.test(ic || '') ? ic : 'dark');
-			// Данные первого экрана — сразу, пока грузится код интерфейса: через туннель каждый
-			// запрос — задержка, а так они идут параллельно (lib/early.ts забирает ответы).
+			// Данные первого экрана – сразу, пока грузится код интерфейса: через туннель каждый
+			// запрос – задержка, а так они идут параллельно (lib/early.ts забирает ответы).
 			try {
 				var path = location.pathname;
 				var app =
@@ -93,7 +114,7 @@
 				}
 			} catch (e) {}
 		</script>
-		<title>campus</title>
+		<title>Campus</title>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
@@ -104,7 +125,7 @@
 		<div id="splash" aria-hidden="true">
 			<style>
 				/* Уход заставки: из середины раскрывается круг, в нём проявляется приложение, а плитка
-				   логотипа приближается и тает. Без @property (старые браузеры) — просто растворяется. */
+				   логотипа приближается и тает. Без @property (старые браузеры) – просто растворяется. */
 				@property --hole {
 					syntax: '<length>';
 					inherits: false;
@@ -172,7 +193,7 @@
 					height: 132px;
 					overflow: visible;
 				}
-				/* Плитка логотипа — белая, как значок приложения; на светлом фоне — с тонкой каймой. */
+				/* Плитка логотипа – белая, как значок приложения; на светлом фоне – с тонкой каймой. */
 				#splash .t {
 					transform-box: fill-box;
 					transform-origin: center;
@@ -193,7 +214,7 @@
 						stroke: none;
 					}
 				}
-				/* Глобус: параллели на месте, меридианы (скрипт ниже) плывут — он вращается. */
+				/* Глобус: параллели на месте, меридианы (скрипт ниже) плывут – он вращается. */
 				#splash .ball {
 					fill: #1b0102;
 					transition: fill 400ms ease;
@@ -391,7 +412,7 @@
 						opacity: 0.5;
 					}
 				}
-				/* Не открылось: ниже логотипа — причина, код и что делать. */
+				/* Не открылось: ниже логотипа – причина, код и что делать. */
 				#splash .badge {
 					display: none;
 					transform-box: fill-box;
@@ -580,10 +601,10 @@
 						<path d="M30-.8v3.4M30 5.2v.1" />
 					</g>
 				</svg>
-				<span class="word">campus</span>
+				<span class="word">Campus</span>
 				<span class="hint">Открываем сайт группы…</span>
 				<div class="err" role="alert">
-					<b>Не получается открыть campus</b>
+					<b>Не получается открыть Campus</b>
 					<span class="why"></span>
 					<span class="what"></span>
 					<button class="code" type="button" title="Скопировать код"></button>
@@ -597,8 +618,8 @@
 			</div>
 		</div>
 		<script>
-			// Сторож заставки: если интерфейс так и не открылся, объясняем почему — с кодом ошибки.
-			// Коды — в docs/desktop.md («Коды ошибок»).
+			// Сторож заставки: если интерфейс так и не открылся, объясняем почему – с кодом ошибки.
+			// Коды – в docs/desktop.md («Коды ошибок»).
 			(function () {
 				var splash = document.getElementById('splash');
 				var problems = [];
@@ -635,7 +656,7 @@
 					splash.classList.add('failed');
 				}
 				var later =
-					'Если вы уже заходили раньше, откройте campus ещё раз — покажутся сохранённые данные.';
+					'Если вы уже заходили раньше, откройте Campus ещё раз – покажутся сохранённые данные.';
 				function check(last) {
 					if (!alive()) return;
 					if (!navigator.onLine)
@@ -661,13 +682,13 @@
 								return fail(
 									'GB-104',
 									'Сервер группы ответил ошибкой ' + r.status + '.',
-									'Попробуйте через минуту. Если повторяется — сообщите старосте код ошибки.'
+									'Попробуйте через минуту. Если повторяется – сообщите старосте код ошибки.'
 								);
 							if (problems.length)
 								return fail(
 									'GB-106',
 									'Интерфейс не запустился: ' + problems[0] + '.',
-									'Нажмите «Сбросить кэш и открыть». Если не поможет — обновите браузер.'
+									'Нажмите «Сбросить кэш и открыть». Если не поможет – обновите браузер.'
 								);
 							if (last)
 								return fail(
@@ -675,8 +696,8 @@
 									'Сервер работает, но интерфейс не загрузился.',
 									'Обычно помогает «Сбросить кэш и открыть».'
 								);
-							// Сервер на месте, просто связь медленная — подождём ещё.
-							q('.hint').textContent = 'Связь медленная — ещё немного…';
+							// Сервер на месте, просто связь медленная – подождём ещё.
+							q('.hint').textContent = 'Связь медленная – ещё немного…';
 							setTimeout(function () {
 								check(true);
 							}, 15000);
@@ -709,7 +730,7 @@
 						return;
 					}
 					if (b.getAttribute('data-act') === 'retry') return location.reload();
-					// Сброс: service worker и его кеш. Копию данных не трогаем — в ней могут быть
+					// Сброс: service worker и его кеш. Копию данных не трогаем – в ней могут быть
 					// ещё не отправленные действия.
 					var jobs = [];
 					if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations)
@@ -743,7 +764,7 @@
 				});
 			})();
 			// Вращение глобуса: меридианы через 30° плывут слева направо и гаснут у краёв. Пока скрипт
-			// не запустился (или движение отключено в системе) — неподвижная сетка, как на логотипе.
+			// не запустился (или движение отключено в системе) – неподвижная сетка, как на логотипе.
 			(function () {
 				var splash = document.getElementById('splash');
 				var still = splash && splash.querySelector('.mer');

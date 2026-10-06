@@ -1,7 +1,22 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Archive, EyeOff, Pencil, Pin, PinOff, Plus, Send, Upload, Users } from '@lucide/svelte';
+	import {
+		Archive,
+		CalendarDays,
+		ClipboardList,
+		EyeOff,
+		FolderOpen,
+		Newspaper,
+		Pencil,
+		Pin,
+		PinOff,
+		Plus,
+		Send,
+		Upload,
+		UserRound,
+		Users
+	} from '@lucide/svelte';
 	import { get, put } from '$lib/api';
 	import { loadSubjects, sortedSubjects } from '$lib/data.svelte';
 	import { can, session } from '$lib/session.svelte';
@@ -11,6 +26,7 @@
 	import Menu, { type MenuItem } from '$lib/ui/Menu.svelte';
 	import BackBar from '$lib/ui/BackBar.svelte';
 	import SubjectArt from '$lib/ui/SubjectArt.svelte';
+	import SubjectGlyph from '$lib/ui/SubjectGlyph.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
@@ -19,24 +35,24 @@
 	let missing = $state(false);
 	let editor = $state(false);
 	let share = $state(false);
-	// Добавить прямо отсюда: задание, новость, файл — без поиска кнопки во вкладках.
+	// Добавить прямо отсюда: задание, новость, файл – без поиска кнопки во вкладках.
 	let hwOpen = $state(false);
 	let newsOpen = $state(false);
 	let fileOpen = $state(false);
-	// После добавления вкладка перезагружается (номер меняется — {#key} пересоздаёт её).
+	// После добавления вкладка перезагружается (номер меняется – {#key} пересоздаёт её).
 	let refresh = $state(0);
 
 	const id = $derived(Number(page.params.id));
-	// Первая вкладка — задания, новости предмета — сразу за ними (0.6, просьба владельца).
+	// Первая вкладка – задания, новости предмета – сразу за ними (0.6, просьба владельца).
 	const tab = $derived(page.url.searchParams.get('tab') ?? 'homework');
-	// «Пары» — если у предмета есть расписание.
+	// «Пары» – если у предмета есть расписание.
 	const tabs = $derived(
 		[
-			{ value: 'homework', label: 'ДЗ' },
-			{ value: 'feed', label: 'Новости' },
-			...(subject?.lessons ? [{ value: 'lessons', label: 'Пары' }] : []),
-			{ value: 'materials', label: 'Материалы' },
-			{ value: 'members', label: 'Участники' }
+			{ value: 'homework', label: 'ДЗ', icon: ClipboardList },
+			{ value: 'feed', label: 'Новости', icon: Newspaper },
+			...(subject?.lessons ? [{ value: 'lessons', label: 'Пары', icon: CalendarDays }] : []),
+			{ value: 'materials', label: 'Материалы', icon: FolderOpen },
+			{ value: 'members', label: 'Участники', icon: Users }
 		].map((t) => ({
 			...t,
 			href: t.value === 'homework' ? `/subjects/${id}` : `/subjects/${id}?tab=${t.value}`
@@ -58,7 +74,7 @@
 		load();
 	});
 
-	// Полоса миниатюр предметов — отдельным кусочком (SubjectStrip): место под неё занято сразу.
+	// Полоса миниатюр предметов – отдельным кусочком (SubjectStrip): место под неё занято сразу.
 	const others = $derived(sortedSubjects(session.groupId));
 
 	async function togglePin() {
@@ -68,7 +84,7 @@
 		loadSubjects();
 	}
 
-	/** «Не мой предмет»: другая подгруппа — убрать из общих списков и уведомлений, или вернуть. */
+	/** «Не мой предмет»: другая подгруппа – убрать из общих списков и уведомлений, или вернуть. */
 	async function setMine(mine: boolean) {
 		if (!subject) return;
 		try {
@@ -77,7 +93,7 @@
 			await loadSubjects();
 			toast(
 				mine
-					? 'Предмет снова ваш: его задания и новости — в общих списках'
+					? 'Предмет снова ваш: его задания и новости – в общих списках'
 					: 'Скрыто: задания, новости и уведомления этого предмета больше не придут',
 				'ok'
 			);
@@ -86,7 +102,7 @@
 		}
 	}
 
-	// Что можно в этом предмете: права — в любой из его групп.
+	// Что можно в этом предмете: права – в любой из его групп.
 	const inGroups = (perm: Parameters<typeof can>[0]) =>
 		!!subject?.groups.some((g) => can(perm, g.id));
 	const canHomework = $derived(inGroups('publish_homework'));
@@ -94,7 +110,7 @@
 	const canUpload = $derived(inGroups('upload_materials'));
 	const canFiles = $derived(canUpload || inGroups('suggest_materials'));
 
-	/** Добавили — открываем вкладку, где это видно, и обновляем её. */
+	/** Добавили – открываем вкладку, где это видно, и обновляем её. */
 	function added(tab: 'feed' | 'homework' | 'materials') {
 		refresh++;
 		goto(`/subjects/${id}?tab=${tab}`, {
@@ -104,14 +120,14 @@
 		});
 	}
 
-	// Редкое — в меню «…»: общий предмет, архив, «не мой предмет», подгруппы, удалить.
+	// Редкое – в меню «…»: общий предмет, архив, «не мой предмет», подгруппы, удалить.
 	const actions = $derived.by((): MenuItem[] => {
 		if (!subject) return [];
 		const s = subject;
 		const out: MenuItem[] = [];
 		out.push(
 			s.mine === false
-				? { label: 'Мой предмет — вернуть в списки', onclick: () => setMine(true) }
+				? { label: 'Мой предмет – вернуть в списки', onclick: () => setMine(true) }
 				: { label: 'Не мой предмет (другая подгруппа)', onclick: () => setMine(false) }
 		);
 		if (s.can.share) out.push({ label: 'Сделать общим с группой…', onclick: () => (share = true) });
@@ -147,7 +163,7 @@
 	const activeTabs = $derived(tabs.map((t) => ({ ...t, active: t.value === tab })));
 </script>
 
-<svelte:head><title>{subject?.name ?? 'Предмет'} · campus</title></svelte:head>
+<svelte:head><title>{subject?.name ?? 'Предмет'} · Campus</title></svelte:head>
 
 {#if missing}
 	<div class="card">
@@ -167,7 +183,7 @@
 		</div>
 	{/if}
 
-	<!-- Подгруппы «№1», «№2»: выбор своей (код — только у таких предметов). -->
+	<!-- Подгруппы «№1», «№2»: выбор своей (код – только у таких предметов). -->
 	{#if /№\s*\d|\(\s*\d+\s*\)|\d\s*(под)?гр/i.test(subject.name)}
 		{#await import('$lib/content/SubgroupSwitch.svelte') then m}<m.default {subject} />{/await}
 	{/if}
@@ -185,83 +201,97 @@
 		</div>
 	{/if}
 
-	<header class="hero">
-		<span class="cover">
+	<!-- Шапка предмета (0.9.4): фон полосой, значок предмета поверх края – виден и с фоном,
+	     ниже название, факты и все действия одной строкой. -->
+	<header class="hero" style:--c={subject.color}>
+		<div class="banner" class:plain={!subject.cover && !subject.avatar}>
 			<SubjectArt
 				id={subject.id}
 				name={subject.name}
 				color={subject.color}
 				avatar={subject.avatar}
 				icon={subject.icon}
+				badge={false}
 				class="fill"
 			/>
-		</span>
-		<div class="hero-info">
-			<h1>{subject.name}</h1>
-			<span class="sub">{subject.teacher || 'Преподаватель не указан'}</span>
-			<span class="facts">
-				<span><Users size={15} /> {subject.groups.map((g) => g.name).join(', ')}</span>
-				{#if subject.archived}<span><Archive size={15} /> в архиве</span>{/if}
-				{#if subject.pinned}<span><Pin size={15} /> закреплён</span>{/if}
-			</span>
-			{#if subject.chatUrl}
-				<a class="chat" href={subject.chatUrl} target="_blank" rel="noreferrer"
-					><Send size={16} /> Чат предмета</a
+		</div>
+		<div class="hero-body">
+			<span class="emblem"
+				><SubjectGlyph
+					name={subject.name}
+					color={subject.color}
+					icon={subject.icon}
+					size={56}
+				/></span
+			>
+			<div class="titles">
+				<h1>{subject.name}</h1>
+				<span class="sub"
+					><UserRound size={15} /> {subject.teacher || 'Преподаватель не указан'}</span
 				>
-			{/if}
+			</div>
+			<div class="facts">
+				<span class="fact"><Users size={14} /> {subject.groups.map((g) => g.name).join(', ')}</span>
+				{#if subject.archived}<span class="fact"><Archive size={14} /> в архиве</span>{/if}
+				{#if subject.pinned}<span class="fact"><Pin size={14} /> закреплён</span>{/if}
+				{#if subject.chatUrl}
+					<a class="fact chat" href={subject.chatUrl} target="_blank" rel="noreferrer"
+						><Send size={14} /> Чат предмета</a
+					>
+				{/if}
+			</div>
+			<!-- Управление предметом – одной строкой: добавить, закрепить, изменить, остальное – в «…». -->
+			<div class="toolbar" role="toolbar" aria-label="Действия с предметом">
+				{#if canHomework}
+					<Button size="s" variant="primary" onclick={() => (hwOpen = true)}
+						><Plus size={16} /> Задание</Button
+					>
+				{/if}
+				{#if canNews}
+					<Button size="s" onclick={() => (newsOpen = true)}><Plus size={16} /> Новость</Button>
+				{/if}
+				{#if canFiles}
+					<Button size="s" onclick={() => (fileOpen = true)}
+						><Upload size={16} /> {canUpload ? 'Загрузить файл' : 'Предложить файл'}</Button
+					>
+				{/if}
+				<span class="spacer"></span>
+				<button
+					class="circle"
+					onclick={togglePin}
+					aria-label={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
+					title={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
+					aria-pressed={subject.pinned}
+				>
+					{#if subject.pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
+				</button>
+				{#if subject.can.edit}
+					<button
+						class="circle"
+						onclick={() => (editor = true)}
+						aria-label="Изменить предмет"
+						title="Изменить: название, преподаватель, цвет, иконка, фон, чат"
+						><Pencil size={17} /></button
+					>
+				{/if}
+				<Menu items={actions} label="Ещё действия с предметом" />
+			</div>
 		</div>
 	</header>
 
-	<!-- Управление предметом — одной строкой: добавить, закрепить, изменить, остальное — в «…». -->
-	<div class="toolbar" role="toolbar" aria-label="Действия с предметом">
-		{#if canHomework}
-			<Button size="s" variant="primary" onclick={() => (hwOpen = true)}
-				><Plus size={16} /> Задание</Button
-			>
-		{/if}
-		{#if canNews}
-			<Button size="s" onclick={() => (newsOpen = true)}><Plus size={16} /> Новость</Button>
-		{/if}
-		{#if canFiles}
-			<Button size="s" onclick={() => (fileOpen = true)}
-				><Upload size={16} /> {canUpload ? 'Загрузить файл' : 'Предложить файл'}</Button
-			>
-		{/if}
-		<span class="spacer"></span>
-		<button
-			class="circle"
-			onclick={togglePin}
-			aria-label={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
-			title={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
-			aria-pressed={subject.pinned}
-		>
-			{#if subject.pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
-		</button>
-		{#if subject.can.edit}
-			<button
-				class="circle"
-				onclick={() => (editor = true)}
-				aria-label="Изменить предмет"
-				title="Изменить: название, преподаватель, цвет, иконка, фон, чат"
-				><Pencil size={17} /></button
-			>
-		{/if}
-		<Menu items={actions} label="Ещё действия с предметом" />
-	</div>
-
-	<nav class="subtabs" aria-label="Разделы предмета">
+	<nav class="subtabs" aria-label="Разделы предмета" style:--c={subject.color}>
 		{#each activeTabs as t (t.label)}
 			<a
 				href={t.href}
 				class:active={t.active}
 				aria-current={t.active ? 'page' : undefined}
 				data-sveltekit-noscroll
-				data-sveltekit-replacestate>{t.label}</a
+				data-sveltekit-replacestate><t.icon size={16} aria-hidden="true" /><span>{t.label}</span></a
 			>
 		{/each}
 	</nav>
 
-	<!-- Вкладки подгружаются при открытии: страница предмета — самая тяжёлая, грузим только нужное. -->
+	<!-- Вкладки подгружаются при открытии: страница предмета – самая тяжёлая, грузим только нужное. -->
 	{#key refresh}
 		{#if tab === 'homework'}
 			{#await import('$lib/content/HomeworkBoard.svelte')}<Skeleton lines={4} />{:then m}<m.default
@@ -282,7 +312,7 @@
 					groupIds={subject.groups.map((g) => g.id)}
 				/>{/await}
 		{:else}
-			<!-- Новости предмета — вторая вкладка (0.6): код грузится, когда её открыли. -->
+			<!-- Новости предмета – вторая вкладка (0.6): код грузится, когда её открыли. -->
 			{#await import('$lib/content/NewsFeed.svelte')}<Skeleton lines={4} />{:then m}<m.default
 					subjectId={subject.id}
 					compose={false}
@@ -346,86 +376,97 @@
 	.not-mine strong {
 		color: var(--text);
 	}
-	/* Место под полосу предметов — сразу, чтобы шапка не прыгала, когда полоса подгрузится. */
+	/* Место под полосу предметов – сразу, чтобы шапка не прыгала, когда полоса подгрузится. */
 	.strip-slot {
 		min-height: 108px;
 		margin-bottom: var(--s4);
 	}
-	.cover :global(.fill) {
+	.banner :global(.fill) {
 		position: absolute;
 		inset: 0;
-		border-radius: inherit;
+		border-radius: 0;
 	}
 	.hero {
-		display: grid;
-		grid-template-columns: minmax(120px, 40%) 1fr;
-		gap: var(--s4);
-		padding: 12px;
-		margin-bottom: var(--s2);
-		border-radius: var(--r-xl);
-		background: var(--inverse);
-		color: var(--inverse-text);
-		box-shadow: var(--shadow-2);
-	}
-	.cover {
 		position: relative;
-		min-height: 150px;
-		border-radius: 18px;
+		margin-bottom: var(--s4);
+		border: 1px solid var(--border);
+		border-radius: 26px;
+		background: var(--surface);
+		box-shadow: var(--shadow-2);
+		overflow: hidden;
 	}
-	.hero-info {
+	.banner {
+		position: relative;
+		height: clamp(120px, 22vw, 210px);
+	}
+	/* Без своего фона – полоса цвета предмета пониже, крупный значок и так внизу. */
+	.banner.plain {
+		height: clamp(84px, 12vw, 120px);
+	}
+	.banner.plain :global(.glyph) {
+		display: none;
+	}
+	.hero-body {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 0 22px 18px;
+	}
+	.emblem {
+		align-self: flex-start;
+		margin-top: -40px;
+		padding: 6px;
+		border-radius: 24px;
+		background: var(--surface);
+		box-shadow: 0 6px 20px -6px rgb(0 0 0 / 0.35);
+	}
+	.emblem :global(.glyph) {
+		width: 64px !important;
+		height: 64px !important;
+		border-radius: 18px;
+		background: var(--c) !important;
+		color: #fff !important;
+	}
+	.titles {
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
 		min-width: 0;
-		padding: 6px 4px 2px 0;
 	}
 	/* Длинное название переносится по словам и ровными строками, без «Груп-па». */
 	.hero h1 {
-		font-size: clamp(21px, 4.6vw, 28px);
+		font-size: clamp(22px, 4.2vw, 30px);
+		letter-spacing: -0.015em;
 		overflow-wrap: break-word;
 		hyphens: manual;
 		text-wrap: balance;
 	}
-	/* Узкий телефон: картинка — полосой сверху, название — во всю ширину, без разрывов слов. */
-	@media (max-width: 520px) {
-		.hero {
-			grid-template-columns: 1fr;
-			gap: var(--s3);
-		}
-		.cover {
-			min-height: 112px;
-		}
-		.hero-info {
-			padding: 0 4px 2px;
-		}
-	}
 	.sub {
-		color: var(--inverse-muted);
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		color: var(--text-2);
 	}
 	.facts {
-		display: inline-flex;
+		display: flex;
 		flex-wrap: wrap;
-		align-self: flex-start;
+		gap: 6px;
+	}
+	.fact {
+		display: inline-flex;
 		align-items: center;
-		margin-top: auto;
-		padding: 8px 4px;
-		border-radius: 14px;
-		background: var(--inverse-2);
-		color: var(--inverse-muted);
-		font-size: 13.5px;
+		gap: 6px;
+		height: 30px;
+		padding: 0 12px;
+		border-radius: var(--r-full);
+		background: var(--surface-2);
+		color: var(--text-2);
+		font-size: 13px;
+		font-weight: 550;
 	}
 	.chat {
-		display: inline-flex;
-		align-self: flex-start;
-		align-items: center;
-		gap: 8px;
-		margin-top: 6px;
-		padding: 8px 16px;
-		border-radius: var(--r-full);
-		background: var(--inverse-2);
-		color: var(--inverse-text);
-		font-weight: 600;
-		font-size: 14px;
+		color: var(--text);
 		text-decoration: none;
 	}
 	.chat :global(svg) {
@@ -433,34 +474,41 @@
 	}
 	.chat:hover {
 		text-decoration: none;
-		filter: brightness(1.15);
-	}
-	.facts > span {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 0 10px;
-	}
-	.facts > span + span {
-		border-left: 1px solid color-mix(in srgb, var(--inverse-muted) 40%, transparent);
+		background: color-mix(in srgb, var(--tg) 14%, var(--surface-2));
 	}
 	.toolbar {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 8px;
-		margin: var(--s3) 0 var(--s4);
+		padding-top: 14px;
+		border-top: 1px solid var(--border);
 	}
 	.toolbar .circle[aria-pressed='true'] {
 		background: var(--accent-soft);
 		border-color: var(--accent);
 		color: var(--accent);
 	}
+	@media (max-width: 520px) {
+		.hero {
+			border-radius: 22px;
+		}
+		.hero-body {
+			padding: 0 14px 14px;
+		}
+		.emblem :global(.glyph) {
+			width: 54px !important;
+			height: 54px !important;
+		}
+	}
+	/* Вкладки – сегментами на одной дорожке, у каждой значок. */
 	.subtabs {
 		display: flex;
-		gap: 8px;
-		margin: 0 calc(-1 * var(--s4)) var(--s4);
-		padding: 2px var(--s4);
+		gap: 4px;
+		margin: 0 0 var(--s4);
+		padding: 4px;
+		border-radius: var(--r-full);
+		background: var(--surface-2);
 		overflow-x: auto;
 		scrollbar-width: none;
 	}
@@ -468,17 +516,17 @@
 		display: none;
 	}
 	.subtabs a {
-		flex: none;
+		flex: 1 0 auto;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 7px;
 		height: 40px;
-		display: grid;
-		place-items: center;
-		padding: 0 18px;
-		border: 1px solid var(--border);
+		padding: 0 16px;
 		border-radius: var(--r-full);
-		background: var(--surface);
 		color: var(--text-2);
-		font-weight: 550;
-		font-size: 15px;
+		font-weight: 600;
+		font-size: 14.5px;
 		transition:
 			background-color var(--dur) var(--ease),
 			color var(--dur) var(--ease);
@@ -489,21 +537,7 @@
 	}
 	.subtabs a.active {
 		background: var(--accent);
-		border-color: var(--accent);
 		color: var(--accent-text);
-	}
-	@media (min-width: 900px) {
-		.subtabs {
-			margin-left: 0;
-			margin-right: 0;
-			padding-left: 2px;
-			padding-right: 2px;
-		}
-	}
-	/* Узко — пункты переносятся: разделитель-черта тогда только мешает */
-	@media (max-width: 480px) {
-		.facts > span + span {
-			border-left: 0;
-		}
+		box-shadow: 0 1px 4px rgb(0 0 0 / 0.12);
 	}
 </style>

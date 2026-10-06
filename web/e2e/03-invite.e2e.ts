@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ADMIN, STUDENT, login, watchConsole } from './helpers';
+import { ADMIN, STUDENT, login, watchConsole, fillFio } from './helpers';
 
 test('студент регистрируется по инвайту, видит ДЗ и не видит управления', async ({
 	page,
@@ -16,20 +16,20 @@ test('студент регистрируется по инвайту, види�
 	const errors = watchConsole(student);
 	await student.goto(link);
 	await expect(student.getByRole('heading', { name: 'БИН2509' })).toBeVisible();
-	await student.getByLabel('ФИО').fill(STUDENT.name);
+	await fillFio(student, STUDENT.name);
 	await student.getByLabel('Имя пользователя для входа').fill(STUDENT.username);
 	await student.getByLabel('Пароль', { exact: true }).fill(STUDENT.password);
 	await student.getByLabel('Повторите пароль').fill(STUDENT.password);
-	// Правила сайта — обязательная галочка.
+	// Правила сайта – обязательная галочка.
 	await student.getByRole('checkbox', { name: /Принимаю правила/ }).check();
 	await student.getByRole('button', { name: 'Присоединиться' }).click();
 	await expect(student.getByRole('heading', { level: 1 })).toHaveText('Привет, Олег');
-	// Тур — сразу после регистрации; пропустить можно в любой момент.
-	const welcome = student.getByRole('dialog', { name: 'Знакомство с campus' });
+	// Тур – сразу после регистрации; пропустить можно в любой момент.
+	const welcome = student.getByRole('dialog', { name: 'Знакомство с Campus' });
 	await expect(welcome.getByRole('heading', { name: 'Привет, Олег!' })).toBeVisible();
 	await welcome.getByRole('button', { name: 'Поехали' }).click();
-	// На телефоне подсветка — на нижней панели.
-	await expect(welcome.getByRole('heading', { name: 'Всё главное — на «Сегодня»' })).toBeVisible();
+	// На телефоне подсветка – на нижней панели.
+	await expect(welcome.getByRole('heading', { name: 'Всё главное – на «Сегодня»' })).toBeVisible();
 	await student.screenshot({ path: 'test-results/shots/tour-mobile.png' });
 	await welcome.getByRole('button', { name: 'Пропустить знакомство' }).click();
 	await expect(welcome).toBeHidden();

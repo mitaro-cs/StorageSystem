@@ -2,13 +2,14 @@
 	import { AtSign, Camera } from '@lucide/svelte';
 	import { del, patch } from '$lib/api';
 	import { t } from '$lib/i18n/ru';
-	import { fioError } from '$lib/names';
+	import { fioError } from '$lib/fio';
 	import { loadMe, session } from '$lib/session.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import Button from '$lib/ui/Button.svelte';
+	import FioField from '$lib/auth/FioField.svelte';
 
-	// Профиль: фото, ФИО, логин и роли — то, что видят другие.
+	// Профиль: фото, ФИО, логин и роли – то, что видят другие.
 	const me = $derived(session.me!);
 	let displayName = $derived(me.user.displayName);
 	let avatarOpen = $state(false);
@@ -67,18 +68,11 @@
 <section class="card pane">
 	<h3>ФИО</h3>
 	<p class="muted small">Как вас видят в группе: в списке участников, у новостей и комментариев.</p>
-	<form class="row name-row" onsubmit={saveName}>
-		<input
-			class="input"
-			bind:value={displayName}
-			maxlength="64"
-			autocomplete="name"
-			placeholder="Иванов Иван Иванович"
-			aria-label="ФИО"
-		/>
+	<form class="name-form" onsubmit={saveName}>
+		<FioField bind:value={displayName} legend="" />
 		<Button type="submit" disabled={displayName.trim() === me.user.displayName}>Сохранить</Button>
 	</form>
-	<p class="hint">Логин <strong>@{me.user.username}</strong> не меняется — по нему вы входите.</p>
+	<p class="hint">Логин <strong>@{me.user.username}</strong> не меняется – по нему вы входите.</p>
 </section>
 
 {#if avatarOpen}
@@ -142,9 +136,14 @@
 		gap: 6px;
 		margin-top: 4px;
 	}
-	.name-row .input {
-		flex: 1;
-		min-width: 0;
+	.name-form {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--s3);
+	}
+	.name-form > :global(fieldset) {
+		align-self: stretch;
 	}
 	.hint strong {
 		color: var(--text-2);

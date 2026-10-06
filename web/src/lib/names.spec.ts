@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fioError, firstName, shortNames, suggestUsername } from './names';
+import { firstName, shortNames, suggestUsername } from './names';
+import { capitalError, fioError } from './fio';
 
 describe('firstName', () => {
 	it.each([
@@ -24,6 +25,15 @@ describe('fioError', () => {
 		expect(fioError('Тест u123')).toMatch(/буквами/);
 		expect(fioError('А Б В Г Д Е')).toMatch(/фамилию, имя/);
 		expect(fioError('Петров ' + 'И'.repeat(60))).toMatch(/64/);
+	});
+	it('требует большую букву у фамилии, имени и отчества', () => {
+		expect(fioError('талеб Ахмед')).toMatch(/большой буквы/);
+		expect(fioError('Талеб ахмед')).toMatch(/большой буквы/);
+		expect(fioError('Иванов Иван иванович')).toMatch(/большой буквы/);
+		expect(fioError('Алиев Рустам Ильхам оглы')).toBe('');
+		expect(capitalError('иван')).toBe('С большой буквы');
+		expect(capitalError('Ильхам оглы')).toBe('');
+		expect(capitalError('')).toBe('');
 	});
 });
 

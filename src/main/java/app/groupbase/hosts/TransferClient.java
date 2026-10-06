@@ -75,7 +75,7 @@ final class TransferClient {
       throw new IOException("Это не похоже на адрес сайта");
     }
     if (scheme.equals("http") && !local(host)) {
-      throw new IOException("Через интернет — только адрес https://… (как у ссылки для группы)");
+      throw new IOException("Через интернет – только адрес https://… (как у ссылки для группы)");
     }
     return URI.create(scheme + "://" + parsed.getRawAuthority());
   }
@@ -154,7 +154,7 @@ final class TransferClient {
     }
   }
 
-  /** Отвечает ли по адресу сервер campus (после переноса прежний компьютер молчит). */
+  /** Отвечает ли по адресу сервер Campus (после переноса прежний компьютер молчит). */
   boolean serverAnswers() {
     try {
       HttpResponse<Void> r =
@@ -185,7 +185,7 @@ final class TransferClient {
         return c.getValue();
       }
     }
-    throw new IOException("Сервер не выдал ключ защиты запроса — обновите campus там");
+    throw new IOException("Сервер не выдал ключ защиты запроса – обновите Campus там");
   }
 
   private <T> HttpResponse<T> send(HttpRequest req, HttpResponse.BodyHandler<T> handler)
@@ -199,7 +199,7 @@ final class TransferClient {
       throw new IOException(
           "Не удалось связаться с сайтом по адресу "
               + base.getHost()
-              + " — проверьте адрес и интернет, и что там открыт campus",
+              + " – проверьте адрес и интернет, и что там открыт Campus",
           e);
     }
   }
@@ -208,7 +208,7 @@ final class TransferClient {
   private static void requireServer(HttpResponse<?> r) throws IOException {
     if (r.headers().firstValue("X-Groupbase").isEmpty()) {
       throw new IOException(
-          "По этому адресу сейчас не отвечает campus — компьютер с сайтом выключен или адрес"
+          "По этому адресу сейчас не отвечает Campus – компьютер с сайтом выключен или адрес"
               + " другой");
     }
   }
@@ -227,7 +227,7 @@ final class TransferClient {
     } catch (RuntimeException e) {
       // не JSON
     }
-    return "Сайт не отдал данные — попробуйте ещё раз";
+    return "Сайт не отдал данные – попробуйте ещё раз";
   }
 
   private static long number(String s) {

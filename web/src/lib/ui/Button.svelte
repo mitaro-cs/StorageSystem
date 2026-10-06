@@ -7,7 +7,7 @@
 		type?: 'button' | 'submit';
 		form?: string;
 		href?: string;
-		/** Для ссылок наружу: _blank — в новой вкладке (в приложении хоста — в браузере). */
+		/** Для ссылок наружу: _blank – в новой вкладке (в приложении хоста – в браузере). */
 		target?: '_blank';
 		loading?: boolean;
 		disabled?: boolean;

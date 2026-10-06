@@ -12,7 +12,7 @@
 	$effect(() => {
 		if (!current) return;
 		value = current.kind === 'text' ? (current.options.value ?? '') : '';
-		// Фокус — сразу в поле или на кнопку согласия: Enter отвечает, Esc отменяет.
+		// Фокус – сразу в поле или на кнопку согласия: Enter отвечает, Esc отменяет.
 		tick().then(() => {
 			const box = form?.closest('dialog');
 			const target =

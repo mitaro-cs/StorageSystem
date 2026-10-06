@@ -19,7 +19,7 @@
 		new Date(year, month, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })
 	);
 	const cells = $derived.by(() => {
-		const offset = (new Date(year, month, 1).getDay() + 6) % 7; // понедельник — первый
+		const offset = (new Date(year, month, 1).getDay() + 6) % 7; // понедельник – первый
 		return Array.from({ length: 42 }, (_, i) => new Date(year, month, 1 - offset + i));
 	});
 	const byDay = $derived.by(() => {

@@ -20,7 +20,7 @@
 	let loaded = $state(false);
 	let members = $state<Member[]>([]);
 
-	// Подписи — только имена; если имя повторяется среди участников группы или в обсуждении,
+	// Подписи – только имена; если имя повторяется среди участников группы или в обсуждении,
 	// к нему добавляется фамилия.
 	const names = $derived(
 		shortNames([
@@ -95,7 +95,7 @@
 				<span class="faint small num">{fmtAgo(c.createdAt)}</span>
 				{#if c.pending}<span
 						class="chip amber"
-						title="Создано без сети — уйдёт на сервер, когда появится интернет"
+						title="Создано без сети – уйдёт на сервер, когда появится интернет"
 						><CloudOff size={12} /> ждёт отправки</span
 					>{/if}
 				{#if c.hidden}<span class="chip" title="Видят только модераторы и автор"

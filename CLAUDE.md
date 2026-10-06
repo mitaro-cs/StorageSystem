@@ -1,13 +1,13 @@
-# campus (бывший groupbase) — заметки для Claude Code
+# Campus (бывший groupbase) — заметки для Claude Code
 
-**Сервис называется campus** (с 0.9.2, решение владельца). Везде, что видят люди, — «campus»:
+**Сервис называется Campus** (с 0.9.2, решение владельца). Везде, что видят люди, — «Campus»:
 заголовки страниц, заставка, тексты, `t.app` в `ru.ts`, manifest, окно, трей и диалоги приложения
 хоста, сообщения сервера, TOTP issuer, имя ключа входа. Внутренние имена остаются `groupbase` —
 их смена сломала бы обновление и данные: Java-пакеты `app.groupbase`, `groupbase.jar`,
 `groupbase.toml`, `groupbase.db`, `identifier` и `productName` приложения (`app.groupbase` —
 каталог данных и обновления; имя пакета .app/.exe меняется только отдельным решением),
 `X-Groupbase*`, `GROUPBASE_*`, cookie и ключи `gb_*`/`gb-*`, базы IndexedDB `groupbase-<id>`,
-папка `groupbase-site`, команды CLI (`groupbase init`). В новых текстах пишите «campus».
+папка `groupbase-site`, команды CLI (`groupbase init`). В новых текстах пишите «Campus».
 
 Self-hosted сервис для студенческих групп: новости, ДЗ, материалы по предметам. Один экземпляр (инстанс)
 обслуживает одну группу (`single`) или несколько (`multi`, например поток). Всё на русском: интерфейс,
@@ -193,6 +193,15 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   хостом» — `POST /api/host/peers/host {computer}` → `makeHost`: себя — `moveHere`; другого (здесь
   хост) — `moveTo` в `/state`, копия видит свой id и делает `moveHere`. Старые ручки с кодом
   (`/peers/code`, `/peers/join`) остались для совместимости.
+- Ключ сайта (0.9.4, просьба владельца: «один шифрованный код — вставил и навсегда»):
+  `PeerService.siteKey()` — `campus-` + base64url(«адрес сайта\nсекрет»), секрет — `settings`
+  `peers.key` (едет в копиях: показать ключ можно на любом связанном компьютере), первый показ делает
+  компьютер основным (MAIN). `pair()` принимает ключ вместо кода без «Разрешить»; `joinByKey` на
+  новом. Ручки: `GET/POST /api/host/peers/key` (показать / сменить), `POST /api/host/peers/join-key`,
+  `/api/setup/peer/key`, `/api/host/standby/key`. В интерфейсе — «основной», не «хост».
+- Экран ожидания (0.9.4): у компьютера в роли `moved` вместо «Вернуть сайт сюда» — `PeerJoin standby`
+  (`/api/host/standby/discover|ask|key`, без входа, только с этого компьютера и когда сайт не здесь);
+  `join` снимает `moved` (`cfg.setMoved(0)`).
 - Коды переноса и связи выглядят одинаково (12 знаков). Первый запуск: код связи в форме «Перенос
   по коду» — `SetupController.transfer` видит «код не выдавался» (`TransferService.unknownCode`, так
   отвечают и старые версии) и делает `peers.join`; код переноса в форме связи — `PeerController.pair`
@@ -452,4 +461,37 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   (`reloadWhenSafe`), иначе — при скрытии. `Hotkeys` в макете — лениво (бюджет «Сегодня»).
 - iPhone (0.9): `viewportShift` не двигает панель вверх (оттягивание страницы, `offsetTop < 0`), у
   `html, body` — `overscroll-behavior: none`.
+- Конспекты Markdown (0.9.4): `fileKind` → `markdown` (`.md`, `text/x-web-markdown`);
+  `GET /api/files/{id}/html` (Markdown.render, санитайзер) и `/docx` (`files/MarkdownDocx`: commonmark →
+  WordprocessingML вручную, без библиотек; ссылки — только http/https/mailto). Показ —
+  `lib/files/MarkdownNote.svelte` (страница материала и FileViewer), «Скачать в Word» — и в меню
+  материала. Типы материалов — `content/materialTypes.ts` + `TypeChips` (предмет и «Материалы»).
+- Фон сайта (0.9.4): без своей картинки — фон страницы входа: картинка администратора
+  `data-bg='site'` (те же правила, что у `custom`), рисунок — `data-site-bg` (селекторы рядом с
+  `.login-bg-*`); `looks.ts applySiteBackground`, ставит и скрипт в app.html по `gb-login-bg`, макет
+  `(app)` обновляет с `/api/appearance`. Размытие — px (`gb-bg-blur`, 0–40, прежнее «1» = 16;
+  `--bg-blur`), на сервере `appearance.blur` число (true → 16). Масштаб интерфейса —
+  `gb-ui-scale` (80–150), CSS `zoom` на `<html>`, «Профиль → Приложение» (не в окне хоста).
+- Страница пары (0.9.4): части — карточки `.part` в сетке `.parts` (≥1100 px — две колонки), «Добавить»
+  в шапке карточки; e2e ищет `region «Задания»`.
 - У каждого пакета сервера — свои тесты (`EveryPackageHasTestsTest`).
+- Тексты (0.9.4, просьба владельца): тире – короткое «–», не «—»; название – «Campus» с большой
+  буквы (внутренние имена и ключ `campus-…` – как были).
+- ФИО (0.9.4): `lib/auth/FioField.svelte` – три поля (фамилия, имя, отчество), в базу – одна строка;
+  проверка – `lib/fio.ts` (не в `names.ts`: тот в оболочке, бюджет) и `accounts.Names.displayName`:
+  фамилия, имя и отчество с большой буквы. На странице первого запуска поля грузятся лениво.
+- Окна добавления (0.9.4): `Modal` с `icon`, `tone`, `subtitle`; разделы – `ui/FormSection.svelte`,
+  предмет – `ui/SubjectPicker.svelte` (плитки, `role=radio`; e2e выбирает `getByRole('radio')`).
+  В `LessonEditor` вида `other` («Занятие») нет – он только из файла .ics.
+- Страница предмета (0.9.4): шапка `.hero` – полоса фона, значок `.emblem` поверх края, действия
+  (`toolbar «Действия с предметом»`) внутри; `SubjectArt` на фоне-картинке рисует значок предмета
+  в углу (`badge`). Вкладка «Пары» – `schedule/SubjectLessons.svelte`: календарь месяца, ниже –
+  пары выбранного дня (`region «Календарь пар»`).
+- Фон-картинка (0.9.4): страница `#content > .page` лежит на матовом листе (app.css) – текст вне
+  карточек иначе не читался.
+- Финал тура (0.9.4): логотип на орбитах (`.stage`, `.orbit`) с искрами и конфетти, без сияния и
+  градиентов; фон финала сплошной.
+- В оболочке лениво: `SwipeBack` (только сенсорные экраны) и `GroupSwitcher` (только поток) – бюджет
+  «Сегодня».
+- README: обложка – `docs/banner-dark.svg` и `-light.svg` (логотип вписан внутрь: GitHub не грузит
+  внешние ссылки из SVG), скриншоты – `docs/screenshots/*.webp` с демо-данных (`groupbase seed`).

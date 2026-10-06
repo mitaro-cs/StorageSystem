@@ -8,7 +8,7 @@
 	import { acceptTerms, loadTerms, type TermsView } from './terms';
 
 	// Согласие с правилами для тех, кто был на сайте до них (или правила поменялись). Новички
-	// принимают их галочкой при регистрации. Закрыть окно, не приняв, нельзя — только выйти.
+	// принимают их галочкой при регистрации. Закрыть окно, не приняв, нельзя – только выйти.
 	let terms = $state<TermsView | null>(null);
 	let agreed = $state(false);
 	let busy = $state(false);
@@ -29,7 +29,7 @@
 			if (session.me) session.me.user.termsAccepted = true;
 		} catch (e) {
 			toastError(e);
-			// Правила успели поменяться — показываем новые.
+			// Правила успели поменяться – показываем новые.
 			terms = await loadTerms().catch(() => terms);
 			agreed = false;
 		} finally {

@@ -11,7 +11,8 @@
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
 	import FioField from '$lib/auth/FioField.svelte';
 	import CodeLogin from '$lib/auth/CodeLogin.svelte';
-	import { fioError, firstName, suggestUsername } from '$lib/names';
+	import { firstName, suggestUsername } from '$lib/names';
+	import { fioError } from '$lib/fio';
 	import type { GroupRole } from '$lib/types';
 
 	interface Info {
@@ -23,13 +24,13 @@
 	}
 	interface MeShort {
 		user: { displayName: string };
-		groups: { id: number }[];
+		groups: { id: number; role: GroupRole | null }[];
 	}
 
 	let info = $state<Info | null>(null);
 	let invalid = $state('');
 	let me = $state<MeShort | null>(null);
-	/** Кто открыл ссылку: новенький регистрируется, у кого аккаунт уже есть — входит. */
+	/** Кто открыл ссылку: новенький регистрируется, у кого аккаунт уже есть – входит. */
 	let mode = $state<'new' | 'existing'>('new');
 	let qr = $state(false);
 	let displayName = $state('');
@@ -44,7 +45,11 @@
 	let taken = $state(false);
 	let busy = $state(false);
 	const token = $derived(page.params.token);
-	const member = $derived(!!me && !!info && me.groups.some((g) => g.id === info?.groupId));
+	// Видеть группу (модератор, администратор) – ещё не состоять в ней: исключённый модератор
+	// должен вступить заново, а не читать «вы уже в этой группе».
+	const member = $derived(
+		!!me && !!info && me.groups.some((g) => g.id === info?.groupId && !!g.role)
+	);
 
 	async function loadMe() {
 		try {
@@ -76,12 +81,12 @@
 				{ username, displayName, password },
 				{ anonymous: true }
 			);
-			// Галочку поставили в форме — согласие записываем сразу, окно правил не всплывёт.
+			// Галочку поставили в форме – согласие записываем сразу, окно правил не всплывёт.
 			await acceptTerms().catch(() => {});
 			await goto('/', { replaceState: true, invalidateAll: true });
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Ошибка';
-			// Логин занят — скорее всего, человек уже регистрировался (например, с телефона).
+			// Логин занят – скорее всего, человек уже регистрировался (например, с телефона).
 			taken = err instanceof ApiError && err.code === 'username_taken';
 		} finally {
 			busy = false;
@@ -107,13 +112,13 @@
 	}
 </script>
 
-<svelte:head><title>Приглашение · campus</title></svelte:head>
+<svelte:head><title>Приглашение · Campus</title></svelte:head>
 
 {#if invalid}
 	<h1>Приглашение не работает</h1>
 	<p class="muted">{invalid}. Попросите у старосты новую ссылку.</p>
 	<p class="faint small">
-		Уже есть аккаунт? <a href="/login">Войдите</a> — ссылка для этого не нужна.
+		Уже есть аккаунт? <a href="/login">Войдите</a> – ссылка для этого не нужна.
 	</p>
 {:else if info}
 	<p class="eyebrow">Приглашение</p>
@@ -128,7 +133,7 @@
 			<p>
 				<strong>{firstName(me.user.displayName)}, вы уже в этой группе.</strong><br />
 				<span class="muted"
-					>Вход на этом устройстве выполнен — можно пользоваться сайтом, вступать ещё раз не нужно.</span
+					>Вход на этом устройстве выполнен – можно пользоваться сайтом, вступать ещё раз не нужно.</span
 				>
 			</p>
 			<Button variant="primary" onclick={() => goto('/', { replaceState: true })}
@@ -162,7 +167,7 @@
 		{#if mode === 'existing'}
 			<div class="existing">
 				<p class="muted">
-					Уже регистрировались — например, с телефона? Второй аккаунт не нужен: просто войдите на
+					Уже регистрировались – например, с телефона? Второй аккаунт не нужен: просто войдите на
 					этом устройстве.
 				</p>
 				<Button variant="primary" href="/login?next=/invite/{token}"
@@ -173,7 +178,7 @@
 				{:else}
 					<Button onclick={() => (qr = true)}><QrCode size={17} /> Войти по коду с телефона</Button>
 					<p class="faint small">
-						На телефоне, где вы уже вошли: «Профиль → Вход и безопасность → Показать код» — здесь
+						На телефоне, где вы уже вошли: «Профиль → Вход и безопасность → Показать код» – здесь
 						отсканируйте его или введите 6 цифр.
 					</p>
 				{/if}
@@ -194,12 +199,12 @@
 						oninput={() => (usernameTouched = true)}
 						required
 					/>
-					<p class="hint">Придумали по ФИО — можно поменять. Латиница, цифры, точка или дефис.</p>
+					<p class="hint">Придумали по ФИО – можно поменять. Латиница, цифры, точка или дефис.</p>
 				</div>
 				<PasswordFields bind:password bind:confirm />
 				{#if error}
 					<p class="error-text" role="alert">
-						{error}{#if taken}. Если это ваш аккаунт —
+						{error}{#if taken}. Если это ваш аккаунт –
 							<button type="button" class="linkish" onclick={() => (mode = 'existing')}
 								>войдите</button
 							>, регистрироваться второй раз не нужно.{/if}

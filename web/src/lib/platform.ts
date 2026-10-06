@@ -1,6 +1,6 @@
 /**
- * Mac или iPhone/iPad: там сочетания — с ⌘, у остальных (Windows, Linux, Android) — с Ctrl.
- * navigator.platform устарел, но есть везде; userAgentData — только в Chromium.
+ * Mac или iPhone/iPad: там сочетания – с ⌘, у остальных (Windows, Linux, Android) – с Ctrl.
+ * navigator.platform устарел, но есть везде; userAgentData – только в Chromium.
  */
 export function isApple(): boolean {
 	if (typeof navigator === 'undefined') return false;
@@ -15,9 +15,9 @@ export function shortcut(key: string): string {
 }
 
 /**
- * Клавиша сочетания без оглядки на раскладку. При русской e.key — «л» вместо «k» и «.» вместо «/»,
- * и Ctrl K у людей не срабатывал. Латинская буква из e.key — как есть (у Dvorak и AZERTY свои места
- * букв), иначе — по физической клавише (e.code, названия по QWERTY).
+ * Клавиша сочетания без оглядки на раскладку. При русской e.key – «л» вместо «k» и «.» вместо «/»,
+ * и Ctrl K у людей не срабатывал. Латинская буква из e.key – как есть (у Dvorak и AZERTY свои места
+ * букв), иначе – по физической клавише (e.code, названия по QWERTY).
  */
 export function hotkey(e: Pick<KeyboardEvent, 'key' | 'code' | 'shiftKey'>): string {
 	const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;

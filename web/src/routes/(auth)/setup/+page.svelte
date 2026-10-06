@@ -13,10 +13,10 @@
 	import { ask } from '$lib/ui/ask.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import PasswordFields from '$lib/auth/PasswordFields.svelte';
-	import FioField from '$lib/auth/FioField.svelte';
-	import { fioError, suggestUsername } from '$lib/names';
+	import { suggestUsername } from '$lib/names';
+	import { fioError } from '$lib/fio';
 
-	// Сервер печатает ссылку с кодом (а установщик сам её открывает) — вводить его не нужно.
+	// Сервер печатает ссылку с кодом (а установщик сам её открывает) – вводить его не нужно.
 	const fromLink = page.url.searchParams.get('code');
 	let code = $state(fromLink ?? '');
 	let mode = $state<'single' | 'multi'>('single');
@@ -40,13 +40,13 @@
 	let restoreMessage = $state('');
 	let backupFile: HTMLInputElement | undefined = $state();
 
-	// Сайт уже работает на другом компьютере — забрать его сюда по коду переноса, без файлов.
+	// Сайт уже работает на другом компьютере – забрать его сюда по коду переноса, без файлов.
 	let byCode = $state(false);
 	// Второй компьютер хоста напрямую: сайт работает на главном, этот держит копию.
 	let byPeer = $state(false);
 	let pulling = $state(false);
 
-	// Второй компьютер хоста: сайт уже лежит в облачной папке — его сохранил туда другой компьютер.
+	// Второй компьютер хоста: сайт уже лежит в облачной папке – его сохранил туда другой компьютер.
 	let sites = $state<FoundSite[]>([]);
 	async function findSites() {
 		if (!code.trim() || restoring) return;
@@ -59,7 +59,7 @@
 			sites = [];
 		}
 	}
-	// В приложении хоста: где будут лежать данные сайта — можно выбрать другую папку (диск D:,
+	// В приложении хоста: где будут лежать данные сайта – можно выбрать другую папку (диск D:,
 	// внешний диск) до того, как они появятся.
 	let dataDir = $state('');
 	onMount(() => {
@@ -81,7 +81,7 @@
 
 	onMount(() => {
 		findSites();
-		// Облачный диск может докачивать папку — проверяем ещё, пока открыта страница.
+		// Облачный диск может докачивать папку – проверяем ещё, пока открыта страница.
 		const t = setInterval(findSites, 10_000);
 		return () => clearInterval(t);
 	});
@@ -112,11 +112,11 @@
 		}
 	}
 
-	/** Переезд на новый компьютер: вместо настройки — всё из резервной копии. */
+	/** Переезд на новый компьютер: вместо настройки – всё из резервной копии. */
 	async function restore(f: File) {
 		error = '';
 		if (!code.trim()) {
-			error = 'Нужен код настройки — откройте ссылку из окна сервера';
+			error = 'Нужен код настройки – откройте ссылку из окна сервера';
 			return;
 		}
 		busy = true;
@@ -165,7 +165,7 @@
 	}
 </script>
 
-<svelte:head><title>Первый запуск · campus</title></svelte:head>
+<svelte:head><title>Первый запуск · Campus</title></svelte:head>
 
 <h1>Первый запуск</h1>
 <p class="muted">
@@ -195,7 +195,7 @@
 			{#each sites as s (s.path)}
 				<div class="site">
 					<div class="info">
-						<strong>{s.name || 'Сайт campus'}</strong>
+						<strong>{s.name || 'Сайт Campus'}</strong>
 						<span class="faint small"
 							>{s.cloud}{s.host ? ` · работает на «${s.host}»` : ''}{s.at
 								? ` · ${fmtAgo(s.at)}`
@@ -223,7 +223,7 @@
 							bind:busy={pulling}
 						/>{/await}
 				{:else}
-					<p class="error-text">Нужен код настройки — откройте ссылку из окна сервера</p>
+					<p class="error-text">Нужен код настройки – откройте ссылку из окна сервера</p>
 				{/if}
 				{#if !pulling}
 					<button type="button" class="linklike small" onclick={() => (byPeer = false)}
@@ -234,7 +234,7 @@
 				<div class="grow">
 					<strong>Сайт уже есть на другом компьютере?</strong>
 					<p class="faint small">
-						Свяжите их — компьютеры будут равными, с одними данными: сайт для группы работает на
+						Свяжите их – компьютеры будут равными, с одними данными: сайт для группы работает на
 						том, что включён.
 					</p>
 				</div>
@@ -252,7 +252,7 @@
 							bind:busy={pulling}
 						/>{/await}
 				{:else}
-					<p class="error-text">Нужен код настройки — откройте ссылку из окна сервера</p>
+					<p class="error-text">Нужен код настройки – откройте ссылку из окна сервера</p>
 				{/if}
 				{#if !pulling}
 					<button type="button" class="linklike small" onclick={() => (byCode = false)}
@@ -262,7 +262,7 @@
 			{:else}
 				<div class="grow">
 					<strong>Сайт уже работает на другом компьютере?</strong>
-					<p class="faint small">Перенесите его сюда по коду — без файлов и с тем же адресом.</p>
+					<p class="faint small">Перенесите его сюда по коду – без файлов и с тем же адресом.</p>
 				</div>
 				<Button onclick={() => (byCode = true)}>Перенести по коду</Button>
 			{/if}
@@ -278,7 +278,7 @@
 					<label class="label" for="code">Код настройки</label>
 					<input id="code" class="input num" bind:value={code} autocomplete="off" required />
 					<p class="hint">
-						Проще открыть ссылку из окна сервера — в ней код уже есть. Или выполните <code
+						Проще открыть ссылку из окна сервера – в ней код уже есть. Или выполните <code
 							>groupbase init</code
 						>.
 					</p>
@@ -302,7 +302,7 @@
 					<label class="label" for="iname">Название сайта</label>
 					<input id="iname" class="input" bind:value={instanceName} placeholder="Поток БИН-25" />
 					<p class="hint">
-						Сайт — это весь ваш campus: все группы потока, общие настройки и администраторы.
+						Сайт – это весь ваш Campus: все группы потока, общие настройки и администраторы.
 					</p>
 				</div>
 			{/if}
@@ -357,7 +357,10 @@
 
 			<hr />
 
-			<FioField bind:value={displayName} />
+			<!-- Поля ФИО – отдельным кусочком: страница первого запуска на грани бюджета. -->
+			{#await import('$lib/auth/FioField.svelte')}<div class="fio-slot"></div>{:then m}<m.default
+					bind:value={displayName}
+				/>{/await}
 			<div>
 				<label class="label" for="uname">Имя пользователя для входа</label>
 				<input
@@ -371,7 +374,7 @@
 					oninput={() => (usernameTouched = true)}
 					required
 				/>
-				<p class="hint">Придумали по ФИО — можно поменять.</p>
+				<p class="hint">Придумали по ФИО – можно поменять.</p>
 			</div>
 			<PasswordFields bind:password bind:confirm />
 
@@ -386,7 +389,7 @@
 		{#if !sites.length}
 			<p class="faint small">
 				Сайт уже работает на другом вашем компьютере? Включите там «Настройки → Сервер → Несколько
-				компьютеров» и установите здесь тот же облачный диск — сайт появится на этой странице.
+				компьютеров» и установите здесь тот же облачный диск – сайт появится на этой странице.
 			</p>
 		{/if}
 		<input
@@ -485,6 +488,9 @@
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
+	}
+	.fio-slot {
+		min-height: 92px;
 	}
 	.restore {
 		display: flex;

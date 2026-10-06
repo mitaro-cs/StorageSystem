@@ -1,9 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ADMIN, STUDENT, login, watchConsole } from './helpers';
+import { ADMIN, STUDENT, login, watchConsole, fillFio } from './helpers';
 
 const note = Buffer.from('Лабораторная №3\n\n1. Измерить период маятника.\n2. Построить график.\n');
 
-/** Ничего на странице не шире экрана — иначе телефон «ужимает» её, чтобы всё влезло. */
+/** Ничего на странице не шире экрана – иначе телефон «ужимает» её, чтобы всё влезло. */
 async function fitsScreen(page: Page) {
 	const [scroll, client] = await page.evaluate(() => [
 		document.documentElement.scrollWidth,
@@ -17,7 +17,7 @@ test('задание со сложностью и файлом: файл отк�
 	await login(page, ADMIN);
 	await page.getByRole('button', { name: 'Задание', exact: true }).click();
 	const dialog = page.getByRole('dialog');
-	await dialog.getByLabel('Предмет').selectOption({ label: 'Математический анализ' });
+	await dialog.getByRole('radio', { name: 'Математический анализ' }).click();
 	await dialog.getByLabel('Что сделать').fill('Маятник: отчёт');
 	await dialog.getByRole('radio', { name: /Сложно/ }).click();
 	await dialog.locator('input[type=file]').first().setInputFiles({
@@ -48,7 +48,7 @@ test('задание со сложностью и файлом: файл отк�
 	await page.keyboard.press('Escape');
 	await expect(viewer).toBeHidden();
 
-	// Тот же файл — в разделе «Файлы»: Предмет › Задания › задание.
+	// Тот же файл – в разделе «Файлы»: Предмет › Задания › задание.
 	await page.goto('/materials');
 	await page
 		.locator('main a[href^="/materials?subject="]', { hasText: 'Математический анализ' })
@@ -104,7 +104,7 @@ test('люди: администратор назначает модератор
 
 	await page.getByRole('button', { name: 'Добавить людей' }).click();
 	const dialog = page.getByRole('dialog');
-	await dialog.getByLabel('ФИО').fill('Сидорова Мария Петровна');
+	await fillFio(dialog, 'Сидорова Мария Петровна');
 	await dialog.getByRole('button', { name: 'Добавить и показать QR-код' }).click();
 	await expect(dialog.getByText(/Сидорова Мария Петровна/)).toBeVisible();
 	await expect(dialog.getByRole('img', { name: 'QR-код активации' })).toBeVisible();

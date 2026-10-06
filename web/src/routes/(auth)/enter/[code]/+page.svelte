@@ -22,7 +22,7 @@
 	});
 </script>
 
-<svelte:head><title>Вход по коду · campus</title></svelte:head>
+<svelte:head><title>Вход по коду · Campus</title></svelte:head>
 
 <h1>Вход по коду</h1>
 {#if error}

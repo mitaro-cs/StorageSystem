@@ -15,7 +15,7 @@ import type {
 } from '$lib/types';
 
 /**
- * Ответы API из копии на устройстве — когда сети нет. Те же формы и те же правила отбора, что
+ * Ответы API из копии на устройстве – когда сети нет. Те же формы и те же правила отбора, что
  * у сервера (HomeworkService.View, NewsService.feed, MaterialService.list и т.д.). Всё, что
  * лежит в копии, пользователю уже разрешено: сервер отбирает это при синхронизации.
  */
@@ -34,7 +34,7 @@ export interface Snapshot {
 	materials: Material[];
 	folders: FolderRef[];
 	subjects: Subject[];
-	/** Ключ — «post:12», «homework:5», «material:7». */
+	/** Ключ – «post:12», «homework:5», «material:7». */
 	comments: Record<string, Comment[]>;
 	members: Record<number, Member[]>;
 	/** Пары расписания (в копии до 0.4.12 их нет). */
@@ -52,7 +52,7 @@ function startOfDay(ms: number): number {
 }
 
 const byDue = (a: Homework, b: Homework) => a.dueAt - b.dueAt;
-/** Новые сверху; неотправленные (отрицательный id) — самыми первыми. */
+/** Новые сверху; неотправленные (отрицательный id) – самыми первыми. */
 const newest = (a: { id: number; createdAt: number }, b: { id: number; createdAt: number }) =>
 	Number(b.id < 0) - Number(a.id < 0) || b.createdAt - a.createdAt || b.id - a.id;
 
@@ -75,7 +75,7 @@ function find<T extends { id: number }>(list: T[], id: number): T {
 	return x;
 }
 
-/** Предметы, скрытые у себя («не мой предмет»): в общих списках их нет — как на сервере. */
+/** Предметы, скрытые у себя («не мой предмет»): в общих списках их нет – как на сервере. */
 function notMine(s: Snapshot): Set<number> {
 	return new Set(s.subjects.filter((x) => x.mine === false).map((x) => x.id));
 }
@@ -142,7 +142,7 @@ export function newsFeed(s: Snapshot, q: URLSearchParams) {
 	return { pinned, items, next: rest.length > limit ? (items.at(-1)?.id ?? null) : null };
 }
 
-/** Пары за период: как у сервера (LessonService.list) — общий список без «не моих» предметов. */
+/** Пары за период: как у сервера (LessonService.list) – общий список без «не моих» предметов. */
 export function schedule(s: Snapshot, q: URLSearchParams): Lesson[] {
 	const group = num(q, 'group');
 	const subject = num(q, 'subject');
@@ -161,7 +161,7 @@ export function schedule(s: Snapshot, q: URLSearchParams): Lesson[] {
 		.sort((a, b) => a.startsAt - b.startsAt || a.id - b.id);
 }
 
-/** Страница пары: задания и материалы к ней — из копии, соседние пары того же предмета. */
+/** Страница пары: задания и материалы к ней – из копии, соседние пары того же предмета. */
 export function lessonDetail(s: Snapshot, id: number): LessonDetail {
 	const lesson = find(s.lessons ?? [], id);
 	const same = (s.lessons ?? [])
@@ -433,7 +433,7 @@ export function search(s: Snapshot, q: URLSearchParams): SearchResult {
 	return { query, items, counts };
 }
 
-/** Ответ на GET-запрос из копии; undefined — такой запрос без сети не работает. */
+/** Ответ на GET-запрос из копии; undefined – такой запрос без сети не работает. */
 export function resolve(path: string, s: Snapshot, now = Date.now()): unknown {
 	const url = new URL(path, 'http://local');
 	const p = url.pathname;

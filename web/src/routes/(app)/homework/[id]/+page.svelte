@@ -97,7 +97,7 @@
 	const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 </script>
 
-<svelte:head><title>{item?.title ?? 'Задание'} · campus</title></svelte:head>
+<svelte:head><title>{item?.title ?? 'Задание'} · Campus</title></svelte:head>
 
 <BackBar href="/homework" label="Задания"><Menu items={actions} /></BackBar>
 
@@ -317,7 +317,7 @@
 		overflow-wrap: break-word;
 		hyphens: auto;
 	}
-	/* Узкий телефон: картинка — полосой сверху, название — во всю ширину, без разрывов слов. */
+	/* Узкий телефон: картинка – полосой сверху, название – во всю ширину, без разрывов слов. */
 	@media (max-width: 520px) {
 		.hero {
 			grid-template-columns: 1fr;
@@ -382,7 +382,7 @@
 	.cta-space {
 		height: 88px;
 	}
-	/* Узко — пункты переносятся: разделитель-черта тогда только мешает */
+	/* Узко – пункты переносятся: разделитель-черта тогда только мешает */
 	@media (max-width: 480px) {
 		.facts > span + span {
 			border-left: 0;

@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 export const ADMIN = {
 	username: 'anna.admin',
@@ -6,6 +6,14 @@ export const ADMIN = {
 	name: 'Смирнова Анна Сергеевна'
 };
 export const STUDENT = { username: 'oleg.kim', password: 'e2e-student-password', name: 'Ким Олег' };
+
+/** ФИО – три поля: фамилия, имя, отчество (если есть). */
+export async function fillFio(scope: Page | Locator, fio: string) {
+	const [last, first, ...rest] = fio.split(' ');
+	await scope.getByLabel('Фамилия').fill(last);
+	await scope.getByLabel('Имя', { exact: true }).fill(first);
+	if (rest.length) await scope.getByLabel('Отчество').fill(rest.join(' '));
+}
 
 export async function login(page: Page, user: { username: string; password: string }) {
 	await page.goto('/login');
@@ -16,7 +24,7 @@ export async function login(page: Page, user: { username: string; password: stri
 	await acceptTermsIfAsked(page);
 }
 
-/** Аккаунт создан без формы регистрации (администратором) — правила примем в окне согласия. */
+/** Аккаунт создан без формы регистрации (администратором) – правила примем в окне согласия. */
 export async function acceptTermsIfAsked(page: Page) {
 	const accepted = await page.evaluate(() =>
 		fetch('/api/me')
@@ -37,7 +45,7 @@ export function watchConsole(page: Page): string[] {
 		if (m.type() === 'error' && !m.text().includes('401')) errors.push(m.text());
 	});
 	page.on('pageerror', (e) => errors.push(e.message));
-	// Какой запрос ответил ошибкой сервера — в консоли браузера адреса нет.
+	// Какой запрос ответил ошибкой сервера – в консоли браузера адреса нет.
 	page.on('response', (r) => {
 		if (r.status() >= 500)
 			errors.push(`${r.status()} ${r.request().method()} ${new URL(r.url()).pathname}`);

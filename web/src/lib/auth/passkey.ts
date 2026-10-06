@@ -2,7 +2,7 @@ import { post } from '$lib/api';
 
 /**
  * Вход по отпечатку или лицу (WebAuthn, passkeys). Сервер отдаёт параметры в JSON с base64url, а
- * браузеру нужны байты. Открытый ключ берём у браузера (getPublicKey) — серверу не нужен CBOR.
+ * браузеру нужны байты. Открытый ключ берём у браузера (getPublicKey) – серверу не нужен CBOR.
  */
 
 export function b64u(data: ArrayBuffer | Uint8Array): string {
@@ -51,7 +51,7 @@ export function deviceName(ua: string = globalThis.navigator?.userAgent ?? ''): 
 
 /**
  * Понятная причина, почему не вышло. При входе «отменено» означает и «ключа нет»: браузер не
- * говорит сайту, есть ли на устройстве ключ, — отказ выглядит одинаково.
+ * говорит сайту, есть ли на устройстве ключ, – отказ выглядит одинаково.
  */
 export function passkeyError(
 	e: unknown,
@@ -62,20 +62,20 @@ export function passkeyError(
 		if (e.name === 'NotAllowedError' || e.name === 'AbortError')
 			return when === 'login'
 				? 'Вход отменён или на этом устройстве нет ключа для этого сайта. Попробуйте ещё раз или войдите по паролю'
-				: 'Отменено — можно попробовать ещё раз';
+				: 'Отменено – можно попробовать ещё раз';
 		if (e.name === 'InvalidStateError') return 'Этот ключ уже добавлен';
 		if (e.name === 'NotSupportedError')
 			return securityKey
-				? 'Этот ключ не умеет хранить вход без логина — нужен ключ FIDO2 с PIN-кодом (например, YubiKey 5)'
+				? 'Этот ключ не умеет хранить вход без логина – нужен ключ FIDO2 с PIN-кодом (например, YubiKey 5)'
 				: 'Это устройство не умеет входить по ключу';
 		if (e.name === 'SecurityError')
-			return 'Ключи работают только по адресу сайта с https — не по IP-адресу';
+			return 'Ключи работают только по адресу сайта с https – не по IP-адресу';
 	}
 	return e instanceof Error ? e.message : 'Не получилось';
 }
 
 interface CreateOptions {
-	/** «security-key» — браузер сразу просит приложить ключ безопасности (USB, NFC). */
+	/** «security-key» – браузер сразу просит приложить ключ безопасности (USB, NFC). */
 	hints?: string[];
 	challenge: string;
 	rp: { id: string; name: string };
@@ -146,7 +146,7 @@ export async function passkeyAutofill(): Promise<boolean> {
 }
 
 /**
- * Вход ключом. autofill — ждать, пока человек выберет ключ в подсказке у поля логина
+ * Вход ключом. autofill – ждать, пока человек выберет ключ в подсказке у поля логина
  * (mediation: conditional); такой запрос отменяют через signal, чтобы нажать «Войти по ключу».
  */
 export async function loginWithPasskey(

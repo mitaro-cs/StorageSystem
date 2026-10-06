@@ -1,20 +1,18 @@
-// ФИО хранится одной строкой в порядке «Фамилия Имя Отчество». Проверка повторяет серверную
-// (accounts.Names.displayName), чтобы ошибка показывалась сразу, без запроса.
+// ФИО хранится одной строкой в порядке «Фамилия Имя Отчество». Проверка – в fio.ts (повторяет
+// серверную accounts.Names.displayName, чтобы ошибка показывалась сразу, без запроса).
 
-const WORD = /^\p{L}[\p{L}\p{M}'’.-]*$/u;
-
-function words(fio: string): string[] {
+export function words(fio: string): string[] {
 	const s = fio.trim();
 	return s ? s.split(/\s+/) : [];
 }
 
-/** Имя из ФИО — второе слово («Сарбашев Омар Русланович» → «Омар»). */
+/** Имя из ФИО – второе слово («Сарбашев Омар Русланович» → «Омар»). */
 export function firstName(fio: string): string {
 	const w = words(fio);
 	return w[1] ?? w[0] ?? '';
 }
 
-/** Фамилия из ФИО — первое слово. */
+/** Фамилия из ФИО – первое слово. */
 export function lastName(fio: string): string {
 	const w = words(fio);
 	return w.length > 1 ? w[0] : '';
@@ -23,8 +21,8 @@ export function lastName(fio: string): string {
 const norm = (s: string) => s.toLowerCase().replaceAll('ё', 'е');
 
 /**
- * Короткие подписи людей в обсуждении: только имя, а если имя встречается у разных людей — имя и
- * фамилия (дальше — инициал отчества, в крайнем случае ФИО целиком).
+ * Короткие подписи людей в обсуждении: только имя, а если имя встречается у разных людей – имя и
+ * фамилия (дальше – инициал отчества, в крайнем случае ФИО целиком).
  */
 export function shortNames(
 	people: { id: number; displayName: string; deleted?: boolean }[]
@@ -58,15 +56,6 @@ export function shortNames(
 		if (!changed) break;
 	}
 	return new Map([...fio].map(([id, f]) => [id, label(f, level.get(id)!)]));
-}
-
-/** Текст ошибки или пустая строка, если ФИО записано верно. */
-export function fioError(fio: string): string {
-	const w = words(fio);
-	if (w.join(' ').length > 64) return 'ФИО — не длиннее 64 символов';
-	if (w.length < 2 || w.length > 5) return 'Укажите ФИО: фамилию, имя и отчество (если есть)';
-	if (!w.every((x) => WORD.test(x))) return 'ФИО пишется буквами, например: Иванов Иван Иванович';
-	return '';
 }
 
 const TRANSLIT: Record<string, string> = {

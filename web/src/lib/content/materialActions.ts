@@ -1,3 +1,4 @@
+import { isMarkdown } from './materialTypes';
 import { del, post, put } from '$lib/api';
 import { toast, toastError } from '$lib/toasts.svelte';
 import type { Material } from '$lib/types';
@@ -22,8 +23,15 @@ export function materialActions(m: Material, changed: () => void): MenuItem[] {
 			label: 'Скачать',
 			onclick: () => (location.href = `/api/files/${m.file!.id}?download=true`)
 		});
+		// Конспект в Markdown – документом Word (сервер собирает .docx).
+		if (isMarkdown(m.file.mime, m.file.name)) {
+			out.push({
+				label: 'Скачать в Word',
+				onclick: () => (location.href = `/api/files/${m.file!.id}/docx`)
+			});
+		}
 	}
-	// Закрепить сверху — староста, замы и модераторы (как закреплённые новости).
+	// Закрепить сверху – староста, замы и модераторы (как закреплённые новости).
 	if (m.can.pin && m.status === 'published') {
 		out.push({
 			label: m.pinnedAt ? 'Открепить' : 'Закрепить сверху',

@@ -1,7 +1,7 @@
 /**
- * Тур по сайту (0.6): подсказки на настоящих кнопках. У шага — список селекторов, берётся первый
+ * Тур по сайту (0.6): подсказки на настоящих кнопках. У шага – список селекторов, берётся первый
  * видимый: боковая панель на компьютере, нижняя панель на телефоне. Ничего не нашлось (например,
- * на «Сегодня» нет заданий) — подсказка по центру экрана, без подсветки.
+ * на «Сегодня» нет заданий) – подсказка по центру экрана, без подсветки.
  */
 export interface TourStep {
 	id: string;
@@ -24,13 +24,13 @@ export function tourSteps({ manage, moderate, phone }: TourRole): TourStep[] {
 	const steps: TourStep[] = [
 		{
 			id: 'today',
-			title: 'Всё главное — на «Сегодня»',
+			title: 'Всё главное – на «Сегодня»',
 			text: 'Что сдать на неделе, пары и свежие новости группы.',
 			targets: nav('/')
 		},
 		{
 			id: 'done',
-			title: 'Сделали — отметьте',
+			title: 'Сделали – отметьте',
 			text: 'Кружок у задания: оно уйдёт вниз, и напоминаний о нём больше не будет.',
 			targets: ['main .hw .toggle']
 		},
@@ -50,8 +50,8 @@ export function tourSteps({ manage, moderate, phone }: TourRole): TourStep[] {
 			id: 'search',
 			title: 'Найти что угодно',
 			text: phone
-				? 'Задание, файл или раздел — поиск всегда наверху.'
-				: 'Задание, файл или раздел. С клавиатуры — Ctrl K (на Mac ⌘K).',
+				? 'Задание, файл или раздел – поиск всегда наверху.'
+				: 'Задание, файл или раздел. С клавиатуры – Ctrl K (на Mac ⌘K).',
 			targets: ['.sidebar .finder', 'header.bar a[href="/search"]']
 		}
 	];
@@ -60,8 +60,8 @@ export function tourSteps({ manage, moderate, phone }: TourRole): TourStep[] {
 			id: 'manage',
 			title: 'Вы ведёте группу',
 			text: phone
-				? 'Приглашения, права и семестр — в «Профиле» → «Управление».'
-				: 'Приглашения, права и семестр — в «Управлении».',
+				? 'Приглашения, права и семестр – в «Профиле» → «Управление».'
+				: 'Приглашения, права и семестр – в «Управлении».',
 			targets: [`.sidebar a[href="/settings"]`, `.bottom-nav a[href="/profile"]`]
 		});
 	if (moderate)
@@ -85,7 +85,7 @@ export function findTarget(selectors: string[]): HTMLElement | null {
 	return null;
 }
 
-/** Где поставить карточку подсказки: под целью, если не влезает — над ней; всегда на экране. */
+/** Где поставить карточку подсказки: под целью, если не влезает – над ней; всегда на экране. */
 export function placeCard(
 	target: { top: number; left: number; width: number; height: number } | null,
 	card: { width: number; height: number },
@@ -100,7 +100,7 @@ export function placeCard(
 		};
 	const clampX = (x: number) => Math.min(Math.max(margin, x), view.width - card.width - margin);
 	const clampY = (y: number) => Math.min(Math.max(margin, y), view.height - card.height - margin);
-	// Узкая цель в боковой панели — карточка справа от неё.
+	// Узкая цель в боковой панели – карточка справа от неё.
 	const right = target.left + target.width + gap;
 	if (
 		target.left < view.width / 3 &&

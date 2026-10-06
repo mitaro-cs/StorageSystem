@@ -187,11 +187,11 @@ public class ModerationService {
     Raw r = raw(type, id).orElseThrow(ApiException::notFound);
     access.requireSee(actor, r.groups());
     if (r.authorId() != null && r.authorId() == actor.id()) {
-      throw ApiException.badRequest("Своё можно изменить или удалить — жаловаться не нужно");
+      throw ApiException.badRequest("Своё можно изменить или удалить – жаловаться не нужно");
     }
     String why = reason == null ? "" : reason.strip();
     if (why.length() > REASON_MAX) {
-      throw ApiException.invalid("reason", "Пояснение — не длиннее " + REASON_MAX + " символов");
+      throw ApiException.invalid("reason", "Пояснение – не длиннее " + REASON_MAX + " символов");
     }
     int added =
         db.sql(

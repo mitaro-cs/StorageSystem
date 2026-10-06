@@ -4,13 +4,13 @@ import { toast, toastError } from '$lib/toasts.svelte';
 import type { Lesson } from '$lib/types';
 import { ask } from '$lib/ui/ask.svelte';
 
-// Действия старосты на «Расписании» — грузятся по нажатию (бюджет страницы).
+// Действия старосты на «Расписании» – грузятся по нажатию (бюджет страницы).
 
-/** Очистить расписание группы; true — очистили. */
+/** Очистить расписание группы; true – очистили. */
 export async function clearSchedule(groupId: number): Promise<boolean> {
 	if (
 		!(await ask(
-			'Все пары группы исчезнут из расписания. Задания и материалы к ним останутся — просто без пары.',
+			'Все пары группы исчезнут из расписания. Задания и материалы к ним останутся – просто без пары.',
 			{ title: 'Очистить расписание?', ok: 'Очистить', danger: true }
 		))
 	)
@@ -25,7 +25,7 @@ export async function clearSchedule(groupId: number): Promise<boolean> {
 	}
 }
 
-/** «Пары не было» или вернуть; новая пара — или null при ошибке. */
+/** «Пары не было» или вернуть; новая пара – или null при ошибке. */
 export async function setCancelled(l: Lesson, value: boolean): Promise<Lesson | null> {
 	try {
 		const updated = await put<Lesson>(`/api/lessons/${l.id}/cancelled`, { value });

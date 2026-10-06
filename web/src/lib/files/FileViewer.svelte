@@ -6,7 +6,7 @@
 	import { closeViewer, viewer } from './viewer.svelte';
 
 	// Просмотр файлов поверх приложения: картинки, PDF, видео, аудио и текст открываются сразу,
-	// без скачивания и без выхода из приложения. Остальное — «Скачать».
+	// без скачивания и без выхода из приложения. Остальное – «Скачать».
 	let dialog: HTMLDialogElement | undefined = $state();
 	let zoom = $state(1);
 	let text = $state<string | null>(null);
@@ -24,7 +24,7 @@
 		if (!viewer.open && dialog.open) dialog.close();
 	});
 
-	// Новый файл — масштаб сначала, текст заново.
+	// Новый файл – масштаб сначала, текст заново.
 	$effect(() => {
 		void file?.id;
 		zoom = 1;
@@ -32,7 +32,7 @@
 		textError = '';
 		if (!file || pending || kind !== 'text') return;
 		if (file.size > TEXT_LIMIT) {
-			textError = 'Файл большой — скачайте его';
+			textError = 'Файл большой – скачайте его';
 			return;
 		}
 		const id = file.id;
@@ -63,7 +63,7 @@
 		zoom = Math.round(Math.min(4, Math.max(0.5, z)) * 100) / 100;
 	}
 
-	// Свайп влево-вправо — соседний файл (когда картинка не увеличена).
+	// Свайп влево-вправо – соседний файл (когда картинка не увеличена).
 	let startX = 0;
 	let startY = 0;
 	function down(e: PointerEvent) {
@@ -76,7 +76,7 @@
 		if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(e.clientY - startY) * 1.5) go(dx < 0 ? 1 : -1);
 	}
 
-	// Двойное касание картинки — приблизить или вернуть (масштаб страницы сам не меняется).
+	// Двойное касание картинки – приблизить или вернуть (масштаб страницы сам не меняется).
 	let lastTap = 0;
 	function tapImage(e: PointerEvent) {
 		if (e.pointerType !== 'touch') return;
@@ -128,7 +128,7 @@
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			class="stage"
-			class:scroll={kind === 'pdf' || kind === 'text' || zoom !== 1}
+			class:scroll={kind === 'pdf' || kind === 'text' || kind === 'markdown' || zoom !== 1}
 			onpointerdown={down}
 			onpointerup={up}
 		>
@@ -137,7 +137,7 @@
 					{#if pending}
 						<div class="none">
 							<FileIcon mime={file.mime} size={34} />
-							<p>Файл ещё на этом устройстве — откроется, когда уйдёт на сервер.</p>
+							<p>Файл ещё на этом устройстве – откроется, когда уйдёт на сервер.</p>
 						</div>
 					{:else if kind === 'image'}
 						<img
@@ -158,6 +158,11 @@
 							<FileIcon mime={file.mime} size={34} />
 							<audio {src} controls preload="metadata"></audio>
 						</div>
+					{:else if kind === 'markdown'}
+						{#await import('./MarkdownNote.svelte') then m}<m.default
+								fileId={file.id}
+								dark
+							/>{/await}
 					{:else if kind === 'text'}
 						{#if textError}<p class="none">{textError}</p>
 						{:else if text === null}<p class="none faint">Открываем…</p>
@@ -167,7 +172,7 @@
 							<FileIcon mime={file.mime} size={40} />
 							<p>
 								<strong>{file.name}</strong><br /><span class="dim"
-									>Этот файл не открыть прямо здесь — скачайте его и откройте в подходящей
+									>Этот файл не открыть прямо здесь – скачайте его и откройте в подходящей
 									программе.</span
 								>
 							</p>
@@ -334,7 +339,8 @@
 		border-radius: 8px;
 		background: black;
 	}
-	.content.text {
+	.content.text,
+	.content.markdown {
 		width: min(100%, 980px);
 		margin: 0 auto;
 	}

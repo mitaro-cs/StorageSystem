@@ -4,7 +4,7 @@
 	import { toastError } from '$lib/toasts.svelte';
 	import type { PermissionCell } from '$lib/types';
 
-	/** groupId === null — значения по умолчанию для всего инстанса (только admin). */
+	/** groupId === null – значения по умолчанию для всего инстанса (только admin). */
 	let { groupId }: { groupId: number | null } = $props();
 	let cells = $state<PermissionCell[]>([]);
 
@@ -59,7 +59,7 @@
 <p class="hint">
 	{groupId === null
 		? 'Значения для всех групп. Староста может изменить их в своей группе.'
-		: 'Остальные права фиксированы ролью — см. документацию.'}
+		: 'Остальные права фиксированы ролью – см. документацию.'}
 </p>
 
 <style>

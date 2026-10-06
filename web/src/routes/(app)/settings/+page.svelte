@@ -49,7 +49,7 @@
 	const group = $derived(groups().find((g) => g.id === picked) ?? currentGroup() ?? groups()[0]);
 	const desktop = $derived(!!session.me?.instance.desktop);
 
-	// Разделы настроек: у каждого своя иконка и одна фраза — что внутри. Группа отдельно от сайта.
+	// Разделы настроек: у каждого своя иконка и одна фраза – что внутри. Группа отдельно от сайта.
 	const sections = $derived(
 		(
 			[
@@ -192,7 +192,7 @@
 </script>
 
 <svelte:head
-	><title>{current ? `${current.label} · ` : ''}{t.nav.settings} · campus</title></svelte:head
+	><title>{current ? `${current.label} · ` : ''}{t.nav.settings} · Campus</title></svelte:head
 >
 
 <div class="page-head">
@@ -213,7 +213,7 @@
 	<div class="card">
 		<Empty
 			title="Режим управления выключен"
-			text="Кнопки администратора и старосты скрыты — сайт выглядит так же, как у участников."
+			text="Кнопки администратора и старосты скрыты – сайт выглядит так же, как у участников."
 		>
 			<Button variant="primary" onclick={enableManage}>Включить режим управления</Button>
 		</Empty>
@@ -222,7 +222,7 @@
 	<div class="card">
 		<Empty
 			title="Управлять здесь пока нечем"
-			text="Группой управляют староста и администратор. Своё — тема, уведомления, пароль — в настройках: шестерёнка рядом с вашим именем."
+			text="Группой управляют староста и администратор. Своё – тема, уведомления, пароль – в настройках: шестерёнка рядом с вашим именем."
 		>
 			<a href="/profile">{t.nav.mySettings}</a>
 		</Empty>
@@ -343,7 +343,7 @@
 		background: var(--surface);
 		box-shadow: var(--shadow-1);
 	}
-	/* Меню разделов (0.7): крупные пункты, выбранный — заливкой, полосой и цветной иконкой. */
+	/* Меню разделов (0.7): крупные пункты, выбранный – заливкой, полосой и цветной иконкой. */
 	.item {
 		position: relative;
 		display: flex;
@@ -486,7 +486,7 @@
 		.item.on {
 			box-shadow: none;
 		}
-		/* В меню на телефоне раздел ещё не выбран — ничего не подсвечиваем. */
+		/* В меню на телефоне раздел ещё не выбран – ничего не подсвечиваем. */
 		.menu-only .item.on {
 			background: transparent;
 		}

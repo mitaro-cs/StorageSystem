@@ -73,7 +73,7 @@ class DeviceLinksIT extends IntegrationTest {
     }
     String pin = student.api().post("/api/auth/link", null).json().get("pin").asString();
     assertThat(client().post("/api/auth/link/redeem", Map.of("pin", pin)).status())
-        .as("после серии ошибок — только через паузу")
+        .as("после серии ошибок – только через паузу")
         .isEqualTo(429);
     // QR (длинный код) работает и тогда.
     String code = student.api().post("/api/auth/link", null).json().get("code").asString();

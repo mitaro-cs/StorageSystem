@@ -5,7 +5,7 @@
 	import Button from '$lib/ui/Button.svelte';
 	import { auditLabel, auditLink, auditTarget } from './auditLabels';
 
-	// Журнал действий: кто и что менял — по-русски, с названием записи и ссылкой на неё.
+	// Журнал действий: кто и что менял – по-русски, с названием записи и ссылкой на неё.
 	let { groupId }: { groupId: number | null } = $props();
 	let items = $state<AuditEntry[]>([]);
 	let done = $state(false);

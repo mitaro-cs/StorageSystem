@@ -31,7 +31,7 @@ import picocli.CommandLine.Spec;
     name = "seed",
     description =
         "Заполнить пустой сайт демо-данными: группа, предметы, задания, новости, сессия."
-            + " Пароль у всех — "
+            + " Пароль у всех – "
             + SeedCommand.PASSWORD
             + ".",
     mixinStandardHelpOptions = true)
@@ -72,7 +72,7 @@ public class SeedCommand implements Callable<Integer> {
     try (var ctx = target.open()) {
       SetupService setup = ctx.getBean(SetupService.class);
       if (!setup.needed()) {
-        spec.commandLine().getErr().println("Сайт уже настроен — seed заполняет только пустой.");
+        spec.commandLine().getErr().println("Сайт уже настроен – seed заполняет только пустой.");
         return 1;
       }
       ZoneId zone = ctx.getBean(GroupbaseProperties.class).timezone();
@@ -131,21 +131,21 @@ public class SeedCommand implements Callable<Integer> {
                   1,
                   9,
                   2),
-              new H(2, "lab", "Лабораторная №3: коллекции", "Отчёт и код — в Moodle.", 3, 23, 3),
+              new H(2, "lab", "Лабораторная №3: коллекции", "Отчёт и код – в Moodle.", 3, 23, 3),
               new H(4, "homework", "Эссе «My future profession»", "180–220 слов.", 4, 10, 1),
               new H(
                   1,
                   "test",
                   "Контрольная: кинематика",
-                  "Формулы — на обороте методички.",
+                  "Формулы – на обороте методички.",
                   6,
                   11,
                   2),
-              new H(3, "homework", "Модель OSI — конспект", "Все 7 уровней с примерами.", 8, 9, 1),
+              new H(3, "homework", "Модель OSI – конспект", "Все 7 уровней с примерами.", 8, 9, 1),
               new H(6, "lab", "ER-диаграмма для библиотеки", "", 12, 23, 2),
-              new H(5, "credit", "Зачёт по истории", "Список вопросов — в материалах.", 12, 10, 0),
+              new H(5, "credit", "Зачёт по истории", "Список вопросов – в материалах.", 12, 10, 0),
               new H(7, "credit", "Зачёт по физкультуре", "Норматив: бег 1 км.", 14, 12, 0),
-              new H(0, "exam", "Экзамен по высшей математике", "Билеты — в материалах.", 18, 9, 3),
+              new H(0, "exam", "Экзамен по высшей математике", "Билеты – в материалах.", 18, 9, 3),
               new H(2, "exam", "Экзамен по программированию", "Задача на ПК + теория.", 22, 10, 3),
               new H(3, "exam", "Экзамен по сетям связи", "", 26, 9, 2));
       String[] rooms = {"ауд. 305", "ауд. 214", "ауд. 118", "спортзал", "ауд. 402"};
@@ -178,7 +178,7 @@ public class SeedCommand implements Callable<Integer> {
           actor,
           new NewsService.Input(
               "Расписание сессии",
-              "Зачёты и экзамены — на странице «Сессия». Консультации за день до экзамена.",
+              "Зачёты и экзамены – на странице «Сессия». Консультации за день до экзамена.",
               List.of(group),
               null,
               true,
@@ -221,7 +221,7 @@ public class SeedCommand implements Callable<Integer> {
                               + "1. Предел функции. Замечательные пределы.\n"
                               + "2. Производная и её геометрический смысл.\n"
                               + "3. Неопределённый интеграл. Методы интегрирования.\n"
-                              + "4. Определённый интеграл. Формула Ньютона — Лейбница.\n")
+                              + "4. Определённый интеграл. Формула Ньютона – Лейбница.\n")
                           .getBytes(StandardCharsets.UTF_8)),
                   "Вопросы к экзамену.txt",
                   admin.id());

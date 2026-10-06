@@ -12,6 +12,7 @@
 		avatar = undefined,
 		icon = undefined,
 		cover = undefined,
+		badge = true,
 		class: cls = ''
 	}: {
 		id: number;
@@ -20,6 +21,8 @@
 		avatar?: string | null;
 		icon?: string | null;
 		cover?: string | null;
+		/** Значок предмета поверх фона (по умолчанию – да: фон не прячет, что это за предмет). */
+		badge?: boolean;
 		class?: string;
 	} = $props();
 
@@ -28,7 +31,7 @@
 	const glyph = $derived(subjectIcon(icon === undefined ? subjectById(id)?.icon : icon, name));
 	const Icon = $derived(icons.map?.[glyph.key]);
 	$effect(() => {
-		if (!img) loadIcons();
+		if (!img || wide) loadIcons();
 	});
 </script>
 
@@ -43,6 +46,7 @@
 			loading="lazy"
 			decoding="async"
 		/>
+		{#if badge && Icon}<span class="badge"><Icon size="100%" strokeWidth={2.1} /></span>{/if}
 	{:else if img}
 		<img src="/api/avatars/{img}-256.webp" alt="" loading="lazy" decoding="async" />
 	{:else}
@@ -87,6 +91,22 @@
 		color: rgb(255 255 255 / 0.9);
 		filter: drop-shadow(0 2px 6px rgb(0 0 0 / 0.18));
 	}
+	/* Значок на фоне: кружок цвета предмета в углу. */
+	.badge {
+		position: absolute;
+		left: 7%;
+		bottom: 9%;
+		width: clamp(22px, 26cqh, 52px);
+		height: clamp(22px, 26cqh, 52px);
+		padding: clamp(4px, 5.5cqh, 11px);
+		border-radius: 30%;
+		background: var(--c);
+		color: #fff;
+		box-shadow:
+			0 0 0 2px rgb(255 255 255 / 0.85),
+			0 4px 14px rgb(0 0 0 / 0.3);
+	}
+	.badge :global(svg),
 	.glyph :global(svg) {
 		width: 100%;
 		height: 100%;

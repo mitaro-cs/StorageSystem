@@ -9,11 +9,11 @@
 	import { findTarget, placeCard, tourSteps } from './steps';
 	import TourDemo from './TourDemo.svelte';
 
-	// Тур для новичка (0.6): приветствие с Атлантом, потом подсказки на настоящих кнопках —
-	// затемнено всё, кроме нужной, подсветка перетекает от кнопки к кнопке. В каждой подсказке —
-	// мини-«запись» (TourDemo, 0.7). В конце — большой экран «Добро пожаловать» с сиянием,
-	// кольцами и залпом конфетти.
-	// Esc, «Пропустить» или крестик — тур закончен и больше сам не покажется (и на других устройствах).
+	// Тур для новичка (0.6): приветствие с Атлантом, потом подсказки на настоящих кнопках –
+	// затемнено всё, кроме нужной, подсветка перетекает от кнопки к кнопке. В каждой подсказке –
+	// мини-«запись» (TourDemo, 0.7). В конце – большой экран «Добро пожаловать»: логотип на
+	// орбитах с искрами и залп конфетти (0.9.4: без сияния и градиентов, просьба владельца).
+	// Esc, «Пропустить» или крестик – тур закончен и больше сам не покажется (и на других устройствах).
 
 	const phone = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 899px)').matches;
 	const steps = tourSteps({
@@ -44,7 +44,7 @@
 	});
 
 	async function start() {
-		// Подсказки — про «Сегодня»: тур идёт оттуда.
+		// Подсказки – про «Сегодня»: тур идёт оттуда.
 		if (page.url.pathname !== '/') await goto('/');
 		phase = 'tour';
 		await show(0);
@@ -95,7 +95,7 @@
 	}
 
 	function close() {
-		// Подсказки прокручивали «Сегодня» — возвращаем к началу.
+		// Подсказки прокручивали «Сегодня» – возвращаем к началу.
 		if (phase !== 'hello') scrollTo({ top: 0, behavior: 'smooth' });
 		finishWelcome();
 	}
@@ -108,7 +108,7 @@
 		else if (phase === 'tour' && e.key === 'ArrowLeft') back();
 	}
 
-	// Листание пальцем: влево — дальше, вправо — назад.
+	// Листание пальцем: влево – дальше, вправо – назад.
 	let startX = 0;
 	function touchStart(e: TouchEvent) {
 		startX = e.touches[0].clientX;
@@ -119,7 +119,18 @@
 		if (Math.abs(dx) > 60) (dx < 0 ? next : back)();
 	}
 
-	// Залп конфетти снизу из двух углов: цвета темы и её пятен света, у каждой — своя траектория.
+	// Искры вокруг логотипа на финале: угол, расстояние, задержка.
+	const SPARKS = [
+		{ a: 20, r: 128, d: 0 },
+		{ a: 75, r: 150, d: 700 },
+		{ a: 130, r: 122, d: 300 },
+		{ a: 190, r: 156, d: 1100 },
+		{ a: 240, r: 130, d: 500 },
+		{ a: 300, r: 148, d: 900 },
+		{ a: 345, r: 118, d: 1400 }
+	];
+
+	// Залп конфетти снизу из двух углов: цвета темы и её пятен света, у каждой – своя траектория.
 	const confetti = Array.from({ length: 90 }, (_, i) => {
 		const left = i % 2 === 0;
 		return {
@@ -157,7 +168,7 @@
 	class="tour"
 	role="dialog"
 	aria-modal="true"
-	aria-label="Знакомство с campus"
+	aria-label="Знакомство с Campus"
 	tabindex="-1"
 	bind:this={root}
 	onkeydown={keydown}
@@ -181,7 +192,7 @@
 			{@render logo('logo')}
 			<h2>Привет{name ? `, ${name}` : ''}!</h2>
 			<p class="muted">
-				Это сайт {group ? `группы ${group}` : 'вашей группы'}. Покажу главное — полминуты.
+				Это сайт {group ? `группы ${group}` : 'вашей группы'}. Покажу главное – полминуты.
 			</p>
 			<div class="actions">
 				<Button variant="primary" onclick={start}>Поехали <ArrowRight size={17} /></Button>
@@ -219,8 +230,6 @@
 		</div>
 	{:else}
 		<div class="finale" role="document">
-			<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
-			<div class="rings" aria-hidden="true"><i></i><i></i><i></i></div>
 			<div class="confetti" aria-hidden="true">
 				{#each confetti as p, i (i)}
 					<i
@@ -233,7 +242,20 @@
 					></i>
 				{/each}
 			</div>
-			{@render logo('logo big')}
+			<!-- Логотип на «орбитах»: два пунктирных эллипса со спутниками цветов предметов и
+			     искры вокруг – без сияния и градиентов. -->
+			<div class="stage">
+				<div class="orbit o1" aria-hidden="true"><i></i></div>
+				<div class="orbit o2" aria-hidden="true"><i></i><i></i></div>
+				<div class="sparks" aria-hidden="true">
+					{#each SPARKS as sp, i (i)}<b
+							style:--a="{sp.a}deg"
+							style:--rr="{sp.r}px"
+							style:--d="{sp.d}ms"
+						></b>{/each}
+				</div>
+				{@render logo('logo big')}
+			</div>
 			<h2 aria-label="Добро пожаловать!">
 				{#each [...'Добро пожаловать!'] as ch, i (i)}<span aria-hidden="true" style:--i={i}
 						>{ch === ' ' ? '\u00a0' : ch}</span
@@ -241,7 +263,7 @@
 			</h2>
 			<p class="lead">
 				{name ? `${name}, теперь` : 'Теперь'} вы в {group ? `группе ${group}` : 'своей группе'}.
-				Задания, пары и файлы — всё здесь.
+				Задания, пары и файлы – всё здесь.
 			</p>
 			<div class="actions">
 				<Button variant="primary" onclick={close}>К заданиям <ArrowRight size={17} /></Button>
@@ -320,7 +342,7 @@
 		transform-origin: center;
 		animation: pop 600ms cubic-bezier(0.2, 0.9, 0.25, 1.3) both;
 	}
-	/* Плитка как у логотипа: белая, глобус — в основном цвете (тёмный в любой теме — сетка белая). */
+	/* Плитка как у логотипа: белая, глобус – в основном цвете (тёмный в любой теме – сетка белая). */
 	.bg {
 		fill: #fff;
 		stroke: rgb(0 0 0 / 0.08);
@@ -402,7 +424,7 @@
 	.foot span {
 		margin-right: auto;
 	}
-	/* Финал: на весь экран — сияние цветов темы, кольца от логотипа, буквы по одной, залп конфетти. */
+	/* Финал: на весь экран – логотип на орбитах с искрами, буквы по одной, залп конфетти. */
 	.finale {
 		position: fixed;
 		inset: 0;
@@ -414,60 +436,77 @@
 		padding: var(--s5);
 		text-align: center;
 		overflow: hidden;
-		background: color-mix(in srgb, var(--bg) 93%, transparent);
-		backdrop-filter: blur(18px) saturate(1.4);
-		-webkit-backdrop-filter: blur(18px) saturate(1.4);
+		background: var(--bg);
 		animation: fade-in 400ms var(--ease);
 	}
-	.aurora i {
-		position: absolute;
-		width: 70vmax;
-		height: 70vmax;
+	.stage {
+		position: relative;
+		display: grid;
+		grid-template: 190px / 190px;
+		place-items: center;
+	}
+	.stage > * {
+		grid-area: 1 / 1;
+	}
+	/* Орбиты: эллипс наклонён, спутник едет по краю вместе с вращением. */
+	.orbit {
+		width: 300px;
+		height: 300px;
+		border: 1.5px dashed color-mix(in srgb, var(--text) 34%, transparent);
 		border-radius: 50%;
-		filter: blur(80px);
-		opacity: 0.5;
-		animation: drift 9s ease-in-out infinite alternate;
+		transform: rotateX(68deg);
+		animation:
+			orbit-in 700ms var(--ease) 900ms both,
+			spin1 9s linear 900ms infinite;
 	}
-	.aurora i:nth-child(1) {
-		top: -35vmax;
-		left: -20vmax;
-		background: var(--mesh-1, #4f7df5);
+	.o2 {
+		width: 380px;
+		height: 380px;
+		border-color: color-mix(in srgb, var(--text) 22%, transparent);
+		transform: rotateX(72deg) rotateY(-24deg);
+		animation:
+			orbit-in 700ms var(--ease) 1.1s both,
+			spin2 14s linear 1.1s infinite;
 	}
-	.aurora i:nth-child(2) {
-		bottom: -40vmax;
-		right: -25vmax;
-		background: var(--mesh-2, #a35cf0);
-		animation-delay: -3s;
-	}
-	.aurora i:nth-child(3) {
-		top: 30%;
-		left: 40%;
-		width: 40vmax;
-		height: 40vmax;
-		background: var(--mesh-3, #1fa37a);
-		opacity: 0.35;
-		animation-delay: -6s;
-	}
-	.rings {
+	.orbit i {
 		position: absolute;
-		top: calc(50% - 120px);
+		top: -6px;
+		left: calc(50% - 6px);
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		background: var(--accent);
+		box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+	}
+	.o2 i {
+		background: #1fa37a;
+		box-shadow: 0 0 0 4px rgb(31 163 122 / 0.22);
+	}
+	.o2 i + i {
+		top: auto;
+		bottom: -5px;
+		width: 10px;
+		height: 10px;
+		background: #e0633a;
+		box-shadow: 0 0 0 4px rgb(224 99 58 / 0.22);
+	}
+	.sparks b {
+		position: absolute;
+		top: 50%;
 		left: 50%;
+		width: 14px;
+		height: 14px;
+		margin: -7px;
+		background: var(--accent);
+		clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+		transform: rotate(var(--a)) translateX(var(--rr)) scale(0);
+		animation: twinkle 2.2s var(--ease) calc(1.2s + var(--d)) infinite;
 	}
-	.rings i {
-		position: absolute;
-		width: 160px;
-		height: 160px;
-		margin: -80px 0 0 -80px;
-		border: 2px solid var(--accent);
-		border-radius: 50%;
-		opacity: 0;
-		animation: ring 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) 700ms infinite;
+	.sparks b:nth-child(3n) {
+		background: #d9a21b;
 	}
-	.rings i:nth-child(2) {
-		animation-delay: 1.5s;
-	}
-	.rings i:nth-child(3) {
-		animation-delay: 2.3s;
+	.sparks b:nth-child(3n + 1) {
+		background: #a35cf0;
 	}
 	.logo.big {
 		position: relative;
@@ -484,14 +523,8 @@
 	}
 	.finale h2 span {
 		display: inline-block;
-		background: linear-gradient(120deg, var(--text), var(--accent) 60%, var(--text));
-		background-size: 300% 100%;
-		-webkit-background-clip: text;
-		background-clip: text;
-		color: transparent;
-		animation:
-			letter 700ms cubic-bezier(0.2, 0.9, 0.25, 1.4) calc(900ms + var(--i) * 45ms) both,
-			shine 4s linear 2.2s infinite;
+		color: var(--text);
+		animation: letter 700ms cubic-bezier(0.2, 0.9, 0.25, 1.4) calc(900ms + var(--i) * 45ms) both;
 	}
 	.lead {
 		position: relative;
@@ -590,21 +623,6 @@
 			opacity: 0;
 		}
 	}
-	@keyframes ring {
-		0% {
-			transform: scale(0.6);
-			opacity: 0.7;
-		}
-		100% {
-			transform: scale(3.2);
-			opacity: 0;
-		}
-	}
-	@keyframes drift {
-		to {
-			transform: translate(6vmax, 4vmax) scale(1.1);
-		}
-	}
 	@keyframes letter {
 		from {
 			transform: translateY(0.6em) scale(0.6) rotate(-8deg);
@@ -612,12 +630,29 @@
 			filter: blur(6px);
 		}
 	}
-	@keyframes shine {
-		from {
-			background-position: 100% 0;
-		}
+	@keyframes spin1 {
 		to {
-			background-position: -200% 0;
+			transform: rotateX(68deg) rotateZ(360deg);
+		}
+	}
+	@keyframes spin2 {
+		to {
+			transform: rotateX(72deg) rotateY(-24deg) rotateZ(-360deg);
+		}
+	}
+	@keyframes orbit-in {
+		from {
+			opacity: 0;
+			scale: 0.5;
+		}
+	}
+	@keyframes twinkle {
+		0%,
+		100% {
+			transform: rotate(var(--a)) translateX(var(--rr)) scale(0);
+		}
+		40% {
+			transform: rotate(var(--a)) translateX(var(--rr)) scale(1) rotate(45deg);
 		}
 	}
 	@keyframes fade-up {
@@ -639,7 +674,8 @@
 			transition: none !important;
 		}
 		.confetti,
-		.rings {
+		.orbit,
+		.sparks {
 			display: none;
 		}
 	}

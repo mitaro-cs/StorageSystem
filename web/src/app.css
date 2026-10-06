@@ -1,4 +1,4 @@
-/* groupbase — дизайн-система. Сетка 8 px. Монохром: чернила (чёрный в светлой теме, белый в тёмной)
+/* groupbase – дизайн-система. Сетка 8 px. Монохром: чернила (чёрный в светлой теме, белый в тёмной)
    для главных действий и янтарь для сроков. Крупные скругления, пилюли, матовые плавающие панели. */
 
 @font-face {
@@ -169,8 +169,8 @@
 
 /* ---------- Цвет (Настройки → Оформление, lib/colors.ts) ----------
    Основной цвет и насыщенность задают переменные --pal-* (светлый режим) и --pald-* (тёмный) прямо
-   на <html>: их считает lib/colors.ts, до отрисовки ставит скрипт в app.html. Без них — «Чернила»,
-   чёрно-белая классика выше. --mesh-* — пятна света для «Стекла» и «Сияния». */
+   на <html>: их считает lib/colors.ts, до отрисовки ставит скрипт в app.html. Без них – «Чернила»,
+   чёрно-белая классика выше. --mesh-* – пятна света для «Стекла» и «Сияния». */
 :root {
 	--mesh-1: #7c5cff;
 	--mesh-2: #38bdaa;
@@ -179,10 +179,10 @@
 
 /* ---------- Дизайн (Настройки → Оформление, lib/theme.ts STYLES) ----------
    Пять цельных вариантов: «Классика» (без атрибута), «Стекло», «Объём», «Сияние», «Бумага». Каждый
-   меняет материал — карточки, тени, фон, заголовки; цвет берётся из выбранного основного цвета.
+   меняет материал – карточки, тени, фон, заголовки; цвет берётся из выбранного основного цвета.
    Срочные новости везде сохраняют янтарную плашку, списки (.list) оформляются как карточки. */
 
-/* Слой фона дизайна: под всем, неподвижный — при прокрутке не перерисовывается. */
+/* Слой фона дизайна: под всем, неподвижный – при прокрутке не перерисовывается. */
 :root[data-style] body::before {
 	content: '';
 	position: fixed;
@@ -235,7 +235,7 @@
 	background-color: color-mix(in srgb, var(--surface) 62%, transparent);
 }
 
-/* Объём: свет сверху, светлая кромка, многослойная мягкая тень; кнопки — выпуклые. */
+/* Объём: свет сверху, светлая кромка, многослойная мягкая тень; кнопки – выпуклые. */
 :root[data-style='depth'] body::before {
 	background:
 		radial-gradient(
@@ -260,7 +260,7 @@
 		0 8px 18px -8px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 
-/* Сияние: тонкая светящаяся кромка в цвет темы, у новостей и заданий — в цвет предмета. */
+/* Сияние: тонкая светящаяся кромка в цвет темы, у новостей и заданий – в цвет предмета. */
 :root[data-style='neon'] body::before {
 	background:
 		radial-gradient(
@@ -406,10 +406,10 @@
 }
 
 /* ---------- Своя картинка на фоне (Настройки → Оформление, lib/looks.ts) ----------
-   Под всем, неподвижная и в своих цветах: сверху только нейтральная вуаль — белая в светлой теме,
+   Под всем, неподвижная и в своих цветах: сверху только нейтральная вуаль – белая в светлой теме,
    чёрная в тёмной, без оттенка основного цвета. Насколько приглушить (--bg-dim) и размыть ли,
    выбирает сам человек. Пятна света и зерно дизайнов поверх картинки не рисуются. */
-:root[data-bg='custom']::before {
+:root:is([data-bg='custom'], [data-bg='site'])::before {
 	content: '';
 	position: fixed;
 	inset: 0;
@@ -419,12 +419,33 @@
 		linear-gradient(rgb(var(--veil) / var(--bg-dim, 0.25)), rgb(var(--veil) / var(--bg-dim, 0.25))),
 		var(--bg-image) center / cover no-repeat;
 }
-:root[data-bg='custom'][data-bg-blur]::before {
-	inset: -40px;
-	filter: blur(16px);
+:root:is([data-bg='custom'], [data-bg='site'])[data-bg-blur]::before {
+	/* Края размытой картинки светлеют – растягиваем слой за экран на два радиуса. */
+	inset: calc(-2 * var(--bg-blur, 16px));
+	filter: blur(var(--bg-blur, 16px));
 }
-:root[data-bg='custom'] body::before {
+:root:is([data-bg='custom'], [data-bg='site'], [data-site-bg]) body::before {
 	display: none;
+}
+
+/* Текст поверх картинки не читался (серые подписи, пустые разделы, заголовки вне карточек).
+   Страница лежит на матовом листе цвета фона темы: картинка видна по краям и сквозь размытие,
+   а весь текст – на ровной подложке. */
+:root:is([data-bg='custom'], [data-bg='site']) #content > .page {
+	padding: var(--s5);
+	border-radius: 28px;
+	background: color-mix(in srgb, var(--bg) 84%, transparent);
+	border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+	box-shadow: 0 24px 60px -30px rgb(0 0 0 / 0.45);
+	backdrop-filter: blur(22px) saturate(1.15);
+	-webkit-backdrop-filter: blur(22px) saturate(1.15);
+}
+@media (max-width: 899px) {
+	:root:is([data-bg='custom'], [data-bg='site']) #content > .page {
+		margin-inline: calc(-1 * var(--s2));
+		padding: var(--s4) var(--s3);
+		border-radius: 22px;
+	}
 }
 
 /* Приложение проявляется вместе с уходом заставки: чуть приближается из глубины. */
@@ -443,7 +464,7 @@
 	}
 }
 
-/* Плавная смена темы — только в момент переключения, чтобы не мигало при загрузке. */
+/* Плавная смена темы – только в момент переключения, чтобы не мигало при загрузке. */
 :root.theme-switching,
 :root.theme-switching * {
 	transition:
@@ -462,11 +483,11 @@
 html {
 	-webkit-text-size-adjust: 100%;
 	text-size-adjust: 100%;
-	/* Касание и двойное касание не приближают страницу — она ведёт себя как приложение. */
+	/* Касание и двойное касание не приближают страницу – она ведёт себя как приложение. */
 	touch-action: manipulation;
 	/* Ничто не должно быть шире экрана: иначе телефон «ужимает» страницу, чтобы всё влезло. */
 	overflow-x: hidden;
-	/* Страница не оттягивается за края окна (резинка iOS, «обновить» потягиванием в Chrome) —
+	/* Страница не оттягивается за края окна (резинка iOS, «обновить» потягиванием в Chrome) –
 	   как у приложения: под ней нечего показывать. */
 	overscroll-behavior: none;
 }
@@ -576,7 +597,7 @@ button {
 	font-size: 13px;
 }
 
-/* Большой монитор: колонка шире, текст крупнее — меньше пустого места по бокам. Страницы со
+/* Большой монитор: колонка шире, текст крупнее – меньше пустого места по бокам. Страницы со
    списками и карточками раскладываются в две колонки сами (главная, новости). */
 @media (min-width: 1440px) {
 	:root {
@@ -674,7 +695,7 @@ button {
 .pane-title + p {
 	margin-top: calc(var(--s2) - var(--s4));
 }
-/* Заголовок блока с иконкой: «🔑 Пароль», справа — метка состояния. */
+/* Заголовок блока с иконкой: «🔑 Пароль», справа – метка состояния. */
 .pane-title {
 	display: flex;
 	align-items: center;
@@ -702,7 +723,7 @@ button {
 	flex-wrap: wrap;
 }
 .page-head h1 {
-	/* Заголовок просит свою ширину: не влезают кнопки — они переносятся строкой ниже,
+	/* Заголовок просит свою ширину: не влезают кнопки – они переносятся строкой ниже,
 	   а не наезжают на заголовок. */
 	flex: 1 0 auto;
 	max-width: 100%;
@@ -716,7 +737,7 @@ button {
 	color: var(--text-3);
 }
 
-/* Ссылка «Все задания» — подчёркнутая, как «See all» */
+/* Ссылка «Все задания» – подчёркнутая, как «See all» */
 .more-link {
 	display: inline-flex;
 	align-items: center;
@@ -806,7 +827,7 @@ button {
 	background: var(--accent-hover);
 }
 
-/* Строки «параметр — значение» с тонкими разделителями */
+/* Строки «параметр – значение» с тонкими разделителями */
 .kv {
 	display: flex;
 	flex-direction: column;
@@ -889,7 +910,7 @@ button {
 	left: 50%;
 	bottom: calc(var(--bottom-nav) + var(--bottom-gap) * 2 + env(safe-area-inset-bottom));
 	transform: translateX(-50%);
-	/* Поправка на ошибку iOS после клавиатуры — lib/shell/viewport.ts. */
+	/* Поправка на ошибку iOS после клавиатуры – lib/shell/viewport.ts. */
 	translate: 0 var(--vv-shift, 0px);
 	display: inline-flex;
 	align-items: center;
@@ -1182,19 +1203,29 @@ button.list-row {
 	white-space: nowrap;
 	border: 0;
 }
-/* Роль на всём сайте (администратор, модератор) — отличается от ролей в группе. */
+/* Роль на всём сайте (администратор, модератор) – отличается от ролей в группе. */
 .chip.ink {
 	background: color-mix(in srgb, var(--text) 8%, var(--surface));
 	color: var(--text);
 	box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
-/* ---------- Фоны страниц входа и регистрации (выбираются в «Настройки → Внешний вид») ---------- */
+/* ---------- Фоны страниц входа и регистрации (выбираются в «Настройки → Внешний вид») ----------
+   С 0.9.3 тот же фон – и внутри сайта у всех, кто не выбрал свою картинку (data-site-bg на <html>,
+   lib/looks.ts applySiteBackground; картинка администратора – data-bg='site'). */
+:root[data-site-bg]::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: -2;
+	pointer-events: none;
+}
 main.auth {
 	background: var(--bg);
 }
 main.login-bg-aurora,
-.login-bg-aurora {
+.login-bg-aurora,
+:root[data-site-bg='aurora']::before {
 	background:
 		radial-gradient(40rem 28rem at 12% 6%, rgb(99 102 241 / 0.3), transparent 62%),
 		radial-gradient(36rem 26rem at 90% 16%, rgb(20 184 166 / 0.26), transparent 62%),
@@ -1211,13 +1242,15 @@ main.login-bg-aurora,
 	}
 }
 main.login-bg-paper,
-.login-bg-paper {
+.login-bg-paper,
+:root[data-site-bg='paper']::before {
 	background:
 		radial-gradient(rgb(120 96 50 / 0.16) 1px, transparent 1.3px) 0 0 / 22px 22px,
 		radial-gradient(80rem 50rem at 50% -10%, #fffaf1, #f1e9da);
 }
 main.login-bg-notebook,
-.login-bg-notebook {
+.login-bg-notebook,
+:root[data-site-bg='notebook']::before {
 	background:
 		linear-gradient(90deg, transparent 56px, rgb(229 72 77 / 0.35) 56px 58px, transparent 58px),
 		linear-gradient(rgb(59 130 246 / 0.15) 1px, transparent 1px) 0 0 / 24px 24px,
@@ -1225,7 +1258,8 @@ main.login-bg-notebook,
 		#fbfdff;
 }
 main.login-bg-night,
-.login-bg-night {
+.login-bg-night,
+:root[data-site-bg='night']::before {
 	background:
 		radial-gradient(1.6px 1.6px at 14% 22%, rgb(255 255 255 / 0.85), transparent),
 		radial-gradient(1.2px 1.2px at 32% 70%, rgb(255 255 255 / 0.6), transparent),
@@ -1237,13 +1271,15 @@ main.login-bg-night,
 		linear-gradient(180deg, #0a0f24, #161b41);
 }
 :root[data-theme='dark'] main.login-bg-paper,
-:root[data-theme='dark'] .login-bg-paper {
+:root[data-theme='dark'] .login-bg-paper,
+:root[data-theme='dark'][data-site-bg='paper']::before {
 	background:
 		radial-gradient(rgb(255 240 210 / 0.08) 1px, transparent 1.3px) 0 0 / 22px 22px,
 		radial-gradient(80rem 50rem at 50% -10%, #2a2419, #17140f);
 }
 :root[data-theme='dark'] main.login-bg-notebook,
-:root[data-theme='dark'] .login-bg-notebook {
+:root[data-theme='dark'] .login-bg-notebook,
+:root[data-theme='dark'][data-site-bg='notebook']::before {
 	background:
 		linear-gradient(90deg, transparent 56px, rgb(229 72 77 / 0.35) 56px 58px, transparent 58px),
 		linear-gradient(rgb(96 165 250 / 0.12) 1px, transparent 1px) 0 0 / 24px 24px,

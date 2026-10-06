@@ -4,7 +4,7 @@
 	import Modal from '$lib/ui/Modal.svelte';
 
 	// Сканер QR кода входа (страница входа → «По коду»): нужен установленному приложению на
-	// iPhone — у него своя сессия, отдельная от Safari, поэтому камера телефона тут не поможет.
+	// iPhone – у него своя сессия, отдельная от Safari, поэтому камера телефона тут не поможет.
 	let { open = $bindable(false) }: { open?: boolean } = $props();
 
 	let video: HTMLVideoElement | undefined = $state();
@@ -26,7 +26,7 @@
 			const d = new BD({ formats: ['qr_code'] });
 			return async (v) => (await d.detect(v))[0]?.rawValue ?? null;
 		}
-		// Safari не умеет BarcodeDetector — распознаём сами (библиотека грузится только здесь).
+		// Safari не умеет BarcodeDetector – распознаём сами (библиотека грузится только здесь).
 		const jsQR = (await import('jsqr')).default;
 		const canvas = document.createElement('canvas');
 		const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
@@ -70,14 +70,14 @@
 					open = false;
 					return goto(path);
 				}
-				if (text) error = 'Это не код входа campus';
+				if (text) error = 'Это не код входа Campus';
 			}
 			frame = requestAnimationFrame(tick);
 		};
 		tick();
 	}
 
-	/** Код входа с другого устройства — путь /enter/… (0.7); адрес сайта может отличаться от этого
+	/** Код входа с другого устройства – путь /enter/… (0.7); адрес сайта может отличаться от этого
 	 * (туннель и локальная сеть), поэтому берём только путь. */
 	function linkPath(text: string): string | null {
 		try {
@@ -101,7 +101,7 @@
 		<span class="frame" aria-hidden="true"></span>
 	</div>
 	<p class="muted small">
-		Наведите камеру на QR-код — его показывает устройство, где вы уже вошли.
+		Наведите камеру на QR-код – его показывает устройство, где вы уже вошли.
 	</p>
 	{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 </Modal>

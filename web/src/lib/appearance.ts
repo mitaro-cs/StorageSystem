@@ -1,6 +1,6 @@
 import { get } from '$lib/api';
 
-/** Встроенные фоны страниц входа (рисунок — CSS-классы .login-bg-* в app.css). */
+/** Встроенные фоны страниц входа (рисунок – CSS-классы .login-bg-* в app.css). */
 export const PRESETS = [
 	{ key: 'aurora', label: 'Сияние' },
 	{ key: 'paper', label: 'Бумага' },
@@ -28,7 +28,7 @@ export function parseBackground(value: string | null | undefined): Background {
 	return { preset: PRESETS.some((x) => x.key === p) ? p : 'aurora', image: null };
 }
 
-/** Последний известный фон — чтобы страница входа сразу открывалась с ним, без мигания. */
+/** Последний известный фон – чтобы страница входа сразу открывалась с ним, без мигания. */
 export function cachedBackground(): string {
 	try {
 		return localStorage.getItem(KEY) ?? DEFAULT_BACKGROUND;

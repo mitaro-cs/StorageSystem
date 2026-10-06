@@ -65,7 +65,7 @@ class IcsTest {
                 "BEGIN:VEVENT",
                 "UID:f",
                 "DTSTART:20260902T093000",
-                "SUMMARY:Плавающее — по поясу календаря",
+                "SUMMARY:Плавающее – по поясу календаря",
                 "END:VEVENT",
                 "BEGIN:VEVENT",
                 "UID:w",
@@ -140,7 +140,7 @@ class IcsTest {
                 "RECURRENCE-ID;TZID=Europe/Moscow:20260917T093000",
                 "DTSTART;TZID=Europe/Moscow:20260918T130000",
                 "DTEND;TZID=Europe/Moscow:20260918T143500",
-                "SUMMARY:Физика (пр.) — перенос",
+                "SUMMARY:Физика (пр.) – перенос",
                 "END:VEVENT",
                 // Отмена: 01.10 не будет.
                 "BEGIN:VEVENT",
@@ -168,7 +168,7 @@ class IcsTest {
     assertThat(r.cancelled()).isEqualTo(1);
     // Повторная загрузка узнаёт занятия серии по UID и исходному началу, перенос — тоже.
     assertThat(r.events().get(2).source()).isEqualTo("series#" + msk(2026, 9, 17, 9, 30));
-    assertThat(r.events().get(2).summary()).isEqualTo("Физика (пр.) — перенос");
+    assertThat(r.events().get(2).summary()).isEqualTo("Физика (пр.) – перенос");
     assertThat(r.events().stream().map(Ics.Event::source).distinct()).hasSize(8);
     assertThat(r.events().stream().filter(e -> e.description().contains("Напоминание"))).isEmpty();
   }

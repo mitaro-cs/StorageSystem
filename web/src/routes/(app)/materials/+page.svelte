@@ -10,6 +10,7 @@
 	import type { Homework, Material } from '$lib/types';
 	import { materialActions } from '$lib/content/materialActions';
 	import MaterialRow from '$lib/content/MaterialRow.svelte';
+	import TypeChips from '$lib/content/TypeChips.svelte';
 	import FileIcon from '$lib/content/FileIcon.svelte';
 	import DifficultyBadge from '$lib/content/DifficultyBadge.svelte';
 	import SubjectGlyph from '$lib/ui/SubjectGlyph.svelte';
@@ -27,6 +28,7 @@
 	const subject = $derived(subjectId !== null ? subjectById(subjectId) : undefined);
 
 	let recent = $state<Material[] | null>(null);
+	let recentShown = $state<Material[]>([]);
 	let pending = $state<Material[]>([]);
 	let homework = $state<Homework[] | null>(null);
 	let folderPath = $state<{ id: number; name: string }[]>([]);
@@ -80,7 +82,7 @@
 	const title = $derived(crumbs[crumbs.length - 1].label);
 </script>
 
-<svelte:head><title>{title} · campus</title></svelte:head>
+<svelte:head><title>{title} · Campus</title></svelte:head>
 
 <div class="page-head"><h1>{subjectId === null ? 'Файлы' : (subject?.name ?? 'Файлы')}</h1></div>
 {#if subjectId !== null}<Crumbs items={crumbs} />{/if}
@@ -128,8 +130,9 @@
 				/>
 			</div>
 		{:else}
+			<TypeChips list={recent} onshown={(l) => (recentShown = l)} />
 			<div class="list">
-				{#each recent as m, i (m.id)}
+				{#each recentShown as m, i (m.id)}
 					<div in:fly={{ y: 8, delay: stagger(i) }}>
 						<MaterialRow {m} showSubject actions={materialActions(m, loadRoot)} />
 					</div>
@@ -147,7 +150,7 @@
 			<span class="ficon amber"><FolderOpen size={26} /></span>
 			<span class="ftext"
 				><span class="fname">Материалы</span><span class="faint small"
-					>Конспекты, методички, ссылки — по папкам</span
+					>Конспекты, методички, ссылки – по папкам</span
 				></span
 			>
 			<ChevronRight size={18} class="chev" />

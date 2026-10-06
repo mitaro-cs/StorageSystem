@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 
 	// Страница открылась с ошибкой: понятная причина, код (его удобно прислать старосте) и что делать.
-	// Иконка — логотип, как на заставке, только глобус покраснел и соскользнул с плеч.
+	// Иконка – логотип, как на заставке, только глобус покраснел и соскользнул с плеч.
 	const status = $derived(page.status);
 	const message = $derived(page.error?.message ?? '');
 	const info = $derived.by(() => {
@@ -18,14 +18,14 @@
 				code: 'GB-404',
 				title: 'Такой страницы нет',
 				why: 'Ссылка устарела, запись удалили или в адресе опечатка.',
-				what: 'Вернитесь на главную — там всё актуальное.'
+				what: 'Вернитесь на главную – там всё актуальное.'
 			};
 		if (status === 401 || status === 403)
 			return {
 				code: `GB-${status}`,
 				title: 'Нет доступа',
 				why: 'Эта страница открыта не всем участникам.',
-				what: 'Если она нужна — попросите старосту.'
+				what: 'Если она нужна – попросите старосту.'
 			};
 		return {
 			code: `GB-${status >= 500 ? 500 : status}`,
@@ -47,7 +47,7 @@
 	}
 </script>
 
-<svelte:head><title>{info.title} · campus</title></svelte:head>
+<svelte:head><title>{info.title} · Campus</title></svelte:head>
 
 <main class="err" role="alert">
 	<!-- Логотип из static/logo.svg: глобус краснеет и соскальзывает с плеч, в углу «!». -->

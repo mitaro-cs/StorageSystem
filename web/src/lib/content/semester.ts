@@ -1,12 +1,12 @@
 /**
- * Мастер «Новый семестр»: разбор списка новых предметов и цвета для них. Сами изменения — обычные
+ * Мастер «Новый семестр»: разбор списка новых предметов и цвета для них. Сами изменения – обычные
  * запросы: архив старых предметов, создание новых, даты сессии.
  */
 
 export interface NewSubject {
 	name: string;
 	teacher: string;
-	/** Такой предмет уже есть среди оставленных — второй раз не создаём. */
+	/** Такой предмет уже есть среди оставленных – второй раз не создаём. */
 	duplicate: boolean;
 }
 
@@ -25,7 +25,7 @@ export const PALETTE = [
 const norm = (s: string) => s.toLowerCase().replaceAll('ё', 'е').replace(/\s+/g, ' ').trim();
 
 /**
- * «Физика — Иванов И. И.» → название и преподаватель. Разделитель — тире, дефис с пробелами
+ * «Физика – Иванов И. И.» → название и преподаватель. Разделитель – тире, дефис с пробелами
  * или «;». Пустые строки и маркеры списков («1.», «-», «•») пропускаются.
  */
 export function parseSubjects(text: string, existing: string[] = []): NewSubject[] {
@@ -35,7 +35,7 @@ export function parseSubjects(text: string, existing: string[] = []): NewSubject
 	for (const raw of text.split(/\r?\n/)) {
 		const line = raw.replace(/^\s*(?:\d+[.)]|[-•*])\s+/, '').trim();
 		if (!line) continue;
-		const m = line.match(/^(.*?)\s+[—–-]\s+(.*)$/) ?? line.match(/^(.*?)\s*;\s*(.*)$/);
+		const m = line.match(/^(.*?)\s+[––-]\s+(.*)$/) ?? line.match(/^(.*?)\s*;\s*(.*)$/);
 		const name = (m ? m[1] : line).trim().slice(0, 80);
 		const teacher = (m ? m[2] : '').trim().slice(0, 120);
 		if (!name) continue;
@@ -47,7 +47,7 @@ export function parseSubjects(text: string, existing: string[] = []): NewSubject
 	return out;
 }
 
-/** Цвета по кругу, сначала — те, что ещё не заняты оставшимися предметами. */
+/** Цвета по кругу, сначала – те, что ещё не заняты оставшимися предметами. */
 export function pickColors(count: number, taken: string[]): string[] {
 	const used = new Set(taken.map((c) => c.toLowerCase()));
 	const order = [...PALETTE.filter((c) => !used.has(c)), ...PALETTE.filter((c) => used.has(c))];

@@ -45,7 +45,7 @@ describe('сессия', () => {
 		expect(sessionExams(list, null).map((e) => e.id)).toEqual([3, 2, 1, 4]);
 	});
 
-	it('ближайший — несданный, сегодняшний тоже считается', () => {
+	it('ближайший – несданный, сегодняшний тоже считается', () => {
 		const now = at(2027, 1, 20, 11);
 		const list = [
 			exam(1, at(2027, 1, 15), true),
@@ -62,12 +62,12 @@ describe('сессия', () => {
 		expect(sessionVisible(dates, [], at(2026, 12, 22))).toBe(true);
 		expect(sessionVisible(dates, [], at(2027, 1, 15))).toBe(true);
 		expect(sessionVisible(dates, [], at(2027, 2, 1))).toBe(false);
-		// Без дат — только если экзамен в ближайшие две недели.
+		// Без дат – только если экзамен в ближайшие две недели.
 		expect(sessionVisible(null, [exam(1, at(2027, 1, 20))], at(2027, 1, 10))).toBe(true);
 		expect(sessionVisible(null, [exam(1, at(2027, 2, 20))], at(2027, 1, 10))).toBe(false);
 	});
 
-	it('даты группы; в «всех группах» — только если они одни', () => {
+	it('даты группы; в «всех группах» – только если они одни', () => {
 		const g = (id: number, session: MeGroup['session']) => ({ id, session }) as MeGroup;
 		expect(datesFor([g(1, dates), g(2, null)], 2)).toBeNull();
 		expect(datesFor([g(1, dates), g(2, null)], null)).toEqual(dates);
@@ -90,19 +90,19 @@ describe('кнопка «Сессия» в меню', () => {
 		session: from !== undefined && to !== undefined ? { from, to } : null
 	});
 
-	it('староста выбрал «всегда» или «не показывать» — так и есть', () => {
+	it('староста выбрал «всегда» или «не показывать» – так и есть', () => {
 		expect(sessionNavVisible(group('show'), now)).toBe(true);
 		expect(sessionNavVisible(group('hide', at(-1), at(10)), now)).toBe(false);
 	});
 
-	it('«около сессии» — за три недели до начала и до последнего дня', () => {
+	it('«около сессии» – за три недели до начала и до последнего дня', () => {
 		expect(sessionNavVisible(group('auto', at(30), at(50)), now)).toBe(false);
 		expect(sessionNavVisible(group('auto', at(21), at(40)), now)).toBe(true);
 		expect(sessionNavVisible(group('auto', at(-3), at(10)), now)).toBe(true);
 		expect(sessionNavVisible(group('auto', at(-30), at(-2)), now)).toBe(false);
 	});
 
-	it('без дат и у данных от прежних версий (поля нет) — не видна', () => {
+	it('без дат и у данных от прежних версий (поля нет) – не видна', () => {
 		expect(sessionNavVisible(group('auto'), now)).toBe(false);
 		expect(sessionNavVisible(group(undefined, at(5), at(20)), now)).toBe(true);
 		expect(sessionNavVisible(group(undefined), now)).toBe(false);

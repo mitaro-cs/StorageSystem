@@ -57,7 +57,7 @@
 	}
 </script>
 
-<svelte:head><title>Пароль · campus</title></svelte:head>
+<svelte:head><title>Пароль · Campus</title></svelte:head>
 
 {#if invalid}
 	<h1>Ссылка не работает</h1>
@@ -67,7 +67,7 @@
 	<p class="muted">
 		{info.purpose === 'reset'
 			? 'Задайте новый пароль для'
-			: 'Задайте пароль для входа. Ваше имя пользователя —'}
+			: 'Задайте пароль для входа. Ваше имя пользователя –'}
 		<strong>{info.username}</strong>
 	</p>
 	<form onsubmit={submit}>

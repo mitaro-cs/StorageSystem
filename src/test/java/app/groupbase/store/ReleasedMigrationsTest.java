@@ -120,7 +120,7 @@ class ReleasedMigrationsTest {
           .containsEntry(e.getKey(), e.getValue());
     }
     assertThat(RELEASED.keySet())
-        .as("новая SQL-миграция — добавьте её в RELEASED")
+        .as("новая SQL-миграция – добавьте её в RELEASED")
         .containsAll(actual.keySet());
   }
 

@@ -2,7 +2,7 @@
 	import { kindOf } from './kinds';
 	import KindIcon from './KindIcon.svelte';
 
-	// Домашнее — обычный случай, метка не нужна; остальные типы видно сразу.
+	// Домашнее – обычный случай, метка не нужна; остальные типы видно сразу.
 	let { kind, compact = false }: { kind: string | null | undefined; compact?: boolean } = $props();
 	const k = $derived(kindOf(kind));
 </script>

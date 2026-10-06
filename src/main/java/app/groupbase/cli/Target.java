@@ -23,8 +23,8 @@ final class Target {
       paramLabel = "КАТАЛОГ",
       description =
           "Каталог данных, важнее groupbase.toml. Данные приложения хоста:%n"
-              + "  macOS — ~/Library/Application Support/app.groupbase%n"
-              + "  Windows — %%APPDATA%%\\app.groupbase")
+              + "  macOS – ~/Library/Application Support/app.groupbase%n"
+              + "  Windows – %%APPDATA%%\\app.groupbase")
   Path data;
 
   StandardEnvironment environment() throws IOException {

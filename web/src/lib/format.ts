@@ -40,7 +40,7 @@ export const fmtTime = (ms: number) => time.format(ms);
 export const fmtWeekday = (ms: number) => weekday.format(ms);
 export const fmtWeekdayShort = (ms: number) => weekdayShort.format(ms);
 
-/** «23 сентября» (год — только если не текущий). */
+/** «23 сентября» (год – только если не текущий). */
 export function fmtDate(ms: number, now: number = Date.now()): string {
 	return new Date(ms).getFullYear() === new Date(now).getFullYear()
 		? dayMonth.format(ms)

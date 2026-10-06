@@ -3,7 +3,7 @@
 	import { t } from '$lib/i18n/ru';
 	import Avatar from '$lib/ui/Avatar.svelte';
 
-	/** label — короткая подпись вместо ФИО (в комментариях — имя), полное ФИО во всплывающей подсказке. */
+	/** label – короткая подпись вместо ФИО (в комментариях – имя), полное ФИО во всплывающей подсказке. */
 	let { person, size = 28, label }: { person: Person; size?: number; label?: string } = $props();
 	const name = $derived(person.deleted ? t.common.deletedUser : (label ?? person.displayName));
 </script>

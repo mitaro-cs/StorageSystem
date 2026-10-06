@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { FilePlus2, Files, Link2, MessageSquareText } from '@lucide/svelte';
 	import { post } from '$lib/api';
 	import { toast } from '$lib/toasts.svelte';
 	import type { FileInfo, Material } from '$lib/types';
@@ -25,8 +26,13 @@
 		onsaved
 	}: Props = $props();
 
-	// Сообщение (0.6) — текст прямо в материалах: вставить из чата билеты, список литературы.
+	// Сообщение (0.6) – текст прямо в материалах: вставить из чата билеты, список литературы.
 	let mode = $state<'file' | 'link' | 'note'>('file');
+	const MODES = [
+		{ id: 'file', label: 'Файлы', icon: Files },
+		{ id: 'link', label: 'Ссылка', icon: Link2 },
+		{ id: 'note', label: 'Сообщение', icon: MessageSquareText }
+	] as const;
 	let files = $state<FileInfo[]>([]);
 	let uploading = $state(0);
 	let url = $state('');
@@ -98,38 +104,32 @@
 	}
 </script>
 
-<Modal bind:open {dirty} title={suggest ? 'Предложить материал' : 'Добавить материал'}>
+<Modal
+	bind:open
+	{dirty}
+	title={suggest ? 'Предложить материал' : 'Добавить материал'}
+	subtitle="Лекции, конспекты .md, PDF, презентации – или ссылка"
+	icon={FilePlus2}
+>
 	<form id="material-form" class="stack form" onsubmit={save}>
 		{#if suggest}
 			<p class="note small">Староста проверит материал перед публикацией.</p>
 		{/if}
 		<div class="switch" role="tablist">
-			<button
-				type="button"
-				role="tab"
-				aria-selected={mode === 'file'}
-				class:on={mode === 'file'}
-				onclick={() => (mode = 'file')}>Файлы</button
-			>
-			<button
-				type="button"
-				role="tab"
-				aria-selected={mode === 'link'}
-				class:on={mode === 'link'}
-				onclick={() => (mode = 'link')}>Ссылка</button
-			>
-			<button
-				type="button"
-				role="tab"
-				aria-selected={mode === 'note'}
-				class:on={mode === 'note'}
-				onclick={() => (mode = 'note')}>Сообщение</button
-			>
+			{#each MODES as m (m.id)}
+				<button
+					type="button"
+					role="tab"
+					aria-selected={mode === m.id}
+					class:on={mode === m.id}
+					onclick={() => (mode = m.id)}><m.icon size={18} /><span>{m.label}</span></button
+				>
+			{/each}
 		</div>
 		{#if mode === 'file'}
 			<DropZone bind:files bind:uploading />
 		{:else if mode === 'note'}
-			<!-- Текст сообщения — сразу, название не обязательно: возьмём первую строку. -->
+			<!-- Текст сообщения – сразу, название не обязательно: возьмём первую строку. -->
 		{:else}
 			<div>
 				<label class="label" for="m-url">Адрес</label>
@@ -160,7 +160,7 @@
 					rows="8"
 					bind:value={description}
 					maxlength="8000"
-					placeholder="Напишите или вставьте — например, билеты к экзамену из чата"
+					placeholder="Напишите или вставьте – например, билеты к экзамену из чата"
 					required></textarea>
 			</div>
 		{:else}
@@ -192,24 +192,33 @@
 		color: var(--amber);
 	}
 	.switch {
-		display: flex;
-		gap: 4px;
-		padding: 4px;
-		background: var(--surface-2);
-		border-radius: var(--r);
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 8px;
 	}
 	.switch button {
-		flex: 1;
-		height: 32px;
-		border: 0;
-		border-radius: 9px;
-		background: transparent;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		height: 64px;
+		border: 1px solid var(--border);
+		border-radius: 14px;
+		background: var(--surface);
 		color: var(--text-2);
-		font-weight: 550;
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
+		transition: all var(--dur) var(--ease);
+	}
+	.switch button:hover {
+		border-color: var(--border-strong);
 	}
 	.switch .on {
-		background: var(--surface);
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 10%, var(--surface));
 		color: var(--text);
-		box-shadow: var(--shadow-1);
+		box-shadow: 0 0 0 1px var(--accent);
 	}
 </style>

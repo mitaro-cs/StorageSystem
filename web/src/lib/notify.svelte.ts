@@ -7,7 +7,7 @@ export async function refreshUnread() {
 	try {
 		bell.unread = (await get<{ count: number }>('/api/notifications/unread')).count;
 	} catch {
-		/* нет сети — покажем в следующий раз */
+		/* нет сети – покажем в следующий раз */
 	}
 }
 

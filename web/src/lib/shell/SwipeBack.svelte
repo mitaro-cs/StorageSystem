@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { ChevronLeft } from '@lucide/svelte';
 
-	/** Свайп от левого края назад — для телефонов и PWA без системного жеста. */
+	/** Свайп от левого края назад – для телефонов и PWA без системного жеста. */
 	let start: { x: number; y: number } | null = null;
 	let dx = $state(0);
 

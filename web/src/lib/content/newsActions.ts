@@ -38,7 +38,7 @@ export function newsActions(
 				}
 			}
 		});
-	// Не своё и не могу скрыть сам — пожаловаться модераторам (без сети — нельзя: временный id).
+	// Не своё и не могу скрыть сам – пожаловаться модераторам (без сети – нельзя: временный id).
 	if (!item.can.hide && item.author.id !== session.me?.user.id && item.id > 0)
 		out.push({ label: 'Пожаловаться', onclick: () => report('post', item.id) });
 	if (item.can.delete)

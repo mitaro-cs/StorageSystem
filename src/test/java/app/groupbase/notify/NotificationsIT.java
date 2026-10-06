@@ -233,7 +233,7 @@ class NotificationsIT extends IntegrationTest {
     assertThat(claims.get("aud").asString())
         .isEqualTo("http://127.0.0.1:" + server.getAddress().getPort());
     assertThat(claims.get("sub").asString())
-        .as("у сайта нет адреса https — контакт не mailto:admin@localhost (Apple отвечает 403)")
+        .as("у сайта нет адреса https – контакт не mailto:admin@localhost (Apple отвечает 403)")
         .isEqualTo(VapidKeys.PROJECT);
     Signature v = Signature.getInstance("SHA256withECDSAinP1363Format");
     v.initVerify(PushCrypto.publicKey(PushCrypto.unb64(publicKey)));
@@ -242,9 +242,9 @@ class NotificationsIT extends IntegrationTest {
 
     JsonNode msg = open(r, phone);
     assertThat(msg.get("title").asString()).isEqualTo("Новое задание · Физика");
-    assertThat(msg.get("body").asString()).startsWith("Лабораторная 3 — сдать до ");
+    assertThat(msg.get("body").asString()).startsWith("Лабораторная 3 – сдать до ");
     assertThat(msg.get("url").asString()).isEqualTo("/homework/" + hw);
-    assertThat(inbox.poll(300, TimeUnit.MILLISECONDS)).as("одно устройство — один push").isNull();
+    assertThat(inbox.poll(300, TimeUnit.MILLISECONDS)).as("одно устройство – один push").isNull();
   }
 
   @Test
@@ -326,7 +326,7 @@ class NotificationsIT extends IntegrationTest {
     assertThat(test.get("delivered").asInt()).isZero();
     awaitPush(gone);
     assertThat(u.api().get("/api/me/notifications").json().get("devices").size())
-        .as("служба ответила 410 — подписка удалена")
+        .as("служба ответила 410 – подписка удалена")
         .isZero();
 
     Device rejected = subscribe(u.api(), "x-" + uniq() + "/reject");
@@ -336,7 +336,7 @@ class NotificationsIT extends IntegrationTest {
     assertThat(refused.get("reason").asString()).isEqualTo("BadJwtToken");
     awaitPush(rejected);
     assertThat(u.api().get("/api/me/notifications").json().get("devices").size())
-        .as("отказ службы — не повод удалять подписку сразу")
+        .as("отказ службы – не повод удалять подписку сразу")
         .isEqualTo(1);
     long rid = u.api().get("/api/me/notifications").json().get("devices").get(0).get("id").asLong();
     u.api().delete("/api/push/devices/" + rid);
@@ -368,7 +368,7 @@ class NotificationsIT extends IntegrationTest {
     reminders.dayBefore(clock.millis());
     var items = lazy.api().get("/api/notifications").json().get("items");
     assertThat(items.get(0).get("title").asString()).isEqualTo("Скоро срок · Матанализ");
-    assertThat(items.get(0).get("body").asString()).startsWith("Типовой расчёт — сдать ");
+    assertThat(items.get(0).get("body").asString()).startsWith("Типовой расчёт – сдать ");
     assertThat(unread(lazy)).as("только про задание, выложенное заранее").isEqualTo(1);
     assertThat(done.api().get("/api/notifications").json().get("items").findValuesAsString("title"))
         .doesNotContain("Скоро срок · Матанализ");
@@ -384,19 +384,19 @@ class NotificationsIT extends IntegrationTest {
     assertThat(reminders.digest(clock.millis())).isGreaterThanOrEqualTo(1);
     JsonNode msg = open(awaitPush(phone), phone);
     assertThat(msg.get("title").asString()).matches("(Сегодня|Завтра) сдать 1 задание");
-    assertThat(msg.get("body").asString()).isEqualTo("Просрочено — 1");
+    assertThat(msg.get("body").asString()).isEqualTo("Просрочено – 1");
     assertThat(reminders.digest(clock.millis())).as("раз в день").isZero();
     lazy.api().put("/api/homework/" + hw + "/done", Map.of("value", true));
     lazy.api().put("/api/homework/" + urgent + "/done", Map.of("value", true));
     clock.advance(Duration.ofDays(1));
-    assertThat(reminders.digest(clock.millis())).as("всё сдано — молчим").isZero();
+    assertThat(reminders.digest(clock.millis())).as("всё сдано – молчим").isZero();
   }
 
   @Test
   void digestTexts() {
     assertThat(Reminders.digestMessage(0, 0, 0)).isNull();
     assertThat(Reminders.digestMessage(2, 1, 1).title()).isEqualTo("Сегодня сдать 2 задания");
-    assertThat(Reminders.digestMessage(2, 1, 1).body()).isEqualTo("Завтра — 1, просрочено — 1");
+    assertThat(Reminders.digestMessage(2, 1, 1).body()).isEqualTo("Завтра – 1, просрочено – 1");
     assertThat(Reminders.digestMessage(0, 5, 0).title()).isEqualTo("Завтра сдать 5 заданий");
     assertThat(Reminders.digestMessage(0, 0, 3).title()).isEqualTo("Есть просроченные задания");
     assertThat(Reminders.tasks(21)).isEqualTo("задание");

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import type { Component, Snippet } from 'svelte';
 	import { X } from '@lucide/svelte';
 	import { ask } from './ask.svelte';
 
@@ -7,12 +7,18 @@
 		open: boolean;
 		title: string;
 		wide?: boolean;
+		/** Значок в шапке – окна добавления (пара, задание, новость, файл). */
+		icon?: Component<{ size?: number }>;
+		/** Цвет значка – по умолчанию основной цвет темы. */
+		tone?: string;
+		/** Строка под заголовком. */
+		subtitle?: string;
 		/**
 		 * В окне есть несохранённое (написанный текст): клик мимо окна, Esc и крестик сначала
 		 * спрашивают, а не закрывают молча. Кнопка «Отмена» в самом окне закрывает сразу.
 		 */
 		dirty?: boolean;
-		/** Что пропадёт, если закрыть, — текст вопроса. */
+		/** Что пропадёт, если закрыть, – текст вопроса. */
 		dirtyText?: string;
 		onclose?: () => void;
 		children: Snippet;
@@ -23,6 +29,9 @@
 		open = $bindable(),
 		title,
 		wide = false,
+		icon: Icon,
+		tone,
+		subtitle,
 		dirty = false,
 		dirtyText = 'Написанное не сохранится.',
 		onclose,
@@ -47,7 +56,7 @@
 		onclose?.();
 	}
 
-	/** Закрыть по желанию человека (мимо окна, Esc, крестик): написанное — только с вопросом. */
+	/** Закрыть по желанию человека (мимо окна, Esc, крестик): написанное – только с вопросом. */
 	async function tryClose() {
 		if (!dirty) return close();
 		shake = true;
@@ -70,7 +79,7 @@
 	class:shake
 	aria-labelledby={titleId}
 	oncancel={(e) => {
-		// Esc: при несохранённом — спрашиваем, а окно остаётся.
+		// Esc: при несохранённом – спрашиваем, а окно остаётся.
 		if (dirty) {
 			e.preventDefault();
 			tryClose();
@@ -87,8 +96,13 @@
 >
 	{#if open}
 		<div class="panel">
-			<header>
-				<h2 id={titleId}>{title}</h2>
+			<header class:big={!!Icon}>
+				{#if Icon}<span class="ic" style:--tone={tone} aria-hidden="true"><Icon size={20} /></span
+					>{/if}
+				<div class="ttl">
+					<h2 id={titleId}>{title}</h2>
+					{#if subtitle}<p>{subtitle}</p>{/if}
+				</div>
 				<button class="x" onclick={tryClose} aria-label="Закрыть"><X size={18} /></button>
 			</header>
 			<div class="body">{@render children()}</div>
@@ -115,7 +129,7 @@
 	dialog[open] {
 		animation: pop 340ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
 	}
-	/* Мимо окна с написанным текстом — окно вздрагивает и остаётся. */
+	/* Мимо окна с написанным текстом – окно вздрагивает и остаётся. */
 	dialog.shake {
 		animation: shake 360ms var(--ease);
 	}
@@ -145,9 +159,38 @@
 		gap: var(--s2);
 		padding: 16px 16px 8px 20px;
 	}
-	h2 {
+	header.big {
+		gap: 12px;
+		padding: 18px 16px 12px 20px;
+	}
+	.ic {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 42px;
+		height: 42px;
+		border-radius: 14px;
+		color: var(--tone, var(--accent));
+		background: color-mix(in srgb, var(--tone, var(--accent)) 15%, transparent);
+	}
+	.ttl {
 		flex: 1;
+		min-width: 0;
+	}
+	h2 {
 		font-size: 18px;
+	}
+	.big h2 {
+		font-size: 19px;
+		letter-spacing: -0.01em;
+	}
+	.ttl p {
+		margin: 2px 0 0;
+		font-size: 13px;
+		color: var(--text-2);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.x {
 		display: grid;
@@ -175,7 +218,7 @@
 		background: var(--surface);
 	}
 	@media (max-width: 640px) {
-		/* Лист снизу на всю ширину — и для «широких» окон тоже (новое задание, «Добавить людей»). */
+		/* Лист снизу на всю ширину – и для «широких» окон тоже (новое задание, «Добавить людей»). */
 		dialog,
 		dialog.wide {
 			width: 100vw;

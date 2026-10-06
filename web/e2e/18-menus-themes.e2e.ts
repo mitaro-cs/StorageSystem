@@ -16,7 +16,7 @@ async function openMenuAtBottom(page: Page, trigger: Locator) {
 	return menu;
 }
 
-test('обычному участнику «Управление» не нужно; свои настройки — у шестерёнки, по разделам', async ({
+test('обычному участнику «Управление» не нужно; свои настройки – у шестерёнки, по разделам', async ({
 	page
 }) => {
 	await login(page, STUDENT);
@@ -27,7 +27,7 @@ test('обычному участнику «Управление» не нужн
 	await expect(page.getByRole('switch', { name: 'Режим управления' })).toHaveCount(0);
 	await side.getByRole('link', { name: 'Настройки' }).click();
 	await expect(page).toHaveURL(/\/profile$/);
-	// Аккаунт (ФИО, вход, резервные коды) — отдельно от настроек приложения.
+	// Аккаунт (ФИО, вход, резервные коды) – отдельно от настроек приложения.
 	const menu = page.getByRole('navigation', { name: 'Разделы настроек' });
 	await expect(menu.getByRole('heading', { name: 'Аккаунт' })).toBeVisible();
 	await expect(menu.getByRole('heading', { name: 'Приложение' })).toBeVisible();
@@ -58,12 +58,12 @@ test('цвет оформления: основной цвет и насыщен
 	const dark = await accent();
 	expect(dark).not.toBe(light);
 
-	// Насыщенность до нуля — спокойный серый вместо яркого цвета.
+	// Насыщенность до нуля – спокойный серый вместо яркого цвета.
 	await page.getByRole('slider', { name: 'Насыщенность' }).fill('0');
 	const calm = await accent();
 	expect(calm).not.toBe(dark);
 
-	// После перезагрузки — то же, без мигания «Чернилами» (скрипт в app.html).
+	// После перезагрузки – то же, без мигания «Чернилами» (скрипт в app.html).
 	await page.reload();
 	await expect(html).toHaveAttribute('data-theme', 'dark');
 	await expect(html).toHaveAttribute('data-accent', '');
@@ -78,7 +78,7 @@ test('цвет оформления: основной цвет и насыщен
 	await page.getByRole('radio', { name: 'Как в системе' }).click();
 });
 
-test('меню действий у нижнего края экрана открывается целиком — в участниках и в настройках', async ({
+test('меню действий у нижнего края экрана открывается целиком – в участниках и в настройках', async ({
 	page
 }) => {
 	const errors = watchConsole(page);
@@ -89,7 +89,7 @@ test('меню действий у нижнего края экрана откр
 	const row = page.locator('.list-row', { hasText: STUDENT.name });
 	let menu = await openMenuAtBottom(page, row.getByRole('button', { name: 'Действия' }));
 	await expect(menu.getByRole('menuitem', { name: 'Сделать замом старосты' })).toBeVisible();
-	// Пункт нажимается — меню не обрезано карточкой.
+	// Пункт нажимается – меню не обрезано карточкой.
 	await menu.getByRole('menuitem', { name: 'Сделать замом старосты' }).click();
 	await expect(row).toContainText('Зам старосты');
 

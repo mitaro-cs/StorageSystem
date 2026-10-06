@@ -10,7 +10,7 @@
 	import UpdateCard from './server/UpdateCard.svelte';
 	import type { Status } from './server/types';
 
-	// Какая версия стоит и есть ли новее: GitHub спрашивает сервер, в приложении хоста — ещё и оболочка.
+	// Какая версия стоит и есть ли новее: GitHub спрашивает сервер, в приложении хоста – ещё и оболочка.
 	let s = $state<Status | null>(null);
 	let checking = $state(false);
 	let alive = true;
@@ -37,7 +37,7 @@
 		} finally {
 			checking = false;
 		}
-		// В окне хоста оболочка проверяет и сама: её ответ приходит через пару секунд — тогда
+		// В окне хоста оболочка проверяет и сама: её ответ приходит через пару секунд – тогда
 		// появится кнопка «Обновить сейчас».
 		for (const wait of [3000, 6000]) {
 			if (!alive || !session.me?.hostWindow || s?.canUpdate) break;
@@ -59,7 +59,7 @@
 				toastError(e);
 				return;
 			}
-			// Ни разу не проверяли (или сервер старше 0.4.7) — проверяем сразу, без кнопки.
+			// Ни разу не проверяли (или сервер старше 0.4.7) – проверяем сразу, без кнопки.
 			if (alive && !s.update && !s.check?.checkedAt) await check();
 		})();
 		return () => {
@@ -72,7 +72,7 @@
 	<img class="mark" src={iconSrc(appIcon.id)} alt="" width="56" height="56" />
 	<div class="txt">
 		<span class="small muted">Установлена версия</span>
-		<strong class="num">campus {version}</strong>
+		<strong class="num">Campus {version}</strong>
 		<span class="state small {status.tone}" role="status">
 			{#if status.tone === 'ok'}<CircleCheck
 					size={15}
@@ -95,7 +95,7 @@
 		Приложение само проверяет обновления после запуска и раз в 6 часов и предлагает обновиться. Сайт
 		при обновлении недоступен около минуты, данные сохраняются.
 	{:else}
-		Сервер сам проверяет GitHub раз в 12 часов. Обновление — новый groupbase.jar со страницы выпуска
+		Сервер сам проверяет GitHub раз в 12 часов. Обновление – новый groupbase.jar со страницы выпуска
 		и перезапуск сервера, данные сохраняются.
 	{/if}
 </p>

@@ -8,7 +8,7 @@ test('чаты Telegram: закрепить на главной и у предм
 	const errors = watchConsole(page);
 	await login(page, ADMIN);
 
-	// Староста закрепляет чат прямо с главной: кнопка — в строке быстрых действий.
+	// Староста закрепляет чат прямо с главной: кнопка – в строке быстрых действий.
 	await page.getByRole('button', { name: 'Закрепить чат' }).click();
 	const dialog = page.getByRole('dialog');
 	await dialog.getByLabel('Ссылка на чат или канал').fill('@bin2509_chat');
@@ -23,7 +23,7 @@ test('чаты Telegram: закрепить на главной и у предм
 	await expect(chip).toHaveAttribute('href', 'https://t.me/bin2509_chat');
 	await expect(chip).toHaveAttribute('target', '_blank');
 
-	// Чат предмета — в карточке предмета.
+	// Чат предмета – в карточке предмета.
 	await page.goto('/subjects');
 	await page
 		.getByRole('link', { name: /Математический анализ/ })
@@ -37,7 +37,7 @@ test('чаты Telegram: закрепить на главной и у предм
 		'https://t.me/matan_bin2509'
 	);
 	await page.screenshot({ path: 'test-results/shots/subject-chat.png' });
-	// 400 — наш же отказ принять ссылку на vk.com выше.
+	// 400 – наш же отказ принять ссылку на vk.com выше.
 	expect(errors.filter((e) => !e.includes('status of 400'))).toEqual([]);
 
 	// Студент видит оба чата и может в них перейти.

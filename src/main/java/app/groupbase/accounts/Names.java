@@ -70,16 +70,22 @@ public final class Names {
   public static String displayName(String raw) {
     String d = raw == null ? "" : raw.strip().replaceAll("\\s+", " ");
     if (d.length() > 64) {
-      throw ApiException.invalid("displayName", "ФИО — не длиннее 64 символов");
+      throw ApiException.invalid("displayName", "ФИО – не длиннее 64 символов");
     }
     String[] words = d.isEmpty() ? new String[0] : d.split(" ");
     if (words.length < 2 || words.length > 5) {
       throw ApiException.invalid("displayName", "Укажите ФИО: фамилию, имя и отчество (если есть)");
     }
-    for (String w : words) {
+    for (int i = 0; i < words.length; i++) {
+      String w = words[i];
       if (!NAME_WORD.matcher(w).matches()) {
         throw ApiException.invalid(
             "displayName", "ФИО пишется буквами, например: Иванов Иван Иванович");
+      }
+      // Фамилия, имя и отчество — с большой буквы; дальше бывают «оглы», «кызы».
+      if (i < 3 && Character.isLowerCase(w.codePointAt(0))) {
+        throw ApiException.invalid(
+            "displayName", "ФИО пишется с большой буквы: Иванов Иван Иванович");
       }
     }
     return d;

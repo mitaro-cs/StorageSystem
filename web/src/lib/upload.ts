@@ -11,7 +11,7 @@ function csrf(): string {
 }
 
 /**
- * Загрузка файла сырым телом запроса (сервер шифрует поток на лету). XHR — ради прогресса,
+ * Загрузка файла сырым телом запроса (сервер шифрует поток на лету). XHR – ради прогресса,
  * у fetch его нет.
  */
 export function uploadFile(
@@ -52,7 +52,7 @@ export function uploadFile(
 	});
 }
 
-/** Файл целиком сырым телом PUT — архивы резервных копий, фон входа (без multipart и очереди). */
+/** Файл целиком сырым телом PUT – архивы резервных копий, фон входа (без multipart и очереди). */
 export async function putFile<T>(path: string, file: Blob, type = 'application/zip'): Promise<T> {
 	let res: Response;
 	try {

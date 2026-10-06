@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { difficultyOf } from './difficulty';
 
-	// Три полоски, как у сигнала: сколько закрашено — такая и сложность.
+	// Три полоски, как у сигнала: сколько закрашено – такая и сложность.
 	let { value, compact = false }: { value: number | null | undefined; compact?: boolean } =
 		$props();
 	const d = $derived(difficultyOf(value));

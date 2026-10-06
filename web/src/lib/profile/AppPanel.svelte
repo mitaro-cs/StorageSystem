@@ -8,11 +8,11 @@
 	import Button from '$lib/ui/Button.svelte';
 	import Switch from '$lib/ui/Switch.svelte';
 
-	// Приложение: установка на телефон, знакомство с сайтом, версия; хосту — режим управления.
+	// Приложение: установка на телефон, знакомство с сайтом, версия; хосту – режим управления.
 	const me = $derived(session.me!);
 
-	// Масштаб окна приложения хоста (0.8.1): «Авто» — под монитор, или свой. Выбор помнит оболочка,
-	// здесь — только чтобы показать его.
+	// Масштаб окна приложения хоста (0.8.1): «Авто» – под монитор, или свой. Выбор помнит оболочка,
+	// здесь – только чтобы показать его.
 	const ZOOMS = [0, 80, 90, 100, 110, 125, 150];
 	let zoom = $state(readZoom());
 	function readZoom(): number {
@@ -29,10 +29,33 @@
 			try {
 				localStorage.setItem('gb-host-zoom', String(value));
 			} catch {
-				/* приватный режим — просто не запомним, что показать */
+				/* приватный режим – просто не запомним, что показать */
 			}
 		} catch (e) {
 			toastError(e);
+		}
+	}
+
+	// Масштаб интерфейса в браузере и на телефоне (0.9.3): свой на каждом устройстве, CSS zoom на
+	// <html>; ставит его ещё скрипт в app.html до отрисовки (gb-ui-scale).
+	const SCALES = [80, 90, 100, 110, 125, 150];
+	let scale = $state(readScale());
+	function readScale(): number {
+		try {
+			const v = Number(localStorage.getItem('gb-ui-scale'));
+			return SCALES.includes(v) ? v : 100;
+		} catch {
+			return 100;
+		}
+	}
+	function setScale(v: number) {
+		scale = v;
+		document.documentElement.style.zoom = v === 100 ? '' : String(v / 100);
+		try {
+			if (v === 100) localStorage.removeItem('gb-ui-scale');
+			else localStorage.setItem('gb-ui-scale', String(v));
+		} catch {
+			/* приватный режим – масштаб до перезагрузки */
 		}
 	}
 
@@ -56,7 +79,7 @@
 			>
 		</div>
 		<p class="muted small">
-			Кнопки администратора: приглашения, права, сервер, модерация. Выключите — и сайт выглядит так
+			Кнопки администратора: приглашения, права, сервер, модерация. Выключите – и сайт выглядит так
 			же, как у участников.
 		</p>
 	</section>
@@ -69,7 +92,7 @@
 			<h3>Масштаб окна</h3>
 		</div>
 		<p class="muted small">
-			«Авто» подбирает размер под монитор. Мелко или крупно — выберите свой; запомнится на этом
+			«Авто» подбирает размер под монитор. Мелко или крупно – выберите свой; запомнится на этом
 			компьютере.
 		</p>
 		<div class="zooms" role="radiogroup" aria-label="Масштаб окна">
@@ -86,6 +109,27 @@
 	</section>
 {/if}
 
+{#if !me.hostWindow}
+	<section class="card pane">
+		<div class="pane-title">
+			<ZoomIn size={18} />
+			<h3>Масштаб интерфейса</h3>
+		</div>
+		<p class="muted small">Крупнее или мельче всё сразу – только на этом устройстве.</p>
+		<div class="zooms" role="radiogroup" aria-label="Масштаб интерфейса">
+			{#each SCALES as z (z)}
+				<button
+					type="button"
+					role="radio"
+					aria-checked={scale === z}
+					class:on={scale === z}
+					onclick={() => setScale(z)}>{z === 100 ? 'Обычный' : `${z}%`}</button
+				>
+			{/each}
+		</div>
+	</section>
+{/if}
+
 <section class="card pane">
 	<div class="pane-title">
 		<Smartphone size={18} />
@@ -93,12 +137,12 @@
 	</div>
 	<p class="muted small">
 		{installed()
-			? 'Уже установлено: campus открывается с экрана «Домой», без адресной строки.'
+			? 'Уже установлено: Campus открывается с экрана «Домой», без адресной строки.'
 			: 'Установите сайт как приложение: откроется без адресной строки, со своим значком, а задания и новости будут под рукой без сети.'}
 	</p>
 	<div class="row wrap">
 		{#if pwa.canInstall}<Button variant="primary" onclick={install}>Установить</Button>{/if}
-		<Button href="/install">Как установить — по шагам</Button>
+		<Button href="/install">Как установить – по шагам</Button>
 	</div>
 </section>
 
@@ -108,7 +152,7 @@
 		<h3>Как пользоваться</h3>
 	</div>
 	<p class="muted small">
-		Тур по сайту — то же, что при первом входе: полминуты, по главным кнопкам.
+		Тур по сайту – то же, что при первом входе: полминуты, по главным кнопкам.
 	</p>
 	<div><Button onclick={() => (welcome.open = true)}>Пройти тур</Button></div>
 </section>
@@ -121,7 +165,7 @@
 	<dl class="kv">
 		<div>
 			<dt>Версия</dt>
-			<dd class="num">campus {me.instance.version}</dd>
+			<dd class="num">Campus {me.instance.version}</dd>
 		</div>
 	</dl>
 	<div class="row wrap">

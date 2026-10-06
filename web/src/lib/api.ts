@@ -57,7 +57,7 @@ export interface RequestOptions {
 }
 
 /**
- * Слабая сеть: чтение, на которое есть ответ в копии на устройстве, ждём не дольше этого — дальше
+ * Слабая сеть: чтение, на которое есть ответ в копии на устройстве, ждём не дольше этого – дальше
  * показываем копию, а свежий ответ приходит следом и обновляет страницу.
  */
 const SLOW_MS = 1500;
@@ -88,8 +88,8 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 		body = JSON.stringify(opts.body);
 	}
 	// Чтение без ответа дольше 10 секунд считаем отсутствием сети: покажем сохранённое. Если сервер
-	// уже недоступен, ждём меньше — чтобы сохранённое открывалось сразу. untrack: запрос из $effect
-	// не должен зависеть от состояния сети — иначе страница перечитывает себя при каждом его изменении.
+	// уже недоступен, ждём меньше – чтобы сохранённое открывалось сразу. untrack: запрос из $effect
+	// не должен зависеть от состояния сети – иначе страница перечитывает себя при каждом его изменении.
 	const wait = untrack(() => pwa.offline) ? 3_000 : 10_000;
 	const signal =
 		opts.signal ??
@@ -112,7 +112,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 	// Ответ не от сервера группы: компьютер хоста выключен, и туннель отвечает своей страницей
 	// ошибки. Это то же, что нет сети: показываем сохранённое, действия уходят в очередь.
 	if (!res.headers.has('X-Groupbase')) {
-		throw new ApiError(0, 'network', 'Сервер группы сейчас выключен — попробуйте позже');
+		throw new ApiError(0, 'network', 'Сервер группы сейчас выключен – попробуйте позже');
 	}
 	pwa.offline = false;
 	if (res.status === 401) dropEarly();
@@ -120,7 +120,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 	const isJson = res.headers.get('Content-Type')?.startsWith('application/json');
 	const data = isJson ? await res.json() : null;
 	if (!res.ok) {
-		// Сайт сейчас работает на другом компьютере хоста: здесь — страница ожидания.
+		// Сайт сейчас работает на другом компьютере хоста: здесь – страница ожидания.
 		if (data?.error === 'standby' && typeof window !== 'undefined') {
 			if (location.pathname !== '/standby') location.replace('/standby');
 		} else if (
@@ -169,7 +169,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
 					offline.version++;
 				},
 				() => {
-					/* сеть так и не ответила — копия уже на экране */
+					/* сеть так и не ответила – копия уже на экране */
 				}
 			);
 			return copy as T;
@@ -201,7 +201,7 @@ async function fallback<T>(method: string, path: string, body: unknown): Promise
 		throw new ApiError(
 			0,
 			'offline',
-			'Без интернета это недоступно — откройте, когда появится сеть'
+			'Без интернета это недоступно – откройте, когда появится сеть'
 		);
 	}
 	if (queueable(method, path)) return (await enqueue(method, path, body)) as T;

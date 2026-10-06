@@ -1,8 +1,8 @@
 import type { Homework, MeGroup } from '$lib/types';
 
 /**
- * Режим «Сессия»: даты задаёт староста (MeGroup.session), зачёты и экзамены — обычные задания
- * с kind = credit | exam. Здесь только расчёты — без обращений к серверу.
+ * Режим «Сессия»: даты задаёт староста (MeGroup.session), зачёты и экзамены – обычные задания
+ * с kind = credit | exam. Здесь только расчёты – без обращений к серверу.
  */
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -26,7 +26,7 @@ function midnight(ms: number): number {
 	return d.getTime();
 }
 
-/** Календарных дней до дня ts: 0 — сегодня, 1 — завтра, −1 — вчера. */
+/** Календарных дней до дня ts: 0 – сегодня, 1 – завтра, −1 – вчера. */
 export function daysUntil(ts: number, now: number): number {
 	return Math.round((midnight(ts) - midnight(now)) / DAY);
 }
@@ -40,7 +40,7 @@ export function phase(dates: SessionDates | null | undefined, now: number): Phas
 	return day <= total ? { kind: 'during', day, total } : { kind: 'after' };
 }
 
-/** Зачёты и экзамены этой сессии; без дат — все, что пришли с сервера (недавние и будущие). */
+/** Зачёты и экзамены этой сессии; без дат – все, что пришли с сервера (недавние и будущие). */
 export function sessionExams(
 	exams: Homework[],
 	dates: SessionDates | null | undefined
@@ -62,7 +62,7 @@ export function progress(list: Homework[]): { done: number; total: number } {
 }
 
 /**
- * Карточка на главной: за три недели до начала и до конца сессии; без дат — если зачёт или
+ * Карточка на главной: за три недели до начала и до конца сессии; без дат – если зачёт или
  * экзамен в ближайшие две недели.
  */
 export function sessionVisible(
@@ -82,7 +82,7 @@ export function sessionVisible(
 
 /**
  * Кнопка «Сессия» в меню. Её выбирает староста в «Настройки → Семестр»: всегда, никогда или около
- * сессии — за три недели до начала и до последнего дня (по датам; без дат — не видна).
+ * сессии – за три недели до начала и до последнего дня (по датам; без дат – не видна).
  */
 export function sessionNavVisible(
 	group: Pick<MeGroup, 'session' | 'sessionNav'>,
@@ -95,7 +95,7 @@ export function sessionNavVisible(
 	return p.kind === 'during' || (p.kind === 'before' && p.days <= LEAD_DAYS);
 }
 
-/** Даты сессии выбранной группы; в режиме «все группы» — если они есть ровно у одной. */
+/** Даты сессии выбранной группы; в режиме «все группы» – если они есть ровно у одной. */
 export function datesFor(groups: MeGroup[], groupId: number | null): SessionDates | null {
 	if (groupId !== null) return groups.find((g) => g.id === groupId)?.session ?? null;
 	const withDates = groups.filter((g) => g.session);
