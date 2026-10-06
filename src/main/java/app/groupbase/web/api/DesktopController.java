@@ -185,4 +185,20 @@ class DesktopController {
     bridge.chooseDataFolder();
     return Map.of("status", "asked");
   }
+
+  record ZoomBody(Integer value) {}
+
+  /** Масштаб окна приложения хоста: 0 — «Авто» (под монитор), иначе 80–150 %. */
+  @PostMapping("/zoom")
+  Map<String, String> zoom(Actor actor, @RequestBody ZoomBody b) {
+    if (!bridge.enabled() || actor == null || !actor.local()) {
+      throw ApiException.forbidden("Доступно только в приложении на компьютере хоста");
+    }
+    int v = b.value() == null ? 0 : b.value();
+    if (v != 0 && (v < 50 || v > 200)) {
+      throw ApiException.invalid("value", "Масштаб — от 50 до 200 %");
+    }
+    bridge.event("zoom", Map.of("value", v));
+    return Map.of("status", "ok");
+  }
 }

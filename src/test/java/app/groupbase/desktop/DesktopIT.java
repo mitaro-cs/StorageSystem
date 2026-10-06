@@ -178,6 +178,18 @@ class DesktopIT extends IntegrationTest {
   }
 
   @Test
+  void windowZoomOnlyFromTheHostWindow() {
+    ApiClient host = client();
+    admin();
+    host.get(enterPath());
+    assertThat(host.post("/api/desktop/zoom", Map.of("value", 90)).status()).isEqualTo(200);
+    assertThat(host.post("/api/desktop/zoom", Map.of("value", 0)).status()).isEqualTo(200);
+    assertThat(host.post("/api/desktop/zoom", Map.of("value", 400)).status()).isEqualTo(400);
+    ApiClient phone = admin().header("X-Forwarded-For", "198.51.100.33");
+    assertThat(phone.post("/api/desktop/zoom", Map.of("value", 90)).status()).isIn(401, 403);
+  }
+
+  @Test
   void dataFolderChoiceOnlyFromTheHostWindow() {
     ApiClient host = client();
     admin();

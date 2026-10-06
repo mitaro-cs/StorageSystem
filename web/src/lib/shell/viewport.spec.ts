@@ -23,6 +23,11 @@ describe('viewportShift — нижняя панель на iPhone после к�
 		expect(viewportShift({ ...normal, offsetTop: 68, screenHeight: 0 })).toBe(0);
 	});
 
+	it('страницу оттягивают за край или панель ниже края — вверх не двигаем', () => {
+		expect(viewportShift({ ...normal, offsetTop: -120 })).toBe(0);
+		expect(viewportShift({ ...normal, fixedBottom: 900 })).toBe(0);
+	});
+
 	it('слишком большой сдвиг — это клавиатура или поворот, не ошибка', () => {
 		expect(viewportShift({ ...normal, fixedBottom: 420 })).toBe(0);
 	});

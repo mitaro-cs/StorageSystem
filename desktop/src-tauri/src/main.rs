@@ -258,7 +258,7 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
         })
         .build()?;
     // Окно и масштаб — под монитор: на большом мониторе окно больше и всё крупнее.
-    if let Some(z) = monitor_zoom(&window) {
+    if let Some(z) = window_zoom(&window) {
         let _ = window.set_zoom(z);
         if let Ok(Some(m)) = window.current_monitor() {
             let area = m.size().to_logical::<f64>(m.scale_factor());
@@ -279,7 +279,7 @@ fn create_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
         }
         // Перетащили окно на другой монитор — масштаб под него.
         WindowEvent::Moved(_) | WindowEvent::ScaleFactorChanged { .. } => {
-            if let Some(z) = monitor_zoom(&w) {
+            if let Some(z) = window_zoom(&w) {
                 let st = w.app_handle().state::<App>();
                 let mut last = st.zoom.lock().unwrap();
                 if (*last - z).abs() > 0.01 {
@@ -302,8 +302,30 @@ fn monitor_zoom(window: &tauri::WebviewWindow) -> Option<f64> {
     Some(zoom_for(width))
 }
 
+/// Масштаб окна: свой из «Профиль → Приложение → Масштаб окна» или «Авто» — под монитор.
+fn window_zoom(window: &tauri::WebviewWindow) -> Option<f64> {
+    let manual = read_pref_number(window.app_handle(), "zoom");
+    if manual >= 50.0 {
+        return Some(manual / 100.0);
+    }
+    monitor_zoom(window)
+}
+
+/// «Авто» (0.8.1 — мягче, владельцу на 1920 было слишком крупно): 1920 — 110 %, 2560 и шире —
+/// 125 %, ноутбуки — 85 %. Шаг 5 %.
 fn zoom_for(width: f64) -> f64 {
-    ((width / 1440.0).clamp(0.9, 1.5) * 20.0).round() / 20.0
+    ((width / 1760.0).clamp(0.85, 1.25) * 20.0).round() / 20.0
+}
+
+/// Выбрали масштаб в окне: применить сразу и запомнить (0 — «Авто»).
+fn set_window_zoom(app: &AppHandle, value: f64) {
+    write_pref_value(app, "zoom", serde_json::json!(value));
+    if let Some(w) = app.get_webview_window(MAIN) {
+        if let Some(z) = window_zoom(&w) {
+            *app.state::<App>().zoom.lock().unwrap() = z;
+            let _ = w.set_zoom(z);
+        }
+    }
 }
 
 /// Адрес без параметров: в ссылке входа — одноразовый токен, в журнал он не попадает.
@@ -692,6 +714,11 @@ fn on_event(app: &AppHandle, v: &Value) {
                 write_pref_value(app, "icon", Value::String(id.clone()));
                 apply_icon(app, &id);
             }
+        }
+        // «Масштаб окна» в «Профиль → Приложение».
+        "zoom" => {
+            let value = v.get("value").and_then(Value::as_f64).unwrap_or(0.0);
+            set_window_zoom(app, value);
         }
         // «Сменить папку…» в «Управление → Сервер → Состояние»: диалоги блокирующие — не здесь.
         "choose-data" => {
@@ -1367,6 +1394,14 @@ fn read_pref(app: &AppHandle, key: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn read_pref_number(app: &AppHandle, key: &str) -> f64 {
+    fs::read_to_string(prefs_path(app))
+        .ok()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+        .and_then(|v| v.get(key).and_then(Value::as_f64))
+        .unwrap_or(0.0)
+}
+
 fn read_pref_text(app: &AppHandle, key: &str) -> String {
     fs::read_to_string(prefs_path(app))
         .ok()
@@ -1479,12 +1514,12 @@ mod tests {
 
     #[test]
     fn zoom_follows_monitor_width() {
-        assert_eq!(zoom_for(1440.0), 1.0);
-        assert_eq!(zoom_for(1470.0), 1.0);
-        assert_eq!(zoom_for(1920.0), 1.35);
-        assert_eq!(zoom_for(2560.0), 1.5);
-        assert_eq!(zoom_for(3840.0), 1.5);
-        assert_eq!(zoom_for(1280.0), 0.9);
+        assert_eq!(zoom_for(1440.0), 0.85);
+        assert_eq!(zoom_for(1760.0), 1.0);
+        assert_eq!(zoom_for(1920.0), 1.1);
+        assert_eq!(zoom_for(2560.0), 1.25);
+        assert_eq!(zoom_for(3840.0), 1.25);
+        assert_eq!(zoom_for(1280.0), 0.85);
     }
 
     #[test]
