@@ -3,7 +3,8 @@
 	import { post } from '$lib/api';
 	import { absolute, canShare, copy, share } from '$lib/copy';
 	import { t } from '$lib/i18n/ru';
-	import { fioError, firstName } from '$lib/names';
+	import { firstName } from '$lib/names';
+	import { fioError } from '$lib/fio';
 	import { can, session } from '$lib/session.svelte';
 	import { toastError } from '$lib/toasts.svelte';
 	import type { CreatedAccount, GroupRole } from '$lib/types';
@@ -14,7 +15,7 @@
 	import FioField from '$lib/auth/FioField.svelte';
 	import Accounts from '$lib/settings/Accounts.svelte';
 
-	// Добавить людей в группу — три способа на одном экране, от самого простого.
+	// Добавить людей в группу – три способа на одном экране, от самого простого.
 	interface Props {
 		open: boolean;
 		groupId: number;
@@ -92,7 +93,7 @@
 	bind:open
 	{dirty}
 	dirtyText={created
-		? 'Ссылку для входа потом не показать — сначала отправьте её человеку.'
+		? 'Ссылку для входа потом не показать – сначала отправьте её человеку.'
 		: 'Вписанное не сохранится.'}
 	title="Добавить людей"
 	wide
@@ -126,7 +127,7 @@
 		{#if created}
 			<div class="made">
 				<p class="lead">
-					<strong>{created.displayName}</strong> добавлен(а). Покажите QR-код — {firstName(
+					<strong>{created.displayName}</strong> добавлен(а). Покажите QR-код – {firstName(
 						created.displayName
 					)} отсканирует его камерой телефона и сам(а) задаст пароль.
 				</p>
@@ -146,7 +147,7 @@
 					<Button onclick={() => copy(activation, 'Ссылка скопирована')}
 						><Copy size={16} /> Копировать</Button
 					>
-					{#if canShare()}<Button onclick={() => share(activation, 'Вход в campus')}
+					{#if canShare()}<Button onclick={() => share(activation, 'Вход в Campus')}
 							><Share2 size={16} /> Отправить</Button
 						>{/if}
 				</div>
@@ -157,7 +158,7 @@
 		{:else}
 			<form id="add-one" class="stack form" onsubmit={createOne}>
 				<p class="muted small">
-					Самый быстрый способ на паре: впишите ФИО — появится QR-код, человек отсканирует его и сам
+					Самый быстрый способ на паре: впишите ФИО – появится QR-код, человек отсканирует его и сам
 					задаст пароль. Логин придумается по ФИО.
 				</p>
 				<FioField bind:value={fio} />
@@ -176,7 +177,7 @@
 		{/if}
 	{:else if tab === 'list'}
 		<p class="muted small list-hint">
-			Вставьте список группы из таблицы или чата — по ФИО на строку. Каждому достанется своя ссылка
+			Вставьте список группы из таблицы или чата – по ФИО на строку. Каждому достанется своя ссылка
 			с QR-кодом: можно распечатать и раздать.
 		</p>
 		<Accounts {groupId} {groupName} embedded oncreated={onadded} />
@@ -206,7 +207,7 @@
 						>{/if}
 				</div>
 				<p class="faint small center">
-					Действует неделю. Все ссылки — в «Настройки → Приглашения».
+					Действует неделю. Все ссылки – в «Настройки → Приглашения».
 				</p>
 			{:else}
 				<div>

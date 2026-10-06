@@ -25,7 +25,7 @@
 	<div class="brand" aria-hidden="true">
 		<!-- Логотип: та же картинка, что значок во вкладке. -->
 		<img src={iconSrc(appIcon.id)} alt="" width="36" height="36" />
-		<span>campus</span>
+		<span>Campus</span>
 	</div>
 	<div class="card panel" in:fly={{ y: 12 }}>
 		{@render children()}
@@ -44,7 +44,7 @@
 		justify-content: center;
 		gap: var(--s5);
 		padding: var(--s6) var(--s4);
-		/* Сам фон — глобальные классы .login-bg-* (app.css): здесь его не задаём, иначе перебьём. */
+		/* Сам фон – глобальные классы .login-bg-* (app.css): здесь его не задаём, иначе перебьём. */
 	}
 	.photo {
 		background:

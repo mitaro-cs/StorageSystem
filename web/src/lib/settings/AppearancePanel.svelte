@@ -6,7 +6,7 @@
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import Button from '$lib/ui/Button.svelte';
 
-	// Фон страниц входа, регистрации и приглашения — то, что одногруппники видят первым.
+	// Фон страниц входа, регистрации и приглашения – то, что одногруппники видят первым.
 	let value = $state<string | null>(null);
 	let busy = $state(false);
 	let input: HTMLInputElement | undefined = $state();
@@ -118,7 +118,7 @@
 			onchange={(e) => upload(e.currentTarget.files)}
 		/>
 		<p class="faint small">
-			Своя картинка: JPEG, PNG или WebP до 10 МБ. Лучше горизонтальная — фото корпуса, аудитории или
+			Своя картинка: JPEG, PNG или WebP до 10 МБ. Лучше горизонтальная – фото корпуса, аудитории или
 			группы. Картинку уменьшим до 1920 точек и уберём из неё данные о месте съёмки.
 		</p>
 		<div class="row wrap">
@@ -132,9 +132,9 @@
 	{/if}
 </section>
 
-<!-- Оформление для себя — у каждого своё, в личных настройках. -->
+<!-- Оформление для себя – у каждого своё, в личных настройках. -->
 <p class="faint small">
-	Тема, дизайн и цвет интерфейса у каждого свои — <a href="/profile?tab=appearance"
+	Тема, дизайн и цвет интерфейса у каждого свои – <a href="/profile?tab=appearance"
 		>в ваших настройках</a
 	>.
 </p>

@@ -71,7 +71,7 @@
 	/>
 </div>
 
-<!-- Добавление людей и QR-код — редкие: их код грузится при открытии. -->
+<!-- Добавление людей и QR-код – редкие: их код грузится при открытии. -->
 {#if addGroup && adding}
 	{#await import('./AddPeople.svelte') then m}
 		<m.default bind:open={adding} groupId={addGroup.id} onadded={() => reload++} />
@@ -80,7 +80,7 @@
 
 <Modal open={reset !== null} title="Сброс пароля" onclose={() => (reset = null)}>
 	<p class="muted">
-		Покажите QR-код {reset?.name} — он отсканирует его камерой и задаст новый пароль. Или отправьте ссылку
+		Покажите QR-код {reset?.name} – он отсканирует его камерой и задаст новый пароль. Или отправьте ссылку
 		лично. Она одноразовая и действует 7 дней; старые сессии пользователя закроются.
 	</p>
 	{#if reset}<div class="qr">
@@ -90,7 +90,7 @@
 		</div>{/if}
 	<div class="linkbox"><code>{reset?.link}</code></div>
 	{#snippet footer()}
-		{#if canShare()}<Button onclick={() => reset && share(reset.link, 'Новый пароль для campus')}
+		{#if canShare()}<Button onclick={() => reset && share(reset.link, 'Новый пароль для Campus')}
 				>Поделиться</Button
 			>{/if}
 		<Button variant="primary" onclick={() => reset && copy(reset.link, 'Ссылка скопирована')}

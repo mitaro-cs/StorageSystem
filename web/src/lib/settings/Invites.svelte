@@ -23,7 +23,7 @@
 	let fresh = $state<string | null>(null);
 	let busy = $state(false);
 	let fullscreen = $state(false);
-	// Ссылка на localhost откроется только на этом компьютере — предупреждаем заранее.
+	// Ссылка на localhost откроется только на этом компьютере – предупреждаем заранее.
 	const local = $derived(
 		!session.me?.instance.publicUrl && /^(localhost|127\.|\[?::1\]?$)/.test(location.hostname)
 	);
@@ -122,14 +122,14 @@
 			<div class="qr-mini"><QrCode value={fresh} label="QR-код приглашения" /></div>
 			<div class="fresh-info">
 				<p class="small">
-					Ссылка показывается один раз. Отправьте её в чат группы или покажите QR-код на паре —
+					Ссылка показывается один раз. Отправьте её в чат группы или покажите QR-код на паре –
 					одногруппники отсканируют его камерой.
 				</p>
 				<code class="link">{fresh}</code>
 				{#if local}
 					<p class="tip amber small">
 						<span
-							>Доступ для группы ещё не открыт — с других телефонов по этой ссылке не зайти.
+							>Доступ для группы ещё не открыт – с других телефонов по этой ссылке не зайти.
 							Откройте его в <a href="/settings?tab=server">Настройки → Сервер</a>, и ссылки поведут
 							на адрес, который видят одногруппники.</span
 						>

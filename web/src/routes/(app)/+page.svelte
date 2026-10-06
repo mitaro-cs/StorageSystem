@@ -35,7 +35,7 @@
 	let data = $state<Today | null>(untrack(() => peek<Today>(`today:${session.groupId}`) ?? null));
 	let newsOpen = $state(false);
 	let editingNews = $state<NewsItem | null>(null);
-	// Меню «…» у новостей (скрыть, удалить, пожаловаться) — отдельным кусочком: главная легче.
+	// Меню «…» у новостей (скрыть, удалить, пожаловаться) – отдельным кусочком: главная легче.
 	let newsMenu = $state<
 		((n: NewsItem, h: { edit(): void; removed(): void; changed(): void }) => MenuItem[]) | null
 	>(null);
@@ -69,7 +69,7 @@
 	const next = $derived(open.length ? open.reduce((a, b) => (b.dueAt < a.dueAt ? b : a)) : null);
 	const days = $derived(data ? byDay(data.upcoming) : []);
 	const overdue = $derived(data ? data.overdue.filter((h) => !h.done) : []);
-	// Новости на главной — сразу под сводкой: срочные первыми, затем закреплённые и свежие.
+	// Новости на главной – сразу под сводкой: срочные первыми, затем закреплённые и свежие.
 	const news = $derived.by(() => {
 		if (!data) return [];
 		const all = [...data.pinned, ...data.news].filter(
@@ -77,7 +77,7 @@
 		);
 		return [...all.filter((n) => n.urgent), ...all.filter((n) => !n.urgent)].slice(0, 3);
 	});
-	// Чаты в Telegram: выбранной группы, а в режиме «все группы» — всех (с названием группы).
+	// Чаты в Telegram: выбранной группы, а в режиме «все группы» – всех (с названием группы).
 	const chatGroup = $derived(currentGroup() ?? (isMulti() ? null : groups()[0]));
 	const chats = $derived(
 		(chatGroup ? [chatGroup] : groups()).flatMap((g) =>
@@ -95,7 +95,7 @@
 	const sessionDates = $derived(datesFor(groups(), session.groupId));
 	const exams = $derived(data?.exams ? sessionExams(data.exams, sessionDates) : []);
 	const showSession = $derived(sessionVisible(sessionDates, exams, now));
-	// Предметы по подгруппам (английский №1 и №2) — спросим, какая своя. Здесь — только грубая
+	// Предметы по подгруппам (английский №1 и №2) – спросим, какая своя. Здесь – только грубая
 	// проверка по названию; наборы и «уже выбрано» считает сама карточка (грузится отдельно).
 	const askSubgroup = $derived(
 		subjects.list.some(
@@ -104,7 +104,7 @@
 	);
 </script>
 
-<svelte:head><title>Сегодня · campus</title></svelte:head>
+<svelte:head><title>Сегодня · Campus</title></svelte:head>
 
 <header class="hello">
 	<div class="who">
@@ -113,8 +113,8 @@
 			{cap(fmtWeekday(now))}, <span class="num">{fmtDate(now)}</span>{place ? ` · ${place}` : ''}
 		</p>
 	</div>
-	<!-- Уведомления на компьютере — здесь, на «Сегодня» (в боковой панели пункта нет). На телефоне
-	     колокольчик — в верхней панели. -->
+	<!-- Уведомления на компьютере – здесь, на «Сегодня» (в боковой панели пункта нет). На телефоне
+	     колокольчик – в верхней панели. -->
 	<span class="desk-bell"><Bell /></span>
 	{#if me}
 		<a class="me" href="/profile" aria-label="Профиль">
@@ -157,7 +157,7 @@
 	<a class="pill" href="/materials">Файлы</a>
 </div>
 
-<!-- «Первые шаги» — только тем, кто приглашает (староста, замы): код грузится лишь для них. -->
+<!-- «Первые шаги» – только тем, кто приглашает (староста, замы): код грузится лишь для них. -->
 {#if canInvite}
 	{#await import('$lib/content/FirstSteps.svelte') then m}<m.default
 			oncreate={() => (hwOpen = true)}
@@ -174,7 +174,7 @@
 	<div class="stack"><Skeleton /><Skeleton /></div>
 {:else}
 	{#if showSession}
-		<!-- Карточка сессии нужна пару недель в семестр — её код грузится, только когда она видна. -->
+		<!-- Карточка сессии нужна пару недель в семестр – её код грузится, только когда она видна. -->
 		{#await import('$lib/content/SessionCard.svelte') then m}
 			<div class="block" in:fly={{ y: 10 }}>
 				<m.default {exams} dates={sessionDates} {now} />
@@ -182,7 +182,7 @@
 		{/await}
 	{/if}
 	{#if data.lessons?.length}
-		<!-- Пары — только у групп с расписанием: код блока грузится, когда есть что показать. -->
+		<!-- Пары – только у групп с расписанием: код блока грузится, когда есть что показать. -->
 		{#await import('$lib/schedule/TodayLessons.svelte') then m}<m.default
 				lessons={data.lessons}
 				{now}
@@ -199,11 +199,11 @@
 				><TriangleAlert size={17} /> <strong class="num">{overdue.length}</strong> просрочено</span
 			>
 		{:else}
-			<span>{open.length === 0 ? 'Всё сдано — можно выдохнуть' : 'Без просрочек'}</span>
+			<span>{open.length === 0 ? 'Всё сдано – можно выдохнуть' : 'Без просрочек'}</span>
 		{/if}
 	</div>
 
-	<!-- На широком экране — две колонки: задания слева, новости справа. -->
+	<!-- На широком экране – две колонки: задания слева, новости справа. -->
 	<div class="dash">
 		{#if news.length}
 			<section class="block news-col">
@@ -265,7 +265,7 @@
 				{:else}
 					<ol class="timeline">
 						{#each days as d, di (d.day)}
-							<!-- Значок предмета первого несделанного задания дня; без предмета — число. -->
+							<!-- Значок предмета первого несделанного задания дня; без предмета – число. -->
 							{@const lead = d.items.find((h) => !h.done) ?? d.items[0]}
 							<li in:fly={{ y: 8, delay: stagger(di, 50) }}>
 								<span class="node num" aria-hidden="true"
@@ -305,7 +305,7 @@
 	{/await}
 {/if}
 {#if chatGroup && canPinChats && chatsOpen}
-	<!-- Окно закрепления чатов нужно только старосте — код грузится по нажатию. -->
+	<!-- Окно закрепления чатов нужно только старосте – код грузится по нажатию. -->
 	{#await import('$lib/content/GroupChats.svelte') then m}
 		<m.default bind:open={chatsOpen} groupId={chatGroup.id} />
 	{/await}
@@ -480,7 +480,7 @@
 		background: var(--accent);
 		color: var(--accent-text);
 	}
-	/* Значок предмета заполняет кружок; ближайший день — с кольцом основного цвета. */
+	/* Значок предмета заполняет кружок; ближайший день – с кольцом основного цвета. */
 	.node :global(.glyph) {
 		border-radius: 50%;
 	}

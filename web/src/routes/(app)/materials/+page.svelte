@@ -82,7 +82,7 @@
 	const title = $derived(crumbs[crumbs.length - 1].label);
 </script>
 
-<svelte:head><title>{title} · campus</title></svelte:head>
+<svelte:head><title>{title} · Campus</title></svelte:head>
 
 <div class="page-head"><h1>{subjectId === null ? 'Файлы' : (subject?.name ?? 'Файлы')}</h1></div>
 {#if subjectId !== null}<Crumbs items={crumbs} />{/if}
@@ -150,7 +150,7 @@
 			<span class="ficon amber"><FolderOpen size={26} /></span>
 			<span class="ftext"
 				><span class="fname">Материалы</span><span class="faint small"
-					>Конспекты, методички, ссылки — по папкам</span
+					>Конспекты, методички, ссылки – по папкам</span
 				></span
 			>
 			<ChevronRight size={18} class="chev" />

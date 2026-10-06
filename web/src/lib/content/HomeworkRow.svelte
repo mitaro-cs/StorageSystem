@@ -15,11 +15,11 @@
 
 	const overdue = $derived(!item.done && item.dueAt < now);
 	const soon = $derived(!item.done && !overdue && item.dueAt - now < 24 * 3600 * 1000);
-	// Тест ещё не открылся — показываем, когда откроется.
+	// Тест ещё не открылся – показываем, когда откроется.
 	const closed = $derived(!!item.opensAt && item.opensAt > now);
 </script>
 
-<!-- Вся строка — ссылка на задание (растянутая ссылка названия); кружок «сделано» — поверх неё. -->
+<!-- Вся строка – ссылка на задание (растянутая ссылка названия); кружок «сделано» – поверх неё. -->
 <div class="hw" class:done={item.done} style:--subject={item.subject?.color}>
 	<span class="toggle"
 		><DoneToggle done={item.done} label={item.title} onchange={(v) => ontoggle(item, v)} /></span
@@ -40,7 +40,7 @@
 			{#if item.hidden}<span class="chip"><EyeOff size={12} /> скрыто</span>{/if}
 			{#if item.pending}<span
 					class="chip amber"
-					title="Создано без сети — уйдёт на сервер, когда появится интернет"
+					title="Создано без сети – уйдёт на сервер, когда появится интернет"
 					><CloudOff size={12} /> ждёт отправки</span
 				>{/if}
 		</div>
@@ -84,7 +84,7 @@
 	.hw:hover {
 		background: color-mix(in srgb, var(--surface-2) 50%, var(--surface));
 	}
-	/* «Стекло» и «Объём»: строка — часть панели, сквозь неё видно материал списка. */
+	/* «Стекло» и «Объём»: строка – часть панели, сквозь неё видно материал списка. */
 	:global(:root:is([data-style='glass'], [data-style='depth'])) .hw {
 		background: transparent;
 	}

@@ -266,7 +266,7 @@ describe('офлайн-ответы', () => {
 			`/api/schedule?group=1&from=${NOW - 2 * DAY}&to=${NOW + 7 * DAY}`,
 			withLessons
 		) as Lesson[];
-		// Английский №2 скрыт у себя — в общем расписании его нет; чужая группа — тоже нет.
+		// Английский №2 скрыт у себя – в общем расписании его нет; чужая группа – тоже нет.
 		expect(week.map((l) => l.id)).toEqual([2, 1, 3]);
 		const english = resolve(
 			`/api/schedule?subject=11&from=${NOW - DAY}&to=${NOW + DAY}`,
@@ -279,7 +279,7 @@ describe('офлайн-ответы', () => {
 		expect(detail.next).toBeNull();
 		const t = resolve('/api/today?group=1', withLessons, NOW) as { lessons: Lesson[] };
 		expect(t.lessons.map((l) => l.id)).toEqual([1, 3]);
-		// Копия от прежней версии — без пар: пусто, а не ошибка.
+		// Копия от прежней версии – без пар: пусто, а не ошибка.
 		expect(resolve(`/api/schedule?from=0&to=${NOW}`, snap)).toEqual([]);
 	});
 

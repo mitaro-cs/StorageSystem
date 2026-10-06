@@ -242,7 +242,7 @@ public class PeerService implements SmartLifecycle {
   }
 
   static final String SECOND_MESSAGE =
-      "Сайт для группы сейчас работает на другом компьютере, здесь — его копия.";
+      "Сайт для группы сейчас работает на другом компьютере, здесь – его копия.";
 
   public Role role() {
     return role;
@@ -271,19 +271,19 @@ public class PeerService implements SmartLifecycle {
     requireApp();
     if (hosts.cloudEnabled()) {
       throw new Problem(
-          "Включён перенос через облачную папку — выключите его, чтобы связать компьютеры"
+          "Включён перенос через облачную папку – выключите его, чтобы связать компьютеры"
               + " напрямую");
     }
     if (role == Role.SECOND) {
       throw new Problem(
-          "Код показывает компьютер, на котором сейчас сайт, — или нажмите здесь «Перенести сайт сюда»");
+          "Код показывает компьютер, на котором сейчас сайт, – или нажмите здесь «Перенести сайт сюда»");
     }
     try {
       // https — или адрес в локальной сети: по нему второй компьютер найдёт этот.
       TransferClient.normalize(publicUrl.get().orElse(""));
     } catch (IOException e) {
       throw new Problem(
-          "Сначала включите доступ для группы по адресу https://… — по нему другой компьютер"
+          "Сначала включите доступ для группы по адресу https://… – по нему другой компьютер"
               + " найдёт этот");
     }
     if (role == Role.OFF) {
@@ -316,14 +316,14 @@ public class PeerService implements SmartLifecycle {
   /** Второй компьютер пришёл с кодом: выдать ему ключ. */
   public synchronized Map<String, Object> pair(String given, String computerId, String name) {
     if (role != Role.MAIN) {
-      throw new Problem("Сайт сейчас не на этом компьютере — возьмите код там, где он работает");
+      throw new Problem("Сайт сейчас не на этом компьютере – возьмите код там, где он работает");
     }
     if (keyMatches(given)) {
       return issue(computerId, name);
     }
     if (code == null || clock.millis() > codeExpires) {
       code = null;
-      throw new Problem("Код устарел или не выдавался — возьмите новый");
+      throw new Problem("Код устарел или не выдавался – возьмите новый");
     }
     String g = TransferService.normalize(given);
     if (!MessageDigest.isEqual(
@@ -341,7 +341,7 @@ public class PeerService implements SmartLifecycle {
   private Map<String, Object> issue(String computerId, String name) {
     String id = computerId == null ? "" : computerId.strip();
     if (!id.matches("[0-9a-fA-F-]{8,64}") || id.equals(cfg.computerId())) {
-      throw new Problem("Не похоже на компьютер campus — обновите приложение там");
+      throw new Problem("Не похоже на компьютер Campus – обновите приложение там");
     }
     String token = Tokens.newToken();
     savePeer(id, cleanName(name), token);
@@ -554,7 +554,7 @@ public class PeerService implements SmartLifecycle {
     requireApp();
     if (hosts.cloudEnabled()) {
       throw new Problem(
-          "Включён перенос через облачную папку — выключите его, чтобы связать компьютеры"
+          "Включён перенос через облачную папку – выключите его, чтобы связать компьютеры"
               + " напрямую");
     }
     String url;
@@ -562,7 +562,7 @@ public class PeerService implements SmartLifecycle {
       url = TransferClient.normalize(publicUrl.get().orElse("")).toString();
     } catch (IOException e) {
       throw new Problem(
-          "Сначала включите доступ для группы по адресу https://… — по нему другой компьютер"
+          "Сначала включите доступ для группы по адресу https://… – по нему другой компьютер"
               + " найдёт этот");
     }
     String secret =
@@ -604,7 +604,7 @@ public class PeerService implements SmartLifecycle {
   static String[] parseKey(String key) {
     String k = key == null ? "" : key.strip();
     if (!k.startsWith(KEY_PREFIX)) {
-      throw new Problem("Это не ключ сайта — скопируйте его целиком в «Два компьютера»");
+      throw new Problem("Это не ключ сайта – скопируйте его целиком в «Два компьютера»");
     }
     try {
       String raw =
@@ -617,7 +617,7 @@ public class PeerService implements SmartLifecycle {
       }
       return new String[] {raw.substring(0, nl), raw.substring(nl + 1)};
     } catch (IllegalArgumentException e) {
-      throw new Problem("Ключ сайта повреждён — скопируйте его целиком ещё раз");
+      throw new Problem("Ключ сайта повреждён – скопируйте его целиком ещё раз");
     }
   }
 
@@ -677,12 +677,12 @@ public class PeerService implements SmartLifecycle {
     }
     String id = computerId == null ? "" : computerId.strip();
     if (!id.matches("[0-9a-fA-F-]{8,64}") || id.equals(cfg.computerId())) {
-      throw new Problem("Не похоже на компьютер campus — обновите приложение там");
+      throw new Problem("Не похоже на компьютер Campus – обновите приложение там");
     }
     long now = clock.millis();
     requests.values().removeIf(r -> r.expires < now);
     if (requests.size() >= MAX_REQUESTS) {
-      throw new Problem("Слишком много запросов — подождите пару минут");
+      throw new Problem("Слишком много запросов – подождите пару минут");
     }
     String secret = Tokens.newToken();
     String shortId = Tokens.newToken().replaceAll("[^A-Za-z0-9]", "").substring(0, 8);
@@ -723,7 +723,7 @@ public class PeerService implements SmartLifecycle {
         requests.values().stream()
             .filter(r -> r.id.equals(id) && "waiting".equals(r.status))
             .findFirst()
-            .orElseThrow(() -> new Problem("Запрос устарел — пусть тот компьютер попросит снова"));
+            .orElseThrow(() -> new Problem("Запрос устарел – пусть тот компьютер попросит снова"));
     if (allow) {
       p.code = newCode().code();
       p.status = "approved";
@@ -749,7 +749,7 @@ public class PeerService implements SmartLifecycle {
     }
     if (role != Role.MAIN) {
       throw new Problem(
-          "Сайт сейчас не на этом компьютере — нажмите «Сделать хостом» на том, где он работает,"
+          "Сайт сейчас не на этом компьютере – нажмите «Сделать хостом» на том, где он работает,"
               + " или на нужном компьютере");
     }
     boolean known =
@@ -763,7 +763,7 @@ public class PeerService implements SmartLifecycle {
     }
     moveTo = computerId;
     moveToUntil = clock.millis() + 2 * 60_000;
-    log.info("Хостом станет другой компьютер — ждём, когда он заберёт сайт");
+    log.info("Хостом станет другой компьютер – ждём, когда он заберёт сайт");
     return view();
   }
 
@@ -779,7 +779,7 @@ public class PeerService implements SmartLifecycle {
     requireApp();
     if (hosts.cloudEnabled()) {
       throw new Problem(
-          "Выключите перенос через облачную папку — компьютеры будут связаны напрямую");
+          "Выключите перенос через облачную папку – компьютеры будут связаны напрямую");
     }
     if (role != Role.OFF) {
       throw new Problem("Этот компьютер уже связан с другим");
@@ -819,7 +819,7 @@ public class PeerService implements SmartLifecycle {
             return;
           }
           case "expired" -> {
-            ask = new Ask("error", "Не дождались ответа — попробуйте ещё раз", url);
+            ask = new Ask("error", "Не дождались ответа – попробуйте ещё раз", url);
             return;
           }
           default -> {
@@ -827,9 +827,9 @@ public class PeerService implements SmartLifecycle {
           }
         }
       }
-      ask = new Ask("error", "Не дождались ответа — попробуйте ещё раз", url);
+      ask = new Ask("error", "Не дождались ответа – попробуйте ещё раз", url);
     } catch (PeerClient.NoServer e) {
-      ask = new Ask("error", "По этому адресу сейчас не отвечает campus", url);
+      ask = new Ask("error", "По этому адресу сейчас не отвечает Campus", url);
     } catch (IOException | Problem e) {
       ask = new Ask("error", e.getMessage(), url);
     } catch (InterruptedException e) {
@@ -873,7 +873,7 @@ public class PeerService implements SmartLifecycle {
     requireApp();
     if (hosts.cloudEnabled()) {
       throw new Problem(
-          "Выключите перенос через облачную папку — компьютеры будут связаны напрямую");
+          "Выключите перенос через облачную папку – компьютеры будут связаны напрямую");
     }
     if (role != Role.OFF) {
       throw new Problem("Этот компьютер уже связан с другим");
@@ -888,7 +888,7 @@ public class PeerService implements SmartLifecycle {
       try {
         SiteFolder.verify(zip);
       } catch (IOException e) {
-        throw new IOException("Копия пришла не целиком — попробуйте ещё раз", e);
+        throw new IOException("Копия пришла не целиком – попробуйте ещё раз", e);
       }
       PendingRestore.stage(zip, data);
       synchronized (this) {
@@ -904,12 +904,12 @@ public class PeerService implements SmartLifecycle {
         access.suspend(SECOND_MESSAGE);
       }
       queue.clear();
-      log.info("Этот компьютер подключён вторым к сайту — перезапуск");
+      log.info("Этот компьютер подключён вторым к сайту – перезапуск");
       if (bridge.enabled()) {
         CompletableFuture.delayedExecutor(700, TimeUnit.MILLISECONDS)
             .execute(bridge::requestRestart);
       }
-      return "Данные сайта получены — перезапускаемся…";
+      return "Данные сайта получены – перезапускаемся…";
     } catch (IOException e) {
       throw new Problem(e.getMessage());
     } finally {
@@ -990,7 +990,7 @@ public class PeerService implements SmartLifecycle {
       }
       if (!st.site().isBlank() && !st.site().equals(siteId())) {
         state = "behind";
-        message = "Главный компьютер обслуживает другой сайт — подключите этот заново";
+        message = "Главный компьютер обслуживает другой сайт – подключите этот заново";
         return;
       }
       int mine = schema();
@@ -998,8 +998,8 @@ public class PeerService implements SmartLifecycle {
         state = "behind";
         message =
             st.schema() > mine
-                ? "На другом компьютере campus новее — обновите и этот"
-                : "На этом компьютере campus новее — обновите другой";
+                ? "На другом компьютере Campus новее – обновите и этот"
+                : "На этом компьютере Campus новее – обновите другой";
         return;
       }
       boolean pulled = false;
@@ -1021,14 +1021,14 @@ public class PeerService implements SmartLifecycle {
       }
       holder = null;
       state = "nobody";
-      message = "Сайт сейчас не отвечает — через минуту он заработает на этом компьютере";
+      message = "Сайт сейчас не отвечает – через минуту он заработает на этом компьютере";
       if (now - nobodySince >= takeoverMs) {
         takeOver("главный компьютер не отвечает");
       }
     } catch (IOException e) {
       nobodySince = 0;
       state = "offline";
-      message = "Нет связи с сайтом — изменения подождут здесь";
+      message = "Нет связи с сайтом – изменения подождут здесь";
     }
   }
 
@@ -1068,7 +1068,7 @@ public class PeerService implements SmartLifecycle {
         state = "ok";
         message = null;
         access.resume();
-        log.info("Сайт ни на одном компьютере не работает — главный поднимает туннель");
+        log.info("Сайт ни на одном компьютере не работает – главный поднимает туннель");
       }
     } catch (IOException e) {
       // Нет связи: туннель не поднимется и так; изменения окна записываются на всякий случай.
@@ -1076,8 +1076,8 @@ public class PeerService implements SmartLifecycle {
       state = checking ? "checking" : "offline";
       message =
           checking
-              ? "Нет интернета — сайт для группы откроется, когда связь появится"
-              : "Нет связи с адресом сайта — изменения сохраняются и здесь";
+              ? "Нет интернета – сайт для группы откроется, когда связь появится"
+              : "Нет связи с адресом сайта – изменения сохраняются и здесь";
     }
   }
 
@@ -1258,7 +1258,7 @@ public class PeerService implements SmartLifecycle {
       moveTo = null;
       epoch = cfg.peerEpoch();
     }
-    log.info("Сайт переезжает на другой компьютер по его просьбе — этот становится копией");
+    log.info("Сайт переезжает на другой компьютер по его просьбе – этот становится копией");
     try {
       // Запросы, начатые до переключения, успевают записаться и попасть в снимок.
       Thread.sleep(500);
@@ -1339,7 +1339,7 @@ public class PeerService implements SmartLifecycle {
     if (role != Role.MAIN) {
       return;
     }
-    log.info("Главным стал другой компьютер — этот становится вторым");
+    log.info("Главным стал другой компьютер – этот становится вторым");
     access.suspend(SECOND_MESSAGE);
     putAside();
     cfg.setPeerRole(Role.SECOND.id());

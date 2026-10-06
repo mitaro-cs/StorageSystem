@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { ADMIN, STUDENT, login, watchConsole } from './helpers';
 
-test('боковая панель: файлы — в предметах, уведомления — колокольчиком на «Сегодня»', async ({
+test('боковая панель: файлы – в предметах, уведомления – колокольчиком на «Сегодня»', async ({
 	page
 }) => {
 	const errors = watchConsole(page);
@@ -32,7 +32,7 @@ test('кнопку «Сессия» в меню староста показыв�
 	await expect(side.getByRole('link', { name: 'Сессия' })).toHaveCount(0);
 	await pick.getByRole('radio', { name: 'Всегда' }).click();
 	await expect(side.getByRole('link', { name: 'Сессия' })).toBeVisible();
-	// Страница открывается и без кнопки — по ссылке.
+	// Страница открывается и без кнопки – по ссылке.
 	await pick.getByRole('radio', { name: 'Около сессии' }).click();
 	await expect(pick.getByRole('radio', { name: 'Около сессии' })).toHaveAttribute(
 		'aria-checked',
@@ -59,7 +59,7 @@ test('модератор сайта видит участников списко
 	await moderator.goto('/members');
 	await expect(moderator.locator('.list-row', { hasText: ADMIN.name })).toBeVisible();
 	await expect(moderator.getByRole('button', { name: 'Действия' })).toHaveCount(0);
-	// Модератору — «Модерация», но не «Управление» и не переключатель режима управления.
+	// Модератору – «Модерация», но не «Управление» и не переключатель режима управления.
 	const side = moderator.getByRole('complementary', { name: 'Навигация' });
 	await expect(side.getByRole('link', { name: 'Модерация' })).toBeVisible();
 	await expect(side.getByRole('link', { name: 'Управление' })).toHaveCount(0);
@@ -90,7 +90,7 @@ test('дизайн оформления: пять вариантов, сразу
 	await expect(html).toHaveAttribute('data-style', 'glass');
 	await designs.getByRole('radio', { name: 'Бумага' }).click();
 	await expect(html).toHaveAttribute('data-style', 'paper');
-	// «Бумага» — заголовки с засечками.
+	// «Бумага» – заголовки с засечками.
 	const font = await page.evaluate(
 		() => getComputedStyle(document.querySelector('h1')!).fontFamily
 	);

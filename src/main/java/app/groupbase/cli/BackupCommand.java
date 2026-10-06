@@ -30,7 +30,7 @@ public class BackupCommand implements Callable<Integer> {
       names = {"-o", "--out"},
       paramLabel = "ПУТЬ",
       description =
-          "Куда сохранить: файл .zip или папка. По умолчанию — в папку копий из настроек"
+          "Куда сохранить: файл .zip или папка. По умолчанию – в папку копий из настроек"
               + " (старые сверх лимита удаляются).")
   Path out;
 
@@ -41,7 +41,7 @@ public class BackupCommand implements Callable<Integer> {
     if (!Files.isRegularFile(data.resolve("groupbase.db"))) {
       spec.commandLine()
           .getErr()
-          .println("В " + data + " нет данных groupbase — нечего копировать");
+          .println("В " + data + " нет данных groupbase – нечего копировать");
       return 1;
     }
     try (var ctx = target.open()) {
@@ -62,7 +62,7 @@ public class BackupCommand implements Callable<Integer> {
       }
       say.printf(
           "Копия готова: %s (%s)%n", file.toAbsolutePath().normalize(), size(Files.size(file)));
-      say.println("В ней ключи шифрования — храните её так же бережно, как сам компьютер.");
+      say.println("В ней ключи шифрования – храните её так же бережно, как сам компьютер.");
       return 0;
     }
   }

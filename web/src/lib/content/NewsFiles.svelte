@@ -4,7 +4,7 @@
 	import type { FileInfo } from '$lib/types';
 	import FileIcon from './FileIcon.svelte';
 
-	// Фото и файлы новости: фото — плиткой (нажали — просмотр с листанием), остальное — строками.
+	// Фото и файлы новости: фото – плиткой (нажали – просмотр с листанием), остальное – строками.
 	// На главной у карточки только число файлов (NewsCard).
 	let { files, title }: { files: FileInfo[]; title: string } = $props();
 

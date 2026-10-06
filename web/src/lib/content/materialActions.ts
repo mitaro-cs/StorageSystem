@@ -23,7 +23,7 @@ export function materialActions(m: Material, changed: () => void): MenuItem[] {
 			label: 'Скачать',
 			onclick: () => (location.href = `/api/files/${m.file!.id}?download=true`)
 		});
-		// Конспект в Markdown — документом Word (сервер собирает .docx).
+		// Конспект в Markdown – документом Word (сервер собирает .docx).
 		if (isMarkdown(m.file.mime, m.file.name)) {
 			out.push({
 				label: 'Скачать в Word',
@@ -31,7 +31,7 @@ export function materialActions(m: Material, changed: () => void): MenuItem[] {
 			});
 		}
 	}
-	// Закрепить сверху — староста, замы и модераторы (как закреплённые новости).
+	// Закрепить сверху – староста, замы и модераторы (как закреплённые новости).
 	if (m.can.pin && m.status === 'published') {
 		out.push({
 			label: m.pinnedAt ? 'Открепить' : 'Закрепить сверху',

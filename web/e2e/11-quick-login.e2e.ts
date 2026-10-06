@@ -10,8 +10,8 @@ test('вход без ввода логина: выбор аккаунта и QR
 	const errors = watchConsole(phone);
 	await login(phone, STUDENT);
 
-	// Выход и повторный вход: логин не вводим — выбираем себя.
-	// «Выйти» — внизу меню профиля.
+	// Выход и повторный вход: логин не вводим – выбираем себя.
+	// «Выйти» – внизу меню профиля.
 	await phone.goto('/profile');
 	await phone.getByRole('button', { name: /^Выйти/ }).click();
 	await expect(phone.getByText('Кто входит?')).toBeVisible();
@@ -22,7 +22,7 @@ test('вход без ввода логина: выбор аккаунта и QR
 	await phone.getByRole('button', { name: 'Войти' }).click();
 	await expect(phone.getByRole('heading', { level: 1 })).toContainText('Привет');
 
-	// Телефон (уже вошли) показывает код; ноутбук открывает QR-ссылку — как камерой — и входит.
+	// Телефон (уже вошли) показывает код; ноутбук открывает QR-ссылку – как камерой – и входит.
 	await phone.goto('/profile?tab=security');
 	await phone.getByRole('button', { name: 'Показать код' }).click();
 	const shown = phone.getByRole('dialog', { name: 'Вход на другом устройстве' });
@@ -40,7 +40,7 @@ test('вход без ввода логина: выбор аккаунта и QR
 	await expect(shown.getByText('Готово!')).toBeVisible({ timeout: 10_000 });
 	await shown.locator('footer').getByRole('button', { name: 'Закрыть' }).click();
 
-	// Без камеры: 6 цифр вводят на странице входа второго ноутбука — «По коду».
+	// Без камеры: 6 цифр вводят на странице входа второго ноутбука – «По коду».
 	await phone.getByRole('button', { name: 'Показать код' }).click();
 	const pin = (await shown.locator('.pin').innerText()).replace(/\D/g, '');
 	expect(pin).toMatch(/^\d{6}$/);

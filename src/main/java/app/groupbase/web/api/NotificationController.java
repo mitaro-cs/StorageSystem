@@ -116,7 +116,7 @@ class NotificationController {
     }
     int at = b.digestAt() == null ? cur.digestAt() : b.digestAt();
     if (at < 0 || at > 1439) {
-      throw ApiException.invalid("digestAt", "Время сводки — от 00:00 до 23:59");
+      throw ApiException.invalid("digestAt", "Время сводки – от 00:00 до 23:59");
     }
     prefs.save(
         actor.id(),

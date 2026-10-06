@@ -100,7 +100,7 @@ public class UpdateCheck {
       if (!enabled || dev()) {
         error =
             enabled
-                ? "это сборка для разработки — у неё нет выпусков"
+                ? "это сборка для разработки – у неё нет выпусков"
                 : "проверка выключена в настройках сервера (update-check = false)";
         checkedAt = clock.millis();
       } else if (error != null
@@ -136,14 +136,14 @@ public class UpdateCheck {
       error =
           switch (res.statusCode()) {
             case 200 -> read(res.body());
-            case 403, 429 -> "GitHub временно ограничил проверки — попробуйте через час";
+            case 403, 429 -> "GitHub временно ограничил проверки – попробуйте через час";
             case 404 -> "на GitHub пока нет выпусков";
             default -> "GitHub ответил кодом " + res.statusCode();
           };
     } catch (HttpTimeoutException e) {
       error = "GitHub не ответил за 10 секунд";
     } catch (IOException e) {
-      error = "нет связи с GitHub — проверьте интернет на этом компьютере";
+      error = "нет связи с GitHub – проверьте интернет на этом компьютере";
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       error = "проверку прервали";

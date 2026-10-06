@@ -17,7 +17,7 @@ class TitlesTest {
         "Лек. Физика|Физика|LECTURE",
         "Лекционное занятие: История России|История России|LECTURE",
         "[пр] Иностранный язык|Иностранный язык|PRACTICE",
-        "Практическое занятие — Программирование|Программирование|PRACTICE",
+        "Практическое занятие – Программирование|Программирование|PRACTICE",
         "Физика, лаб.|Физика|LAB",
         "Лабораторная работа Информатика|Информатика|LAB",
         "Семинар по философии|По философии|SEMINAR",
@@ -96,7 +96,7 @@ class TitlesTest {
   @Test
   void tidyRemovesLeftovers() {
     assertThat(Titles.tidy("( ) Физика , ")).isEqualTo("Физика");
-    assertThat(Titles.tidy("— Химия |")).isEqualTo("Химия");
+    assertThat(Titles.tidy("– Химия |")).isEqualTo("Химия");
     assertThat(Titles.tidy("Физика (")).isEqualTo("Физика");
   }
 }

@@ -277,7 +277,7 @@ public class BackupService {
 
   /** Где взять правильный файл — для сообщений об ошибке. */
   static final String WHERE =
-      "Нужен файл groupbase-ГГГГ-ММ-ДД-….zip: на прежнем компьютере — «Настройки → Сервер →"
+      "Нужен файл groupbase-ГГГГ-ММ-ДД-….zip: на прежнем компьютере – «Настройки → Сервер →"
           + " Резервные копии», кнопка скачивания у копии.";
 
   /**
@@ -319,7 +319,7 @@ public class BackupService {
   public static void requireBackup(JsonNode manifest) throws IOException {
     if ("site-snapshot".equals(manifest.path("kind").asString(""))) {
       throw new IOException(
-          "Это снимок для работы на нескольких компьютерах — его берут сами компьютеры хоста. "
+          "Это снимок для работы на нескольких компьютерах – его берут сами компьютеры хоста. "
               + WHERE);
     }
   }
@@ -334,7 +334,7 @@ public class BackupService {
     if (manifest.path("format").asInt() > FORMAT
         || manifest.path("schema").asInt() > Migrations.latest()) {
       throw new IOException(
-          "Копия сделана более новой версией groupbase — сначала обновите приложение");
+          "Копия сделана более новой версией groupbase – сначала обновите приложение");
     }
   }
 

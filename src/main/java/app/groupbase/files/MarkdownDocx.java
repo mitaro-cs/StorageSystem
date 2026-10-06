@@ -334,7 +334,7 @@ public final class MarkdownDocx {
         + " xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\""
         + " xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title>"
         + xml(title == null ? "" : title)
-        + "</dc:title><dc:creator>campus</dc:creator></cp:coreProperties>";
+        + "</dc:title><dc:creator>Campus</dc:creator></cp:coreProperties>";
   }
 
   private static final String CONTENT_TYPES =

@@ -17,7 +17,7 @@
 	let doc: PDFDocumentProxy | null = null;
 	let loading: PDFDocumentLoadingTask | null = null;
 	let observer: IntersectionObserver | undefined;
-	// Служебное, не для отрисовки разметки — обычные объекты, не реактивные.
+	// Служебное, не для отрисовки разметки – обычные объекты, не реактивные.
 	const tasks: Record<number, RenderTask> = {};
 	let drawn: Record<number, number> = {};
 
@@ -77,7 +77,7 @@
 			await task.promise;
 			drawn[n] = pageWidth;
 		} catch {
-			// отменили — нарисуем при следующем показе
+			// отменили – нарисуем при следующем показе
 		}
 	}
 

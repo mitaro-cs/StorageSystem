@@ -40,7 +40,7 @@
 	} from '$lib/schedule/lessons';
 
 	// Пара: когда, где, у кого, тема; задания к ней и материалы (слайды, конспект). Добавить задание
-	// или файл отсюда — они сразу привязаны к паре.
+	// или файл отсюда – они сразу привязаны к паре.
 	let data = $state<LessonDetail | null>(null);
 	let missing = $state(false);
 	let editor = $state(false);
@@ -102,7 +102,7 @@
 				danger: true,
 				onclick: async () => {
 					if (
-						!(await ask('Задания и материалы к ней останутся — просто без пары.', {
+						!(await ask('Задания и материалы к ней останутся – просто без пары.', {
 							title: 'Удалить пару?',
 							ok: 'Удалить',
 							danger: true
@@ -139,7 +139,7 @@
 		`${lessonKind(n.kind).label}, ${fmtWeekdayShort(n.startsAt)} ${fmtDate(n.startsAt, now)}`;
 </script>
 
-<svelte:head><title>{l ? `${lessonName(l)} · ${kind.label}` : 'Пара'} · campus</title></svelte:head>
+<svelte:head><title>{l ? `${lessonName(l)} · ${kind.label}` : 'Пара'} · Campus</title></svelte:head>
 
 <BackBar href={l ? `/schedule?week=${iso(l.startsAt)}` : '/schedule'} label="Расписание"
 	><Menu items={actions} label="Действия с парой" /></BackBar
@@ -223,7 +223,7 @@
 					maxlength="2000"
 					bind:value={noteDraft}
 					aria-label="Тема и заметки"
-					placeholder="Лекция 3. Производные — принести калькулятор"></textarea>
+					placeholder="Лекция 3. Производные – принести калькулятор"></textarea>
 				<div class="row note-actions">
 					<Button size="s" onclick={() => (noteEdit = false)}>Отмена</Button>
 					<Button size="s" variant="primary" loading={savingNote} onclick={saveNote}
@@ -256,7 +256,7 @@
 				</div>
 			{:else}
 				<p class="faint empty">
-					К этой паре ничего не задано{canHomework ? ' — добавьте, если задали' : ''}.
+					К этой паре ничего не задано{canHomework ? ' – добавьте, если задали' : ''}.
 				</p>
 			{/if}
 		</section>
@@ -278,7 +278,7 @@
 				</div>
 			{:else}
 				<p class="faint empty">
-					Слайдов и конспектов пока нет{canFiles ? ' — загрузите, и они будут и в предмете' : ''}.
+					Слайдов и конспектов пока нет{canFiles ? ' – загрузите, и они будут и в предмете' : ''}.
 				</p>
 			{/if}
 		</section>
@@ -418,7 +418,7 @@
 		gap: 8px;
 		margin: var(--s3) 0 var(--s5);
 	}
-	/* Части пары — отдельными карточками: тема на всю ширину, задания и материалы рядом. */
+	/* Части пары – отдельными карточками: тема на всю ширину, задания и материалы рядом. */
 	.parts {
 		display: grid;
 		gap: var(--s4);

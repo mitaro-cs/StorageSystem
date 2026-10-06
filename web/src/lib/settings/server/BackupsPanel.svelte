@@ -43,7 +43,7 @@
 		try {
 			b = await put<Backups>('/api/admin/backups/settings', { cloud });
 			toast(
-				cloud ? 'Копии будут сохраняться в облачную папку' : 'Копии — на этом компьютере',
+				cloud ? 'Копии будут сохраняться в облачную папку' : 'Копии – на этом компьютере',
 				'ok'
 			);
 		} catch (e) {
@@ -116,7 +116,7 @@
 		<span class="spinner" aria-hidden="true"></span>
 		<div>
 			<strong>Восстанавливаем данные…</strong>
-			<p class="small muted">Сервер перезапускается — страница обновится сама.</p>
+			<p class="small muted">Сервер перезапускается – страница обновится сама.</p>
 		</div>
 	</section>
 {:else if b}
@@ -125,7 +125,7 @@
 			<History size={20} />
 			<div>
 				{#if b.status.lastOkAt}
-					<strong>Последняя копия — {fmtAgo(b.status.lastOkAt)}</strong>
+					<strong>Последняя копия – {fmtAgo(b.status.lastOkAt)}</strong>
 				{:else}
 					<strong>Копий ещё не было</strong>
 				{/if}
@@ -161,13 +161,13 @@
 				onclick={() => choose(c.path)}
 			>
 				<span class="head"><Cloud size={18} /> <strong>{c.label}</strong></span>
-				<span class="small">Копии сами уедут в облако — данные переживут поломку компьютера</span>
+				<span class="small">Копии сами уедут в облако – данные переживут поломку компьютера</span>
 			</button>
 		{/each}
 	</div>
 	{#if b.choices.length === 0 && session.me?.instance.desktop}
 		<p class="faint small">
-			Установите Яндекс Диск, iCloud Drive или OneDrive на этот компьютер — и здесь появится выбор
+			Установите Яндекс Диск, iCloud Drive или OneDrive на этот компьютер – и здесь появится выбор
 			облачной папки.
 		</p>
 	{/if}
@@ -204,7 +204,7 @@
 		<TransferCode />
 	{/if}
 	<p class="small muted">
-		{session.me?.instance.desktop ? 'Или файлом: скачайте' : 'Скачайте'} копию, установите campus на новом
+		{session.me?.instance.desktop ? 'Или файлом: скачайте' : 'Скачайте'} копию, установите Campus на новом
 		компьютере и при первом запуске выберите «Восстановить из резервной копии». Или загрузите копию сюда,
 		чтобы вернуть данные на этом компьютере.
 	</p>

@@ -197,11 +197,11 @@ public class ExportService {
           """
           Ваши данные из groupbase, выгружены %s.
 
-          • Профиль.json — логин, ФИО, группы и роли;
-          • Выполненные задания.csv — ваши отметки «сделано» (открывается в Excel);
-          • Мои комментарии.csv и Мои действия.csv — что вы писали и делали на сайте;
-          • Мои публикации — новости и задания, которые вы выложили (.md открывается в Блокноте);
-          • Мои файлы — файлы, которые вы загрузили.
+          • Профиль.json – логин, ФИО, группы и роли;
+          • Выполненные задания.csv – ваши отметки «сделано» (открывается в Excel);
+          • Мои комментарии.csv и Мои действия.csv – что вы писали и делали на сайте;
+          • Мои публикации – новости и задания, которые вы выложили (.md открывается в Блокноте);
+          • Мои файлы – файлы, которые вы загрузили.
           """
               .formatted(human(now)),
           now);
@@ -354,11 +354,11 @@ public class ExportService {
           """
           Архив группы «%s», выгружен %s.
 
-          • Участники.csv — список группы (открывается в Excel);
-          • Новости — каждая новость отдельным файлом .md (это обычный текст, открывается в Блокноте);
-          • Предметы — по папке на предмет: задания с приложенными файлами и материалы;
-          • файлы .url — ссылки, открываются двойным щелчком;
-          • data.json — всё то же самое для программ.
+          • Участники.csv – список группы (открывается в Excel);
+          • Новости – каждая новость отдельным файлом .md (это обычный текст, открывается в Блокноте);
+          • Предметы – по папке на предмет: задания с приложенными файлами и материалы;
+          • файлы .url – ссылки, открываются двойным щелчком;
+          • data.json – всё то же самое для программ.
           """
               .formatted(name, human(now)),
           now);
@@ -402,7 +402,7 @@ public class ExportService {
             try (InputStream in = files.open(f)) {
               String path =
                   zip.file(
-                      "Новости/" + base + " — файлы/" + ZipWriter.safe(f.name()),
+                      "Новости/" + base + " – файлы/" + ZipWriter.safe(f.name()),
                       in,
                       f.createdAt());
               names.add(path.substring(path.lastIndexOf('/') + 1));
@@ -410,7 +410,7 @@ public class ExportService {
           }
         }
         if (!names.isEmpty()) {
-          b.append("\n## Файлы\n\nВ папке «").append(base).append(" — файлы»:\n\n");
+          b.append("\n## Файлы\n\nВ папке «").append(base).append(" – файлы»:\n\n");
           names.forEach(n -> b.append("- ").append(n).append('\n'));
         }
         comments(b, "post", (Long) p.get("id"));
@@ -503,7 +503,7 @@ public class ExportService {
           try (InputStream in = files.open(f)) {
             String p =
                 zip.file(
-                    "Предметы/" + dir + "/Задания/" + base + " — файлы/" + ZipWriter.safe(f.name()),
+                    "Предметы/" + dir + "/Задания/" + base + " – файлы/" + ZipWriter.safe(f.name()),
                     in,
                     f.createdAt());
             names.add(p.substring(p.lastIndexOf('/') + 1));
@@ -511,7 +511,7 @@ public class ExportService {
         }
       }
       if (!names.isEmpty()) {
-        b.append("\n## Файлы\n\nВ папке «").append(base).append(" — файлы»:\n\n");
+        b.append("\n## Файлы\n\nВ папке «").append(base).append(" – файлы»:\n\n");
         names.forEach(n -> b.append("- ").append(n).append('\n'));
       }
       comments(b, "homework", (Long) h.get("id"));

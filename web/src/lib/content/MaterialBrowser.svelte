@@ -20,7 +20,7 @@
 	interface Props {
 		subjectId: number;
 		subjectName: string;
-		/** false — путь рисует страница (раздел «Файлы»), а сюда только сообщаем его. */
+		/** false – путь рисует страница (раздел «Файлы»), а сюда только сообщаем его. */
 		showPath?: boolean;
 		onpath?: (path: { id: number; name: string }[]) => void;
 	}

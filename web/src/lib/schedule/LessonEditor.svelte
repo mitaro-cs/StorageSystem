@@ -1,16 +1,19 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { patch, post } from '$lib/api';
+	import { CalendarPlus, Clock, MapPin, NotebookPen, Repeat } from '@lucide/svelte';
+	import { get, patch, post, qs } from '$lib/api';
 	import { subjects } from '$lib/data.svelte';
 	import { plural } from '$lib/format';
 	import { toast } from '$lib/toasts.svelte';
 	import type { Lesson, LessonKind } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
-	import { LESSON_KINDS } from './lessons';
+	import FormSection from '$lib/ui/FormSection.svelte';
+	import SubjectPicker from '$lib/ui/SubjectPicker.svelte';
+	import { KIND_COLORS, LESSON_KINDS } from './lessons';
 
 	// Пара вручную: предмет, вид, день и время, аудитория, тема; новую можно повторить на несколько
-	// недель вперёд. Или правка пары — edit.
+	// недель вперёд. Или правка пары – edit.
 	let {
 		open = $bindable(),
 		groupId,
@@ -26,10 +29,10 @@
 		onsaved: (l: Lesson) => void;
 	} = $props();
 
-	/** Пара в вузе — 1 ч 35 мин (две половины и перерыв). */
+	/** Пара в вузе – 1 ч 35 мин (две половины и перерыв). */
 	const LENGTH = 95;
 
-	let subjectId = $state<number>(0);
+	let subjectId = $state<number | null>(null);
 	let title = $state('');
 	let kind = $state<LessonKind>('lecture');
 	let date = $state('');
@@ -60,7 +63,7 @@
 	$effect(() => {
 		if (!open) return;
 		untrack(() => {
-			subjectId = edit ? (edit.subject?.id ?? 0) : (options[0]?.id ?? 0);
+			subjectId = edit ? (edit.subject?.id ?? null) : (options[0]?.id ?? null);
 			title = edit && !edit.subject ? edit.title : '';
 			kind = edit?.kind ?? 'lecture';
 			date = dateOf(edit?.startsAt ?? day);
@@ -75,7 +78,40 @@
 		});
 	});
 
-	/** Начало сдвинули — конец едет следом, пока его не трогали. */
+	// Вид «Занятие» (other) – только для пар из файла расписания, вручную его не выбирают.
+	const kinds = LESSON_KINDS.filter((k) => k.value !== 'other');
+	const REPEATS = [0, 1, 3, 7, 15, 17];
+
+	// Время пар этой группы – из расписания: «09:30–11:00» одним нажатием.
+	let slots = $state<{ start: string; end: string }[]>([]);
+	$effect(() => {
+		if (!open) return;
+		const now = Date.now();
+		const day = 86_400_000;
+		get<Lesson[]>(
+			`/api/schedule${qs({ group: groupId, from: now - 60 * day, to: now + 60 * day })}`
+		)
+			.then((list) => {
+				const count: Record<string, number> = {};
+				for (const l of list) {
+					const k = `${timeOf(l.startsAt)}|${timeOf(l.endsAt)}`;
+					count[k] = (count[k] ?? 0) + 1;
+				}
+				slots = Object.entries(count)
+					.sort((a, b) => b[1] - a[1])
+					.slice(0, 6)
+					.map(([k]) => ({ start: k.split('|')[0], end: k.split('|')[1] }))
+					.sort((a, b) => a.start.localeCompare(b.start));
+			})
+			.catch(() => (slots = []));
+	});
+	function pickSlot(t: { start: string; end: string }) {
+		start = t.start;
+		end = t.end;
+		endTouched = true;
+	}
+
+	/** Начало сдвинули – конец едет следом, пока его не трогали. */
 	function moveStart(v: string) {
 		start = v;
 		if (endTouched || !/^\d{2}:\d{2}$/.test(v)) return;
@@ -100,7 +136,7 @@
 		busy = true;
 		try {
 			const body = {
-				subjectId,
+				subjectId: subjectId ?? 0,
 				title: subjectId ? '' : title,
 				kind,
 				startsAt,
@@ -131,28 +167,30 @@
 	}
 </script>
 
-<Modal bind:open {dirty} title={edit ? 'Изменить пару' : 'Новая пара'} wide>
+<Modal
+	bind:open
+	{dirty}
+	title={edit ? 'Изменить пару' : 'Новая пара'}
+	subtitle={edit ? '' : 'Появится в расписании группы и на странице предмета'}
+	icon={CalendarPlus}
+	tone={KIND_COLORS[kind]}
+	wide
+>
 	<form id="lesson-form" class="stack form" onsubmit={save}>
-		<div class="kinds" role="radiogroup" aria-label="Вид занятия">
-			{#each LESSON_KINDS as k (k.value)}
+		<div class="kinds" role="radiogroup" aria-label="Вид пары">
+			{#each kinds as k (k.value)}
 				<button
 					type="button"
 					role="radio"
 					aria-checked={kind === k.value}
-					class="pill"
-					class:ink={kind === k.value}
-					onclick={() => (kind = k.value)}>{k.label}</button
+					class:on={kind === k.value}
+					style:--k={KIND_COLORS[k.value]}
+					onclick={() => (kind = k.value)}><i></i>{k.label}</button
 				>
 			{/each}
 		</div>
-		<div class="grid">
-			<div>
-				<label class="label" for="l-subject">Предмет</label>
-				<select id="l-subject" class="select" bind:value={subjectId}>
-					{#each options as s (s.id)}<option value={s.id}>{s.name}</option>{/each}
-					<option value={0}>Без предмета</option>
-				</select>
-			</div>
+		<FormSection title="Предмет">
+			<SubjectPicker {options} bind:value={subjectId} none="Без предмета" />
 			{#if !subjectId}
 				<div>
 					<label class="label" for="l-title">Название</label>
@@ -166,98 +204,172 @@
 					/>
 				</div>
 			{/if}
-		</div>
-		<div class="grid three">
-			<div>
-				<label class="label" for="l-date">День</label>
-				<input id="l-date" class="input num" type="date" bind:value={date} required />
+		</FormSection>
+		<FormSection title="Когда" icon={Clock}>
+			<div class="grid three">
+				<div>
+					<label class="label" for="l-date">День</label>
+					<input id="l-date" class="input num" type="date" bind:value={date} required />
+				</div>
+				<div>
+					<label class="label" for="l-start">Начало</label>
+					<input
+						id="l-start"
+						class="input num"
+						type="time"
+						value={start}
+						oninput={(e) => moveStart(e.currentTarget.value)}
+						required
+					/>
+				</div>
+				<div>
+					<label class="label" for="l-end">Конец</label>
+					<input
+						id="l-end"
+						class="input num"
+						type="time"
+						bind:value={end}
+						oninput={() => (endTouched = true)}
+						required
+					/>
+				</div>
 			</div>
-			<div>
-				<label class="label" for="l-start">Начало</label>
-				<input
-					id="l-start"
-					class="input num"
-					type="time"
-					value={start}
-					oninput={(e) => moveStart(e.currentTarget.value)}
-					required
-				/>
+			{#if slots.length}
+				<div class="slots" role="group" aria-label="Время пар группы">
+					{#each slots as t (t.start + t.end)}
+						<button
+							type="button"
+							class="slot num"
+							class:on={start === t.start && end === t.end}
+							aria-pressed={start === t.start && end === t.end}
+							onclick={() => pickSlot(t)}>{t.start}–{t.end}</button
+						>
+					{/each}
+				</div>
+			{/if}
+			{#if !edit}
+				<div class="repeat" role="radiogroup" aria-label="Повторять">
+					<span class="lbl"><Repeat size={14} /> Повторять</span>
+					{#each REPEATS as n (n)}
+						<button
+							type="button"
+							role="radio"
+							aria-checked={repeat === n}
+							class="slot"
+							class:on={repeat === n}
+							onclick={() => (repeat = n)}
+							>{n === 0
+								? 'Один раз'
+								: `${n + 1} ${plural(n + 1, ['неделю', 'недели', 'недель'])}`}</button
+						>
+					{/each}
+				</div>
+			{/if}
+		</FormSection>
+		<FormSection title="Где и кто" icon={MapPin} hint="необязательно">
+			<div class="grid">
+				<div>
+					<label class="label" for="l-place">Аудитория</label>
+					<input id="l-place" class="input" bind:value={place} maxlength="80" placeholder="Н-514" />
+				</div>
+				<div>
+					<label class="label" for="l-teacher">Преподаватель</label>
+					<input
+						id="l-teacher"
+						class="input"
+						bind:value={teacher}
+						maxlength="120"
+						placeholder="Иванова И. И."
+					/>
+				</div>
 			</div>
-			<div>
-				<label class="label" for="l-end">Конец</label>
-				<input
-					id="l-end"
-					class="input num"
-					type="time"
-					bind:value={end}
-					oninput={() => (endTouched = true)}
-					required
-				/>
-			</div>
-		</div>
-		<div class="grid">
-			<div>
-				<label class="label" for="l-place"
-					>Аудитория <span class="faint">(необязательно)</span></label
-				>
-				<input
-					id="l-place"
-					class="input"
-					bind:value={place}
-					maxlength="80"
-					placeholder="ауд. 214"
-				/>
-			</div>
-			<div>
-				<label class="label" for="l-teacher"
-					>Преподаватель <span class="faint">(необязательно)</span></label
-				>
-				<input id="l-teacher" class="input" bind:value={teacher} maxlength="120" />
-			</div>
-		</div>
-		<div>
-			<label class="label" for="l-note"
-				>Тема и заметка <span class="faint">(необязательно)</span></label
-			>
+		</FormSection>
+		<FormSection title="Тема и заметка" icon={NotebookPen} hint="необязательно">
 			<textarea
 				id="l-note"
 				class="textarea"
 				rows="3"
+				aria-label="Тема и заметка"
 				bind:value={note}
 				maxlength="2000"
-				placeholder="Лекция 3. Производные — принести калькулятор"></textarea>
-		</div>
-		{#if !edit}
-			<div>
-				<label class="label" for="l-repeat">Повторять</label>
-				<select id="l-repeat" class="select" bind:value={repeat}>
-					<option value={0}>Только этот день</option>
-					{#each [1, 2, 3, 4, 7, 11, 15, 17] as n (n)}
-						<option value={n}
-							>Каждую неделю: ещё {n} {plural(n, ['неделю', 'недели', 'недель'])}</option
-						>
-					{/each}
-				</select>
-			</div>
-		{/if}
+				placeholder="Лекция 3. Производные – принести калькулятор"></textarea>
+		</FormSection>
 		{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 	</form>
 	{#snippet footer()}
 		<Button onclick={() => (open = false)}>Отмена</Button>
 		<Button variant="primary" type="submit" form="lesson-form" loading={busy}>
-			{edit ? 'Сохранить' : 'Добавить'}
+			{edit ? 'Сохранить' : 'Добавить пару'}
 		</Button>
 	{/snippet}
 </Modal>
 
 <style>
 	.form {
-		gap: var(--s4);
+		gap: var(--s3);
 	}
 	.kinds {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 6px;
+	}
+	.kinds button {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		height: 36px;
+		padding: 0 14px 0 12px;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--text-2);
+		font: inherit;
+		font-size: 13.5px;
+		font-weight: 600;
+		transition: all var(--dur) var(--ease);
+	}
+	.kinds i {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--k);
+	}
+	.kinds button.on {
+		border-color: var(--k);
+		background: color-mix(in srgb, var(--k) 14%, var(--surface));
+		color: var(--text);
+		box-shadow: 0 0 0 1px var(--k);
+	}
+	.slots,
+	.repeat {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+	}
+	.lbl {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		margin-right: 4px;
+		font-size: 13px;
+		color: var(--text-2);
+	}
+	.slot {
+		height: 30px;
+		padding: 0 11px;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--text-2);
+		font: inherit;
+		font-size: 12.5px;
+		font-weight: 600;
+	}
+	.slot.on {
+		border-color: var(--text);
+		background: var(--text);
+		color: var(--bg);
 	}
 	.grid {
 		display: grid;

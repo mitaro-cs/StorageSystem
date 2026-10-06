@@ -52,7 +52,7 @@ export function lessonKind(k: LessonKind | string | null | undefined) {
 	return LESSON_KINDS.find((x) => x.value === k) ?? LESSON_KINDS[LESSON_KINDS.length - 1];
 }
 
-/** Как называть пару: предмет, а если его нет — название из расписания. */
+/** Как называть пару: предмет, а если его нет – название из расписания. */
 export const lessonName = (l: Pick<Lesson, 'subject' | 'title'>) => l.subject?.name ?? l.title;
 
 /** «9:30–11:05». */
@@ -68,7 +68,7 @@ export function lessonState(l: Pick<Lesson, 'startsAt' | 'endsAt'>, now: number)
 	return l.startsAt - now <= 60 * 60 * 1000 ? 'soon' : 'later';
 }
 
-/** Сколько прошло от пары, 0–1 — полоска у идущей пары. */
+/** Сколько прошло от пары, 0–1 – полоска у идущей пары. */
 export function lessonProgress(l: Pick<Lesson, 'startsAt' | 'endsAt'>, now: number): number {
 	return Math.min(1, Math.max(0, (now - l.startsAt) / Math.max(1, l.endsAt - l.startsAt)));
 }
@@ -90,7 +90,7 @@ export function weekStart(ms: number): number {
 	return d.getTime();
 }
 
-/** День недели со сдвигом: addDays(понедельник, 3) — четверг (с учётом перевода часов). */
+/** День недели со сдвигом: addDays(понедельник, 3) – четверг (с учётом перевода часов). */
 export function addDays(ms: number, days: number): number {
 	const d = new Date(ms);
 	d.setDate(d.getDate() + days);
@@ -109,7 +109,7 @@ export function byDay(lessons: Lesson[]): Map<number, Lesson[]> {
 	return out;
 }
 
-/** «4 лекции, 12 практик» — сводка по видам. */
+/** «4 лекции, 12 практик» – сводка по видам. */
 export function kindsText(kinds: Partial<Record<LessonKind, number>>): string {
 	return LESSON_KINDS.filter((k) => kinds[k.value])
 		.map((k) => `${kinds[k.value]} ${plural(kinds[k.value]!, k.forms)}`)
@@ -129,7 +129,7 @@ export interface DayStats {
 	minutes: number;
 	first: Lesson | null;
 	last: Lesson | null;
-	/** Перерывы от 30 минут — «окна». */
+	/** Перерывы от 30 минут – «окна». */
 	gaps: Gap[];
 	kinds: Partial<Record<LessonKind, number>>;
 }
@@ -159,7 +159,7 @@ export function durationText(minutes: number): string {
 	return m ? `${h} ч ${m} мин` : `${h} ч`;
 }
 
-/** «Иванов И. И.» из «Иванов Иван Иванович»; уже короткое — как есть. */
+/** «Иванов И. И.» из «Иванов Иван Иванович»; уже короткое – как есть. */
 export function shortName(full: string): string {
 	const p = full.trim().split(/\s+/);
 	if (p.length < 2 || p.slice(1).every((x) => /^[А-ЯЁA-Z]\.?$/u.test(x))) return full.trim();
@@ -169,7 +169,7 @@ export function shortName(full: string): string {
 		.join(' ')}`;
 }
 
-/** Цвет вида пары — полоска на карточке и точки в календаре (как на сайте вуза). */
+/** Цвет вида пары – полоска на карточке и точки в календаре (как на сайте вуза). */
 export const KIND_COLORS: Record<LessonKind, string> = {
 	lecture: '#1fa37a',
 	practice: '#4f7df5',
@@ -182,8 +182,8 @@ export const KIND_COLORS: Record<LessonKind, string> = {
 };
 
 /**
- * Номер учебной недели и чётность: осенью счёт с недели 1 сентября, весной — с недели 1 февраля
- * (первая неделя — нечётная).
+ * Номер учебной недели и чётность: осенью счёт с недели 1 сентября, весной – с недели 1 февраля
+ * (первая неделя – нечётная).
  */
 export function studyWeek(ms: number): { n: number; odd: boolean } {
 	const d = new Date(ms);

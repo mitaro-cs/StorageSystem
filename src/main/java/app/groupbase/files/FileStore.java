@@ -163,7 +163,7 @@ public class FileStore {
       }
       if (size != f.size() || !HexFormat.of().formatHex(sha.digest()).equals(f.sha256())) {
         throw new ApiException(
-            HttpStatus.CONFLICT, "file_mismatch", "Это другой файл — содержимое не совпало");
+            HttpStatus.CONFLICT, "file_mismatch", "Это другой файл – содержимое не совпало");
       }
       try {
         Files.move(part, target, StandardCopyOption.ATOMIC_MOVE);

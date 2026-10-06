@@ -50,11 +50,11 @@
 		weekStart
 	} from '$lib/schedule/lessons';
 
-	// Расписание (0.7, как на сайте МТУСИ, но в нашем стиле): вид «День» — карточка дня и пары по
-	// порядку, «Неделя» — колонки дней, «Месяц» — сетка с точками видов пар. Сверху — чётность
-	// недели, поиск (предмет, преподаватель, аудитория) и фильтр по виду. Вид, неделя и день — в
-	// адресе (?view=week&week=2026-09-07&day=2026-09-09): вернулись со страницы пары — то же место.
-	// Время тикает раз в 15 с — идущая пара и полоска видны без перезагрузки.
+	// Расписание (0.7, как на сайте МТУСИ, но в нашем стиле): вид «День» – карточка дня и пары по
+	// порядку, «Неделя» – колонки дней, «Месяц» – сетка с точками видов пар. Сверху – чётность
+	// недели, поиск (предмет, преподаватель, аудитория) и фильтр по виду. Вид, неделя и день – в
+	// адресе (?view=week&week=2026-09-07&day=2026-09-09): вернулись со страницы пары – то же место.
+	// Время тикает раз в 15 с – идущая пара и полоска видны без перезагрузки.
 	let now = $state(Date.now());
 	onMount(() => {
 		const t = setInterval(() => (now = Date.now()), 15_000);
@@ -84,7 +84,7 @@
 		return Number.isFinite(t) ? startOfDay(t) : null;
 	};
 	const week = $derived(weekStart(parse(page.url.searchParams.get('week')) ?? now));
-	/** Месяц — по выбранному дню (или по неделе). */
+	/** Месяц – по выбранному дню (или по неделе). */
 	const anchor = $derived(parse(page.url.searchParams.get('day')) ?? addDays(week, 3));
 	const grid = $derived(view === 'month' ? monthWeeks(anchor) : [week]);
 	const from = $derived(grid[0]);
@@ -155,7 +155,7 @@
 		goto(`/schedule${s ? `?${s}` : ''}`, { replaceState: true, noScroll: true, keepFocus: true });
 	}
 	const pick = (d: number) => go(week, d);
-	/** Из недели или месяца — в этот день. */
+	/** Из недели или месяца – в этот день. */
 	const open = (d: number) => go(weekStart(d), d, 'day');
 	const shiftWeek = (delta: number) => go(addDays(week, delta * 7));
 	function shift(delta: number) {
@@ -167,7 +167,7 @@
 	const toToday = () => go(weekStart(now), today);
 	const setView = (v: View) => go(week, view === 'month' ? null : day, v);
 	const parity = $derived(studyWeek(view === 'month' ? now : week));
-	/** «Идёт нечётная неделя (5)» — как на сайте вуза; у другой недели — «Чётная неделя (6)». */
+	/** «Идёт нечётная неделя (5)» – как на сайте вуза; у другой недели – «Чётная неделя (6)». */
 	const parityText = $derived.by(() => {
 		const w = `${parity.odd ? 'нечётная' : 'чётная'} неделя (${parity.n})`;
 		return view === 'month' || thisWeek ? `Идёт ${w}` : cap(w);
@@ -179,7 +179,7 @@
 				.replace(/\s*г\.$/, '')
 		)
 	);
-	/** Точки видов пар под днём — как на сайте вуза. */
+	/** Точки видов пар под днём – как на сайте вуза. */
 	const dots = (d: number) => [...new Set((map.get(d) ?? []).map((l) => l.kind))].slice(0, 4);
 
 	async function setCancelled(l: Lesson, value: boolean) {
@@ -240,7 +240,7 @@
 	const pairs = (n: number) => `${n} ${plural(n, ['пара', 'пары', 'пар'])}`;
 </script>
 
-<svelte:head><title>Расписание · campus</title></svelte:head>
+<svelte:head><title>Расписание · Campus</title></svelte:head>
 
 <div class="page-head">
 	<h1>Расписание</h1>
@@ -258,7 +258,7 @@
 {#if tipOpen('schedule')}
 	{#await import('$lib/tour/Tip.svelte') then m}<m.default
 			id="schedule"
-			text="Выберите день — увидите, сколько пар, когда начало и конец, окна и что сдать. Пара открывается целиком: тема, задания и материалы."
+			text="Выберите день – увидите, сколько пар, когда начало и конец, окна и что сдать. Пара открывается целиком: тема, задания и материалы."
 		/>{/await}
 {/if}
 
@@ -353,7 +353,7 @@
 				<strong class="num">{new Date(d.day).getDate()}</strong>
 				<span class="dots" aria-hidden="true"
 					>{#each dots(d.day) as k (k)}<i style:--k={KIND_COLORS[k]}></i>{:else}<span class="cnt"
-							>—</span
+							>–</span
 						>{/each}</span
 				>
 			</button>
@@ -494,7 +494,7 @@
 				</ol>
 			{:else}
 				<div class="card free">
-					<Empty title="Пар нет" text="В этот день занятий нет — можно выдохнуть." />
+					<Empty title="Пар нет" text="В этот день занятий нет – можно выдохнуть." />
 				</div>
 			{/if}
 
@@ -518,7 +518,7 @@
 	<button class="back-today" onclick={toToday} in:fly={{ y: 16 }}>К сегодня</button>
 {/if}
 
-<!-- Загрузка файла и форма пары нужны старосте — код грузится по кнопке. -->
+<!-- Загрузка файла и форма пары нужны старосте – код грузится по кнопке. -->
 {#if importOpen && manageGroup}
 	{#await import('$lib/schedule/ScheduleImport.svelte') then m}
 		<m.default bind:open={importOpen} group={manageGroup} onsaved={load} />
@@ -561,7 +561,7 @@
 		letter-spacing: -0.01em;
 	}
 
-	/* Выбор дня: плитки, выбранная — крупнее и светлее, как превью на референсе. */
+	/* Выбор дня: плитки, выбранная – крупнее и светлее, как превью на референсе. */
 	.picker {
 		display: grid;
 		grid-template-columns: repeat(7, 1fr);
@@ -621,7 +621,7 @@
 		opacity: 0.75;
 	}
 
-	/* Карточка дня: светлая на тёмном и наоборот — как на референсе. */
+	/* Карточка дня: светлая на тёмном и наоборот – как на референсе. */
 	.hero {
 		display: flex;
 		gap: var(--s4);
@@ -870,7 +870,7 @@
 		margin-bottom: var(--s6);
 	}
 
-	/* Панель как на сайте вуза: чётность и вид, ниже — поиск и фильтр. */
+	/* Панель как на сайте вуза: чётность и вид, ниже – поиск и фильтр. */
 	.bar-top {
 		display: flex;
 		align-items: center;
@@ -962,7 +962,7 @@
 		background: var(--k);
 	}
 
-	/* Состояния пар: прошла — тише, идёт — обведена, не было — зачёркнута. */
+	/* Состояния пар: прошла – тише, идёт – обведена, не было – зачёркнута. */
 	.pairs li.cancelled .pair {
 		opacity: 0.6;
 		background: repeating-linear-gradient(
@@ -1037,7 +1037,7 @@
 		padding-right: 34px;
 	}
 
-	/* «К сегодня» — плавающая кнопка внизу, как на референсе. */
+	/* «К сегодня» – плавающая кнопка внизу, как на референсе. */
 	.back-today {
 		position: fixed;
 		z-index: 30;

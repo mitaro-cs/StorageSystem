@@ -38,6 +38,9 @@ class NamesTest {
     assertThatThrownBy(() -> Names.displayName(" ")).isInstanceOf(ApiException.class);
     assertThatThrownBy(() -> Names.displayName(null)).isInstanceOf(ApiException.class);
     assertThatThrownBy(() -> Names.displayName("Тест u123")).isInstanceOf(ApiException.class);
+    assertThatThrownBy(() -> Names.displayName("талеб Ахмед")).isInstanceOf(ApiException.class);
+    assertThatThrownBy(() -> Names.displayName("Иванов Иван иванович"))
+        .isInstanceOf(ApiException.class);
     assertThatThrownBy(() -> Names.displayName("Петров Иван\u0000"))
         .isInstanceOf(ApiException.class);
     assertThatThrownBy(() -> Names.displayName("А Б В Г Д Е")).isInstanceOf(ApiException.class);

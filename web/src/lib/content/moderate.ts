@@ -3,7 +3,7 @@ import { toast, toastError } from '$lib/toasts.svelte';
 import type { ModType } from '$lib/types';
 import { askText } from '$lib/ui/ask.svelte';
 
-/** Действия модерации и «Пожаловаться»: скрыть, вернуть, удалить — для любой записи. */
+/** Действия модерации и «Пожаловаться»: скрыть, вернуть, удалить – для любой записи. */
 const HIDE: Record<ModType, (id: number, hidden: boolean) => Promise<unknown>> = {
 	post: (id, hidden) => put(`/api/news/${id}/hidden`, { value: hidden }),
 	homework: (id, hidden) => put(`/api/homework/${id}/hidden`, { value: hidden }),
@@ -27,7 +27,7 @@ export function remove(type: ModType, id: number): Promise<unknown> {
 	return del(DELETE[type] + id);
 }
 
-/** «новость», «задание»… — в подписях и вопросах. */
+/** «новость», «задание»… – в подписях и вопросах. */
 export const KIND: Record<ModType, string> = {
 	post: 'новость',
 	homework: 'задание',

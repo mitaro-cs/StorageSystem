@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Megaphone, Pin, Siren, Users } from '@lucide/svelte';
 	import { patch, post } from '$lib/api';
 	import { groupsWith, session } from '$lib/session.svelte';
 	import { subjects } from '$lib/data.svelte';
@@ -6,6 +7,8 @@
 	import type { FileInfo, NewsItem } from '$lib/types';
 	import Modal from '$lib/ui/Modal.svelte';
 	import Button from '$lib/ui/Button.svelte';
+	import FormSection from '$lib/ui/FormSection.svelte';
+	import SubjectPicker from '$lib/ui/SubjectPicker.svelte';
 	import MarkdownEditor from '$lib/ui/MarkdownEditor.svelte';
 	import GroupPicker from './GroupPicker.svelte';
 	import DropZone from './DropZone.svelte';
@@ -26,7 +29,7 @@
 	let pinned = $state(false);
 	let urgent = $state(false);
 	let files = $state<FileInfo[]>([]);
-	// Фото ещё грузится — «Опубликовать» ждёт, иначе новость ушла бы без него.
+	// Фото ещё грузится – «Опубликовать» ждёт, иначе новость ушла бы без него.
 	let uploading = $state(0);
 	let error = $state('');
 	let busy = $state(false);
@@ -101,14 +104,26 @@
 	}
 </script>
 
-<Modal bind:open {dirty} title={edit ? 'Редактировать новость' : 'Новая новость'} wide>
+<Modal
+	bind:open
+	{dirty}
+	title={edit ? 'Редактировать новость' : 'Новая новость'}
+	subtitle={edit ? '' : 'Придёт уведомлением всем, кому адресована'}
+	icon={Megaphone}
+	wide
+>
 	<form id="news-form" class="stack form" onsubmit={save}>
-		<div>
-			<label class="label" for="news-title">Заголовок</label>
-			<input id="news-title" class="input" bind:value={title} maxlength="200" required />
-		</div>
+		<input
+			id="news-title"
+			class="input big"
+			aria-label="Заголовок"
+			bind:value={title}
+			maxlength="200"
+			required
+			placeholder="Заголовок"
+		/>
 		<MarkdownEditor bind:value={body} />
-		<!-- Фото расписания, приказ, методичка — прямо в новости. Большие фото уменьшаются сами. -->
+		<!-- Фото расписания, приказ, методичка – прямо в новости. Большие фото уменьшаются сами. -->
 		<DropZone
 			bind:files
 			bind:uploading
@@ -117,18 +132,23 @@
 			hint="Фото, PDF, документы, презентации"
 		/>
 		{#if !edit}
-			<div>
-				<label class="label" for="news-subject">Предмет</label>
-				<select id="news-subject" class="select" bind:value={subject}>
-					<option value={null}>Без предмета</option>
-					{#each subjectOptions as s (s.id)}<option value={s.id}>{s.name}</option>{/each}
-				</select>
-			</div>
-			<GroupPicker options={targetOptions} bind:selected={groupIds} />
+			<FormSection title="Кому" icon={Users}>
+				<SubjectPicker
+					options={subjectOptions}
+					bind:value={subject}
+					none="Без предмета"
+					label="Предмет"
+				/>
+				<GroupPicker options={targetOptions} bind:selected={groupIds} />
+			</FormSection>
 		{/if}
-		<div class="row flags">
-			<label class="check"><input type="checkbox" bind:checked={urgent} /> Срочно</label>
-			<label class="check"><input type="checkbox" bind:checked={pinned} /> Закрепить</label>
+		<div class="flags">
+			<label class="flag urgent" class:on={urgent}
+				><input type="checkbox" bind:checked={urgent} /><Siren size={16} /> Срочно</label
+			>
+			<label class="flag" class:on={pinned}
+				><input type="checkbox" bind:checked={pinned} /><Pin size={16} /> Закрепить</label
+			>
 		</div>
 		{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 	</form>
@@ -148,9 +168,58 @@
 
 <style>
 	.form {
-		gap: var(--s4);
+		gap: var(--s3);
+	}
+	.big {
+		height: 52px;
+		font-size: 17px;
+		font-weight: 600;
+		border-radius: 14px;
 	}
 	.flags {
-		gap: var(--s5);
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.flag {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		height: 38px;
+		padding: 0 14px;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--text-2);
+		font-size: 13.5px;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all var(--dur) var(--ease);
+	}
+	.flag {
+		position: relative;
+	}
+	.flag input {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		opacity: 0;
+		cursor: pointer;
+	}
+	.flag:has(input:focus-visible) {
+		outline: 2px solid var(--focus);
+		outline-offset: 2px;
+	}
+	.flag.on {
+		border-color: var(--text);
+		background: var(--text);
+		color: var(--bg);
+	}
+	.flag.urgent.on {
+		border-color: var(--danger);
+		background: var(--danger);
+		color: #fff;
 	}
 </style>

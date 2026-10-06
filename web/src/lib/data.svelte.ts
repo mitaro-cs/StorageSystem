@@ -14,7 +14,7 @@ export function subjectById(id: number): Subject | undefined {
 	return subjects.list.find((s) => s.id === id);
 }
 
-/** Активные предметы, закреплённые — первыми. mine — без скрытых у себя (другая подгруппа). */
+/** Активные предметы, закреплённые – первыми. mine – без скрытых у себя (другая подгруппа). */
 export function sortedSubjects(groupId: number | null, mine = false): Subject[] {
 	return subjects.list
 		.filter(

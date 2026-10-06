@@ -67,12 +67,12 @@ public class RestoreCommand implements Callable<Integer> {
     }
     if (DataDirLock.held(data)) {
       PendingRestore.stage(zip, data);
-      out.println("Сервер сейчас работает — копия будет восстановлена при его следующем запуске.");
+      out.println("Сервер сейчас работает – копия будет восстановлена при его следующем запуске.");
       out.println("Перезапустите сервер или приложение хоста.");
       return 0;
     }
     Path aside = BackupService.restore(zip, data, out::println);
-    out.println("Готово. Прежние данные — в " + aside);
+    out.println("Готово. Прежние данные – в " + aside);
     return 0;
   }
 

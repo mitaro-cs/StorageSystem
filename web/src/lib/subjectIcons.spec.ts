@@ -47,7 +47,7 @@ describe('иконки предметов', () => {
 		expect(guessIcon(name).key).toBe(key);
 	});
 
-	it('сохранённый ключ важнее названия, неизвестный — подбирается', () => {
+	it('сохранённый ключ важнее названия, неизвестный – подбирается', () => {
 		expect(subjectIcon('rocket', 'Физика').key).toBe('rocket');
 		expect(subjectIcon('nope', 'Физика').key).toBe('atom');
 		expect(subjectIcon(null, 'Что-то своё').key).toBe(FALLBACK_ICON.key);

@@ -99,7 +99,7 @@ class FileController {
           HttpStatus.NOT_FOUND,
           "file_missing",
           "Файла пока нет на сервере. Он вернётся сам, когда сайт откроет тот, у кого файл сохранён,"
-              + " — или попросите старосту загрузить его заново");
+              + " – или попросите старосту загрузить его заново");
     }
     boolean inline = !download && Mime.inline(f.mime());
     res.setContentType(f.mime().equals("text/plain") ? "text/plain; charset=utf-8" : f.mime());
@@ -193,7 +193,7 @@ class FileController {
       throw ApiException.badRequest("Это не конспект в Markdown (.md)");
     }
     if (f.size() > 2 * 1024 * 1024) {
-      throw ApiException.badRequest("Конспект больше 2 МБ — скачайте файл");
+      throw ApiException.badRequest("Конспект больше 2 МБ – скачайте файл");
     }
     try (InputStream in = files.open(f)) {
       return new Note(f, new String(in.readAllBytes(), StandardCharsets.UTF_8));

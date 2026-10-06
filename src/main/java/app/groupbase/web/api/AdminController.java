@@ -99,7 +99,7 @@ class AdminController {
     if (b.name() != null) {
       String n = b.name().strip();
       if (n.length() > 60) {
-        throw ApiException.invalid("name", "Название — до 60 символов");
+        throw ApiException.invalid("name", "Название – до 60 символов");
       }
       settings.set(InstanceSettings.NAME, n);
     }

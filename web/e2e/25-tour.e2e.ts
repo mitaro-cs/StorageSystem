@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { ADMIN, STUDENT, login, watchConsole } from './helpers';
 
-test('подсказка раздела — один раз, тур — снова из профиля', async ({ page }) => {
+test('подсказка раздела – один раз, тур – снова из профиля', async ({ page }) => {
 	const errors = watchConsole(page);
 	await login(page, STUDENT);
-	// Студент зарегистрировался в 03 — для него подсказки разделов ещё не закрыты.
+	// Студент зарегистрировался в 03 – для него подсказки разделов ещё не закрыты.
 	await page.goto('/schedule');
 	const tip = page.getByRole('note').filter({ hasText: 'Выберите день' });
 	await expect(tip).toBeVisible();
@@ -16,13 +16,13 @@ test('подсказка раздела — один раз, тур — снов
 	await page.waitForTimeout(800);
 	await expect(page.getByRole('note').filter({ hasText: 'Выберите день' })).toHaveCount(0);
 
-	// «Как пользоваться» в профиле — тот же тур; Esc закрывает.
+	// «Как пользоваться» в профиле – тот же тур; Esc закрывает.
 	await page.goto('/profile?tab=app');
 	await page.getByRole('button', { name: 'Пройти тур' }).click();
-	const tour = page.getByRole('dialog', { name: 'Знакомство с campus' });
+	const tour = page.getByRole('dialog', { name: 'Знакомство с Campus' });
 	await tour.getByRole('button', { name: 'Поехали' }).click();
 	await expect(page).toHaveURL(/\/$/);
-	await expect(tour.getByRole('heading', { name: 'Всё главное — на «Сегодня»' })).toBeVisible();
+	await expect(tour.getByRole('heading', { name: 'Всё главное – на «Сегодня»' })).toBeVisible();
 	await page.keyboard.press('ArrowRight');
 	await expect(tour.getByText('2 из')).toBeVisible();
 	await page.keyboard.press('Escape');
@@ -35,7 +35,7 @@ test('материалы: сообщение из чата и закреплен
 	await login(page, ADMIN);
 	await page.goto('/subjects');
 	await page.locator('main a[href^="/subjects/"]').first().click();
-	// Первая вкладка предмета — задания, «Новости» — сразу за ними.
+	// Первая вкладка предмета – задания, «Новости» – сразу за ними.
 	const tabs = page.getByRole('navigation', { name: 'Разделы предмета' }).getByRole('link');
 	await expect(tabs.nth(0)).toHaveText('ДЗ');
 	await expect(tabs.nth(1)).toHaveText('Новости');

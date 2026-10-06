@@ -4,8 +4,8 @@
 	import { KIND_COLORS, addDays, lessonName } from './lessons';
 	import { abbr } from './month';
 
-	// «Месяц» на «Расписании» (0.7, как на сайте вуза): сетка Пн–Вс, в клетке — число, точки видов
-	// пар и сокращения предметов (ВМ, ОП). Нажали на день — открывается «День».
+	// «Месяц» на «Расписании» (0.7, как на сайте вуза): сетка Пн–Вс, в клетке – число, точки видов
+	// пар и сокращения предметов (ВМ, ОП). Нажали на день – открывается «День».
 	let {
 		map,
 		weeks,
@@ -56,7 +56,7 @@
 					aria-label="{new Date(d).toLocaleDateString('ru-RU', {
 						day: 'numeric',
 						month: 'long'
-					})}: {c.count ? `пар — ${c.count}` : 'пар нет'}"
+					})}: {c.count ? `пар – ${c.count}` : 'пар нет'}"
 				>
 					<span class="n num">{new Date(d).getDate()}</span>
 					{#if c.kinds.length}

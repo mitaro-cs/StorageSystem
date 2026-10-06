@@ -24,8 +24,8 @@
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import SectionHead from '$lib/ui/SectionHead.svelte';
 
-	// Свои настройки — у каждого: аккаунт (ФИО, вход, резервные коды, данные) отдельно от настроек
-	// приложения (оформление, уведомления, без интернета). Управление группой и сайтом — в /settings.
+	// Свои настройки – у каждого: аккаунт (ФИО, вход, резервные коды, данные) отдельно от настроек
+	// приложения (оформление, уведомления, без интернета). Управление группой и сайтом – в /settings.
 	type Tone = 'blue' | 'green' | 'amber' | 'violet' | 'red' | 'teal' | 'gray';
 	interface Section {
 		value: string;
@@ -95,10 +95,10 @@
 	const asked = $derived(page.url.searchParams.get('tab'));
 	const tab = $derived(SECTIONS.some((s) => s.value === asked) ? asked! : 'account');
 	const current = $derived(SECTIONS.find((s) => s.value === tab)!);
-	/** На телефоне без выбранного раздела — профиль и меню, а не первый раздел. */
+	/** На телефоне без выбранного раздела – профиль и меню, а не первый раздел. */
 	const menuOnly = $derived(!SECTIONS.some((s) => s.value === asked));
 
-	// «Сессия» — как в боковой панели компьютера: около сессии или по выбору старосты.
+	// «Сессия» – как в боковой панели компьютера: около сессии или по выбору старосты.
 	const showSession = $derived(
 		(currentGroup() ? [currentGroup()!] : groups()).some((g) => sessionNavVisible(g, Date.now()))
 	);
@@ -114,7 +114,7 @@
 	}
 </script>
 
-<svelte:head><title>{menuOnly ? '' : `${current.label} · `}Настройки · campus</title></svelte:head>
+<svelte:head><title>{menuOnly ? '' : `${current.label} · `}Настройки · Campus</title></svelte:head>
 
 <div class="page-head"><h1>{t.nav.mySettings}</h1></div>
 
@@ -168,7 +168,7 @@
 				{/each}
 			</div>
 		{/each}
-		<!-- Выйти — на этом устройстве (код выхода грузится по нажатию). -->
+		<!-- Выйти – на этом устройстве (код выхода грузится по нажатию). -->
 		<button
 			class="item card logout"
 			onclick={() => import('$lib/profile/logout').then((m) => m.logout())}
@@ -272,7 +272,7 @@
 		background: var(--surface);
 		box-shadow: var(--shadow-1);
 	}
-	/* Меню разделов (0.7): крупные пункты, выбранный — заливкой, полосой и цветной иконкой. */
+	/* Меню разделов (0.7): крупные пункты, выбранный – заливкой, полосой и цветной иконкой. */
 	.item {
 		position: relative;
 		display: flex;
@@ -413,7 +413,7 @@
 	.quick a:hover {
 		text-decoration: none;
 	}
-	/* Узкий телефон: значок не сжимается, длинная подпись («Уведомления») — с многоточием. */
+	/* Узкий телефон: значок не сжимается, длинная подпись («Уведомления») – с многоточием. */
 	.quick a :global(svg) {
 		flex: none;
 	}

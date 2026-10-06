@@ -5,7 +5,6 @@
 	import BottomNav from '$lib/shell/BottomNav.svelte';
 	import MobileBar from '$lib/shell/MobileBar.svelte';
 	import { palette } from '$lib/shell/palette.svelte';
-	import SwipeBack from '$lib/shell/SwipeBack.svelte';
 	import { viewer } from '$lib/files/viewer.svelte';
 	import { forgetServiceWorker, initPwa, pwa, registerServiceWorker } from '$lib/pwa.svelte';
 	import { startBell } from '$lib/notify.svelte';
@@ -24,12 +23,12 @@
 	const detail = $derived(
 		/^\/((homework|news|subjects|materials)\/[^/]+|install$)/.test(page.url.pathname)
 	);
-	// Новость и задание целиком — узкой колонкой: длинные строки на большом мониторе читать трудно.
+	// Новость и задание целиком – узкой колонкой: длинные строки на большом мониторе читать трудно.
 	const narrow = $derived(/^\/(homework|news)\/[^/]+$/.test(page.url.pathname));
 	let collapsed = $state(false);
 	onMount(initPwa);
 	onMount(startBell);
-	// Новые комментарии, новости и задания появляются сами — без перезагрузки страницы.
+	// Новые комментарии, новости и задания появляются сами – без перезагрузки страницы.
 	onMount(() => {
 		if (!session.me) return;
 		let stop: (() => void) | undefined;
@@ -42,7 +41,7 @@
 			stop?.();
 		};
 	});
-	// Только что зарегистрировался — тур по сайту, когда заставка уже ушла.
+	// Только что зарегистрировался – тур по сайту, когда заставка уже ушла.
 	onMount(() => {
 		if (!needsWelcome()) return;
 		let id: ReturnType<typeof setTimeout> | undefined;
@@ -55,7 +54,7 @@
 		};
 	});
 	// iPhone: нижняя панель не уезжает вверх после клавиатуры (ошибка iOS 26–27). Код нужен только
-	// установленному приложению на iPhone и iPad — грузится отдельно.
+	// установленному приложению на iPhone и iPad – грузится отдельно.
 	onMount(() => {
 		let stop: (() => void) | undefined;
 		let gone = false;
@@ -101,7 +100,7 @@
 		}
 	});
 
-	// Фон сайта (как на странице входа) — у всех без своей картинки: администратор мог его сменить.
+	// Фон сайта (как на странице входа) – у всех без своей картинки: администратор мог его сменить.
 	onMount(() => {
 		import('$lib/appearance').then((a) =>
 			a
@@ -111,15 +110,15 @@
 		);
 	});
 
-	// Оформление общее для всех устройств (lib/looksSync.ts, грузится отдельно): после входа — с
-	// сервера, если там новее; поменяли здесь — на сервер. Модуль загружен — проверка «это мы сами
+	// Оформление общее для всех устройств (lib/looksSync.ts, грузится отдельно): после входа – с
+	// сервера, если там новее; поменяли здесь – на сервер. Модуль загружен – проверка «это мы сами
 	// применяем присланное» синхронная, иначе присланное ушло бы обратно.
 	onMount(() => {
 		const me = session.me;
 		if (!me || me.user.appearance === undefined) return;
 		let looks: typeof import('$lib/looksSync') | null = null;
 		const load = () => import('$lib/looksSync').then((m) => (looks = m));
-		// Окно приложения хоста: значок в Dock или на панели задач — тот же, что выбран.
+		// Окно приложения хоста: значок в Dock или на панели задач – тот же, что выбран.
 		const host = me.hostWindow;
 		load().then(async (m) => {
 			await m.pullLooks(me);
@@ -141,7 +140,7 @@
 		};
 	});
 
-	// Профиль показан из копии на устройстве (сеть была медленной), а свежий уже пришёл — берём его.
+	// Профиль показан из копии на устройстве (сеть была медленной), а свежий уже пришёл – берём его.
 	$effect(() => {
 		void offline.version;
 		untrack(() => {
@@ -150,7 +149,7 @@
 	});
 
 	// Сервер группы недоступен, а интернет есть (выключен компьютер хоста): раз в 30 секунд
-	// проверяем, не вернулся ли он, — и сразу отправляем сделанное без него.
+	// проверяем, не вернулся ли он, – и сразу отправляем сделанное без него.
 	$effect(() => {
 		if (!pwa.offline || !pwa.network) return;
 		const id = setInterval(async () => {
@@ -165,12 +164,13 @@
 		return () => clearInterval(id);
 	});
 
-	// Палитра грузится при первом открытии — её код не нужен для первого экрана.
+	// Палитра грузится при первом открытии – её код не нужен для первого экрана.
 	let paletteWanted = $state(false);
 	$effect(() => {
 		if (palette.open) paletteWanted = true;
 	});
-	// «Загрузить файл» — тоже по первому открытию; дальше окно живёт, пока идёт загрузка.
+	const touch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+	// «Загрузить файл» – тоже по первому открытию; дальше окно живёт, пока идёт загрузка.
 	let uploadWanted = $state(false);
 	$effect(() => {
 		if (palette.upload) uploadWanted = true;
@@ -182,7 +182,7 @@
 	<div class="desktop-only"><Sidebar bind:collapsed /></div>
 	<div class="main-col">
 		{#if !detail}<div class="mobile-only"><MobileBar /></div>{/if}
-		<!-- Связь с сервером: небольшая плашка над страницей (данные — из копии на устройстве). -->
+		<!-- Связь с сервером: небольшая плашка над страницей (данные – из копии на устройстве). -->
 		{#if pwa.offline || offline.pending}
 			<div class="net" role="status" transition:slide>
 				<span class="pill" class:send={!pwa.offline}>
@@ -213,15 +213,18 @@
 {/if}
 <!-- Тур по сайту: код грузится, только когда он нужен. -->
 {#if session.me?.user.termsAccepted === false}
-	<!-- Правила сайта: кто был здесь до них (или они поменялись) — принять один раз. -->
+	<!-- Правила сайта: кто был здесь до них (или они поменялись) – принять один раз. -->
 	{#await import('$lib/terms/TermsGate.svelte') then m}<m.default />{/await}
 {/if}
 {#if welcome.open}
 	{#await import('$lib/tour/Tour.svelte') then m}<m.default />{/await}
 {/if}
-<!-- Горячие клавиши — отдельным файлом: на телефоне они не нужны, а главной странице важен вес. -->
+<!-- Горячие клавиши – отдельным файлом: на телефоне они не нужны, а главной странице важен вес. -->
 {#await import('$lib/shell/Hotkeys.svelte') then m}<m.default />{/await}
-<SwipeBack />
+<!-- Свайп назад – только на сенсорных экранах: код грузится там, где нужен (бюджет «Сегодня»). -->
+{#if touch}
+	{#await import('$lib/shell/SwipeBack.svelte') then m}<m.default />{/await}
+{/if}
 <!-- Просмотр файлов: код грузится при первом открытии файла. -->
 {#if viewer.open}
 	{#await import('$lib/files/FileViewer.svelte') then m}<m.default />{/await}

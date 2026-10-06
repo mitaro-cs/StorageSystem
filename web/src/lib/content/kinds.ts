@@ -1,13 +1,13 @@
 /**
- * Тип задания (homework.kind на сервере). Домашнее — по умолчанию и без метки в списках;
- * у зачёта и экзамена срок — это «когда», и у них есть место (аудитория).
+ * Тип задания (homework.kind на сервере). Домашнее – по умолчанию и без метки в списках;
+ * у зачёта и экзамена срок – это «когда», и у них есть место (аудитория).
  */
 export type HomeworkKind = 'homework' | 'lab' | 'test' | 'credit' | 'exam';
 
 export interface KindInfo {
 	value: HomeworkKind;
 	label: string;
-	/** Во множественном числе — для фильтров: «Экзамены». */
+	/** Во множественном числе – для фильтров: «Экзамены». */
 	many: string;
 	/** Подсказка в поле названия. */
 	placeholder: string;
@@ -30,7 +30,7 @@ export function kindOf(v: string | null | undefined): KindInfo {
 	return KINDS.find((k) => k.value === v) ?? KINDS[0];
 }
 
-/** Зачёт и экзамен: срок — время начала, есть место, входят в сессию. */
+/** Зачёт и экзамен: срок – время начала, есть место, входят в сессию. */
 export function isExam(v: string | null | undefined): boolean {
 	return v === 'credit' || v === 'exam';
 }

@@ -227,7 +227,7 @@ class MeController {
     if (b.terms() != null) {
       // Принимают ту версию, которую видели: правила успели поменяться — спросим ещё раз.
       if (!terms.version().equals(b.terms())) {
-        throw ApiException.conflict("terms_changed", "Правила обновились — прочитайте их ещё раз");
+        throw ApiException.conflict("terms_changed", "Правила обновились – прочитайте их ещё раз");
       }
       users.setTermsAccepted(actor.id(), b.terms());
       audit.log(actor, null, "user.terms_accept", "user", actor.id(), Map.of("version", b.terms()));
@@ -269,7 +269,7 @@ class MeController {
   @AllowRestricted
   @PostMapping("/totp/setup")
   TotpService.Setup totpSetup(Actor actor) {
-    String issuer = settings.name().isBlank() ? "campus" : "campus · " + settings.name();
+    String issuer = settings.name().isBlank() ? "Campus" : "Campus · " + settings.name();
     return totp.begin(actor, issuer);
   }
 

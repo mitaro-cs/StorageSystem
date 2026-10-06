@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { CalendarClock, ClipboardList, Paperclip } from '@lucide/svelte';
 	import { get, patch, post, qs } from '$lib/api';
 	import { groupsWith, session } from '$lib/session.svelte';
 	import { subjects } from '$lib/data.svelte';
@@ -8,6 +9,8 @@
 	import DropZone from './DropZone.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
 	import Button from '$lib/ui/Button.svelte';
+	import FormSection from '$lib/ui/FormSection.svelte';
+	import SubjectPicker from '$lib/ui/SubjectPicker.svelte';
 	import MarkdownEditor from '$lib/ui/MarkdownEditor.svelte';
 	import GroupPicker from './GroupPicker.svelte';
 	import DifficultyPicker from './DifficultyPicker.svelte';
@@ -18,9 +21,9 @@
 		open: boolean;
 		edit?: Homework | null;
 		subjectId?: number | null;
-		/** Тип нового задания: со страницы «Сессия» — сразу экзамен. */
+		/** Тип нового задания: со страницы «Сессия» – сразу экзамен. */
 		initialKind?: HomeworkKind;
-		/** Задание к паре расписания: предмет, группа и срок — от неё. */
+		/** Задание к паре расписания: предмет, группа и срок – от неё. */
 		lesson?: { id: number; startsAt: number; groupId: number; subjectId: number } | null;
 		onsaved: (item: Homework) => void;
 	}
@@ -43,14 +46,14 @@
 	let difficulty = $state<number | null>(null);
 	let kind = $state<HomeworkKind>('homework');
 	let place = $state('');
-	// Тест: когда откроется (закроется — в срок). Пусто — открыт сразу.
+	// Тест: когда откроется (закроется – в срок). Пусто – открыт сразу.
 	let opens = $state('');
-	// Пара, к которой задание, и ближайшие пары выбранного предмета — выбрать срок одним нажатием.
+	// Пара, к которой задание, и ближайшие пары выбранного предмета – выбрать срок одним нажатием.
 	let lessonId = $state<number | null>(null);
 	let upcoming = $state<{ id: number; startsAt: number }[]>([]);
-	// Срок, который человек не трогал, подстраивается под тип: экзамен — в 9:00, задание — к 23:59.
+	// Срок, который человек не трогал, подстраивается под тип: экзамен – в 9:00, задание – к 23:59.
 	let dueTouched = $state(false);
-	// Вложение ещё грузится — «Опубликовать» ждёт, иначе задание ушло бы без файла.
+	// Вложение ещё грузится – «Опубликовать» ждёт, иначе задание ушло бы без файла.
 	let uploading = $state(0);
 	let error = $state('');
 	let busy = $state(false);
@@ -73,7 +76,7 @@
 		)
 	);
 
-	/** По умолчанию — через неделю в 23:59; зачёт или экзамен — через две недели в 9:00. */
+	/** По умолчанию – через неделю в 23:59; зачёт или экзамен – через две недели в 9:00. */
 	function defaultDue(k: HomeworkKind): string {
 		const n = new Date();
 		const exam = isExam(k);
@@ -121,7 +124,7 @@
 		} else if (kept.length !== groupIds.length) groupIds = kept;
 	});
 
-	// Ближайшие пары предмета (если у него есть расписание) — «К паре: чт, 25 сент., 09:30».
+	// Ближайшие пары предмета (если у него есть расписание) – «К паре: чт, 25 сент., 09:30».
 	$effect(() => {
 		const s = subject;
 		if (!open || !s || !subjects.list.find((x) => x.id === s)?.lessons) {
@@ -186,85 +189,95 @@
 	}
 </script>
 
-<Modal bind:open {dirty} title={edit ? 'Редактировать задание' : 'Новое задание'} wide>
+<Modal
+	bind:open
+	{dirty}
+	title={edit ? 'Редактировать задание' : 'Новое задание'}
+	subtitle={edit ? '' : 'Увидит вся группа, напомним о сроке'}
+	icon={ClipboardList}
+	wide
+>
 	<form id="hw-form" class="stack form" onsubmit={save}>
 		<KindPicker bind:value={() => kind, pickKind} />
-		<div class="grid">
-			<div>
-				<label class="label" for="hw-subject">Предмет</label>
-				<select id="hw-subject" class="select" bind:value={subject} required disabled={!!edit}>
-					{#each subjectOptions as s (s.id)}<option value={s.id}>{s.name}</option>{/each}
-				</select>
-			</div>
-			<div>
-				<label class="label" for="hw-due"
-					>{isExam(kind) ? 'Когда' : kind === 'test' ? 'Закроется' : 'Сдать до'}</label
-				>
-				<input
-					id="hw-due"
-					class="input num"
-					type="datetime-local"
-					bind:value={due}
-					oninput={() => (dueTouched = true)}
-					required
-				/>
-			</div>
-		</div>
-		{#if kind === 'test'}
-			<div>
-				<label class="label" for="hw-opens"
-					>Откроется <span class="faint">(необязательно — иначе открыт сразу)</span></label
-				>
-				<input id="hw-opens" class="input num" type="datetime-local" bind:value={opens} />
-			</div>
-		{/if}
-		{#if lessonChips.length}
-			<div class="to-lesson" role="group" aria-label="Срок — к паре">
-				<span class="faint small">К паре:</span>
-				{#each lessonChips as l (l.id)}
-					<button
-						type="button"
-						class="pill small num"
-						class:ink={lessonId === l.id}
-						aria-pressed={lessonId === l.id}
-						onclick={() => toLesson(l)}>{chipTime.format(l.startsAt)}</button
+		<input
+			id="hw-title"
+			class="input big"
+			aria-label={isExam(kind) ? 'Название' : 'Что сделать'}
+			bind:value={title}
+			maxlength="200"
+			required
+			placeholder={kindOf(kind).placeholder}
+		/>
+		<FormSection title="Предмет">
+			{#if subjectOptions.length === 0}
+				<p class="hint">Сначала создайте предмет в разделе «Предметы».</p>
+			{:else}
+				<SubjectPicker options={subjectOptions} bind:value={subject} disabled={!!edit} />
+			{/if}
+			<GroupPicker options={targetOptions} bind:selected={groupIds} />
+		</FormSection>
+		<FormSection title={isExam(kind) ? 'Дата и место' : 'Срок'} icon={CalendarClock}>
+			<div class="grid">
+				<div>
+					<label class="label" for="hw-due"
+						>{isExam(kind) ? 'Когда' : kind === 'test' ? 'Закроется' : 'Сдать до'}</label
 					>
-				{/each}
-				{#if lessonId}<button type="button" class="linklike small" onclick={() => (lessonId = null)}
-						>без пары</button
-					>{/if}
+					<input
+						id="hw-due"
+						class="input num"
+						type="datetime-local"
+						bind:value={due}
+						oninput={() => (dueTouched = true)}
+						required
+					/>
+				</div>
+				{#if kind === 'test'}
+					<div>
+						<label class="label" for="hw-opens"
+							>Откроется <span class="faint">(иначе открыт сразу)</span></label
+						>
+						<input id="hw-opens" class="input num" type="datetime-local" bind:value={opens} />
+					</div>
+				{:else if isExam(kind)}
+					<div>
+						<label class="label" for="hw-place"
+							>Где <span class="faint">(необязательно)</span></label
+						>
+						<input
+							id="hw-place"
+							class="input"
+							bind:value={place}
+							maxlength="80"
+							placeholder="ауд. 305 или ссылка на встречу"
+						/>
+					</div>
+				{/if}
 			</div>
-		{/if}
-		{#if isExam(kind)}
-			<div>
-				<label class="label" for="hw-place">Где <span class="faint">(необязательно)</span></label>
-				<input
-					id="hw-place"
-					class="input"
-					bind:value={place}
-					maxlength="80"
-					placeholder="ауд. 305 или ссылка на встречу"
-				/>
-			</div>
-		{/if}
-		{#if subjectOptions.length === 0}
-			<p class="hint">Сначала создайте предмет в разделе «Предметы».</p>
-		{/if}
-		<div>
-			<label class="label" for="hw-title">{isExam(kind) ? 'Название' : 'Что сделать'}</label>
-			<input
-				id="hw-title"
-				class="input"
-				bind:value={title}
-				maxlength="200"
-				required
-				placeholder={kindOf(kind).placeholder}
-			/>
-		</div>
-		<DifficultyPicker bind:value={difficulty} />
-		<MarkdownEditor bind:value={body} label="Подробности" />
-		<DropZone bind:files bind:uploading label="Вложения" />
-		<GroupPicker options={targetOptions} bind:selected={groupIds} />
+			{#if lessonChips.length}
+				<div class="to-lesson" role="group" aria-label="Срок – к паре">
+					<span class="faint small">К паре:</span>
+					{#each lessonChips as l (l.id)}
+						<button
+							type="button"
+							class="pill small num"
+							class:ink={lessonId === l.id}
+							aria-pressed={lessonId === l.id}
+							onclick={() => toLesson(l)}>{chipTime.format(l.startsAt)}</button
+						>
+					{/each}
+					{#if lessonId}<button
+							type="button"
+							class="linklike small"
+							onclick={() => (lessonId = null)}>без пары</button
+						>{/if}
+				</div>
+			{/if}
+			<DifficultyPicker bind:value={difficulty} />
+		</FormSection>
+		<FormSection title="Подробности и файлы" icon={Paperclip} hint="необязательно">
+			<MarkdownEditor bind:value={body} label="Подробности" />
+			<DropZone bind:files bind:uploading label="Вложения" />
+		</FormSection>
 		{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 	</form>
 	{#snippet footer()}
@@ -277,7 +290,13 @@
 
 <style>
 	.form {
-		gap: var(--s4);
+		gap: var(--s3);
+	}
+	.big {
+		height: 52px;
+		font-size: 17px;
+		font-weight: 600;
+		border-radius: 14px;
 	}
 	.grid {
 		display: grid;
@@ -289,7 +308,6 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 6px;
-		margin-top: calc(-1 * var(--s2));
 	}
 	.to-lesson .pill {
 		height: 32px;

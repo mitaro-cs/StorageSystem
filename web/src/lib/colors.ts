@@ -1,13 +1,13 @@
 /**
  * Цвет интерфейса (Настройки → Оформление): основной цвет (оттенок) и насыщенность. Из них
- * считаются все цвета темы — кнопки, активные пункты, фон страницы и карточек в тёмном режиме — в
+ * считаются все цвета темы – кнопки, активные пункты, фон страницы и карточек в тёмном режиме – в
  * пространстве OKLCH: одинаковая яркость у любого оттенка, поэтому текст на кнопке читается всегда.
- * Готовые переменные CSS хранятся строкой (gb-accent-css) — скрипт в app.html ставит их до
+ * Готовые переменные CSS хранятся строкой (gb-accent-css) – скрипт в app.html ставит их до
  * отрисовки, без этого модуля.
  */
 
 export interface Accent {
-	/** Оттенок 0–360; null — «Чернила»: чёрно-белая классика без цвета. */
+	/** Оттенок 0–360; null – «Чернила»: чёрно-белая классика без цвета. */
 	hue: number | null;
 	/** Насыщенность 0–100: насколько цветными будут кнопки и фон. */
 	sat: number;
@@ -15,7 +15,7 @@ export interface Accent {
 
 export const DEFAULT_SAT = 70;
 
-/** Основные цвета — одним нажатием; свой — ползунком оттенка. */
+/** Основные цвета – одним нажатием; свой – ползунком оттенка. */
 export const PRESETS: { id: string; label: string; hue: number | null }[] = [
 	{ id: 'ink', label: 'Чернила', hue: null },
 	{ id: 'blue', label: 'Синий', hue: 262 },
@@ -30,7 +30,7 @@ export const PRESETS: { id: string; label: string; hue: number | null }[] = [
 
 const KEY = 'gb-accent';
 const CSS_KEY = 'gb-accent-css';
-/** Цветовые темы до 0.4.10 — переводим в оттенок. */
+/** Цветовые темы до 0.4.10 – переводим в оттенок. */
 const OLD_PALETTE: Record<string, number | null> = {
 	graphite: null,
 	ocean: 262,
@@ -61,7 +61,7 @@ function gamma(v: number): number {
 	return x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055;
 }
 
-/** Цвет OKLCH в #rrggbb; слишком яркий для экрана — с меньшей насыщенностью того же оттенка. */
+/** Цвет OKLCH в #rrggbb; слишком яркий для экрана – с меньшей насыщенностью того же оттенка. */
 export function oklch(l: number, c: number, h: number): string {
 	let lo = 0;
 	let hi = c;
@@ -87,9 +87,9 @@ export function oklch(l: number, c: number, h: number): string {
 }
 
 /**
- * Переменные темы для оттенка и насыщенности: --pal-* — светлый режим, --pald-* — тёмный
- * (app.css берёт их вместо «Классики»). Насыщенность 0 — серый, 100 — самый сочный цвет, какой
- * может показать экран (с 0.5 — ярче: на IPS-матрицах прежний цвет казался блёклым).
+ * Переменные темы для оттенка и насыщенности: --pal-* – светлый режим, --pald-* – тёмный
+ * (app.css берёт их вместо «Классики»). Насыщенность 0 – серый, 100 – самый сочный цвет, какой
+ * может показать экран (с 0.5 – ярче: на IPS-матрицах прежний цвет казался блёклым).
  */
 export function accentVars({ hue, sat }: Accent): Record<string, string> {
 	if (hue === null) return {};
@@ -175,18 +175,18 @@ export function setAccent(a: Accent, smooth = true) {
 			localStorage.setItem(CSS_KEY, cssText(a));
 		}
 	} catch {
-		/* приватный режим — просто не запоминаем */
+		/* приватный режим – просто не запоминаем */
 	}
 	if (smooth) setTimeout(() => root.classList.remove('theme-switching'), 300);
 	window.dispatchEvent(new Event('gb:looks'));
 }
 
-/** Тема из прежней версии (gb-palette): один раз переводим в цвет — без мигания в следующий раз. */
+/** Тема из прежней версии (gb-palette): один раз переводим в цвет – без мигания в следующий раз. */
 export function migrateAccent() {
 	try {
 		if (!localStorage.getItem('gb-palette')) return;
 		setAccent(currentAccent(), false);
 	} catch {
-		/* не вышло — останется «Классика» */
+		/* не вышло – останется «Классика» */
 	}
 }

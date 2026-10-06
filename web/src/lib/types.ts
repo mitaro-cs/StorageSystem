@@ -38,11 +38,11 @@ export interface MeGroup {
 	permissions: Permission[];
 	/** Закреплённые чаты группы в Telegram. */
 	chats: GroupChat[];
-	/** Сессия: первый и последний день (полночь, мс); null — даты не заданы. */
+	/** Сессия: первый и последний день (полночь, мс); null – даты не заданы. */
 	session: { from: number; to: number } | null;
 	/**
-	 * Кнопка «Сессия» в меню: auto — около сессии (по датам), show — всегда, hide — никогда. У копии
-	 * данных от прежних версий поля нет — считается auto.
+	 * Кнопка «Сессия» в меню: auto – около сессии (по датам), show – всегда, hide – никогда. У копии
+	 * данных от прежних версий поля нет – считается auto.
 	 */
 	sessionNav?: 'auto' | 'show' | 'hide';
 }
@@ -62,17 +62,17 @@ export interface Me {
 		avatar: string | null;
 		instanceRole: InstanceRole | null;
 		totpEnabled: boolean;
-		/** Режим управления: false — кнопки администратора и старосты скрыты. */
+		/** Режим управления: false – кнопки администратора и старосты скрыты. */
 		manageMode: boolean;
-		/** Тур по сайту уже пройден (у серверов до 0.4.8 поля нет — не показываем). */
+		/** Тур по сайту уже пройден (у серверов до 0.4.8 поля нет – не показываем). */
 		onboarded?: boolean;
-		/** Закрытые подсказки разделов; «*» — все (с 0.6, у старых серверов поля нет). */
+		/** Закрытые подсказки разделов; «*» – все (с 0.6, у старых серверов поля нет). */
 		tips?: string[];
-		/** Оформление для всех устройств (lib/looksSync.ts); null — не выбирал, нет поля — сервер до 0.6. */
+		/** Оформление для всех устройств (lib/looksSync.ts); null – не выбирал, нет поля – сервер до 0.6. */
 		appearance?: Record<string, unknown> | null;
 		/** Своя картинка фона на сервере: /api/avatars/<id>-1920.webp. */
 		background?: string | null;
-		/** Принял действующие правила сайта; false — спросить согласие. */
+		/** Принял действующие правила сайта; false – спросить согласие. */
 		termsAccepted?: boolean;
 	};
 	restriction: 'password_change_required' | 'totp_setup_required' | null;
@@ -81,7 +81,7 @@ export interface Me {
 		mode: 'single' | 'multi';
 		version: string;
 		requireStaffTotp: boolean;
-		/** Адрес сайта для участников (ссылки, QR); null — адрес из браузера. */
+		/** Адрес сайта для участников (ссылки, QR); null – адрес из браузера. */
 		publicUrl: string | null;
 		/** Сервер работает в приложении хоста на его компьютере. */
 		desktop: boolean;
@@ -116,19 +116,19 @@ export interface Subject {
 	teacher: string;
 	color: string;
 	avatar: string | null;
-	/** Иконка из набора ($lib/subjectIcons); null — подбирается по названию. */
+	/** Иконка из набора ($lib/subjectIcons); null – подбирается по названию. */
 	icon: string | null;
-	/** Фон карточки — широкая картинка вместо иконки (у серверов до 0.4.8 поля нет). */
+	/** Фон карточки – широкая картинка вместо иконки (у серверов до 0.4.8 поля нет). */
 	cover?: string | null;
 	/** Чат предмета в Telegram (https://t.me/…). */
 	chatUrl: string | null;
 	archived: boolean;
 	pinned: boolean;
-	/** Предмет этого человека; false — скрыл у себя как предмет другой подгруппы (с 0.4.10). */
+	/** Предмет этого человека; false – скрыл у себя как предмет другой подгруппы (с 0.4.10). */
 	mine?: boolean;
 	groups: GroupRef[];
 	can: { edit: boolean; share: boolean };
-	/** Пар в расписании (с 0.4.12): есть — у предмета вкладка «Пары». */
+	/** Пар в расписании (с 0.4.12): есть – у предмета вкладка «Пары». */
 	lessons?: number;
 }
 
@@ -171,11 +171,11 @@ export interface Homework {
 	bodyMd: string;
 	bodyHtml: string;
 	dueAt: number;
-	/** Сложность: 1 — легко, 2 — средне, 3 — сложно; null — не указана. */
+	/** Сложность: 1 – легко, 2 – средне, 3 – сложно; null – не указана. */
 	difficulty: number | null;
 	/** Тип: домашнее, лабораторная, контрольная, зачёт, экзамен. */
 	kind: HomeworkKind;
-	/** Аудитория или ссылка — для зачёта и экзамена; '' — не указано. */
+	/** Аудитория или ссылка – для зачёта и экзамена; '' – не указано. */
 	place: string;
 	done: boolean;
 	hidden: boolean;
@@ -187,9 +187,9 @@ export interface Homework {
 	comments: number;
 	attachments: FileInfo[];
 	can: ItemCan;
-	/** Пара из расписания, к которой задание (с 0.4.12); null — просто срок. */
+	/** Пара из расписания, к которой задание (с 0.4.12); null – просто срок. */
 	lesson?: LessonRef | null;
-	/** Тест: когда откроется (закроется — в срок, dueAt); null — открыт сразу. */
+	/** Тест: когда откроется (закроется – в срок, dueAt); null – открыт сразу. */
 	opensAt?: number | null;
 	/** Создано без сети и ещё не отправлено на сервер. */
 	pending?: boolean;
@@ -202,7 +202,7 @@ export type LessonKind =
 export interface Lesson {
 	id: number;
 	groupId: number;
-	/** null — пара без предмета (классный час, кураторский час). */
+	/** null – пара без предмета (классный час, кураторский час). */
 	subject: SubjectRef | null;
 	/** Название из файла календаря или своё; показывается, если нет предмета. */
 	title: string;
@@ -216,7 +216,7 @@ export interface Lesson {
 	/** Сколько заданий и материалов к этой паре. */
 	homework: number;
 	materials: number;
-	/** Пары не было — отметил староста. */
+	/** Пары не было – отметил староста. */
 	cancelled?: boolean;
 	can: { edit: boolean };
 }
@@ -243,7 +243,7 @@ export interface LessonDetail {
 	next: LessonNeighbor | null;
 }
 
-/** Что в файле календаря — перед загрузкой. */
+/** Что в файле календаря – перед загрузкой. */
 export interface SchedulePreview {
 	lessons: number;
 	from: number;
@@ -270,7 +270,7 @@ export interface Today {
 	overdue: Homework[];
 	pinned: NewsItem[];
 	news: NewsItem[];
-	/** Зачёты и экзамены: недавние и будущие — для карточки сессии. */
+	/** Зачёты и экзамены: недавние и будущие – для карточки сессии. */
 	exams: Homework[];
 	/** Пары сегодня и завтра (у серверов до 0.4.12 и в старой копии поля нет). */
 	lessons?: Lesson[];
@@ -291,7 +291,7 @@ export interface Comment {
 
 export interface Member {
 	userId: number;
-	/** Только для старосты и администратора (право view_usernames), остальным — null. */
+	/** Только для старосты и администратора (право view_usernames), остальным – null. */
 	username: string | null;
 	displayName: string;
 	avatar: string | null;
@@ -371,7 +371,7 @@ export interface Material {
 	subjectName: string;
 	subjectColor: string;
 	folderId: number | null;
-	/** note — сообщение: текст в description (с 0.6). */
+	/** note – сообщение: текст в description (с 0.6). */
 	kind: 'file' | 'link' | 'note';
 	title: string;
 	description: string;
@@ -382,11 +382,11 @@ export interface Material {
 	hidden: boolean;
 	createdAt: number;
 	comments: number;
-	/** pin — можно закрепить сверху (с 0.6). */
+	/** pin – можно закрепить сверху (с 0.6). */
 	can: { edit: boolean; delete: boolean; moderate: boolean; pin?: boolean };
 	/** Пара из расписания, к которой материал (с 0.4.12). */
 	lessonId?: number | null;
-	/** Закреплён сверху (с 0.6); null — нет. */
+	/** Закреплён сверху (с 0.6); null – нет. */
 	pinnedAt?: number | null;
 	/** Создано без сети и ещё не отправлено на сервер. */
 	pending?: boolean;
@@ -478,7 +478,7 @@ export type ModType = 'post' | 'homework' | 'material' | 'comment';
 export interface ModTarget {
 	type: ModType;
 	id: number;
-	/** Заголовок; у комментария — того, к чему он. */
+	/** Заголовок; у комментария – того, к чему он. */
 	title: string;
 	/** Начало текста одной строкой. */
 	text: string;
@@ -487,7 +487,7 @@ export interface ModTarget {
 	hidden: boolean;
 	href: string;
 	groups: number[];
-	/** У комментария — к чему он. */
+	/** У комментария – к чему он. */
 	parentType: Exclude<ModType, 'comment'> | null;
 }
 

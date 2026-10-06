@@ -53,7 +53,7 @@ public class StandbyFilter extends OncePerRequestFilter {
     }
     if (hosts.moving() && !SAFE.contains(req.getMethod())) {
       // Сайт забирает другой компьютер по коду: изменения отсюда туда уже не попадут.
-      deny(res, "moving", "Сайт переезжает на другой компьютер — повторите через пару минут");
+      deny(res, "moving", "Сайт переезжает на другой компьютер – повторите через пару минут");
       return;
     }
     chain.doFilter(req, res);

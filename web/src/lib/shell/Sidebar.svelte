@@ -16,7 +16,6 @@
 	import { toastError } from '$lib/toasts.svelte';
 	import Switch from '$lib/ui/Switch.svelte';
 	import Avatar from '$lib/ui/Avatar.svelte';
-	import GroupSwitcher from './GroupSwitcher.svelte';
 	import SubjectList from './SubjectList.svelte';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import { isActive, mainNav } from './nav';
@@ -45,19 +44,19 @@
 	}
 
 	const group = $derived(currentGroup());
-	// Жалобы и материалы на проверке — число у «Модерации»; обновляется и живыми обновлениями.
+	// Жалобы и материалы на проверке – число у «Модерации»; обновляется и живыми обновлениями.
 	const waiting = $derived(canModerate() ? moderation.reports + moderation.pending : 0);
 	onMount(() => {
 		refreshModeration();
 		const id = setInterval(refreshModeration, 5 * 60_000);
 		return () => clearInterval(id);
 	});
-	// «Сессия» — только когда её показывает староста (или около сессии); в режиме «все группы» —
+	// «Сессия» – только когда её показывает староста (или около сессии); в режиме «все группы» –
 	// если она нужна хоть одной группе.
 	const showSession = $derived(
 		(group ? [group] : (session.me?.groups ?? [])).some((g) => sessionNavVisible(g, Date.now()))
 	);
-	// Файлы — во вкладке «Материалы» каждого предмета, уведомления — колокольчиком на «Сегодня».
+	// Файлы – во вкладке «Материалы» каждого предмета, уведомления – колокольчиком на «Сегодня».
 	// В панели их нет, но командная палитра (Ctrl K, ⌘K) и горячие клавиши их находят.
 	const items = $derived(
 		visibleNav(mainNav).filter(
@@ -67,7 +66,7 @@
 				(i.href !== '/session' || showSession)
 		)
 	);
-	// Внизу — «Имя Фамилия»: ФИО целиком не помещается рядом с кнопками.
+	// Внизу – «Имя Фамилия»: ФИО целиком не помещается рядом с кнопками.
 	const myName = $derived.by(() => {
 		const fio = session.me?.user.displayName ?? '';
 		return [firstName(fio), lastName(fio)].filter(Boolean).join(' ') || fio;
@@ -82,8 +81,11 @@
 
 <aside class="sidebar" class:collapsed aria-label="Навигация">
 	<div class="top">
-		{#if !collapsed}<GroupSwitcher />{/if}
-		<!-- Иконка группы (её картинка или буквы на цвете), у «Всех групп» — логотип сайта. -->
+		<!-- Переключатель групп – только у потока из нескольких групп, код грузится тогда же. -->
+		{#if !collapsed && isMulti()}
+			{#await import('./GroupSwitcher.svelte') then m}<m.default />{/await}
+		{/if}
+		<!-- Иконка группы (её картинка или буквы на цвете), у «Всех групп» – логотип сайта. -->
 		<div class="title" class:only-mark={collapsed}>
 			<span class="mark" title={collapsed ? title : undefined}>
 				{#if group}
@@ -164,7 +166,7 @@
 				/>
 				{#if !collapsed}<span class="name">{myName}</span>{/if}
 			</a>
-			<!-- Шестерёнка у имени — сразу видно, где свои настройки: оформление, уведомления, пароль. -->
+			<!-- Шестерёнка у имени – сразу видно, где свои настройки: оформление, уведомления, пароль. -->
 			<a
 				class="gear"
 				class:active={page.url.pathname === '/profile'}

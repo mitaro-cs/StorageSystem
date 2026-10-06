@@ -2,8 +2,8 @@
 	import type { Material } from '$lib/types';
 	import { TYPE_LABELS, materialType, typesIn, type MaterialType } from './materialTypes';
 
-	// Разделение материалов по типу (0.9.3): «Все / Конспекты / PDF / Презентации…» — только если
-	// типов в списке несколько. onshown — отфильтрованный список наружу.
+	// Разделение материалов по типу (0.9.3): «Все / Конспекты / PDF / Презентации…» – только если
+	// типов в списке несколько. onshown – отфильтрованный список наружу.
 	let { list, onshown }: { list: Material[]; onshown: (shown: Material[]) => void } = $props();
 
 	let type = $state<MaterialType | 'all'>('all');

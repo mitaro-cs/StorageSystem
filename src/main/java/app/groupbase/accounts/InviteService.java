@@ -76,7 +76,7 @@ public class InviteService {
     }
     String n = note == null ? "" : note.strip();
     if (n.length() > 100) {
-      throw ApiException.invalid("note", "Заметка — до 100 символов");
+      throw ApiException.invalid("note", "Заметка – до 100 символов");
     }
     String token = Tokens.newToken();
     long now = clock.millis();

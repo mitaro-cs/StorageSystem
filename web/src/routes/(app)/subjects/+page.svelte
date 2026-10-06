@@ -30,7 +30,7 @@
 	const visible = $derived(
 		inGroup.filter((s) => (showArchived || !s.archived) && s.mine !== false)
 	);
-	// «Не мои» — предметы другой подгруппы, которые человек скрыл у себя: внизу, вернуть — в карточке.
+	// «Не мои» – предметы другой подгруппы, которые человек скрыл у себя: внизу, вернуть – в карточке.
 	const notMine = $derived(inGroup.filter((s) => !s.archived && s.mine === false));
 	const askSubgroup = $derived(choices(inGroup).some((c) => open(c)));
 	const archivedCount = $derived(subjects.list.filter((s) => s.archived).length);
@@ -51,7 +51,7 @@
 	}
 </script>
 
-<svelte:head><title>Предметы · campus</title></svelte:head>
+<svelte:head><title>Предметы · Campus</title></svelte:head>
 
 <div class="page-head">
 	<h1>Предметы</h1>
@@ -159,7 +159,7 @@
 			<h2>Не мои предметы</h2>
 			<p class="muted small">
 				Другая подгруппа: их задания и новости не показываются в общих списках и не приходят
-				уведомлениями. Вернуть — «Мой предмет» в меню предмета.
+				уведомлениями. Вернуть – «Мой предмет» в меню предмета.
 			</p>
 			<div class="grid">
 				{#each notMine as s, i (s.id)}{@render card(s, i)}{/each}

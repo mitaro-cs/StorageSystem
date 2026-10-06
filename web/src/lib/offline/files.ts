@@ -11,7 +11,7 @@ export const FILES_CACHE = 'files-v1';
 const POLICY = 'gb-files-policy';
 const SMALL = 20 * 1024 * 1024;
 
-/** all — все файлы, small — до 20 МБ, opened — только открытые. */
+/** all – все файлы, small – до 20 МБ, opened – только открытые. */
 export type FilesPolicy = 'all' | 'small' | 'opened';
 
 export function filesPolicy(): FilesPolicy {
@@ -73,7 +73,7 @@ export async function prefetchFiles(s: Snapshot) {
 let lastShare = 0;
 
 async function shareMissing(cache: Cache) {
-	// Синхронизация бывает часто, а потерянный файл — редкость: спрашиваем раз в 10 минут.
+	// Синхронизация бывает часто, а потерянный файл – редкость: спрашиваем раз в 10 минут.
 	if (Date.now() - lastShare < 10 * 60_000) return;
 	lastShare = Date.now();
 	const saved = new Map<number, Request>();
@@ -92,7 +92,7 @@ async function shareMissing(cache: Cache) {
 			await request(`/api/files/${id}/content`, { method: 'PUT', raw: await res.blob() });
 		}
 	} catch {
-		/* сети нет или файл не тот — попробуем при следующей синхронизации */
+		/* сети нет или файл не тот – попробуем при следующей синхронизации */
 	}
 }
 

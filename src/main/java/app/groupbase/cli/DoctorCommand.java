@@ -75,7 +75,7 @@ public class DoctorCommand implements Callable<Integer> {
   static List<Check> run(Path data, String baseUrl, long now) {
     List<Check> out = new ArrayList<>();
     if (!Files.isDirectory(data)) {
-      out.add(new Check(Level.FAIL, "Каталога данных нет — укажите его через --data"));
+      out.add(new Check(Level.FAIL, "Каталога данных нет – укажите его через --data"));
       return out;
     }
     out.add(
@@ -89,7 +89,7 @@ public class DoctorCommand implements Callable<Integer> {
             : new Check(Level.WARN, "Сервер сейчас не запущен"));
     Path dbFile = data.resolve("groupbase.db");
     if (!Files.isRegularFile(dbFile)) {
-      out.add(new Check(Level.FAIL, "Базы groupbase.db нет — сайт ещё не запускался здесь"));
+      out.add(new Check(Level.FAIL, "Базы groupbase.db нет – сайт ещё не запускался здесь"));
       return out;
     }
     out.add(keys(data));
@@ -102,7 +102,7 @@ public class DoctorCommand implements Callable<Integer> {
       out.add(
           "ok".equals(quick)
               ? new Check(Level.OK, "База цела")
-              : new Check(Level.FAIL, "База повреждена: " + quick + " — восстановите из копии"));
+              : new Check(Level.FAIL, "База повреждена: " + quick + " – восстановите из копии"));
       out.add(schema(st));
       long admins =
           Long.parseLong(
@@ -121,7 +121,7 @@ public class DoctorCommand implements Callable<Integer> {
       String url = baseUrl.isBlank() ? setting(st, "access.url") : baseUrl;
       out.add(
           url == null || url.isBlank()
-              ? new Check(Level.WARN, "Адрес для группы не задан — участники не смогут зайти")
+              ? new Check(Level.WARN, "Адрес для группы не задан – участники не смогут зайти")
               : new Check(Level.OK, "Адрес для группы: " + url));
     } catch (SQLException e) {
       out.add(new Check(Level.FAIL, "Базу не открыть: " + e.getMessage()));
@@ -135,10 +135,10 @@ public class DoctorCommand implements Callable<Integer> {
       String gb =
           String.format(java.util.Locale.ROOT, "%.1f ГБ", free / (double) GB).replace('.', ',');
       if (free < GB / 5) {
-        return new Check(Level.FAIL, "Свободно всего " + gb + " — освободите место на диске");
+        return new Check(Level.FAIL, "Свободно всего " + gb + " – освободите место на диске");
       }
       return free < 2 * GB
-          ? new Check(Level.WARN, "Свободно " + gb + " — места мало")
+          ? new Check(Level.WARN, "Свободно " + gb + " – места мало")
           : new Check(Level.OK, "Свободно на диске: " + gb);
     } catch (IOException e) {
       return new Check(Level.WARN, "Не удалось узнать свободное место");
@@ -153,7 +153,7 @@ public class DoctorCommand implements Callable<Integer> {
           Level.FAIL,
           "Нет ключа шифрования файлов (secrets/"
               + Secrets.FILES_KEY
-              + ") — файлы не открыть, восстановите его из копии");
+              + ") – файлы не открыть, восстановите его из копии");
     }
     if (!Files.isRegularFile(dir.resolve(Secrets.APP_KEY))
         && System.getenv("GROUPBASE_APP_KEY") == null) {
@@ -177,7 +177,7 @@ public class DoctorCommand implements Callable<Integer> {
     }
     if (version > latest) {
       return new Check(
-          Level.FAIL, "База от более новой версии campus (" + version + ") — обновите программу");
+          Level.FAIL, "База от более новой версии Campus (" + version + ") – обновите программу");
     }
     return version < latest
         ? new Check(
@@ -214,13 +214,13 @@ public class DoctorCommand implements Callable<Integer> {
       return new Check(Level.WARN, "Последняя копия не удалась: " + error);
     }
     if (ok == null || ok.isBlank()) {
-      return new Check(Level.WARN, "Резервных копий ещё не было — groupbase backup");
+      return new Check(Level.WARN, "Резервных копий ещё не было – groupbase backup");
     }
     long days = Duration.ofMillis(now - Long.parseLong(ok)).toDays();
     return days > 3
-        ? new Check(Level.WARN, "Последняя копия — " + days + " дн. назад")
+        ? new Check(Level.WARN, "Последняя копия – " + days + " дн. назад")
         : new Check(
-            Level.OK, days == 0 ? "Копия сделана сегодня" : "Копия — " + days + " дн. назад");
+            Level.OK, days == 0 ? "Копия сделана сегодня" : "Копия – " + days + " дн. назад");
   }
 
   private static String setting(Statement st, String key) throws SQLException {

@@ -156,7 +156,7 @@
 				class="view"
 				role="slider"
 				tabindex="0"
-				aria-label="Положение картинки: стрелки — сдвиг, плюс и минус — масштаб"
+				aria-label="Положение картинки: стрелки – сдвиг, плюс и минус – масштаб"
 				aria-valuenow={Math.round(zoom * 100)}
 				onpointerdown={down}
 				onpointermove={move}

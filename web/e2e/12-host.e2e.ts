@@ -11,14 +11,14 @@ test('новости на главной заметнее, комментари�
 	const errors = watchConsole(page);
 	await login(page, ADMIN);
 
-	// На телефоне нет отдельного меню: разделы — в нижней панели, на главной и в профиле.
+	// На телефоне нет отдельного меню: разделы – в нижней панели, на главной и в профиле.
 	await expect(page.getByRole('button', { name: 'Меню и предметы' })).toHaveCount(0);
 	const news = page.getByRole('heading', { name: 'Новости', level: 2 });
 	const deadlines = page.getByRole('heading', { name: 'Дедлайны', level: 2 });
 	await expect(news).toBeVisible();
 	const [n, d] = await Promise.all([news.boundingBox(), deadlines.boundingBox()]);
 	expect(n!.y).toBeLessThan(d!.y);
-	// Срочная новость — с янтарной плашкой по верху карточки.
+	// Срочная новость – с янтарной плашкой по верху карточки.
 	await expect(page.locator('.news.urgent .band').first()).toHaveText(/Срочно/i);
 	await page.screenshot({ path: 'test-results/shots/today-news-mobile.png' });
 
@@ -42,7 +42,7 @@ test('режим управления прячет кнопки админист
 	await expect(page.getByRole('heading', { name: 'Резервные копии' })).toBeVisible();
 	await page.screenshot({ path: 'test-results/shots/settings-server.png', fullPage: true });
 
-	// Переключатель — только у хоста (администратора): в боковой панели и в «Настройки → Приложение».
+	// Переключатель – только у хоста (администратора): в боковой панели и в «Настройки → Приложение».
 	await page.goto('/profile?tab=app');
 	const toggle = page.getByRole('switch', { name: 'Режим управления' }).first();
 	await expect(toggle).toHaveAttribute('aria-checked', 'true');
@@ -61,7 +61,7 @@ test('режим управления прячет кнопки админист
 	expect(errors).toEqual([]);
 });
 
-test('компьютер хоста выключен: вместо ответа сервера — страница туннеля', async ({ browser }) => {
+test('компьютер хоста выключен: вместо ответа сервера – страница туннеля', async ({ browser }) => {
 	test.setTimeout(60_000);
 	// Без service worker: проверяем, что приложение само распознаёт чужой ответ.
 	const ctx = await browser.newContext({
@@ -80,7 +80,7 @@ test('компьютер хоста выключен: вместо ответа 
 	await page.goto('/');
 	await expect(page.getByRole('heading', { level: 1 })).toContainText('Привет');
 
-	// Туннель отвечает своей страницей ошибки — без метки сервера группы.
+	// Туннель отвечает своей страницей ошибки – без метки сервера группы.
 	await page.route('**/api/**', (route) =>
 		route.fulfill({ status: 404, contentType: 'text/html', body: '<h1>Tunnel not found</h1>' })
 	);
@@ -89,7 +89,7 @@ test('компьютер хоста выключен: вместо ответа 
 	await expect(page.getByText('Типовой расчёт №1').first()).toBeVisible();
 	await page.screenshot({ path: 'test-results/shots/host-offline.png' });
 
-	// Сервер вернулся — баннер пропадает при следующем запросе.
+	// Сервер вернулся – баннер пропадает при следующем запросе.
 	await page.unroute('**/api/**');
 	await page.getByRole('link', { name: 'Сегодня' }).first().click();
 	await expect(page.getByText('Сервер не работает')).toHaveCount(0, { timeout: 10_000 });

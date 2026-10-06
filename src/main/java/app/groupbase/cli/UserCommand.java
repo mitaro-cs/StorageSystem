@@ -51,7 +51,7 @@ public class UserCommand implements Runnable {
       try (var ctx = target.open()) {
         List<User> all = ctx.getBean(UserStore.class).listAll();
         if (all.isEmpty()) {
-          out.println("Аккаунтов нет — сайт ещё не настроен (groupbase init).");
+          out.println("Аккаунтов нет – сайт ещё не настроен (groupbase init).");
           return 0;
         }
         out.printf("%-24s %-32s %-14s %-10s %s%n", "ЛОГИН", "ИМЯ", "РОЛЬ САЙТА", "СТАТУС", "2FA");
@@ -60,9 +60,9 @@ public class UserCommand implements Runnable {
               "%-24s %-32s %-14s %-10s %s%n",
               u.username(),
               cut(u.displayName(), 32),
-              u.instanceRole() == null ? "—" : u.instanceRole().id(),
+              u.instanceRole() == null ? "–" : u.instanceRole().id(),
               u.status().id(),
-              u.totpEnabled() ? "вкл" : "—");
+              u.totpEnabled() ? "вкл" : "–");
         }
         return 0;
       }

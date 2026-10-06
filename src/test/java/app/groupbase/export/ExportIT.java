@@ -146,7 +146,7 @@ class ExportIT extends IntegrationTest {
         .contains("Условия.pdf");
     String attached =
         files.keySet().stream()
-            .filter(n -> n.endsWith(" — файлы/Условия.pdf"))
+            .filter(n -> n.endsWith(" – файлы/Условия.pdf"))
             .findFirst()
             .orElseThrow();
     assertThat(files.get(attached)).isEqualTo(PDF);

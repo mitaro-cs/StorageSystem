@@ -6,7 +6,7 @@
 	const index = $derived(bottomNav.findIndex((i) => isActive(page.url.pathname, i.href)));
 </script>
 
-<!-- Плавающая матовая панель: иконки, активный раздел — белый круг. Подписи — для скринридеров. -->
+<!-- Плавающая матовая панель: иконки, активный раздел – белый круг. Подписи – для скринридеров. -->
 <div class="fade" aria-hidden="true"></div>
 <nav
 	class="bottom-nav"
@@ -31,7 +31,7 @@
 </nav>
 
 <style>
-	/* --vv-shift — поправка на ошибку iOS после клавиатуры, kb-open — пока печатают
+	/* --vv-shift – поправка на ошибку iOS после клавиатуры, kb-open – пока печатают
 	   (lib/shell/viewport.ts): клавиатура закрывает низ экрана, панель не нужна. */
 	.fade,
 	.bottom-nav {

@@ -44,7 +44,7 @@
 	});
 
 	const dates = $derived(datesFor(groups(), session.groupId));
-	// Даты задаются для конкретной группы: в режиме «все группы» — только если она одна.
+	// Даты задаются для конкретной группы: в режиме «все группы» – только если она одна.
 	const target = $derived(currentGroup() ?? (groups().length === 1 ? groups()[0] : undefined));
 	const p = $derived(phase(dates, now));
 	const list = $derived(all ? sessionExams(all, p.kind === 'after' ? null : dates) : []);
@@ -72,7 +72,7 @@
 	}
 </script>
 
-<svelte:head><title>Сессия · campus</title></svelte:head>
+<svelte:head><title>Сессия · Campus</title></svelte:head>
 
 <div class="page-head">
 	<h1>Сессия</h1>
@@ -90,7 +90,7 @@
 
 {#if dates}
 	<p class="dates muted">
-		<span class="num">{fmtDate(dates.from, now)} — {fmtDate(dates.to, now)}</span>{status
+		<span class="num">{fmtDate(dates.from, now)} – {fmtDate(dates.to, now)}</span>{status
 			? ` · ${status}`
 			: ''}
 	</p>
@@ -102,7 +102,7 @@
 	<div class="card">
 		<Empty
 			title="Зачётов и экзаменов пока нет"
-			text="Добавьте их как задания с типом «Зачёт» или «Экзамен» — здесь появится расписание с обратным отсчётом, а на главной — карточка сессии."
+			text="Добавьте их как задания с типом «Зачёт» или «Экзамен» – здесь появится расписание с обратным отсчётом, а на главной – карточка сессии."
 		/>
 	</div>
 {:else}
@@ -156,7 +156,7 @@
 			</li>
 		{/each}
 	</ol>
-	<p class="hint">Отметка «сдано» — только ваша, её никто не видит.</p>
+	<p class="hint">Отметка «сдано» – только ваша, её никто не видит.</p>
 {/if}
 
 {#if datesOpen && target}

@@ -55,7 +55,7 @@
 	}
 
 	onMount(() => {
-		// Открыли список — значит, увидели: счётчик гаснет, а новые остаются выделенными до ухода.
+		// Открыли список – значит, увидели: счётчик гаснет, а новые остаются выделенными до ухода.
 		load().then(() => {
 			if (bell.unread) markAllRead().catch(() => {});
 		});
@@ -88,7 +88,7 @@
 	}
 </script>
 
-<svelte:head><title>Уведомления · campus</title></svelte:head>
+<svelte:head><title>Уведомления · Campus</title></svelte:head>
 
 <div class="page-head">
 	<h1>Уведомления</h1>
@@ -102,7 +102,7 @@
 		<span class="circle ink"><BellRing size={19} /></span>
 		<span>
 			<strong>Получайте уведомления на телефон</strong>
-			<span class="muted small">Новые задания и напоминания о сроках — даже когда сайт закрыт</span>
+			<span class="muted small">Новые задания и напоминания о сроках – даже когда сайт закрыт</span>
 		</span>
 	</a>
 {/if}

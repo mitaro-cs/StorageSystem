@@ -5,7 +5,7 @@ import type { ModSummary } from './types';
 /** Сколько ждёт модератора: жалобы и материалы на проверке (число в меню). */
 export const moderation = $state({ reports: 0, pending: 0 });
 
-/** Раздел «Модерация» — тем, кто модерирует хоть в одной группе (и в режиме управления). */
+/** Раздел «Модерация» – тем, кто модерирует хоть в одной группе (и в режиме управления). */
 export function canModerate(): boolean {
 	return can('moderate_content');
 }
@@ -17,6 +17,6 @@ export async function refreshModeration() {
 		moderation.reports = s.reports;
 		moderation.pending = s.pending;
 	} catch {
-		/* нет сети — число обновится позже */
+		/* нет сети – число обновится позже */
 	}
 }

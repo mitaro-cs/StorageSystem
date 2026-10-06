@@ -2,8 +2,8 @@
 	import { FileDown } from '@lucide/svelte';
 	import { get } from '$lib/api';
 
-	// Конспект в Markdown — страницей (0.9.3): HTML собирает и чистит сервер (content/Markdown),
-	// «В Word» — сервер собирает .docx (files/MarkdownDocx).
+	// Конспект в Markdown – страницей (0.9.3): HTML собирает и чистит сервер (content/Markdown),
+	// «В Word» – сервер собирает .docx (files/MarkdownDocx).
 	let { fileId, dark = false }: { fileId: number; dark?: boolean } = $props();
 
 	let html = $state<string | null>(null);
@@ -81,7 +81,7 @@
 	.prose :global(pre) {
 		overflow-x: auto;
 	}
-	/* В окне просмотра файлов фон тёмный — лист как бумага. */
+	/* В окне просмотра файлов фон тёмный – лист как бумага. */
 	.dark .prose {
 		background: #fff;
 		color: #111;

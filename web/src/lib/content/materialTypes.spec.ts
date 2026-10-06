@@ -4,7 +4,7 @@ import { materialType, typesIn } from './materialTypes';
 const file = (mime: string, name: string) =>
 	({ kind: 'file', file: { id: 1, name, mime, size: 1 } }) as never;
 
-describe('materialType — разделение по типам', () => {
+describe('materialType – разделение по типам', () => {
 	it('конспекты: сообщения и Markdown', () => {
 		expect(materialType({ kind: 'note', file: null })).toBe('notes');
 		expect(materialType(file('text/x-web-markdown', 'Лекция.md'))).toBe('notes');
@@ -27,7 +27,7 @@ describe('materialType — разделение по типам', () => {
 		expect(materialType({ kind: 'link', file: null })).toBe('link');
 	});
 
-	it('typesIn — по порядку и с числом', () => {
+	it('typesIn – по порядку и с числом', () => {
 		expect(
 			typesIn([
 				file('application/pdf', 'a.pdf'),

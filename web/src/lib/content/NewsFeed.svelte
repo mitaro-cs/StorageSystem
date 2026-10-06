@@ -15,7 +15,7 @@
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 
-	// compose={false} — кнопка «+ Новость» уже есть рядом (на странице предмета — в его панели).
+	// compose={false} – кнопка «+ Новость» уже есть рядом (на странице предмета – в его панели).
 	let { subjectId = null, compose = true }: { subjectId?: number | null; compose?: boolean } =
 		$props();
 
@@ -142,7 +142,7 @@
 	.feed {
 		gap: var(--s3);
 	}
-	/* Большой монитор: карточки в две колонки — строки не растягиваются на весь экран. */
+	/* Большой монитор: карточки в две колонки – строки не растягиваются на весь экран. */
 	@media (min-width: 1440px) {
 		.feed {
 			display: grid;

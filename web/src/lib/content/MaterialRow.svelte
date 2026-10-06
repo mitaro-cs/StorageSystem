@@ -16,7 +16,7 @@
 	}: { m: Material; actions?: MenuItem[]; showSubject?: boolean } = $props();
 </script>
 
-<!-- Вся строка — ссылка на материал; «Открыть», ссылка наружу и меню — поверх неё. -->
+<!-- Вся строка – ссылка на материал; «Открыть», ссылка наружу и меню – поверх неё. -->
 <div class="list-row mrow" class:dim={m.hidden} class:pinned={!!m.pinnedAt}>
 	<FileIcon mime={m.file?.mime} link={m.kind === 'link'} note={m.kind === 'note'} />
 	<div class="main">
@@ -44,7 +44,7 @@
 	{#if m.hidden}<span class="chip">скрыт</span>{/if}
 	{#if m.pending}<span
 			class="chip amber"
-			title="Создано без сети — уйдёт на сервер, когда появится интернет"
+			title="Создано без сети – уйдёт на сервер, когда появится интернет"
 			><CloudOff size={12} /> ждёт отправки</span
 		>{/if}
 	{#if m.file && m.file.id > 0 && canPreview(m.file.mime, m.file.name, m.file.size)}

@@ -1,4 +1,4 @@
-/** Нечёткое совпадение для палитры: все символы запроса по порядку; выше — у начала слов. */
+/** Нечёткое совпадение для палитры: все символы запроса по порядку; выше – у начала слов. */
 export function score(query: string, text: string): number {
 	const q = query.toLowerCase().replace(/ё/g, 'е').trim();
 	const t = text.toLowerCase().replace(/ё/g, 'е');

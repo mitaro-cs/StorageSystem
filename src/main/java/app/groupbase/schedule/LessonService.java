@@ -284,7 +284,7 @@ public class LessonService {
     }
     if (to - from > (subject == null ? 62 : 400) * DAY) {
       throw ApiException.badRequest(
-          subject == null ? "Период — не длиннее двух месяцев" : "Период — не длиннее года");
+          subject == null ? "Период – не длиннее двух месяцев" : "Период – не длиннее года");
     }
     List<Long> scope = access.scope(actor, group);
     if (scope.isEmpty()) {
@@ -430,7 +430,7 @@ public class LessonService {
         text(in.teacher(), base == null ? "" : base.teacher(), 120, "teacher", "Преподаватель");
     String note = in.note() == null ? (base == null ? "" : base.note()) : in.note().strip();
     if (note.length() > 2000) {
-      throw ApiException.invalid("note", "Тема и заметка — до 2000 символов");
+      throw ApiException.invalid("note", "Тема и заметка – до 2000 символов");
     }
     return new Clean(subjectId, title, kind, start, end, place, teacher, note);
   }
@@ -438,7 +438,7 @@ public class LessonService {
   private static String text(String raw, String keep, int max, String field, String label) {
     String v = raw == null ? keep : raw.strip().replaceAll("\\s+", " ");
     if (v.length() > max) {
-      throw ApiException.invalid(field, label + " — до " + max + " символов");
+      throw ApiException.invalid(field, label + " – до " + max + " символов");
     }
     return v;
   }
@@ -467,7 +467,7 @@ public class LessonService {
     Clean c = clean(groupId, in, null);
     int repeat = in.repeatWeeks() == null ? 0 : in.repeatWeeks();
     if (repeat < 0 || repeat > MAX_REPEAT) {
-      throw ApiException.invalid("repeatWeeks", "Повторить — от 0 до " + MAX_REPEAT + " недель");
+      throw ApiException.invalid("repeatWeeks", "Повторить – от 0 до " + MAX_REPEAT + " недель");
     }
     long now = clock.millis();
     long length = c.end() - c.start();
@@ -584,7 +584,7 @@ public class LessonService {
       throw ApiException.invalid("ics", "Выберите файл календаря (.ics)");
     }
     if (ics.length() > MAX_FILE) {
-      throw ApiException.invalid("ics", "Файл больше 3 МБ — это не расписание одной группы");
+      throw ApiException.invalid("ics", "Файл больше 3 МБ – это не расписание одной группы");
     }
     Ics.Result r;
     try {
@@ -836,7 +836,7 @@ public class LessonService {
 
   private long createSubject(Actor actor, long groupId, Titles.Parsed t) {
     if (!access.can(actor, Permission.MANAGE_SUBJECTS, List.of(groupId))) {
-      throw ApiException.forbidden("Создать предмет может староста — выберите существующий");
+      throw ApiException.forbidden("Создать предмет может староста – выберите существующий");
     }
     String name = t.name().length() > 80 ? t.name().substring(0, 80).strip() : t.name();
     String teacher = t.teacher().length() > 80 ? t.teacher().substring(0, 80) : t.teacher();

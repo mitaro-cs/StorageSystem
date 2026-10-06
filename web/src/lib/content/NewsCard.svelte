@@ -19,7 +19,7 @@
 
 	let { item, full = false, compact = false, actions = [] }: Props = $props();
 
-	/** В списках — «Имя Фамилия»: ФИО целиком не помещается в строку на телефоне. */
+	/** В списках – «Имя Фамилия»: ФИО целиком не помещается в строку на телефоне. */
 	const shortName = (fio: string) => [firstName(fio), lastName(fio)].filter(Boolean).join(' ');
 </script>
 
@@ -46,7 +46,7 @@
 		{#if item.hidden}<span class="chip"><EyeOff size={13} /> Скрыто</span>{/if}
 		{#if item.pending}<span
 				class="chip amber"
-				title="Создано без сети — уйдёт на сервер, когда появится интернет"
+				title="Создано без сети – уйдёт на сервер, когда появится интернет"
 				><CloudOff size={12} /> ждёт отправки</span
 			>{/if}
 		{#if item.subject}<SubjectTag {...item.subject} />{/if}
@@ -60,7 +60,7 @@
 	{#if item.bodyHtml}
 		<Prose html={item.bodyHtml} class="body {full ? '' : 'clamp'}" />
 	{/if}
-	<!-- Фото и файлы — отдельным кусочком: у большинства новостей их нет. -->
+	<!-- Фото и файлы – отдельным кусочком: у большинства новостей их нет. -->
 	{#if item.attachments?.length && !compact}
 		{#await import('./NewsFiles.svelte') then m}<m.default
 				files={item.attachments}
@@ -92,7 +92,7 @@
 	.news:has(.stretched):hover {
 		box-shadow: var(--shadow-2);
 	}
-	/* Полоса слева — цвет предмета (у новостей без предмета — нейтральная) */
+	/* Полоса слева – цвет предмета (у новостей без предмета – нейтральная) */
 	.news::before {
 		content: '';
 		position: absolute;
@@ -103,7 +103,7 @@
 		border-radius: 2px;
 		background: var(--subject);
 	}
-	/* Срочное — янтарная плашка по верху карточки и обводка */
+	/* Срочное – янтарная плашка по верху карточки и обводка */
 	.urgent {
 		box-shadow:
 			0 0 0 2px var(--urgent),
@@ -217,7 +217,7 @@
 		flex: none;
 		white-space: nowrap;
 	}
-	/* Телефон: время — под именем, чтобы имя не обрезалось до пары букв. */
+	/* Телефон: время – под именем, чтобы имя не обрезалось до пары букв. */
 	@media (max-width: 480px) {
 		.byline {
 			flex-direction: column;

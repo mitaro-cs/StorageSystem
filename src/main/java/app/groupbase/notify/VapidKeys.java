@@ -52,7 +52,7 @@ public class VapidKeys {
     if (!configured.isEmpty() && !usable(configured)) {
       log.warn(
           "Контакт для служб push (push.subject) не подходит: нужен mailto: с настоящим доменом"
-              + " или https:// — используется адрес сайта");
+              + " или https:// – используется адрес сайта");
     }
   }
 

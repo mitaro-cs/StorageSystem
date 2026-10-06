@@ -17,7 +17,7 @@
 	function asText(): string {
 		const who = session.me?.user.username ?? '';
 		return [
-			'campus — резервные коды для входа',
+			'Campus – резервные коды для входа',
 			`Сайт: ${siteUrl()}`,
 			who ? `Пользователь: ${who}` : '',
 			`Создано: ${new Date().toLocaleString('ru-RU')}`,

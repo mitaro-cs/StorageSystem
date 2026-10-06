@@ -5,7 +5,7 @@
 	import { lessonName, lessonState, untilText, type DayStats } from './lessons';
 
 	// Строки под карточкой дня на «Расписании»: первая и последняя пара, окна, что сдать, и подсказка
-	// (что идёт, что дальше). Отдельно — чтобы страница укладывалась в бюджет.
+	// (что идёт, что дальше). Отдельно – чтобы страница укладывалась в бюджет.
 	let {
 		items,
 		stats,
@@ -29,7 +29,7 @@
 					lead: lessonName(next),
 					text: `${untilText(next.startsAt - now)}${next.place ? `, ${next.place}` : ''}`
 				};
-			if (items.length) return { lead: 'Пары на сегодня', text: 'закончились — отдыхайте' };
+			if (items.length) return { lead: 'Пары на сегодня', text: 'закончились – отдыхайте' };
 		}
 		const topic = items.find((l) => l.note);
 		if (topic) return { lead: lessonName(topic), text: topic.note };
@@ -75,11 +75,11 @@
 </dl>
 
 {#if note}
-	<p class="note"><strong>{note.lead}</strong> — {note.text}</p>
+	<p class="note"><strong>{note.lead}</strong> – {note.text}</p>
 {/if}
 
 <style>
-	/* Строки «ключ — значение» под карточкой. */
+	/* Строки «ключ – значение» под карточкой. */
 	.facts {
 		margin: var(--s3) 4px 0;
 	}

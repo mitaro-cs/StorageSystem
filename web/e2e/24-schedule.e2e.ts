@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { ADMIN, STUDENT, login, watchConsole } from './helpers';
 
-/** Момент по местным часам: через days дней в hh:mm — строкой календаря в UTC. */
+/** Момент по местным часам: через days дней в hh:mm – строкой календаря в UTC. */
 function at(days: number, h: number, m: number): string {
 	const d = new Date();
 	d.setDate(d.getDate() + days);
@@ -65,7 +65,7 @@ test('расписание из файла календаря: загрузка,
 		mimeType: 'text/calendar',
 		buffer: Buffer.from(calendar())
 	});
-	// Предпросмотр: 8 пар, «Мат. анализ» — тот же предмет, разовый классный час — без предмета.
+	// Предпросмотр: 8 пар, «Мат. анализ» – тот же предмет, разовый классный час – без предмета.
 	await expect(dialog.getByRole('button', { name: 'Загрузить 8 пар' })).toBeVisible();
 	await expect(dialog.getByLabel('Предмет для «Математический анализ»')).toHaveValue(/^subject:/);
 	await expect(dialog.getByLabel('Предмет для «Мат. анализ»')).toHaveValue(/^subject:/);
@@ -93,7 +93,7 @@ test('расписание из файла календаря: загрузка,
 	await page.screenshot({ path: 'test-results/shots/schedule-month.png', fullPage: true });
 	await month
 		.getByRole('gridcell', {
-			name: new RegExp(`^${t.getDate()} [а-я]+: пар — `)
+			name: new RegExp(`^${t.getDate()} [а-я]+: пар – `)
 		})
 		.first()
 		.click();
@@ -108,7 +108,7 @@ test('расписание из файла календаря: загрузка,
 	await pairs.getByRole('button', { name: 'Вернуть пару' }).click();
 	await expect(pairs.getByText('не было')).toHaveCount(0);
 
-	// Завтрашние пары — на «Сегодня».
+	// Завтрашние пары – на «Сегодня».
 	await page.goto('/');
 	const block = page.getByRole('region', { name: /Завтра|Пары сегодня/ });
 	await expect(block.getByRole('link', { name: 'Математический анализ' })).toBeVisible();
@@ -119,25 +119,30 @@ test('расписание из файла календаря: загрузка,
 	await expect(page.getByText('А-214')).toBeVisible();
 	await expect(page.getByText('Петров А. В.')).toBeVisible();
 
-	// Задание к паре — сразу на её странице.
+	// Задание к паре – сразу на её странице.
 	await page
 		.getByRole('region', { name: 'Задания' })
 		.getByRole('button', { name: 'Добавить' })
 		.click();
 	const hw = page.getByRole('dialog', { name: 'Новое задание' });
-	await expect(hw.getByRole('group', { name: 'Срок — к паре' })).toBeVisible();
+	await expect(hw.getByRole('group', { name: 'Срок – к паре' })).toBeVisible();
 	await hw.getByLabel('Что сделать').fill('Задачи к лекции');
 	await hw.getByRole('button', { name: 'Опубликовать' }).click();
 	await expect(hw).toBeHidden();
 	await expect(page.getByRole('link', { name: 'Задачи к лекции' })).toBeVisible();
 
-	// У предмета — вкладка «Пары».
+	// У предмета – вкладка «Пары».
 	await page.getByRole('link', { name: 'Предмет: Математический анализ' }).click();
 	await page
 		.getByRole('navigation', { name: 'Разделы предмета' })
 		.getByRole('link', { name: 'Пары' })
 		.click();
-	await expect(page.getByRole('heading', { name: 'Ближайшие пары' })).toBeVisible();
+	// Пары предмета – календарём: день ближайшей пары выбран, его пары – под календарём.
+	const cal = page.getByRole('region', { name: 'Календарь пар' });
+	await expect(cal).toBeVisible();
+	await expect(cal.getByRole('gridcell', { selected: true })).toHaveAccessibleName(/пар – \d/);
+	await cal.getByRole('button', { name: 'Следующий месяц' }).click();
+	await cal.getByRole('button', { name: 'Сегодня' }).click();
 	expect(errors).toEqual([]);
 });
 
@@ -148,7 +153,7 @@ test('студент видит расписание и сам добавляе�
 	await login(page, STUDENT);
 	await page.goto('/schedule');
 	await expect(page.getByRole('heading', { name: 'Расписание' })).toBeVisible();
-	// Вести расписание студент не может — кнопок загрузки нет.
+	// Вести расписание студент не может – кнопок загрузки нет.
 	await expect(page.getByRole('button', { name: 'Из файла календаря' })).toHaveCount(0);
 
 	// Задания студенты добавляют сами (просьба владельца).
@@ -161,7 +166,7 @@ test('студент видит расписание и сам добавляе�
 	expect(errors).toEqual([]);
 });
 
-test('своя картинка на фоне — в своих цветах и та же на другом устройстве', async ({
+test('своя картинка на фоне – в своих цветах и та же на другом устройстве', async ({
 	page,
 	browser
 }) => {
@@ -173,7 +178,7 @@ test('своя картинка на фоне — в своих цветах и 
 		.getByRole('radiogroup', { name: 'Цвет' })
 		.getByRole('radio', { name: 'Зелёный' })
 		.click();
-	// Своя картинка (сервер берёт от 16 точек) — зелёная тема не должна её перекрашивать.
+	// Своя картинка (сервер берёт от 16 точек) – зелёная тема не должна её перекрашивать.
 	const png = Buffer.from(
 		'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKklEQVR4nGPQqDhBU8QwasGoBaMWjFowasGoBaMWjFowasGoBaMWDBULAIuXoEzkdmPIAAAAAElFTkSuQmCC',
 		'base64'
@@ -186,14 +191,14 @@ test('своя картинка на фоне — в своих цветах и 
 	await expect(html).toHaveAttribute('data-bg', 'custom');
 	const veil = () =>
 		page.evaluate(() => getComputedStyle(document.documentElement, '::before').backgroundImage);
-	// Вуаль — белая (светлая тема), не цвета темы.
+	// Вуаль – белая (светлая тема), не цвета темы.
 	expect(await veil()).toContain('rgba(255, 255, 255, 0.25)');
 	await page.getByLabel('Приглушить картинку').evaluate((el: HTMLInputElement) => {
 		el.value = '0';
 		el.dispatchEvent(new Event('input', { bubbles: true }));
 	});
 	expect(await veil()).toContain('rgba(255, 255, 255, 0)');
-	// Размытие — ползунком, в пикселях.
+	// Размытие – ползунком, в пикселях.
 	await page.getByLabel('Размыть картинку').evaluate((el: HTMLInputElement) => {
 		el.value = '16';
 		el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -203,7 +208,7 @@ test('своя картинка на фоне — в своих цветах и 
 		await page.evaluate(() => document.documentElement.style.getPropertyValue('--bg-blur'))
 	).toBe('16px');
 
-	// Оформление общее для всех устройств: на телефоне — та же картинка, тот же цвет и размытие.
+	// Оформление общее для всех устройств: на телефоне – та же картинка, тот же цвет и размытие.
 	const phoneCtx = await browser.newContext({
 		locale: 'ru-RU',
 		viewport: { width: 390, height: 844 }
@@ -214,11 +219,11 @@ test('своя картинка на фоне — в своих цветах и 
 	await expect(phoneHtml).toHaveAttribute('data-bg', 'custom', { timeout: 10_000 });
 	await expect(phoneHtml).toHaveAttribute('data-bg-blur', '');
 	await expect(phoneHtml).toHaveAttribute('data-accent', '');
-	// После перезагрузки — сразу, до отрисовки (картинка сохранена на устройстве).
+	// После перезагрузки – сразу, до отрисовки (картинка сохранена на устройстве).
 	await phone.reload();
 	await expect(phoneHtml).toHaveAttribute('data-bg', 'custom');
 
-	// Убрали на компьютере — пропала и на телефоне.
+	// Убрали на компьютере – пропала и на телефоне.
 	await page.getByRole('button', { name: 'Убрать' }).click();
 	await expect(html).not.toHaveAttribute('data-bg', /.+/);
 	await phone.waitForTimeout(800);
@@ -226,7 +231,7 @@ test('своя картинка на фоне — в своих цветах и 
 	await expect(phoneHtml).not.toHaveAttribute('data-bg', /.+/, { timeout: 10_000 });
 	await phoneCtx.close();
 
-	// Вернуть как было — для остальных тестов.
+	// Вернуть как было – для остальных тестов.
 	await page
 		.getByRole('radiogroup', { name: 'Дизайн' })
 		.getByRole('radio', { name: 'Классика' })

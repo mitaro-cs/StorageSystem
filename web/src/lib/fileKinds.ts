@@ -16,11 +16,11 @@ const TEXT_EXT =
 export function fileKind(mime: string | null | undefined, name = ''): FileKind {
 	const m = (mime ?? '').toLowerCase();
 	if (m === 'application/pdf' || (!m && /\.pdf$/i.test(name))) return 'pdf';
-	// SVG может содержать скрипт — показываем только как файл для скачивания.
+	// SVG может содержать скрипт – показываем только как файл для скачивания.
 	if (IMAGES.has(m)) return 'image';
 	if (m.startsWith('video/')) return 'video';
 	if (m.startsWith('audio/')) return 'audio';
-	// Конспект в Markdown — страницей (сервер превращает в HTML), есть «В Word».
+	// Конспект в Markdown – страницей (сервер превращает в HTML), есть «В Word».
 	if (/^text\/(x-web-)?markdown$/.test(m) || /\.(md|markdown)$/i.test(name)) return 'markdown';
 	if (TEXT_MIME.test(m) || ((m === '' || m === 'application/octet-stream') && TEXT_EXT.test(name)))
 		return 'text';
@@ -29,7 +29,7 @@ export function fileKind(mime: string | null | undefined, name = ''): FileKind {
 	return 'other';
 }
 
-/** Текст больше этого не показываем — только скачать. */
+/** Текст больше этого не показываем – только скачать. */
 export const TEXT_LIMIT = 2 * 1024 * 1024;
 
 export function canPreview(mime: string | null | undefined, name = '', size = 0): boolean {

@@ -95,7 +95,7 @@ public record Tool(String name, URI url, String sha256) {
       String got = HexFormat.of().formatHex(sha.digest());
       if (!got.equalsIgnoreCase(sha256)) {
         Files.deleteIfExists(part);
-        throw new IOException("Скачанный " + name + " не совпал с ожидаемым — файл не запущен");
+        throw new IOException("Скачанный " + name + " не совпал с ожидаемым – файл не запущен");
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();

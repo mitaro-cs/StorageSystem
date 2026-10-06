@@ -37,7 +37,7 @@
 	let teacher = $state('');
 	let chatUrl = $state('');
 	let color = $state(palette[0]);
-	/** null — подобрать по названию. */
+	/** null – подобрать по названию. */
 	let icon = $state<string | null>(null);
 	let iconQuery = $state('');
 	let pickerOpen = $state(false);
@@ -62,7 +62,7 @@
 	const COVER_MAX = 5 * 1024 * 1024;
 
 	/**
-	 * Фото с телефона часто больше 5 МБ — уменьшаем в браузере: фону хватит 2560 точек по ширине
+	 * Фото с телефона часто больше 5 МБ – уменьшаем в браузере: фону хватит 2560 точек по ширине
 	 * (сервер всё равно сохранит 1280), и через туннель уйдёт меньше.
 	 */
 	async function shrink(file: File): Promise<Blob> {
@@ -91,9 +91,9 @@
 			try {
 				body = await shrink(file);
 			} catch {
-				throw new Error('Эту картинку не открыть — выберите JPG, PNG или WebP');
+				throw new Error('Эту картинку не открыть – выберите JPG, PNG или WebP');
 			}
-			if (body.size > COVER_MAX) throw new Error('Картинка больше 5 МБ — выберите поменьше');
+			if (body.size > COVER_MAX) throw new Error('Картинка больше 5 МБ – выберите поменьше');
 			const csrf = document.cookie.match(/(?:^|;\s*)(?:__Host-)?gb_csrf=([^;]+)/)?.[1] ?? '';
 			const r = await fetch(`/api/subjects/${edit.id}/cover`, {
 				method: 'PUT',
@@ -172,7 +172,7 @@
 
 <Modal bind:open title={edit ? 'Предмет' : 'Новый предмет'}>
 	<form id="subject-form" class="stack form" onsubmit={save}>
-		<!-- Фон карточки: картинка вместо иконки — на плитках предмета и в его шапке. -->
+		<!-- Фон карточки: картинка вместо иконки – на плитках предмета и в его шапке. -->
 		{#if edit}
 			<div class="cover-edit">
 				<button
@@ -189,7 +189,7 @@
 					</span>
 				</button>
 				<p class="faint small cover-note">
-					JPG, PNG или WebP до 5 МБ — фото побольше уменьшатся сами. Лучше широкая картинка: она
+					JPG, PNG или WebP до 5 МБ – фото побольше уменьшатся сами. Лучше широкая картинка: она
 					обрезается до 16:9 по центру.
 				</p>
 				{#if cover}
@@ -209,7 +209,7 @@
 			</div>
 		{:else}
 			<p class="faint small">
-				Фон карточки — картинку вместо иконки — можно поставить после создания.
+				Фон карточки – картинку вместо иконки – можно поставить после создания.
 			</p>
 		{/if}
 		<div>
@@ -251,7 +251,7 @@
 					<span class="faint small"
 						>{icon
 							? 'Выбрана вручную'
-							: 'Подбирается сама — «Физика» получит атом, «Сети» — схему сети'}</span
+							: 'Подбирается сама – «Физика» получит атом, «Сети» – схему сети'}</span
 					>
 				</span>
 				<Button size="s" onclick={() => (pickerOpen = !pickerOpen)}
@@ -301,7 +301,7 @@
 							{/each}
 						</div>
 					{:else}
-						<p class="faint small">Ничего не нашли — попробуйте другое слово</p>
+						<p class="faint small">Ничего не нашли – попробуйте другое слово</p>
 					{/each}
 				</div>
 			{/if}
@@ -316,7 +316,7 @@
 					kind="subject"
 					square
 				/>
-				<span class="faint small grow">Своя картинка вместо иконки — например, фото учебника</span>
+				<span class="faint small grow">Своя картинка вместо иконки – например, фото учебника</span>
 				<Button size="s" onclick={() => (cropper = true)}>Загрузить</Button>
 			</div>
 		{/if}

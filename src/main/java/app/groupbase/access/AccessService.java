@@ -403,7 +403,7 @@ public class AccessService {
     if (!r.ok() || !cloudpub.loggedIn()) {
       String why = r.lastLine();
       throw new Problem(
-          "login", why.isEmpty() ? "CloudPub не принял вход — проверьте почту и пароль" : why);
+          "login", why.isEmpty() ? "CloudPub не принял вход – проверьте почту и пароль" : why);
     }
     message = null;
     if (mode() == Mode.CLOUDPUB) {
@@ -444,7 +444,7 @@ public class AccessService {
     if (parsed.getHost() == null
         || !(u.startsWith("https://") || u.startsWith("http://"))
         || parsed.getRawPath() != null && !parsed.getRawPath().isEmpty()) {
-      throw new Problem("url", "Адрес вида https://example.ru — без пути после домена");
+      throw new Problem("url", "Адрес вида https://example.ru – без пути после домена");
     }
     stopTunnel();
     boolean wasLan = lanOn();
@@ -493,7 +493,7 @@ public class AccessService {
   private void requireManaged() {
     if (publicUrl.fixed()) {
       throw new Problem(
-          "mode", "Адрес сайта задан в настройках сервера (base-url) — меняйте его там");
+          "mode", "Адрес сайта задан в настройках сервера (base-url) – меняйте его там");
     }
   }
 
@@ -549,7 +549,7 @@ public class AccessService {
     synchronized (this) {
       if (login != null && login.expiresAt() <= expires) {
         login = null;
-        message = "Код входа истёк — нажмите «Войти в fxTunnel» ещё раз";
+        message = "Код входа истёк – нажмите «Войти в fxTunnel» ещё раз";
       }
     }
   }
@@ -588,7 +588,7 @@ public class AccessService {
     String sub = subdomain == null ? "" : subdomain.strip().toLowerCase(Locale.ROOT);
     if (!SUBDOMAIN.matcher(sub).matches()) {
       throw new Problem(
-          "subdomain", "Адрес — от 3 до 32 латинских букв, цифр и дефисов, без дефиса по краям");
+          "subdomain", "Адрес – от 3 до 32 латинских букв, цифр и дефисов, без дефиса по краям");
     }
     return sub;
   }
@@ -801,7 +801,7 @@ public class AccessService {
   private synchronized void slowStart(long myGen) {
     if (myGen == gen && state == State.STARTING) {
       message =
-          providerName(mode()) + " долго не отвечает — проверьте интернет. Продолжаем пытаться…";
+          providerName(mode()) + " долго не отвечает – проверьте интернет. Продолжаем пытаться…";
     }
   }
 
@@ -847,25 +847,25 @@ public class AccessService {
       } else {
         scheduleRetry(
             err.isBlank()
-                ? "Связь с CloudPub прервалась — переподключаемся"
-                : "CloudPub: " + err + " — переподключаемся");
+                ? "Связь с CloudPub прервалась – переподключаемся"
+                : "CloudPub: " + err + " – переподключаемся");
       }
     } else if (AUTH_ERROR.matcher(err).find()) {
       settings.set(FX_TOKEN, "");
-      setState(State.NEEDS_LOGIN, "Вход в fxTunnel устарел — войдите заново");
+      setState(State.NEEDS_LOGIN, "Вход в fxTunnel устарел – войдите заново");
     } else if (TAKEN_ERROR.matcher(err).find()) {
       failures = BACKOFF_SEC.length - 1;
       scheduleRetry(
-          "Адрес занят другим пользователем fxTunnel. Выберите другой — или подождите, пока он"
+          "Адрес занят другим пользователем fxTunnel. Выберите другой – или подождите, пока он"
               + " освободится");
     } else if (LIMIT_ERROR.matcher(err).find()) {
       scheduleRetry(
-          "С этого аккаунта fxTunnel уже открыт другой туннель. Закройте его — подключимся сами");
+          "С этого аккаунта fxTunnel уже открыт другой туннель. Закройте его – подключимся сами");
     } else {
       scheduleRetry(
           err.isBlank()
-              ? "Связь с fxTunnel прервалась — переподключаемся"
-              : "fxTunnel: " + err + " — переподключаемся");
+              ? "Связь с fxTunnel прервалась – переподключаемся"
+              : "fxTunnel: " + err + " – переподключаемся");
     }
     announce();
   }

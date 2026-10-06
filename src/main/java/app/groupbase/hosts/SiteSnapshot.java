@@ -241,9 +241,9 @@ final class SiteSnapshot {
         }
       }
       say.accept(
-          "Данные взяты: скопировано файлов — "
+          "Данные взяты: скопировано файлов – "
               + copied
-              + (extra > 0 ? ", отложено лишних — " + extra : ""));
+              + (extra > 0 ? ", отложено лишних – " + extra : ""));
     } finally {
       deleteTree(stage);
     }

@@ -1,8 +1,8 @@
 import { dev } from '$app/environment';
 
 /**
- * Состояние сети и установка PWA. offline — сервер сейчас недоступен (показываются сохранённые
- * данные); network — есть ли у устройства интернет: если есть, значит выключен компьютер хоста.
+ * Состояние сети и установка PWA. offline – сервер сейчас недоступен (показываются сохранённые
+ * данные); network – есть ли у устройства интернет: если есть, значит выключен компьютер хоста.
  */
 export const pwa = $state({ offline: false, canInstall: false, network: true });
 
@@ -33,7 +33,7 @@ export async function install() {
 	pwa.canInstall = false;
 }
 
-/** Service worker: офлайн-режим и push. Регистрирует интерфейс сам — и не в окне хоста. */
+/** Service worker: офлайн-режим и push. Регистрирует интерфейс сам – и не в окне хоста. */
 export function registerServiceWorker() {
 	if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
 	const sw = navigator.serviceWorker;
@@ -41,7 +41,7 @@ export function registerServiceWorker() {
 		.then(() => sw.ready)
 		.then((reg) => warmLater(() => reg.active))
 		.catch(() => {});
-	// Пришла новая версия — докачать и её, а открытую страницу перезагрузить: установленное на
+	// Пришла новая версия – докачать и её, а открытую страницу перезагрузить: установленное на
 	// экран «Домой» приложение почти не перезапускается (iPhone возвращает его из фона), и без
 	// этого оставалось на старой версии.
 	let updating = !!sw.controller;
@@ -63,8 +63,8 @@ export function registerServiceWorker() {
 }
 
 /**
- * Перезагрузить на новую версию, не мешая: сейчас — если человек ничего не печатает и не открыто
- * окно с формой, иначе — как только приложение уйдёт с экрана.
+ * Перезагрузить на новую версию, не мешая: сейчас – если человек ничего не печатает и не открыто
+ * окно с формой, иначе – как только приложение уйдёт с экрана.
  */
 function reloadWhenSafe() {
 	const busy = () => {
@@ -84,7 +84,7 @@ function reloadWhenSafe() {
 }
 
 /**
- * Остальные файлы приложения service worker докачивает фоном — когда первый экран уже открыт,
+ * Остальные файлы приложения service worker докачивает фоном – когда первый экран уже открыт,
  * чтобы его запросы не стояли в очереди за сотней файлов.
  */
 function warmLater(worker: () => ServiceWorker | null | undefined) {
@@ -94,7 +94,7 @@ function warmLater(worker: () => ServiceWorker | null | undefined) {
 }
 
 /**
- * Окно приложения хоста: сервер на этом же компьютере — service worker и его кеш не нужны. Прежние
+ * Окно приложения хоста: сервер на этом же компьютере – service worker и его кеш не нужны. Прежние
  * версии их регистрировали (и service worker мог зациклить вход окна), поэтому убираем остатки.
  */
 export async function forgetServiceWorker() {

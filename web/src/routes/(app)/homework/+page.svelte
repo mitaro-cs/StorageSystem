@@ -3,12 +3,12 @@
 	import { tipOpen } from '$lib/onboarding.svelte';
 </script>
 
-<svelte:head><title>Домашние задания · campus</title></svelte:head>
+<svelte:head><title>Домашние задания · Campus</title></svelte:head>
 
 {#if tipOpen('homework')}
 	{#await import('$lib/tour/Tip.svelte') then m}<m.default
 			id="homework"
-			text="Сделали — отметьте кружком, задание уйдёт вниз. «Календарь» — все сроки на месяц, «Просрочено» — что не сдано."
+			text="Сделали – отметьте кружком, задание уйдёт вниз. «Календарь» – все сроки на месяц, «Просрочено» – что не сдано."
 		/>{/await}
 {/if}
 <HomeworkBoard />

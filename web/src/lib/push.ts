@@ -28,7 +28,7 @@ export function needsInstallForPush(): boolean {
 	return isIos() && !isStandalone();
 }
 
-/** «Chrome, Android» — чтобы отличать устройства в списке. */
+/** «Chrome, Android» – чтобы отличать устройства в списке. */
 export function deviceLabel(): string {
 	const ua = navigator.userAgent;
 	const browser = /YaBrowser/.test(ua)
@@ -71,7 +71,7 @@ export async function currentSubscription(): Promise<PushSubscription | null> {
 	return (await reg?.pushManager.getSubscription()) ?? null;
 }
 
-/** Подписка сделана с другим ключом сервера (его сменили) — такая не заработает. */
+/** Подписка сделана с другим ключом сервера (его сменили) – такая не заработает. */
 function staleKey(sub: PushSubscription, publicKey: string): boolean {
 	const old = sub.options.applicationServerKey;
 	if (!old) return false;
@@ -96,7 +96,7 @@ export async function enablePush(publicKey: string): Promise<void> {
 		throw new Error('Уведомления запрещены. Разрешите их в настройках браузера для этого сайта');
 	const reg = await navigator.serviceWorker.ready;
 	let sub = await reg.pushManager.getSubscription();
-	// Подписка со старым ключом сервера не заработает — пересоздаём.
+	// Подписка со старым ключом сервера не заработает – пересоздаём.
 	if (sub && staleKey(sub, publicKey)) {
 		await sub.unsubscribe();
 		sub = null;
@@ -109,9 +109,9 @@ export async function enablePush(publicKey: string): Promise<void> {
 }
 
 /**
- * Напоминает серверу подписку этого устройства — без вопросов о разрешении. Сервер удаляет
+ * Напоминает серверу подписку этого устройства – без вопросов о разрешении. Сервер удаляет
  * подписку после нескольких неудачных отправок, а телефон об этом не знает и считает, что всё
- * включено. 'stale' — подписка со старым ключом сервера: включить заново можно только нажатием.
+ * включено. 'stale' – подписка со старым ключом сервера: включить заново можно только нажатием.
  */
 export async function resendSubscription(publicKey?: string): Promise<'ok' | 'none' | 'stale'> {
 	const sub = await currentSubscription();
@@ -129,13 +129,13 @@ export async function resendOnStart(): Promise<void> {
 	try {
 		if (Date.now() - Number(localStorage.getItem(RESENT) ?? 0) < 12 * 3600_000) return;
 	} catch {
-		/* нет доступа к хранилищу — просто отправим */
+		/* нет доступа к хранилищу – просто отправим */
 	}
 	try {
 		if ((await resendSubscription()) !== 'ok') return;
 		localStorage.setItem(RESENT, String(Date.now()));
 	} catch {
-		/* офлайн или сервер недоступен — в следующий раз */
+		/* офлайн или сервер недоступен – в следующий раз */
 	}
 }
 
@@ -148,18 +148,18 @@ export interface PushReport {
 }
 
 /**
- * Понятное объяснение итога проверки. again — подписку надо включить заново (нажатием), её
+ * Понятное объяснение итога проверки. again – подписку надо включить заново (нажатием), её
  * больше нет или она сделана со старым ключом.
  */
 export function explainPushTest(r: PushReport): { ok: boolean; text: string; again?: boolean } {
 	if (r.delivered > 0)
-		return { ok: true, text: 'Отправили — уведомление появится через несколько секунд' };
+		return { ok: true, text: 'Отправили – уведомление появится через несколько секунд' };
 	const why = r.reason ? ` (${r.reason})` : '';
 	if (r.devices === 0 || r.status === 404 || r.status === 410 || r.reason === 'VapidPkHashMismatch')
 		return {
 			ok: false,
 			again: true,
-			text: 'Подписка этого устройства устарела — нажмите «Включить уведомления» ещё раз'
+			text: 'Подписка этого устройства устарела – нажмите «Включить уведомления» ещё раз'
 		};
 	if (r.status === -1)
 		return {
@@ -169,13 +169,13 @@ export function explainPushTest(r: PushReport): { ok: boolean; text: string; aga
 	if (r.status === 401 || r.status === 403)
 		return {
 			ok: false,
-			text: `Служба уведомлений не приняла подпись сервера${why}. Обновите campus на компьютере, где работает сайт`
+			text: `Служба уведомлений не приняла подпись сервера${why}. Обновите Campus на компьютере, где работает сайт`
 		};
 	if (r.status === 429)
-		return { ok: false, text: 'Служба уведомлений просит подождать — попробуйте через минуту' };
+		return { ok: false, text: 'Служба уведомлений просит подождать – попробуйте через минуту' };
 	return {
 		ok: false,
-		text: `Служба уведомлений ответила ${r.status}${why} — попробуйте позже`
+		text: `Служба уведомлений ответила ${r.status}${why} – попробуйте позже`
 	};
 }
 

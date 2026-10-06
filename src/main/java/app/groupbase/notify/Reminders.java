@@ -114,7 +114,7 @@ public class Reminders {
               "reminder",
               soon(first.kind()) + " · " + first.subject(),
               first.title()
-                  + (isExam(first.kind()) ? " — " : " — сдать ")
+                  + (isExam(first.kind()) ? " – " : " – сдать ")
                   + when(first.dueAt(), now),
               "/homework/" + first.homeworkId(),
               true),
@@ -226,7 +226,7 @@ public class Reminders {
     if (today > 0) {
       title = "Сегодня сдать " + today + " " + tasks(today);
       if (tomorrow > 0) {
-        rest.add("завтра — " + tomorrow);
+        rest.add("завтра – " + tomorrow);
       }
     } else if (tomorrow > 0) {
       title = "Завтра сдать " + tomorrow + " " + tasks(tomorrow);
@@ -234,7 +234,7 @@ public class Reminders {
       title = "Есть просроченные задания";
     }
     if (overdue > 0) {
-      rest.add("просрочено — " + overdue);
+      rest.add("просрочено – " + overdue);
     }
     String body = rest.isEmpty() ? "Хорошего дня!" : String.join(", ", rest);
     return new Message("digest", title, capitalize(body), "/", false);

@@ -298,7 +298,7 @@ public class HostService implements SmartLifecycle {
     message = MOVED_MESSAGE;
     problem = null;
     access.suspend(message);
-    log.info("Сайт перенесён на другой компьютер по коду — этот больше не хост");
+    log.info("Сайт перенесён на другой компьютер по коду – этот больше не хост");
   }
 
   /**
@@ -376,7 +376,7 @@ public class HostService implements SmartLifecycle {
     if (!Files.isDirectory(folder.dir())) {
       toStandby(
           null,
-          "Не видно облачной папки сайта. Запустите облачный диск — сайт продолжит работу сам.");
+          "Не видно облачной папки сайта. Запустите облачный диск – сайт продолжит работу сам.");
       return;
     }
     if (!cfg.pending().isBlank()) {
@@ -387,7 +387,7 @@ public class HostService implements SmartLifecycle {
     try {
       p = plan(now);
     } catch (IOException e) {
-      toStandby(null, "Облако ещё докачивает сведения о хосте — подождите минуту.");
+      toStandby(null, "Облако ещё докачивает сведения о хосте – подождите минуту.");
       return;
     }
     act(p, now, resume);
@@ -433,7 +433,7 @@ public class HostService implements SmartLifecycle {
                 p,
                 "Компьютер "
                     + other
-                    + " не ответил. Если он выключен или без интернета, подождите пару минут —"
+                    + " не ответил. Если он выключен или без интернета, подождите пару минут –"
                     + " появится кнопка «Запустить здесь».");
           } else {
             refreshRequest(now);
@@ -462,7 +462,7 @@ public class HostService implements SmartLifecycle {
                     : "Сайт передан на компьютер «" + to + "»")
                 + (p.quietFor() > ANSWER_MS
                     ? ", но он его пока не принял."
-                    : " — он вот-вот продолжит работу."));
+                    : " – он вот-вот продолжит работу."));
       }
       case DETACHED ->
           toStandby(p, "На компьютере " + other + " выключили перенос сайта между компьютерами.");
@@ -496,7 +496,7 @@ public class HostService implements SmartLifecycle {
       switchTo(snapshot, claim);
     } catch (SiteSnapshot.Incomplete e) {
       role = Role.WAITING;
-      message = e.getMessage() + " — сайт продолжит работу здесь сам.";
+      message = e.getMessage() + " – сайт продолжит работу здесь сам.";
       have = e.have;
       total = e.total;
       access.suspend(message);
@@ -514,7 +514,7 @@ public class HostService implements SmartLifecycle {
       restartSoon();
     } catch (SiteSnapshot.Incomplete e) {
       role = Role.WAITING;
-      message = e.getMessage() + " — сайт продолжит работу здесь сам.";
+      message = e.getMessage() + " – сайт продолжит работу здесь сам.";
       have = e.have;
       total = e.total;
       access.suspend(message);
@@ -620,7 +620,7 @@ public class HostService implements SmartLifecycle {
       return;
     }
     if (!Files.isDirectory(folder.dir())) {
-      problem = "Не видно облачной папки — снимки для других компьютеров не сохраняются.";
+      problem = "Не видно облачной папки – снимки для других компьютеров не сохраняются.";
       return;
     }
     Optional<Request> r = folder.request();
@@ -708,7 +708,7 @@ public class HostService implements SmartLifecycle {
   }
 
   private void standDown(long now) {
-    log.info("Сайт перенесли на другой компьютер — этот переходит в ожидание");
+    log.info("Сайт перенесли на другой компьютер – этот переходит в ожидание");
     role = Role.STANDBY;
     Plan p;
     try {
@@ -777,7 +777,7 @@ public class HostService implements SmartLifecycle {
                 try {
                   Plan again = plan(clock.millis());
                   if (again.kind() == Kind.SILENT && again.quietFor() >= AUTO_TAKE_MS) {
-                    log.info("Хост давно не на связи, сайт нигде не отвечает — запускаем здесь");
+                    log.info("Хост давно не на связи, сайт нигде не отвечает – запускаем здесь");
                     startHere(again, clock.millis());
                   }
                 } catch (IOException | RuntimeException e) {
@@ -1107,7 +1107,7 @@ public class HostService implements SmartLifecycle {
     requireApp();
     String n = name == null ? "" : name.strip();
     if (n.isEmpty() || n.length() > 40) {
-      throw new Problem("Имя компьютера — от 1 до 40 символов");
+      throw new Problem("Имя компьютера – от 1 до 40 символов");
     }
     cfg.setComputerName(n);
     saveCfg();
@@ -1138,13 +1138,13 @@ public class HostService implements SmartLifecycle {
         return view();
       }
       if (!Files.isDirectory(folder.dir())) {
-        throw new Problem("Не видно облачной папки сайта — запустите облачный диск");
+        throw new Problem("Не видно облачной папки сайта – запустите облачный диск");
       }
       long now = clock.millis();
       try {
         p = plan(now);
       } catch (IOException e) {
-        throw new Problem("Облако ещё докачивает сведения о хосте — подождите минуту");
+        throw new Problem("Облако ещё докачивает сведения о хосте – подождите минуту");
       }
       switch (p.kind()) {
         case LIVE -> {
@@ -1153,7 +1153,7 @@ public class HostService implements SmartLifecycle {
           role = Role.WAITING;
           plan = p;
           message =
-              "Попросили компьютер «" + p.other().computer() + "» передать сайт — ждём ответа…";
+              "Попросили компьютер «" + p.other().computer() + "» передать сайт – ждём ответа…";
           return view();
         }
         case HOST -> {
@@ -1189,7 +1189,7 @@ public class HostService implements SmartLifecycle {
       try {
         startHere(p, clock.millis());
       } catch (SiteSnapshot.Incomplete e) {
-        throw new Problem(e.getMessage() + " — подождите немного и нажмите ещё раз");
+        throw new Problem(e.getMessage() + " – подождите немного и нажмите ещё раз");
       } catch (IOException e) {
         throw new Problem("Не удалось взять данные: " + e.getMessage());
       }
@@ -1258,7 +1258,7 @@ public class HostService implements SmartLifecycle {
     SiteFolder f = new SiteFolder(Path.of(found.path()));
     List<String> names = f.snapshotNames();
     if (names.isEmpty()) {
-      throw new Problem("В папке ещё нет данных сайта — подождите, пока облако их докачает");
+      throw new Problem("В папке ещё нет данных сайта – подождите, пока облако их докачает");
     }
     String newest = names.getLast();
     try {
@@ -1267,7 +1267,7 @@ public class HostService implements SmartLifecycle {
       throw new Problem(
           e.getMessage()
               + (e.total > 1 ? " (" + e.have + " из " + e.total + ")" : "")
-              + " — подождите пару минут и попробуйте снова");
+              + " – подождите пару минут и попробуйте снова");
     } catch (IOException e) {
       throw new Problem("Не удалось прочитать данные сайта: " + e.getMessage());
     }
@@ -1283,7 +1283,7 @@ public class HostService implements SmartLifecycle {
 
   public void requireApp() {
     if (cfg == null || !bridge.enabled()) {
-      throw new Problem("Работа на нескольких компьютерах — только в приложении хоста");
+      throw new Problem("Работа на нескольких компьютерах – только в приложении хоста");
     }
   }
 

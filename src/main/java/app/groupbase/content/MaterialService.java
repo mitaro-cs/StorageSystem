@@ -443,14 +443,14 @@ public class MaterialService {
       default -> throw ApiException.invalid("kind", "Тип материала: файл, ссылка или сообщение");
     }
     if (title.length() > 200) {
-      throw ApiException.invalid("title", "Название — до 200 символов");
+      throw ApiException.invalid("title", "Название – до 200 символов");
     }
     String description = in.description() == null ? "" : in.description().strip();
     int max = "note".equals(kind) ? 8000 : 2000;
     if (description.length() > max) {
       throw ApiException.invalid(
           "description",
-          ("note".equals(kind) ? "Сообщение" : "Описание") + " — до " + max + " символов");
+          ("note".equals(kind) ? "Сообщение" : "Описание") + " – до " + max + " символов");
     }
     long now = clock.millis();
     long id =
@@ -634,7 +634,7 @@ public class MaterialService {
       // или староста: как и сами чужие файлы по одному.
       if (hasOthersMaterials(folderId, actor.id())) {
         throw ApiException.forbidden(
-            "В папке есть файлы других людей — удалить её может староста или модератор");
+            "В папке есть файлы других людей – удалить её может староста или модератор");
       }
     }
     List<Long> fileIds =

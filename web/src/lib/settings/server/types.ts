@@ -51,11 +51,11 @@ export interface Status {
 }
 
 export interface UpdateCheck {
-	/** Последний выпуск; null — ещё не узнали. */
+	/** Последний выпуск; null – ещё не узнали. */
 	latest: string | null;
-	/** Когда проверяли, 0 — ни разу. */
+	/** Когда проверяли, 0 – ни разу. */
 	checkedAt: number;
-	/** Почему не удалось проверить; null — удалось. */
+	/** Почему не удалось проверить; null – удалось. */
 	error: string | null;
 }
 
@@ -76,7 +76,7 @@ export interface Hosts {
 	/** Этот компьютер подключён к общей папке. */
 	enabled: boolean;
 	role: HostRole;
-	/** Почему ожидание: live — работает на другом, silent — тот не на связи, и т. п. */
+	/** Почему ожидание: live – работает на другом, silent – тот не на связи, и т. п. */
 	plan: 'host' | 'take' | 'live' | 'silent' | 'handed' | 'detached' | null;
 	message: string | null;
 	error: string | null;
@@ -86,8 +86,8 @@ export interface Hosts {
 	snapshotAt: number | null;
 	snapshotBy: string | null;
 	/**
-	 * Что предложить: request — попросить передать, start — запустить здесь, back — вернуть
-	 * переданный, return — вернуть после переноса по коду.
+	 * Что предложить: request – попросить передать, start – запустить здесь, back – вернуть
+	 * переданный, return – вернуть после переноса по коду.
 	 */
 	action: 'request' | 'start' | 'back' | 'return' | null;
 	folder: string | null;
@@ -111,9 +111,9 @@ export interface FoundSite {
 export interface TransferCode {
 	code: string;
 	expiresAt: number;
-	/** Адрес сайта, по которому другой компьютер заберёт данные; null — доступ не открыт. */
+	/** Адрес сайта, по которому другой компьютер заберёт данные; null – доступ не открыт. */
 	url: string | null;
-	/** waiting — ждём другой компьютер, sending — забирает, sent — забрал, ждём подтверждения. */
+	/** waiting – ждём другой компьютер, sending – забирает, sent – забрал, ждём подтверждения. */
 	phase: 'waiting' | 'sending' | 'sent';
 	sent: number;
 }
@@ -151,7 +151,7 @@ export interface PeerView {
 		here: boolean;
 	}[];
 	code: { code: string; expiresAt: number; url: string | null } | null;
-	/** Другие компьютеры просят подключиться — ждут «Разрешить» здесь. */
+	/** Другие компьютеры просят подключиться – ждут «Разрешить» здесь. */
 	requests: { id: string; name: string }[];
 	ask: { phase: string; message: string | null; url: string | null };
 }

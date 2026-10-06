@@ -5,7 +5,7 @@
 	import Button from '$lib/ui/Button.svelte';
 	import type { Status } from './types';
 
-	// Найдена новая версия: в окне хоста — кнопка, иначе — как обновиться.
+	// Найдена новая версия: в окне хоста – кнопка, иначе – как обновиться.
 	let { s }: { s: Status } = $props();
 	let updating = $state(false);
 
@@ -41,8 +41,8 @@
 		<span>
 			<strong>Доступна новая версия {s.update.version}</strong>
 			<span class="small muted"
-				>Обновить можно одной кнопкой в окне campus на компьютере хоста: «Настройки → Версия и
-				обновления» или значок campus в строке меню (в трее).</span
+				>Обновить можно одной кнопкой в окне Campus на компьютере хоста: «Настройки → Версия и
+				обновления» или значок Campus в строке меню (в трее).</span
 			>
 		</span>
 	</div>
@@ -52,7 +52,7 @@
 		<span>
 			<strong>Доступна новая версия {s.update.version}</strong>
 			<span class="small muted"
-				>Скачайте groupbase.jar со страницы выпуска и перезапустите сервер — данные сохранятся.</span
+				>Скачайте groupbase.jar со страницы выпуска и перезапустите сервер – данные сохранятся.</span
 			>
 		</span>
 	</a>
@@ -73,7 +73,7 @@
 		display: flex;
 		flex-direction: column;
 	}
-	/* На телефоне кнопка — под текстом, во всю ширину. */
+	/* На телефоне кнопка – под текстом, во всю ширину. */
 	@media (max-width: 480px) {
 		.update {
 			flex-wrap: wrap;

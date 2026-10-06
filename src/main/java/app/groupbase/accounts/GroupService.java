@@ -133,11 +133,11 @@ public class GroupService {
         throw ApiException.invalid("to", "Конец сессии раньше начала");
       }
       if (t - f > SESSION_MAX_DAYS * DAY) {
-        throw ApiException.invalid("to", "Сессия — не дольше двух месяцев");
+        throw ApiException.invalid("to", "Сессия – не дольше двух месяцев");
       }
       long now = clock.millis();
       if (f < now - 365 * DAY || f > now + 365 * DAY) {
-        throw ApiException.invalid("from", "Сессия — в пределах года от сегодняшнего дня");
+        throw ApiException.invalid("from", "Сессия – в пределах года от сегодняшнего дня");
       }
       groups.setSession(groupId, f, t);
     }
@@ -166,7 +166,7 @@ public class GroupService {
     }
     String uni = in.university() == null ? "" : in.university().strip();
     if (uni.length() > 80) {
-      throw ApiException.invalid("university", "Название вуза — до 80 символов");
+      throw ApiException.invalid("university", "Название вуза – до 80 символов");
     }
     if (in.course() != null && (in.course() < 1 || in.course() > 6)) {
       throw ApiException.invalid("course", "Курс: от 1 до 6");

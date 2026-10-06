@@ -71,7 +71,7 @@
 	}
 </script>
 
-<svelte:head><title>{m?.title ?? 'Материал'} · campus</title></svelte:head>
+<svelte:head><title>{m?.title ?? 'Материал'} · Campus</title></svelte:head>
 
 <BackBar
 	href={m ? `/subjects/${m.subjectId}?tab=materials` : '/materials'}
@@ -145,7 +145,7 @@
 					><FileIcon {mime} size={22} /> Открыть текст</button
 				>
 			{:else}
-				<p class="faint no-preview">Предпросмотр для этого типа файла недоступен — скачайте его.</p>
+				<p class="faint no-preview">Предпросмотр для этого типа файла недоступен – скачайте его.</p>
 			{/if}
 		</div>
 	{/if}

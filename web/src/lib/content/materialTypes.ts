@@ -2,7 +2,7 @@ import type { Material } from '$lib/types';
 
 /**
  * Разделение материалов по типу (0.9.3): фильтр «Конспекты / PDF / Документы / …» над списком.
- * Конспекты — сообщения и файлы Markdown (.md): их можно открыть страницей и скачать в Word.
+ * Конспекты – сообщения и файлы Markdown (.md): их можно открыть страницей и скачать в Word.
  */
 export type MaterialType =
 	'notes' | 'pdf' | 'doc' | 'slides' | 'sheet' | 'image' | 'media' | 'archive' | 'link' | 'other';
@@ -47,7 +47,7 @@ export function materialType(m: Pick<Material, 'kind' | 'file'>): MaterialType {
 	return 'other';
 }
 
-/** Какие типы есть в списке — по порядку, с числом. */
+/** Какие типы есть в списке – по порядку, с числом. */
 export function typesIn(
 	list: Pick<Material, 'kind' | 'file'>[]
 ): { type: MaterialType; count: number }[] {

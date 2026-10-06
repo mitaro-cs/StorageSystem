@@ -1,6 +1,6 @@
 /**
  * Локальная копия данных на устройстве (IndexedDB). Отдельная база на пользователя: при выходе
- * она удаляется целиком. Никаких сторонних библиотек — только небольшая обёртка над API браузера.
+ * она удаляется целиком. Никаких сторонних библиотек – только небольшая обёртка над API браузера.
  */
 
 export type StoreName =
@@ -50,7 +50,7 @@ export function openDb(userId: number): Promise<IDBDatabase> {
 	try {
 		localStorage.setItem(LAST_USER, String(userId));
 	} catch {
-		/* без запоминания — офлайн-вход не сработает, остальное да */
+		/* без запоминания – офлайн-вход не сработает, остальное да */
 	}
 	const r = indexedDB.open(dbName(userId), VERSION);
 	r.onupgradeneeded = () => {
@@ -62,7 +62,7 @@ export function openDb(userId: number): Promise<IDBDatabase> {
 	return opened.db;
 }
 
-/** База последнего вошедшего пользователя — для запуска без сети, когда сервер не ответил. */
+/** База последнего вошедшего пользователя – для запуска без сети, когда сервер не ответил. */
 export function lastUser(): number | null {
 	try {
 		const v = localStorage.getItem(LAST_USER);

@@ -109,7 +109,7 @@ public class TransferService {
   public synchronized CodeView newCode() {
     hosts.requireServing();
     if ("sending".equals(phase) || ("sent".equals(phase) && code != null)) {
-      throw new HostService.Problem("Другой компьютер уже забирает сайт — дождитесь или отмените");
+      throw new HostService.Problem("Другой компьютер уже забирает сайт – дождитесь или отмените");
     }
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < 12; i++) {
@@ -159,7 +159,7 @@ public class TransferService {
     expire();
     if (code == null) {
       throw new HostService.Problem(
-          "Код устарел или не выдавался — возьмите новый на компьютере, где работает сайт");
+          "Код устарел или не выдавался – возьмите новый на компьютере, где работает сайт");
     }
     String g = normalize(given);
     if (!MessageDigest.isEqual(
@@ -327,7 +327,7 @@ public class TransferService {
       try {
         SiteFolder.verify(zip);
       } catch (IOException e) {
-        throw new IOException("Копия пришла не целиком — попробуйте ещё раз", e);
+        throw new IOException("Копия пришла не целиком – попробуйте ещё раз", e);
       }
       PendingRestore.stage(zip, data);
       staged = true;
@@ -339,12 +339,12 @@ public class TransferService {
         DesktopConfig.load(data).prefer(got.port());
       }
       pull = new PullView("restart", size, size, null);
-      log.info("Сайт забран с другого компьютера по коду — перезапуск");
+      log.info("Сайт забран с другого компьютера по коду – перезапуск");
       if (bridge.enabled()) {
         CompletableFuture.delayedExecutor(700, TimeUnit.MILLISECONDS)
             .execute(bridge::requestRestart);
       }
-      return "Данные сайта получены — перезапускаемся…";
+      return "Данные сайта получены – перезапускаемся…";
     } catch (IOException | RuntimeException e) {
       if (staged) {
         try {
@@ -391,7 +391,7 @@ public class TransferService {
     sleep(5000);
     if (client.serverAnswers()) {
       throw new IOException(
-          "Не получилось подтвердить перенос — сайт остался на прежнем компьютере. Попробуйте ещё"
+          "Не получилось подтвердить перенос – сайт остался на прежнем компьютере. Попробуйте ещё"
               + " раз",
           last);
     }

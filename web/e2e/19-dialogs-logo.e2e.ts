@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { ADMIN, login, watchConsole } from './helpers';
 
-// Подтверждения и вопросы — окном приложения, а не confirm()/prompt() браузера: в окне приложения
+// Подтверждения и вопросы – окном приложения, а не confirm()/prompt() браузера: в окне приложения
 // хоста на Mac их нет вовсе, а плагин Tauri подменял confirm() и удаление шло без вопроса.
 test('папку создают, переименовывают и удаляют через окно приложения', async ({ page }) => {
 	const errors = watchConsole(page);
@@ -30,7 +30,7 @@ test('папку создают, переименовывают и удаляю�
 	const renamed = page.locator('.folder', { hasText: 'Контрольные 2025' });
 	await expect(renamed).toBeVisible();
 
-	// «Отмена» — ничего не удаляется; «Удалить» — удаляется.
+	// «Отмена» – ничего не удаляется; «Удалить» – удаляется.
 	await renamed.getByRole('button', { name: 'Действия' }).click();
 	await page.getByRole('menuitem', { name: 'Удалить' }).click();
 	const confirmBox = page.getByRole('dialog', { name: 'Подтвердите' });
@@ -60,7 +60,7 @@ test('логотип: значок во вкладке, картинка для 
 	}
 	await page.goto('/такой-страницы-нет');
 	await expect(page.getByRole('heading', { name: 'Такой страницы нет' })).toBeVisible();
-	// Фигура и сетка глобуса берутся из /logo.svg — картинка должна дорисоваться.
+	// Фигура и сетка глобуса берутся из /logo.svg – картинка должна дорисоваться.
 	const figure = page.locator('main.err use[href="/logo.svg#figure"]');
 	await expect(figure).toHaveCount(1);
 	await expect.poll(async () => (await figure.boundingBox())?.width ?? 0).toBeGreaterThan(10);

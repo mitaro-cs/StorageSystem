@@ -26,7 +26,7 @@ class ValidationTest {
   @Test
   void homeworkDifficulty() {
     assertThat(HomeworkService.difficulty(null)).isNull();
-    assertThat(HomeworkService.difficulty(0)).as("0 — убрать").isNull();
+    assertThat(HomeworkService.difficulty(0)).as("0 – убрать").isNull();
     assertThat(HomeworkService.difficulty(1)).isEqualTo(1);
     assertThat(HomeworkService.difficulty(3)).isEqualTo(3);
     assertThatThrownBy(() -> HomeworkService.difficulty(4)).isInstanceOf(ApiException.class);

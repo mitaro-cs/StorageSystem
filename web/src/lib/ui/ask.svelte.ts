@@ -1,18 +1,18 @@
 /**
- * Подтверждения и короткие вопросы — окном приложения вместо confirm() и prompt() браузера. Окно
+ * Подтверждения и короткие вопросы – окном приложения вместо confirm() и prompt() браузера. Окно
  * приложения хоста на Mac их не показывает вовсе (WKWebView: prompt() сразу возвращает null), а
- * плагин диалогов Tauri подменяет confirm() асинхронной функцией — проверка `if (!confirm(…))`
+ * плагин диалогов Tauri подменяет confirm() асинхронной функцией – проверка `if (!confirm(…))`
  * получала обещание, то есть «да», и удаляла без вопроса. Показывает окно lib/ui/Dialogs.svelte.
  */
 
 export interface AskOptions {
-	/** Заголовок окна; по умолчанию — «Подтвердите». */
+	/** Заголовок окна; по умолчанию – «Подтвердите». */
 	title?: string;
 	/** Надпись на кнопке согласия. */
 	ok?: string;
-	/** Красная кнопка — для удаления и других необратимых действий. */
+	/** Красная кнопка – для удаления и других необратимых действий. */
 	danger?: boolean;
-	/** Надпись на кнопке отказа; по умолчанию — «Отмена». */
+	/** Надпись на кнопке отказа; по умолчанию – «Отмена». */
 	cancel?: string;
 }
 
@@ -45,7 +45,7 @@ function dropCurrent() {
 	else p?.resolve(null);
 }
 
-/** «Да» — true, «Отмена», Esc или клик мимо — false. */
+/** «Да» – true, «Отмена», Esc или клик мимо – false. */
 export function ask(message: string, options: AskOptions = {}): Promise<boolean> {
 	dropCurrent();
 	return new Promise((resolve) => {
@@ -53,7 +53,7 @@ export function ask(message: string, options: AskOptions = {}): Promise<boolean>
 	});
 }
 
-/** Введённый текст без пробелов по краям; пусто или отмена — null. */
+/** Введённый текст без пробелов по краям; пусто или отмена – null. */
 export function askText(message: string, options: AskTextOptions = {}): Promise<string | null> {
 	dropCurrent();
 	return new Promise((resolve) => {

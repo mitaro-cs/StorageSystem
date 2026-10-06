@@ -23,7 +23,7 @@ export function track(item: RecentItem) {
 		const list = recent().filter((r) => !(r.type === item.type && r.id === item.id));
 		localStorage.setItem(KEY, JSON.stringify([item, ...list].slice(0, MAX)));
 	} catch {
-		/* приватный режим — не запоминаем */
+		/* приватный режим – не запоминаем */
 	}
 }
 
