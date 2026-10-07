@@ -1,10 +1,13 @@
 import { enabled as offlineEnabled, offline, syncNow } from './offline/engine';
 import { refreshUnread } from './notify.svelte';
 import { refreshModeration } from './moderation.svelte';
+import { loadMe } from './session.svelte';
+import { loadSubjects } from './data.svelte';
 
 /**
  * Живые обновления: сервер сообщает, что что-то изменилось (комментарий, новость, задание,
- * материал), – открытые страницы перечитывают себя сами, без перезагрузки. Соединение держим, пока
+ * материал, а с 0.9.7 – любое изменение: люди, роли, группа, предметы, настройки), – открытые
+ * страницы перечитывают себя сами, без перезагрузки. Соединение держим, пока
  * вкладка на экране: на телефоне через туннель одновременно открыто не больше 6 соединений. Если
  * поток не доходит (туннель копит ответ – «hello» не пришло за 8 секунд), раз в 20 секунд
  * проверяем сами.
@@ -23,10 +26,14 @@ export function startLive(): () => void {
 	function refresh() {
 		clearTimeout(refreshTimer);
 		refreshTimer = setTimeout(() => {
-			// Копия на устройстве обновится и сама скажет страницам; без неё (окно хоста) – сразу.
+			// Страницы перечитывают себя сразу (не все изменения попадают в копию на устройстве –
+			// роли, группа, настройки), копия обновляется следом.
+			offline.version++;
 			if (offline.ready && offlineEnabled()) syncNow();
-			else offline.version++;
 			refreshModeration();
+			// Роли, группы, правила и предметы – в шапке и меню на каждой странице.
+			loadMe().catch(() => {});
+			loadSubjects().catch(() => {});
 		}, 300);
 	}
 
@@ -45,8 +52,9 @@ export function startLive(): () => void {
 		source.addEventListener('hello', (e) => {
 			clearTimeout(helloTimer);
 			const seq = seqOf(e as MessageEvent);
-			// Переподключились после обрыва, а на сервере уже что-то новое.
-			if (lastSeq && seq > lastSeq) refresh();
+			// Переподключились после обрыва, а на сервере уже что-то новое (номер может и уменьшиться –
+			// копия на втором компьютере хоста взяла снимок).
+			if (lastSeq && seq !== lastSeq) refresh();
 			lastSeq = seq;
 		});
 		source.addEventListener('change', (e) => {

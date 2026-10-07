@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import {
@@ -18,6 +19,7 @@
 		Users
 	} from '@lucide/svelte';
 	import { get, put } from '$lib/api';
+	import { offline } from '$lib/offline/engine';
 	import { loadSubjects, sortedSubjects } from '$lib/data.svelte';
 	import { can, session } from '$lib/session.svelte';
 	import { track } from '$lib/recent';
@@ -81,7 +83,9 @@
 
 	$effect(() => {
 		void id;
-		load();
+		// Предмет изменили на другом устройстве – перечитываем (живые обновления).
+		void offline.version;
+		untrack(load);
 	});
 
 	// Полоса миниатюр предметов – отдельным кусочком (SubjectStrip): место под неё занято сразу.

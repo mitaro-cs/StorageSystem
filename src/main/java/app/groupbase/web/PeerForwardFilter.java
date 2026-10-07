@@ -56,7 +56,9 @@ public class PeerForwardFilter extends OncePerRequestFilter {
         || uri.equals("/api/setup")
         || uri.startsWith("/api/setup/")
         || uri.equals("/api/health")
-        || uri.equals("/api/live");
+        || uri.equals("/api/live")
+        // Обновления у каждого компьютера свои – проверяет сам.
+        || uri.equals("/api/admin/update-check");
   }
 
   @Override
@@ -74,6 +76,18 @@ public class PeerForwardFilter extends OncePerRequestFilter {
     }
     Actor actor = (Actor) req.getAttribute(AuthFilter.ACTOR);
     boolean second = peers.second();
+    if (second && hostOnly(req.getRequestURI())) {
+      // Доступ для группы и резервные копии – дело компьютера, на котором сайт (0.9.7): на копии
+      // их не меняют, а переслать – значит поменять у основного, не видя его настроек.
+      String main = peers.view().serving();
+      deny(
+          res,
+          "host_only",
+          "Это настраивается на основном компьютере"
+              + (main == null ? "" : " «" + main + "»")
+              + " – или сделайте основным этот");
+      return;
+    }
     boolean journal = !second && actor != null && actor.local() && peers.journaling();
     if (actor == null || (!second && !journal)) {
       chain.doFilter(req, res);
@@ -131,6 +145,11 @@ public class PeerForwardFilter extends OncePerRequestFilter {
         Files.deleteIfExists(body);
       }
     }
+  }
+
+  /** Настройки самого компьютера с сайтом: туннель и копии данных. */
+  static boolean hostOnly(String uri) {
+    return uri.startsWith("/api/admin/access") || uri.startsWith("/api/admin/backups");
   }
 
   private static void deny(HttpServletResponse res, String code, String message)

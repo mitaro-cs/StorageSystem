@@ -199,7 +199,9 @@ class PeerIT extends IntegrationTest {
       // Код даёт администратор; этот компьютер становится главным.
       var code = wa.post("/api/host/peers/code", Map.of());
       assertThat(code.status()).as(code.body()).isEqualTo(200);
-      assertThat(code.json().get("role").asString()).isEqualTo("main");
+      // Код сам по себе основным не делает (0.9.7): иначе показавшие код на обоих компьютерах
+      // оставались двумя «основными» без связи и не могли подключиться друг к другу.
+      assertThat(code.json().get("role").asString()).isEqualTo("off");
       String pairing = code.json().get("code").get("code").asString();
 
       // Код переноса и код связи выглядят одинаково: код переноса для связи не годится — понятно
@@ -238,6 +240,7 @@ class PeerIT extends IntegrationTest {
       ctxB = startB(dataB);
       peersB = ctxB.getBean(PeerService.class);
       assertThat(peersB.role()).isEqualTo(PeerService.Role.SECOND);
+      assertThat(peers.role()).isEqualTo(PeerService.Role.MAIN);
       ApiClient b = new ApiClient(portOf(ctxB));
       var login = b.post("/api/auth/login", Map.of("username", ADMIN, "password", ADMIN_PASSWORD));
       assertThat(login.status()).as(login.body()).isEqualTo(200);
@@ -256,6 +259,12 @@ class PeerIT extends IntegrationTest {
       assertThat(made.raw().headers().firstValue("X-Groupbase-Queued")).isEmpty();
       assertThat(groups(a)).contains(fromB);
       assertThat(groups(b)).contains(fromB);
+
+      // Администратор на копии управляет сайтом, но доступ для группы и копии данных – только на
+      // основном (0.9.7).
+      var hostOnly = b.put("/api/admin/access", Map.of("mode", "lan"));
+      assertThat(hostOnly.status()).as(hostOnly.body()).isEqualTo(409);
+      assertThat(hostOnly.body()).contains("host_only");
 
       // Файл со второго — у главного, и у второго тоже.
       var bg = b.putRaw("/api/me/background", png());
@@ -416,6 +425,15 @@ class PeerIT extends IntegrationTest {
       } finally {
         ctxD.close();
       }
+
+      // Отвязали все компьютеры – этот снова «не связан» и может сам подключиться к другому сайту.
+      for (PeerService.Peer p : peers.view().peers()) {
+        if (!p.here()) {
+          peers.removePeer(p.computerId());
+        }
+      }
+      assertThat(peers.role()).isEqualTo(PeerService.Role.OFF);
+      assertThat(peers.view().role()).isEqualTo("off");
     } finally {
       if (ctxB != null) {
         ctxB.close();

@@ -301,9 +301,8 @@ public class PeerService implements SmartLifecycle {
           "Сначала включите доступ для группы по адресу https://… – по нему другой компьютер"
               + " найдёт этот");
     }
-    if (role == Role.OFF) {
-      becomeMain(Math.max(1, cfg.peerEpoch()));
-    }
+    // Основным компьютер станет, когда к нему подключатся (pair): показали код или ключ на обоих
+    // – ни один не стал «основным без связи» (0.9.7, «оба пишут, что сайт на них»).
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < 12; i++) {
       sb.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
@@ -330,7 +329,7 @@ public class PeerService implements SmartLifecycle {
 
   /** Второй компьютер пришёл с кодом: выдать ему ключ. */
   public synchronized Map<String, Object> pair(String given, String computerId, String name) {
-    if (role != Role.MAIN) {
+    if (role == Role.SECOND) {
       throw new Problem("Сайт сейчас не на этом компьютере – возьмите код там, где он работает");
     }
     if (keyMatches(given)) {
@@ -358,6 +357,9 @@ public class PeerService implements SmartLifecycle {
     if (!id.matches("[0-9a-fA-F-]{8,64}") || id.equals(cfg.computerId())) {
       throw new Problem("Не похоже на компьютер Campus – обновите приложение там");
     }
+    if (role == Role.OFF) {
+      becomeMain(Math.max(1, cfg.peerEpoch()));
+    }
     String token = Tokens.newToken();
     savePeer(id, cleanName(name), token);
     log.info("Второй компьютер хоста подключён");
@@ -372,6 +374,39 @@ public class PeerService implements SmartLifecycle {
     }
     db.sql("DELETE FROM host_peers WHERE computer_id = ?").param(computerId).update();
     seen.remove(computerId);
+    if (alone()) {
+      becomeOff();
+    }
+  }
+
+  /** Основной, к которому не подключён ни один другой компьютер, – по сути не связан ни с кем. */
+  private boolean alone() {
+    return role == Role.MAIN
+        && db.sql("SELECT COUNT(*) FROM host_peers WHERE computer_id <> ?")
+                .param(cfg.computerId())
+                .query(Long.class)
+                .single()
+            == 0;
+  }
+
+  /**
+   * Снова «не связан»: основной без связанных компьютеров (до 0.9.7 им становились, просто показав
+   * ключ, – и два таких компьютера не могли подключиться друг к другу).
+   */
+  private void becomeOff() {
+    cfg.setPeerRole(Role.OFF.id());
+    saveCfg();
+    role = Role.OFF;
+    rival = null;
+    confirmedHere = false;
+    state = "ok";
+    message = null;
+    queue.clear();
+    if (checking) {
+      checking = false;
+      access.resume();
+    }
+    log.info("Компьютер ни с кем не связан – обычный сайт");
   }
 
   private void savePeer(String computerId, String name, String token) {
@@ -543,8 +578,12 @@ public class PeerService implements SmartLifecycle {
     Files.move(part, target, StandardCopyOption.ATOMIC_MOVE);
   }
 
+  /**
+   * Номер состояния данных: журнал changes плюс версия данных (0.9.7) – копия берёт снимок и когда
+   * изменились люди, роли или настройки, которых нет в журнале.
+   */
   private long seq() {
-    return db.sql("SELECT COALESCE(MAX(seq), 0) FROM changes").query(Long.class).single();
+    return app.groupbase.sync.LiveUpdates.revision(db);
   }
 
   private int schema() {
@@ -590,9 +629,6 @@ public class PeerService implements SmartLifecycle {
                   settings.set(KEY_SETTING, k);
                   return k;
                 });
-    if (role == Role.OFF) {
-      becomeMain(Math.max(1, cfg.peerEpoch()));
-    }
     String raw = url + "\n" + secret;
     return KEY_PREFIX
         + java.util.Base64.getUrlEncoder()
@@ -796,7 +832,7 @@ public class PeerService implements SmartLifecycle {
       throw new Problem(
           "Выключите перенос через облачную папку – компьютеры будут связаны напрямую");
     }
-    if (role != Role.OFF) {
+    if (role != Role.OFF && !alone()) {
       throw new Problem("Этот компьютер уже связан с другим");
     }
     if (List.of("asking", "waiting", "joining").contains(ask.phase())) {
@@ -890,7 +926,7 @@ public class PeerService implements SmartLifecycle {
       throw new Problem(
           "Выключите перенос через облачную папку – компьютеры будут связаны напрямую");
     }
-    if (role != Role.OFF) {
+    if (role != Role.OFF && !alone()) {
       throw new Problem("Этот компьютер уже связан с другим");
     }
     Path data = props.dataDir();
@@ -1491,7 +1527,7 @@ public class PeerService implements SmartLifecycle {
         checkedAt == 0 ? null : checkedAt,
         available && hosts.cloudEnabled(),
         peers,
-        role == Role.MAIN ? code() : null,
+        role != Role.SECOND ? code() : null,
         available ? requests() : List.of(),
         ask);
   }
@@ -1559,6 +1595,15 @@ public class PeerService implements SmartLifecycle {
   @Override
   public synchronized void start() {
     running = true;
+    if (cfg != null) {
+      try {
+        if (alone()) {
+          becomeOff();
+        }
+      } catch (RuntimeException e) {
+        log.warn("Не удалось проверить, связан ли компьютер с другими", e);
+      }
+    }
     if (cfg == null || tickMs <= 0) {
       return;
     }

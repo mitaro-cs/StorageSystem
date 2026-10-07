@@ -78,7 +78,7 @@ public class LiveUpdates implements DisposableBean, SmartLifecycle {
       long seq = maxSeq();
       if (lastSeq < 0) {
         lastSeq = seq;
-      } else if (seq > lastSeq) {
+      } else if (seq != lastSeq) {
         lastSeq = seq;
         clients.forEach(c -> send(c, "change", seq(seq)));
       } else if (System.currentTimeMillis() - lastPing > PING_MS) {
@@ -90,8 +90,31 @@ public class LiveUpdates implements DisposableBean, SmartLifecycle {
     }
   }
 
+  /**
+   * Номер состояния данных: журнал changes плюс версия данных (её поднимает любое изменение через
+   * API – люди, роли, группа, настройки, см. {@link #bump()}). Сравнивается на «не равно»: после
+   * снимка базы на копии хоста номер может стать и меньше.
+   */
   private long maxSeq() {
-    return db.sql("SELECT COALESCE(MAX(seq), 0) FROM changes").query(Long.class).single();
+    return revision(db);
+  }
+
+  /** Номер состояния данных – тот же, что видят страницы и второй компьютер хоста. */
+  public static long revision(JdbcClient db) {
+    return db.sql(
+            "SELECT COALESCE((SELECT MAX(seq) FROM changes), 0)"
+                + " + COALESCE((SELECT v FROM data_version WHERE id = 1), 0)")
+        .query(Long.class)
+        .single();
+  }
+
+  /** Что-то изменилось (любой успешный запрос-изменение): страницы перечитают себя за секунду. */
+  public void bump() {
+    try {
+      db.sql("UPDATE data_version SET v = v + 1 WHERE id = 1").update();
+    } catch (RuntimeException ex) {
+      // База занята – изменение всё равно увидят по журналу или следующему изменению.
+    }
   }
 
   private static String seq(long seq) {

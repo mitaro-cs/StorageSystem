@@ -58,6 +58,19 @@ class LiveIT extends IntegrationTest {
       other.api().post("/api/news/" + post + "/comments", Map.of("body", "Сразу видно"));
       assertThat(next(events, "change")).as("новый комментарий").isTrue();
 
+      // Изменения не из журнала (0.9.7): группа переименована, роль сменилась – тоже «change».
+      assertThat(admin().patch("/api/groups/" + g, Map.of("name", "Живые-2")).status())
+          .isLessThan(300);
+      assertThat(next(events, "change")).as("переименовали группу").isTrue();
+      assertThat(
+              admin()
+                  .put(
+                      "/api/groups/" + g + "/members/" + other.id() + "/role",
+                      Map.of("role", "deputy"))
+                  .status())
+          .isLessThan(300);
+      assertThat(next(events, "change")).as("сменили роль").isTrue();
+
       // Новость группы — уведомление этому студенту: колокольчик обновляется сразу.
       admin().post("/api/news", Map.of("title", "Ещё новость", "groupIds", List.of(g)));
       assertThat(next(events, "bell")).as("колокольчик").isTrue();

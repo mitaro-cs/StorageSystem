@@ -31,6 +31,7 @@
 	} from '$lib/session.svelte';
 	import { toastError } from '$lib/toasts.svelte';
 	import { get } from '$lib/api';
+	import { offline } from '$lib/offline/engine';
 	import { subjects } from '$lib/data.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
@@ -184,7 +185,7 @@
 	let people = $state<number | null>(null);
 	$effect(() => {
 		const g = group?.id;
-		people = null;
+		void offline.version;
 		if (g)
 			get<unknown[]>(`/api/groups/${g}/members`)
 				.then((ms) => (people = ms.length))
@@ -243,126 +244,135 @@
 	{/if}
 </div>
 
-{#if manageMode() && statShown.length}
-	<div class="tiles" class:hide-phone={!menuOnly}>
-		{#each statShown as x, i (x.label)}
-			<button class="tile" class:dark={i === 0} onclick={() => select(x.tab)}>
-				<span class="t-label">{x.label}</span>
-				<strong class="t-value num">{x.value}</strong>
-				<span class="t-hint">{x.hint}</span>
-			</button>
-		{/each}
-	</div>
-{/if}
-
-{#if !manageMode() && canToggleManage()}
-	<div class="card">
-		<Empty
-			title="Режим управления выключен"
-			text="Кнопки администратора и старосты скрыты – сайт выглядит так же, как у участников."
-		>
-			<Button variant="primary" onclick={enableManage}>Включить режим управления</Button>
-		</Empty>
-	</div>
-{:else if sections.length === 0}
-	<div class="card">
-		<Empty
-			title="Управлять здесь пока нечем"
-			text="Группой управляют староста и администратор. Своё – тема, уведомления, пароль – в настройках: шестерёнка рядом с вашим именем."
-		>
-			<a href="/profile">{t.nav.mySettings}</a>
-		</Empty>
-	</div>
-{:else}
-	<div class="layout" class:menu-only={menuOnly}>
-		<nav class="menu" aria-label="Разделы настроек">
-			{#each parts as p (p.key)}
-				<p class="part">{p.title}</p>
-				<div class="items card">
-					{#each p.items as s (s.value)}
-						<button
-							class="item"
-							class:on={s.value === tab}
-							aria-current={s.value === tab ? 'page' : undefined}
-							onclick={() => select(s.value)}
-						>
-							<span class="ic {s.tone}"><s.icon size={19} /></span>
-							<span class="txt"><strong>{s.label}</strong><span>{s.desc}</span></span>
-							<ChevronRight size={16} class="chev" />
-						</button>
-					{/each}
-				</div>
+<!-- Ширину считает контейнер, а не окно: под масштабом интерфейса (CSS zoom) медиазапросы видят
+     окно целиком, и меню забирало место у раздела (0.9.7). -->
+<div class="settings">
+	{#if manageMode() && statShown.length}
+		<div class="tiles" class:hide-phone={!menuOnly}>
+			{#each statShown as x, i (x.label)}
+				<button class="tile" class:dark={i === 0} onclick={() => select(x.tab)}>
+					<span class="t-label">{x.label}</span>
+					<strong class="t-value num">{x.value}</strong>
+					<span class="t-hint">{x.hint}</span>
+				</button>
 			{/each}
-		</nav>
+		</div>
+	{/if}
 
-		{#if current}
-			<section class="content" aria-labelledby="settings-title">
-				<button class="back" onclick={() => goto('/settings', { noScroll: true })}
-					><ChevronLeft size={18} /> Все настройки</button
-				>
-				<div class="head card">
-					<SectionHead
-						icon={current.icon}
-						tone={current.tone}
-						title={current.label}
-						text={current.desc}
-						id="settings-title"
-					/>
-				</div>
-				{#key tab + (group?.id ?? '')}
-					<div class="panel">
-						<!-- Каждый раздел грузит свой код при открытии: меню настроек открывается быстро. -->
-						{#if group && tab === 'invites'}
-							{#await import('$lib/settings/Invites.svelte') then m}<m.default
-									groupId={group.id}
-								/>{/await}
-						{:else if tab === 'accounts'}
-							{#await import('$lib/content/People.svelte') then m}<m.default />{/await}
-						{:else if group && tab === 'permissions'}
-							{#await import('$lib/settings/Permissions.svelte') then m}<m.default
-									groupId={group.id}
-								/>{/await}
-						{:else if group && tab === 'semester'}
-							{#await import('$lib/settings/SemesterPanel.svelte') then m}<m.default
-									{group}
-								/>{/await}
-						{:else if group && tab === 'group'}
-							{#await import('$lib/settings/GroupSettings.svelte') then m}<m.default
-									{group}
-								/>{/await}
-						{:else if tab === 'instance'}
-							{#await import('$lib/settings/InstancePanel.svelte') then m}<m.default />{/await}
-						{:else if tab === 'appearance'}
-							{#await import('$lib/settings/AppearancePanel.svelte') then m}<m.default />{/await}
-						{:else if tab === 'server'}
-							{#await import('$lib/settings/server/ServerPanel.svelte') then m}<m.default />{/await}
-						{:else if tab === 'updates'}
-							{#await import('$lib/settings/UpdatesPanel.svelte') then m}<m.default />{/await}
-						{:else if group && tab === 'audit'}
-							{#await import('$lib/settings/Audit.svelte') then m}<m.default
-									groupId={isAdmin() ? null : group.id}
-								/>{/await}
-						{:else if group && tab === 'export'}
-							{#await import('$lib/settings/GroupExport.svelte') then m}<m.default
-									groupId={group.id}
-									groupName={group.name}
-								/>{/await}
-						{/if}
+	{#if !manageMode() && canToggleManage()}
+		<div class="card">
+			<Empty
+				title="Режим управления выключен"
+				text="Кнопки администратора и старосты скрыты – сайт выглядит так же, как у участников."
+			>
+				<Button variant="primary" onclick={enableManage}>Включить режим управления</Button>
+			</Empty>
+		</div>
+	{:else if sections.length === 0}
+		<div class="card">
+			<Empty
+				title="Управлять здесь пока нечем"
+				text="Группой управляют староста и администратор. Своё – тема, уведомления, пароль – в настройках: шестерёнка рядом с вашим именем."
+			>
+				<a href="/profile">{t.nav.mySettings}</a>
+			</Empty>
+		</div>
+	{:else}
+		<div class="layout" class:menu-only={menuOnly}>
+			<nav class="menu" aria-label="Разделы настроек">
+				{#each parts as p (p.key)}
+					<p class="part">{p.title}</p>
+					<div class="items card">
+						{#each p.items as s (s.value)}
+							<button
+								class="item"
+								class:on={s.value === tab}
+								aria-current={s.value === tab ? 'page' : undefined}
+								onclick={() => select(s.value)}
+							>
+								<span class="ic {s.tone}"><s.icon size={21} /></span>
+								<span class="txt"><strong>{s.label}</strong><span>{s.desc}</span></span>
+								<ChevronRight size={16} class="chev" />
+							</button>
+						{/each}
 					</div>
-				{/key}
-			</section>
-		{/if}
-	</div>
-{/if}
+				{/each}
+			</nav>
+
+			{#if current}
+				<section class="content" aria-labelledby="settings-title">
+					<button class="back" onclick={() => goto('/settings', { noScroll: true })}
+						><ChevronLeft size={18} /> Все настройки</button
+					>
+					<div class="head card">
+						<SectionHead
+							icon={current.icon}
+							tone={current.tone}
+							title={current.label}
+							text={current.desc}
+							id="settings-title"
+						/>
+					</div>
+					{#key tab + (group?.id ?? '')}
+						<div class="panel">
+							<!-- Каждый раздел грузит свой код при открытии: меню настроек открывается быстро. -->
+							{#if group && tab === 'invites'}
+								{#await import('$lib/settings/Invites.svelte') then m}<m.default
+										groupId={group.id}
+									/>{/await}
+							{:else if tab === 'accounts'}
+								{#await import('$lib/content/People.svelte') then m}<m.default />{/await}
+							{:else if group && tab === 'permissions'}
+								{#await import('$lib/settings/Permissions.svelte') then m}<m.default
+										groupId={group.id}
+									/>{/await}
+							{:else if group && tab === 'semester'}
+								{#await import('$lib/settings/SemesterPanel.svelte') then m}<m.default
+										{group}
+									/>{/await}
+							{:else if group && tab === 'group'}
+								{#await import('$lib/settings/GroupSettings.svelte') then m}<m.default
+										{group}
+									/>{/await}
+							{:else if tab === 'instance'}
+								{#await import('$lib/settings/InstancePanel.svelte') then m}<m.default />{/await}
+							{:else if tab === 'appearance'}
+								{#await import('$lib/settings/AppearancePanel.svelte') then m}<m.default />{/await}
+							{:else if tab === 'server'}
+								{#await import('$lib/settings/server/ServerPanel.svelte') then m}<m.default
+									/>{/await}
+							{:else if tab === 'updates'}
+								{#await import('$lib/settings/UpdatesPanel.svelte') then m}<m.default />{/await}
+							{:else if group && tab === 'audit'}
+								{#await import('$lib/settings/Audit.svelte') then m}<m.default
+										groupId={isAdmin() ? null : group.id}
+									/>{/await}
+							{:else if group && tab === 'export'}
+								{#await import('$lib/settings/GroupExport.svelte') then m}<m.default
+										groupId={group.id}
+										groupName={group.name}
+									/>{/await}
+							{/if}
+						</div>
+					{/key}
+				</section>
+			{/if}
+		</div>
+	{/if}
+</div>
 
 <style>
+	.settings {
+		container: settings / inline-size;
+	}
 	.pick {
 		width: auto;
 		min-width: 160px;
 	}
 	.layout {
 		display: grid;
-		grid-template-columns: 280px minmax(0, 1fr);
+		/* Меню слева – просторное (0.9.7, просьба владельца): шире, крупнее пункты, описание целиком. */
+		grid-template-columns: clamp(300px, 34%, 380px) minmax(0, 1fr);
 		gap: var(--s5);
 		align-items: start;
 	}
@@ -372,10 +382,14 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--s2);
+		/* Под крупным масштабом меню выше окна – листается само, а не уходит за край. */
+		max-height: calc(100dvh - 2 * var(--s4));
+		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 	.part {
-		margin: var(--s2) 6px 0;
-		font-size: 12px;
+		margin: var(--s2) 8px 0;
+		font-size: 12.5px;
 		font-weight: 700;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
@@ -386,9 +400,9 @@
 	.items {
 		display: flex;
 		flex-direction: column;
-		gap: 2px;
-		padding: 8px;
-		border-radius: 26px;
+		gap: 4px;
+		padding: 10px;
+		border-radius: 28px;
 		background: var(--surface);
 		box-shadow: var(--shadow-1);
 	}
@@ -396,10 +410,10 @@
 		position: relative;
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		padding: 10px 12px;
+		gap: 14px;
+		padding: 13px 14px;
 		border: 0;
-		border-radius: 16px;
+		border-radius: 18px;
 		background: transparent;
 		color: var(--text-2);
 		font: inherit;
@@ -427,9 +441,9 @@
 		flex: none;
 		display: grid;
 		place-items: center;
-		width: 38px;
-		height: 38px;
-		border-radius: 12px;
+		width: 44px;
+		height: 44px;
+		border-radius: 14px;
 		color: var(--text-2);
 		background: transparent;
 		box-shadow: inset 0 0 0 1px var(--border);
@@ -439,7 +453,8 @@
 	}
 	.tiles {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+		/* min(100%, …): под любым масштабом плитки переносятся в новый ряд, а не вылезают. */
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
 		gap: var(--s3);
 		margin-bottom: var(--s5);
 	}
@@ -449,6 +464,7 @@
 		align-items: flex-start;
 		gap: 4px;
 		min-width: 0;
+		container-type: inline-size;
 		padding: 16px 18px;
 		border: 0;
 		border-radius: 24px;
@@ -476,11 +492,14 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-size: 26px;
+		/* Размер числа – от ширины плитки: «на этом ПК» не обрезается в узкой. */
+		font-size: clamp(17px, 14cqi, 26px);
 		font-weight: 760;
 		letter-spacing: -0.02em;
 	}
 	.t-hint {
+		max-width: 100%;
+		overflow-wrap: anywhere;
 		font-size: 12.5px;
 		opacity: 0.6;
 	}
@@ -514,14 +533,18 @@
 	}
 	.txt strong {
 		font-weight: 620;
-		font-size: 16.5px;
+		font-size: 17px;
 	}
 	.txt span {
 		color: var(--text-3);
-		font-size: 12.5px;
+		font-size: 13.5px;
+		line-height: 1.35;
+		/* Описание целиком: до двух строк, а не обрезка на полуслове. */
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 	.item :global(.chev) {
 		flex: none;
@@ -565,13 +588,16 @@
 		font: inherit;
 		font-weight: 600;
 	}
-	/* Телефон и узкое окно: либо меню разделов, либо открытый раздел с кнопкой «назад». */
-	@media (max-width: 900px) {
+	/* Телефон, узкое окно или крупный масштаб: либо меню разделов, либо открытый раздел с кнопкой
+	   «назад». */
+	@container settings (max-width: 820px) {
 		.layout {
 			grid-template-columns: minmax(0, 1fr);
 		}
 		.menu {
 			position: static;
+			max-height: none;
+			overflow: visible;
 		}
 		.layout:not(.menu-only) .menu {
 			display: none;
@@ -594,9 +620,6 @@
 		}
 		.back {
 			display: inline-flex;
-		}
-		.tiles {
-			grid-template-columns: 1fr 1fr;
 		}
 		.tiles.hide-phone {
 			display: none;

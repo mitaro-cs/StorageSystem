@@ -61,6 +61,19 @@ test('настройки: какая версия стоит и кнопка «�
 	await page.getByRole('link', { name: 'проверить обновления' }).click();
 	await expect(page).toHaveURL(/tab=updates/);
 	await expect(page.getByText('Установлена версия')).toBeVisible();
+
+	// Крупный масштаб интерфейса (0.9.7): плитки и меню «Управления» не вылезают за окно.
+	await page.evaluate(() => localStorage.setItem('gb-ui-scale', '150'));
+	await page.goto('/settings');
+	await expect(page.locator('.tiles')).toBeVisible();
+	await expect(page.locator('#splash:not(.gone)')).toHaveCount(0);
+	await page.waitForTimeout(600);
+	await page.screenshot({ path: 'test-results/settings-150.png' });
+	const over = await page.evaluate(
+		() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+	);
+	expect(over).toBeLessThanOrEqual(1);
+	await page.evaluate(() => localStorage.removeItem('gb-ui-scale'));
 	expect(errors).toEqual([]);
 });
 
