@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Subject } from '$lib/types';
-import { baseName, choices, open } from './subgroups';
+import { askedKey, baseName, choices, open } from './subgroups';
 
 const subject = (id: number, name: string, mine = true): Subject => ({
 	id,
@@ -40,6 +40,10 @@ describe('подгруппы', () => {
 		expect(c.options.map((o) => o.label)).toEqual(['№1 Сильная Группа', '№2 Слабая Группа']);
 		expect(open(c, [])).toBe(true);
 		expect(open(c, [c.key])).toBe(false);
+		// Ответ запомнен в аккаунте («sub-1» – наименьший номер набора): не спрашиваем ни здесь,
+		// ни на другом устройстве, ни после «Это мой предмет».
+		expect(askedKey(c)).toBe('sub-1');
+		expect(open(c, [], ['sub-1'])).toBe(false);
 	});
 
 	it('выбрали подгруппу – второй предмет скрыт, больше не спрашиваем', () => {

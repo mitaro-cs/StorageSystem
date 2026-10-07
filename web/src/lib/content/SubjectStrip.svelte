@@ -2,11 +2,12 @@
 	import { tick } from 'svelte';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import type { Subject } from '$lib/types';
-	import SubjectArt from '$lib/ui/SubjectArt.svelte';
+	import SubjectGlyph from '$lib/ui/SubjectGlyph.svelte';
 
-	// Полоса миниатюр предметов на странице предмета: текущий крупнее и прокручен в видимую область.
+	// Карусель предметов на странице предмета (0.9.5): капсулы со значком и названием – видно, что
+	// за предмет, без угадывания по картинке; текущий – в цвете предмета и прокручен в середину.
 	// Что не поместилось – за краем с затуханием, у края – стрелка: мышью без сенсорной панели полосу
-	// иначе не прокрутить («часть уходит и не видна»).
+	// иначе не прокрутить.
 	let { subjects, current }: { subjects: Subject[]; current: number } = $props();
 
 	let strip: HTMLElement | undefined = $state();
@@ -46,21 +47,15 @@
 		{#each subjects as o (o.id)}
 			<a
 				href="/subjects/{o.id}"
-				class="thumb"
+				class="pill-s"
 				class:on={o.id === current}
+				style:--c={o.color}
 				aria-current={o.id === current ? 'page' : undefined}
 				title={o.name}
-				aria-label={o.name}
 				data-sveltekit-replacestate
 			>
-				<SubjectArt
-					id={o.id}
-					name={o.name}
-					color={o.color}
-					avatar={o.avatar}
-					icon={o.icon}
-					class="fill"
-				/>
+				<SubjectGlyph id={o.id} name={o.name} color={o.color} icon={o.icon} size={30} />
+				<span class="n">{o.name}</span>
 			</a>
 		{/each}
 	</nav>
@@ -92,8 +87,8 @@
 	.strip {
 		display: flex;
 		align-items: center;
-		gap: 10px;
-		padding: 8px 6px;
+		gap: 8px;
+		padding: 4px 3px;
 		scroll-padding-inline: 6px;
 		overflow-x: auto;
 		scrollbar-width: none;
@@ -152,34 +147,53 @@
 	.strip::-webkit-scrollbar {
 		display: none;
 	}
-	.thumb {
-		position: relative;
+	.pill-s {
 		flex: none;
-		width: 60px;
-		height: 72px;
-		border-radius: 16px;
-		opacity: 0.75;
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		height: 44px;
+		max-width: 230px;
+		padding: 0 14px 0 6px;
+		border: 1px solid var(--border);
+		border-radius: var(--r-full);
+		background: var(--surface);
+		color: var(--text-2);
+		font-size: 14px;
+		font-weight: 600;
+		text-decoration: none;
 		transition:
-			width 220ms var(--ease),
-			height 220ms var(--ease),
-			opacity var(--dur) var(--ease);
+			background-color var(--dur) var(--ease),
+			border-color var(--dur) var(--ease),
+			color var(--dur) var(--ease),
+			transform 140ms var(--ease);
 	}
-	.thumb:hover {
-		opacity: 1;
+	.pill-s:hover {
+		color: var(--text);
+		border-color: var(--border-strong);
+		text-decoration: none;
 	}
-	.thumb.on {
-		width: 84px;
-		height: 96px;
-		opacity: 1;
-		box-shadow:
-			0 0 0 3px var(--bg),
-			0 0 0 5px var(--text);
-		border-radius: 18px;
+	.pill-s:active {
+		transform: scale(0.97);
 	}
-	.thumb :global(.fill) {
-		position: absolute;
-		inset: 0;
-		border-radius: inherit;
+	.pill-s :global(.glyph) {
+		border-radius: 50%;
+	}
+	.pill-s.on {
+		border-color: var(--c);
+		background: color-mix(in srgb, var(--c) 16%, var(--surface));
+		color: var(--text);
+		box-shadow: 0 0 0 1px var(--c);
+	}
+	.pill-s.on :global(.glyph) {
+		background: var(--c);
+		color: #fff;
+	}
+	.n {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	@media (min-width: 900px) {
 		.strip-wrap {

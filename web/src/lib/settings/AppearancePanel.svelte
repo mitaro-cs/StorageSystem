@@ -10,6 +10,8 @@
 	let value = $state<string | null>(null);
 	let busy = $state(false);
 	let input: HTMLInputElement | undefined = $state();
+	// Предпросмотр – в окне, а не в новой вкладке: в приложении хоста новые вкладки не открываются.
+	let preview = $state(false);
 
 	$effect(() => {
 		get<{ loginBackground: string }>('/api/appearance').then((r) => (value = r.loginBackground));
@@ -125,12 +127,32 @@
 			<Button onclick={() => input?.click()} loading={busy}
 				><ImagePlus size={16} /> Загрузить картинку</Button
 			>
-			<Button variant="ghost" href="/login?preview=1" target="_blank"
-				>Посмотреть страницу входа</Button
-			>
+			<Button variant="ghost" onclick={() => (preview = true)}>Посмотреть страницу входа</Button>
 		</div>
 	{/if}
 </section>
+
+{#if preview}
+	{#await import('$lib/ui/Modal.svelte') then M}
+		<M.default
+			bind:open={preview}
+			title="Страница входа"
+			subtitle="Так её видят одногруппники"
+			wide
+		>
+			<div class="frames">
+				{#key value}
+					<div class="box wide">
+						<iframe src="/login?preview=1" title="Страница входа на компьютере"></iframe>
+					</div>
+					<div class="box phone">
+						<iframe src="/login?preview=1" title="Страница входа на телефоне"></iframe>
+					</div>
+				{/key}
+			</div>
+		</M.default>
+	{/await}
+{/if}
 
 <!-- Оформление для себя – у каждого своё, в личных настройках. -->
 <p class="faint small">
@@ -140,6 +162,49 @@
 </p>
 
 <style>
+	.frames {
+		display: flex;
+		gap: 12px;
+		align-items: flex-start;
+	}
+	/* Рамки в половину настоящего размера: страница внутри – как на экране компьютера и телефона. */
+	.box {
+		position: relative;
+		overflow: hidden;
+		border: 1px solid var(--border);
+		border-radius: 14px;
+		background: var(--bg);
+	}
+	.box iframe {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 200%;
+		max-width: none;
+		height: 200%;
+		border: 0;
+		transform: scale(0.5);
+		transform-origin: 0 0;
+		pointer-events: none;
+	}
+	.wide {
+		flex: 1;
+		min-width: 0;
+		aspect-ratio: 16 / 10;
+	}
+	.phone {
+		flex: none;
+		width: 195px;
+		height: 422px;
+	}
+	@media (max-width: 640px) {
+		.frames {
+			justify-content: center;
+		}
+		.wide {
+			display: none;
+		}
+	}
 	.block {
 		display: flex;
 		flex-direction: column;

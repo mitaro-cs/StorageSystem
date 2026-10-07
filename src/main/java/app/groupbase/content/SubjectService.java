@@ -179,28 +179,69 @@ public class SubjectService {
   }
 
   /**
-   * Разделить предмет на подгруппы (0.7): «Иностранный язык» → «Иностранный язык №1» (этот же
-   * предмет — со всеми заданиями и материалами) и пустые «№2»… с тем же цветом, иконкой и группами.
-   * Каждый выбирает свою подгруппу (lib/content/subgroups.ts — по «№N» в названии), чужие у него
-   * скрываются («не мой предмет»).
+   * Номер подгруппы в названии пары из расписания: «(2 подгр.)», «2 гр.», «подгруппа 2», «№2»,
+   * «(2)». Как в Titles и на фронте (subgroups.ts).
+   */
+  private static final Pattern SUBGROUP =
+      Pattern.compile(
+          "(?iu)(?:№\\s*(\\d+)|(\\d+)\\s*(?:-?(?:я|ая)\\s*)?(?:под)?гр(?:уппа|\\.)?(?=[\\s.,)]|$)"
+              + "|(?:под)?группа\\s*№?\\s*(\\d+)|\\(\\s*(\\d+)\\s*\\))");
+
+  /**
+   * Подпись подгруппы после номера: «Сильная группа». Без цифр – иначе расписание не сопоставит.
+   */
+  private static final Pattern LABEL = Pattern.compile("[\\p{L}\\p{M} .,'’()-]{0,40}");
+
+  static int subgroupOf(String title) {
+    var m = SUBGROUP.matcher(title == null ? "" : title);
+    if (!m.find()) {
+      return 0;
+    }
+    for (int g = 1; g <= m.groupCount(); g++) {
+      if (m.group(g) != null) {
+        return Integer.parseInt(m.group(g));
+      }
+    }
+    return 0;
+  }
+
+  /**
+   * Разделить на подгруппы (0.7): этот предмет – №1 со всеми заданиями и материалами, остальные –
+   * новые с тем же цветом, иконкой и группами; каждый выбирает свою (lib/content/subgroups.ts),
+   * чужие у него скрываются («не мой предмет»). С 0.9.5 – подписи (необязательно) идут после
+   * номера: «Английский язык №1 Сильная группа» – номер остаётся, и расписание из файла по-прежнему
+   * находит свою подгруппу. Пары, у которых в названии из файла стоит номер подгруппы, сразу
+   * переходят к своей.
    */
   @Transactional
-  public List<SubjectView> split(Actor actor, long id, int count) {
+  public List<SubjectView> split(Actor actor, long id, int count, List<String> labels) {
     requireManage(actor, id);
     if (count < 2 || count > 6) {
       throw ApiException.invalid("count", "Подгрупп – от 2 до 6");
     }
+    List<String> names = new java.util.ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      String l = labels != null && i < labels.size() && labels.get(i) != null ? labels.get(i) : "";
+      l = l.strip().replaceAll("\\s+", " ");
+      if (!LABEL.matcher(l).matches()) {
+        throw ApiException.invalid(
+            "names", "Название подгруппы – до 40 букв, без цифр: номер подставится сам");
+      }
+      names.add(l);
+    }
     SubjectStore.Row r = subjects.find(id).orElseThrow(ApiException::notFound);
-    String base = r.name().replaceAll("\\s*(№\\s*\\d+|\\(\\s*\\d+\\s*\\))\\s*$", "").strip();
-    if (base.length() > 75) {
-      base = base.substring(0, 75).strip();
+    String base = r.name().replaceAll("\\s*(№\\s*\\d+|\\(\\s*\\d+\\s*\\)).*$", "").strip();
+    if (base.length() > 60) {
+      base = base.substring(0, 60).strip();
     }
     long now = clock.millis();
     List<Long> groupIds = subjects.groupIds(id);
-    subjects.update(id, base + " №1", r.teacher(), r.color());
+    subjects.update(id, title(base, 1, names.get(0)), r.teacher(), r.color());
     List<Long> ids = new java.util.ArrayList<>(List.of(id));
     for (int i = 2; i <= count; i++) {
-      long n = subjects.insert(base + " №" + i, r.teacher(), r.color(), actor.id(), now);
+      long n =
+          subjects.insert(
+              title(base, i, names.get(i - 1)), r.teacher(), r.color(), actor.id(), now);
       if (r.icon() != null) {
         subjects.setIcon(n, r.icon());
       }
@@ -209,14 +250,26 @@ public class SubjectService {
       }
       ids.add(n);
     }
+    int moved = 0;
+    for (var e : subjects.lessonTitles(id).entrySet()) {
+      int k = subgroupOf(e.getValue());
+      if (k >= 2 && k <= count) {
+        subjects.moveLesson(e.getKey(), ids.get(k - 1), now);
+        moved++;
+      }
+    }
     audit.log(
         actor,
         groupIds.isEmpty() ? null : groupIds.getFirst(),
         "subject.split",
         "subject",
         id,
-        Map.of("name", base, "count", count));
+        Map.of("name", base, "count", count, "lessons", moved));
     return ids.stream().map(x -> get(actor, x)).toList();
+  }
+
+  private static String title(String base, int n, String label) {
+    return base + " №" + n + (label.isEmpty() ? "" : " " + label);
   }
 
   public void setPinned(Actor actor, long id, boolean pinned) {

@@ -5,7 +5,8 @@
 хоста, сообщения сервера, TOTP issuer, имя ключа входа. Внутренние имена остаются `groupbase` —
 их смена сломала бы обновление и данные: Java-пакеты `app.groupbase`, `groupbase.jar`,
 `groupbase.toml`, `groupbase.db`, `identifier` и `productName` приложения (`app.groupbase` —
-каталог данных и обновления; имя пакета .app/.exe меняется только отдельным решением),
+каталог данных и обновления; имя пакета .app/.exe меняется только отдельным решением; видимое имя
+— Campus: `desktop/src-tauri/Info.plist` (CFBundleName) и `windows/hooks.nsh` (ярлык, «Приложения»)),
 `X-Groupbase*`, `GROUPBASE_*`, cookie и ключи `gb_*`/`gb-*`, базы IndexedDB `groupbase-<id>`,
 папка `groupbase-site`, команды CLI (`groupbase init`). В новых текстах пишите «Campus».
 
@@ -495,3 +496,21 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   «Сегодня».
 - README: обложка – `docs/banner-dark.svg` и `-light.svg` (логотип вписан внутрь: GitHub не грузит
   внешние ссылки из SVG), скриншоты – `docs/screenshots/*.webp` с демо-данных (`groupbase seed`).
+- Предметы (0.9.5): «Не мои» и архив – свёрнутые разделы (`.fold`), счётчик архива – из той же
+  выборки, что и показ. Вопрос о подгруппе – один раз на аккаунт: `subgroups.ts askedKey` →
+  `users.tips_seen` «sub-N» (TIP допускает цифры, «*» не мешает). Разделение –
+  `content/SubgroupSplit.svelte` → `POST /subgroups {count, names}`: подпись после «№N» (без цифр),
+  пары с номером подгруппы в названии переходят к своей (`SubjectService.subgroupOf`).
+- Карусель предметов – `SubjectStrip`: капсулы `SubjectGlyph` + название.
+- «Управление → Сайт»: аккаунты без групп (кроме администраторов) – свёрнутый «Без группы» с
+  «Удалить» (`DELETE /api/admin/users/{id}`).
+- Предпросмотр входа – окно с двумя iframe `/login?preview=1` в половину размера (не новая вкладка:
+  в окне хоста её не открыть); у iframe в app.css `max-width: 100%` – в рамке снят.
+- Масштаб (0.9.5) – `lib/uiScale.ts`, выбор в `ThemePicker` (у окна хоста там же – масштаб окна).
+  Сенсорный экран – meta viewport `width=ширина/k, initial-scale=k` (CSS zoom ломал касания и
+  fixed), компьютер – CSS zoom; тот же расчёт в app.html. Тур делит размеры на zoom.
+- Два компьютера (0.9.5): `rival` – по адресу сайта отвечает другой основной с **младшим**
+  поколением (со старшим или равным – обычный `demote`): состояние `conflict`, сам не уступает. «Проверить» – `POST /peers/sync`; «Оставить тот» – `POST /peers/yield`
+  (`yieldToRival` → `demote`); «Сделать основным этот» – `moveHere`, который при `rival` сначала
+  уступает, потом забирает сайт обычным переездом.
+- Расписание: точки дней и месяца – по одной на пару (до 6–8), цвет – вид.

@@ -84,7 +84,19 @@ export function dismiss(key: string) {
 	}
 }
 
-/** Ещё не выбрано: все предметы набора – «мои», и «хожу на все» не нажимали. */
-export function open(c: Choice, skip: string[] = dismissed()): boolean {
-	return !skip.includes(c.key) && c.options.every((o) => o.subject.mine !== false);
+/**
+ * Ответ на вопрос о наборе запоминается в аккаунте (users.tips_seen, «sub-N»: N – наименьший
+ * номер предмета набора) – спрашиваем один раз, а не на каждом устройстве и не после «Мой предмет».
+ */
+export function askedKey(c: Choice): string {
+	return 'sub-' + Math.min(...c.options.map((o) => o.subject.id));
+}
+
+/** Ещё не выбрано: все предметы набора – «мои», не отвечали и «хожу на все» не нажимали. */
+export function open(c: Choice, skip: string[] = dismissed(), asked: string[] = []): boolean {
+	return (
+		!skip.includes(c.key) &&
+		!asked.includes(askedKey(c)) &&
+		c.options.every((o) => o.subject.mine !== false)
+	);
 }

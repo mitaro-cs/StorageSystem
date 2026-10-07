@@ -98,6 +98,24 @@ public class SubjectStore {
         .update();
   }
 
+  /** Пары предмета: номер и название из расписания (разделение на подгруппы смотрит номер). */
+  public Map<Long, String> lessonTitles(long subjectId) {
+    Map<Long, String> out = new java.util.LinkedHashMap<>();
+    db.sql("SELECT id, title FROM lessons WHERE subject_id = ? ORDER BY id")
+        .param(subjectId)
+        .query((rs, n) -> Map.entry(rs.getLong(1), rs.getString(2)))
+        .list()
+        .forEach(e -> out.put(e.getKey(), e.getValue()));
+    return out;
+  }
+
+  /** Пара переходит к другому предмету (подгруппе). */
+  public void moveLesson(long lessonId, long subjectId, long now) {
+    db.sql("UPDATE lessons SET subject_id = ?, updated_at = ? WHERE id = ?")
+        .params(subjectId, now, lessonId)
+        .update();
+  }
+
   /** Иконка из встроенного набора (null — подбирается по названию). */
   public void setIcon(long id, String icon) {
     db.sql("UPDATE subjects SET icon = ? WHERE id = ?").params(icon, id).update();

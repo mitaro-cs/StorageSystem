@@ -390,5 +390,9 @@ class AccountsIT extends IntegrationTest {
     assertThat(tips.get(0).asString()).isEqualTo("schedule");
     assertThat(u.api().patch("/api/me/preferences", Map.of("tip", "Bad,tip")).status())
         .isEqualTo(400);
+    // Ответ на вопрос о подгруппе («sub-N») – тоже один раз на аккаунт.
+    assertThat(u.api().patch("/api/me/preferences", Map.of("tip", "sub-12")).status())
+        .isEqualTo(200);
+    assertThat(u.api().get("/api/me").json().get("user").get("tips").toString()).contains("sub-12");
   }
 }

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Название в меню, Dock, Cmd-Tab и «Мониторинге системы» – Campus. Файл пакета остаётся
+     groupbase.app (productName): по нему находят приложение обновление и автозапуск. Tauri
+     сливает этот файл с созданным при сборке. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Campus</string>
+	<key>CFBundleDisplayName</key>
+	<string>Campus</string>
+</dict>
+</plist>

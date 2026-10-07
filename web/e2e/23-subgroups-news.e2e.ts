@@ -49,7 +49,9 @@ test('подгруппы: выбрал свою – другая пропада�
 	await expect(side.getByRole('link', { name: /Английский язык №2/ })).toHaveCount(0);
 
 	await student.goto('/subjects');
-	await expect(student.getByRole('heading', { name: 'Не мои предметы' })).toBeVisible();
+	// «Не мои» свёрнуты, пока не развернёшь.
+	await expect(student.getByRole('link', { name: /Английский язык №2/ })).toHaveCount(0);
+	await student.getByRole('button', { name: /Не мои предметы/ }).click();
 	await student.getByRole('link', { name: /Английский язык №2/ }).click();
 	await expect(student.getByText('Не ваш предмет.')).toBeVisible();
 	await student.getByRole('button', { name: 'Это мой предмет' }).click();

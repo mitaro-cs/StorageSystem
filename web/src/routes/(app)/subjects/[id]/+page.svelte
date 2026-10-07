@@ -35,6 +35,7 @@
 	let missing = $state(false);
 	let editor = $state(false);
 	let share = $state(false);
+	let splitOpen = $state(false);
 	// Добавить прямо отсюда: задание, новость, файл – без поиска кнопки во вкладках.
 	let hwOpen = $state(false);
 	let newsOpen = $state(false);
@@ -148,7 +149,7 @@
 		if (s.can.edit) {
 			out.push({
 				label: 'Разделить на подгруппы…',
-				onclick: () => import('$lib/content/subjectAdmin').then((m) => m.splitSubject(s))
+				onclick: () => (splitOpen = true)
 			});
 			out.push({
 				label: 'Удалить предмет…',
@@ -352,6 +353,11 @@
 			/>
 		{/await}
 	{/if}
+	{#if splitOpen}
+		{#await import('$lib/content/SubgroupSplit.svelte') then m}
+			<m.default bind:open={splitOpen} {subject} />
+		{/await}
+	{/if}
 	{#if share}
 		{#await import('$lib/content/SubjectShare.svelte') then m}
 			<m.default bind:open={share} {subject} onsaved={() => (load(), loadSubjects())} />
@@ -378,7 +384,7 @@
 	}
 	/* Место под полосу предметов – сразу, чтобы шапка не прыгала, когда полоса подгрузится. */
 	.strip-slot {
-		min-height: 108px;
+		min-height: 52px;
 		margin-bottom: var(--s4);
 	}
 	.banner :global(.fill) {

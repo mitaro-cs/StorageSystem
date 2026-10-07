@@ -142,6 +142,8 @@ export interface PeerView {
 	nobodyFor: number;
 	/** Имя компьютера, на котором сайт сейчас работает для группы. */
 	serving: string | null;
+	/** Конфликт: по адресу сайта отвечает другой основной – его имя. */
+	rival: string | null;
 	cloud: boolean;
 	peers: {
 		computerId: string;

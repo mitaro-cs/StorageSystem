@@ -17,6 +17,8 @@
 	let editor = $state(false);
 	let wizard = $state(false);
 	let showArchived = $state(false);
+	// «Не мои» свёрнуты: другая подгруппа не мешает, пока сам не развернёшь.
+	let showOthers = $state(false);
 	let requests = $state<LinkRequest[]>([]);
 
 	const target = $derived(
@@ -27,13 +29,16 @@
 			(s) => session.groupId === null || s.groups.some((g) => g.id === session.groupId)
 		)
 	);
-	const visible = $derived(
-		inGroup.filter((s) => (showArchived || !s.archived) && s.mine !== false)
-	);
+	const visible = $derived(inGroup.filter((s) => !s.archived && s.mine !== false));
 	// «Не мои» – предметы другой подгруппы, которые человек скрыл у себя: внизу, вернуть – в карточке.
 	const notMine = $derived(inGroup.filter((s) => !s.archived && s.mine === false));
-	const askSubgroup = $derived(choices(inGroup).some((c) => open(c)));
-	const archivedCount = $derived(subjects.list.filter((s) => s.archived).length);
+	const askSubgroup = $derived(
+		choices(inGroup).some((c) => open(c, undefined, session.me?.user.tips ?? []))
+	);
+	// Архив – своим разделом и из той же выборки, что и счётчик: раньше считались архивные всех
+	// групп и «не мои», а показывались только свои – «Показать архив (1)» открывал пустоту.
+	const archived = $derived(inGroup.filter((s) => s.archived));
+	const archivedCount = $derived(archived.length);
 
 	onMount(async () => {
 		requests = await get<LinkRequest[]>('/api/link-requests');
@@ -143,7 +148,7 @@
 	</div>
 {/snippet}
 
-{#if visible.length === 0 && notMine.length === 0}
+{#if visible.length === 0 && notMine.length === 0 && archivedCount === 0}
 	<div class="card">
 		<Empty
 			title="Предметов пока нет"
@@ -156,22 +161,41 @@
 	</div>
 	{#if notMine.length}
 		<section class="others">
-			<h2>Не мои предметы</h2>
-			<p class="muted small">
-				Другая подгруппа: их задания и новости не показываются в общих списках и не приходят
-				уведомлениями. Вернуть – «Мой предмет» в меню предмета.
-			</p>
-			<div class="grid">
-				{#each notMine as s, i (s.id)}{@render card(s, i)}{/each}
-			</div>
+			<button class="fold" aria-expanded={showOthers} onclick={() => (showOthers = !showOthers)}>
+				<EyeOff size={16} />
+				<span>Не мои предметы · <span class="num">{notMine.length}</span></span>
+				<span class="faint small">{showOthers ? 'Свернуть' : 'Развернуть'}</span>
+			</button>
+			{#if showOthers}
+				<p class="muted small">
+					Другая подгруппа: их задания, пары и новости не показываются в общих списках и не приходят
+					уведомлениями. Вернуть – «Мой предмет» в меню предмета.
+				</p>
+				<div class="grid">
+					{#each notMine as s, i (s.id)}{@render card(s, i)}{/each}
+				</div>
+			{/if}
 		</section>
 	{/if}
 {/if}
 
 {#if archivedCount}
-	<button class="toggle-arch" onclick={() => (showArchived = !showArchived)}>
-		{showArchived ? 'Скрыть архив' : `Показать архив (${archivedCount})`}
-	</button>
+	<section class="others">
+		<button
+			class="fold"
+			aria-expanded={showArchived}
+			onclick={() => (showArchived = !showArchived)}
+		>
+			<Archive size={16} />
+			<span>Архив · <span class="num">{archivedCount}</span></span>
+			<span class="faint small">{showArchived ? 'Свернуть' : 'Развернуть'}</span>
+		</button>
+		{#if showArchived}
+			<div class="grid">
+				{#each archived as s, i (s.id)}{@render card(s, i)}{/each}
+			</div>
+		{/if}
+	</section>
 {/if}
 
 {#if editor}
@@ -205,8 +229,25 @@
 		gap: var(--s2);
 		margin-top: var(--s6);
 	}
-	.others h2 {
-		font-size: 19px;
+	.fold {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: 100%;
+		padding: 14px 16px;
+		border: 1px solid var(--border);
+		border-radius: var(--r-l, 18px);
+		background: var(--surface);
+		color: var(--text);
+		font: inherit;
+		font-weight: 650;
+		text-align: left;
+	}
+	.fold > span:nth-child(2) {
+		flex: 1;
+	}
+	.fold:hover {
+		border-color: var(--border-strong);
 	}
 	.others .grid {
 		margin-top: var(--s2);
@@ -307,13 +348,6 @@
 	}
 	.archived {
 		opacity: 0.6;
-	}
-	.toggle-arch {
-		margin-top: var(--s4);
-		border: 0;
-		background: none;
-		color: var(--text-2);
-		font-weight: 550;
 	}
 	.head-actions {
 		gap: var(--s2);
