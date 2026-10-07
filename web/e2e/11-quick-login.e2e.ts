@@ -48,6 +48,17 @@ test('вход без ввода логина: выбор аккаунта и QR
 	const other = await otherCtx.newPage();
 	await other.goto('/login');
 	await other.getByRole('tab', { name: 'По коду' }).click();
+	// Неверный код: одна попытка, ошибка видна, кнопка не «висит» (раньше код уходил по кругу).
+	let tries = 0;
+	other.on('request', (r) => {
+		if (r.url().includes('/api/auth/link/redeem')) tries++;
+	});
+	const wrong = pin === '000000' ? '111111' : '000000';
+	await other.getByLabel('Или 6 цифр').fill(wrong);
+	await expect(other.getByRole('alert')).toBeVisible();
+	await other.waitForTimeout(1500);
+	expect(tries).toBe(1);
+	await expect(other.getByRole('button', { name: 'Войти', exact: true })).toBeEnabled();
 	await other.getByLabel('Или 6 цифр').fill(`${pin.slice(0, 3)} ${pin.slice(3)}`);
 	await expect(other.getByRole('heading', { level: 1 })).toContainText('Привет, Олег', {
 		timeout: 10_000

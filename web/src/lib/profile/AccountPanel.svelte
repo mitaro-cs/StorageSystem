@@ -69,7 +69,7 @@
 	<h3>ФИО</h3>
 	<p class="muted small">Как вас видят в группе: в списке участников, у новостей и комментариев.</p>
 	<form class="name-form" onsubmit={saveName}>
-		<FioField bind:value={displayName} legend="" />
+		<FioField bind:value={displayName} />
 		<Button type="submit" disabled={displayName.trim() === me.user.displayName}>Сохранить</Button>
 	</form>
 	<p class="hint">Логин <strong>@{me.user.username}</strong> не меняется – по нему вы входите.</p>

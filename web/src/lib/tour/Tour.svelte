@@ -156,11 +156,11 @@
 			<g transform="scale(0.0434783)">
 				<g class="globe">
 					<circle class="ball" cx="347.8" cy="273.1" r="165" />
-					<use href="/logo.svg#grid" />
+					<use href="/logo.svg?v=2#grid" />
 				</g>
 				<g class="fig">
-					<use href="/logo.svg#figure" />
-					<use href="/logo.svg#eye" />
+					<use href="/logo.svg?v=2#figure" />
+					<use href="/logo.svg?v=2#eye" />
 				</g>
 			</g>
 		</g>
@@ -199,7 +199,7 @@
 			</p>
 			<div class="actions">
 				<Button variant="primary" onclick={start}>Поехали <ArrowRight size={17} /></Button>
-				<Button variant="ghost" onclick={close}>Сам решу</Button>
+				<Button variant="ghost" onclick={close}>Разберусь сам</Button>
 			</div>
 		</div>
 	{:else if phase === 'tour'}
@@ -354,7 +354,9 @@
 	.ball {
 		fill: var(--pal-accent, #0d0d0f);
 	}
+	/* Человечек – того же цвета, что и глобус (0.9.6): logo.svg берёт его из --logo-figure. */
 	.fig {
+		--logo-figure: var(--pal-accent, #0d0d0f);
 		transform-box: fill-box;
 		animation: lift 600ms cubic-bezier(0.3, 1.3, 0.5, 1) 250ms both;
 	}

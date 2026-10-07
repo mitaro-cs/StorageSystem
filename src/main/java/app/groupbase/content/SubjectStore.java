@@ -27,7 +27,8 @@ public class SubjectStore {
       Long archivedAt,
       String chatUrl,
       String icon,
-      String cover) {}
+      String cover,
+      Map<String, String> teachers) {}
 
   public record GroupRef(long id, String name) {}
 
@@ -56,7 +57,53 @@ public class SubjectStore {
               Rows.longOrNull(rs, "archived_at"),
               rs.getString("chat_url"),
               rs.getString("icon"),
-              rs.getString("cover"));
+              rs.getString("cover"),
+              parseTeachers(rs.getString("teachers")));
+
+  /** Виды пар, у которых бывает свой преподаватель. */
+  public static final List<String> TEACHER_KINDS = List.of("lecture", "practice", "seminar", "lab");
+
+  /** «lecture=Иванов И. И.\nlab=Петров П. П.» → вид → имя (неизвестные виды и пустое – мимо). */
+  static Map<String, String> parseTeachers(String raw) {
+    Map<String, String> out = new java.util.LinkedHashMap<>();
+    if (raw == null || raw.isBlank()) {
+      return out;
+    }
+    for (String line : raw.split("\n")) {
+      int eq = line.indexOf('=');
+      if (eq <= 0) {
+        continue;
+      }
+      String kind = line.substring(0, eq).strip();
+      String name = line.substring(eq + 1).strip();
+      if (TEACHER_KINDS.contains(kind) && !name.isEmpty()) {
+        out.put(kind, name);
+      }
+    }
+    return out;
+  }
+
+  /** Преподаватель вида пары из строки subjects.teachers или null. */
+  public static String teacherOf(String raw, String kind) {
+    return kind == null ? null : parseTeachers(raw).get(kind);
+  }
+
+  static String formatTeachers(Map<String, String> teachers) {
+    StringBuilder b = new StringBuilder();
+    for (String k : TEACHER_KINDS) {
+      String v = teachers.get(k);
+      if (v != null && !v.isBlank()) {
+        b.append(k).append('=').append(v.strip()).append('\n');
+      }
+    }
+    return b.toString();
+  }
+
+  public void setTeachers(long id, Map<String, String> teachers) {
+    db.sql("UPDATE subjects SET teachers = ? WHERE id = ?")
+        .params(formatTeachers(teachers), id)
+        .update();
+  }
 
   private final JdbcClient db;
 

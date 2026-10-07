@@ -68,7 +68,57 @@ struct App {
     data: PathBuf,
 }
 
+/// С 0.9.6 пакет на Mac называется Campus (tauri.macos.conf.json). Обновление ставит новую версию
+/// по старому пути – groupbase.app, поэтому при запуске, ещё до сервера, переименовываем пакет и
+/// открываем его заново; запись автозапуска переносим на новое имя и путь. Не вышло (нет прав,
+/// Campus.app уже есть) – просто работаем дальше со старым именем.
+#[cfg(target_os = "macos")]
+fn rename_mac_bundle() {
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    // …/groupbase.app/Contents/MacOS/groupbase-desktop
+    let Some(bundle) = exe.ancestors().nth(3).map(Path::to_path_buf) else {
+        return;
+    };
+    if bundle.file_name() != Some(std::ffi::OsStr::new("groupbase.app")) {
+        return;
+    }
+    let to = bundle.with_file_name("Campus.app");
+    if to.exists() || std::fs::rename(&bundle, &to).is_err() {
+        return;
+    }
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let started = std::process::Command::new("open")
+        .arg("-n")
+        .arg(&to)
+        .arg("--args")
+        .args(&args)
+        .status()
+        .is_ok_and(|s| s.success());
+    if !started {
+        // Не открылось – возвращаем имя: ресурсы (Java, сервер) ищутся по пути этого запуска.
+        let _ = std::fs::rename(&to, &bundle);
+        return;
+    }
+    if let Some(home) = std::env::var_os("HOME") {
+        let dir = PathBuf::from(home).join("Library/LaunchAgents");
+        let old = dir.join("groupbase.plist");
+        if let Ok(text) = std::fs::read_to_string(&old) {
+            let text = text
+                .replace(&*bundle.to_string_lossy(), &to.to_string_lossy())
+                .replace("<string>groupbase</string>", "<string>Campus</string>");
+            if std::fs::write(dir.join("Campus.plist"), text).is_ok() {
+                let _ = std::fs::remove_file(&old);
+            }
+        }
+    }
+    std::process::exit(0);
+}
+
 fn main() {
+    #[cfg(target_os = "macos")]
+    rename_mac_bundle();
     let hidden = std::env::args().any(|a| a == HIDDEN_ARG);
     let app = tauri::Builder::default()
         // Второй запуск просто показывает уже открытое окно.

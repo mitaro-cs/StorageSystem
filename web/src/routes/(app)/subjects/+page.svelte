@@ -10,7 +10,6 @@
 	import Button from '$lib/ui/Button.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 	import SubjectArt from '$lib/ui/SubjectArt.svelte';
-	import { choices, open } from '$lib/content/subgroups';
 	import type { Subject } from '$lib/types';
 	import { tipOpen } from '$lib/onboarding.svelte';
 
@@ -32,9 +31,6 @@
 	const visible = $derived(inGroup.filter((s) => !s.archived && s.mine !== false));
 	// «Не мои» – предметы другой подгруппы, которые человек скрыл у себя: внизу, вернуть – в карточке.
 	const notMine = $derived(inGroup.filter((s) => !s.archived && s.mine === false));
-	const askSubgroup = $derived(
-		choices(inGroup).some((c) => open(c, undefined, session.me?.user.tips ?? []))
-	);
 	// Архив – своим разделом и из той же выборки, что и счётчик: раньше считались архивные всех
 	// групп и «не мои», а показывались только свои – «Показать архив (1)» открывал пустоту.
 	const archived = $derived(inGroup.filter((s) => s.archived));
@@ -93,10 +89,6 @@
 			</div>
 		{/each}
 	</section>
-{/if}
-
-{#if askSubgroup}
-	{#await import('$lib/content/SubgroupChoice.svelte') then m}<m.default />{/await}
 {/if}
 
 {#snippet card(s: Subject, i: number)}

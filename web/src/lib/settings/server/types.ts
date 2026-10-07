@@ -144,6 +144,8 @@ export interface PeerView {
 	serving: string | null;
 	/** Конфликт: по адресу сайта отвечает другой основной – его имя. */
 	rival: string | null;
+	/** Когда адрес сайта последний раз ответил – «проверено N с назад». */
+	checkedAt?: number | null;
 	cloud: boolean;
 	peers: {
 		computerId: string;

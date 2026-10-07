@@ -35,6 +35,15 @@
 
 	let name = $state('');
 	let teacher = $state('');
+	// Преподаватели по видам пар (0.9.6): лекции читает один, лабораторные ведёт другой.
+	const BY_KIND = [
+		{ k: 'lecture', label: 'Лекции' },
+		{ k: 'practice', label: 'Практика' },
+		{ k: 'seminar', label: 'Семинары' },
+		{ k: 'lab', label: 'Лабораторные' }
+	] as const;
+	let byKind = $state<Record<string, string>>({});
+	let showKinds = $state(false);
 	let chatUrl = $state('');
 	let color = $state(palette[0]);
 	/** null – подобрать по названию. */
@@ -130,6 +139,8 @@
 		if (!open) return;
 		name = edit?.name ?? '';
 		teacher = edit?.teacher ?? '';
+		byKind = { ...(edit?.teachers ?? {}) };
+		showKinds = Object.values(edit?.teachers ?? {}).some(Boolean);
 		chatUrl = edit?.chatUrl ?? '';
 		color = edit?.color ?? palette[Math.floor(Math.random() * 8)];
 		icon = edit?.icon ?? null;
@@ -148,6 +159,7 @@
 				? await patch<Subject>(`/api/subjects/${edit.id}`, {
 						name,
 						teacher,
+						teachers: byKind,
 						color,
 						chatUrl,
 						icon: icon ?? ''
@@ -155,6 +167,7 @@
 				: await post<Subject>(`/api/groups/${groupId}/subjects`, {
 						name,
 						teacher,
+						teachers: byKind,
 						color,
 						chatUrl,
 						icon: icon ?? ''
@@ -228,6 +241,27 @@
 				>Преподаватель <span class="faint">(необязательно)</span></label
 			>
 			<input id="s-teacher" class="input" bind:value={teacher} maxlength="80" />
+			{#if showKinds}
+				<div class="kinds-t">
+					{#each BY_KIND as x (x.k)}
+						<label class="kt">
+							<span>{x.label}</span>
+							<input
+								class="input"
+								bind:value={byKind[x.k]}
+								maxlength="80"
+								placeholder={teacher || 'как у предмета'}
+								aria-label="Преподаватель: {x.label}"
+							/>
+						</label>
+					{/each}
+				</div>
+				<p class="hint">Пусто – пары этого вида ведёт преподаватель предмета.</p>
+			{:else}
+				<button type="button" class="linklike small" onclick={() => (showKinds = true)}
+					>Разные преподаватели у лекций, практики, лабораторных…</button
+				>
+			{/if}
 		</div>
 		<div>
 			<label class="label" for="s-chat"
@@ -355,6 +389,24 @@
 {/if}
 
 <style>
+	.kinds-t {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 8px;
+		margin-top: 8px;
+	}
+	.kt {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		font-size: 13px;
+		color: var(--text-2);
+	}
+	@media (max-width: 520px) {
+		.kinds-t {
+			grid-template-columns: 1fr;
+		}
+	}
 	.form {
 		gap: var(--s4);
 	}

@@ -135,7 +135,7 @@ test('расписание из файла календаря: загрузка,
 	await page.getByRole('link', { name: 'Предмет: Математический анализ' }).click();
 	await page
 		.getByRole('navigation', { name: 'Разделы предмета' })
-		.getByRole('link', { name: 'Пары' })
+		.getByRole('link', { name: 'Расписание' })
 		.click();
 	// Пары предмета – календарём: день ближайшей пары выбран, его пары – под календарём.
 	const cal = page.getByRole('region', { name: 'Календарь пар' });

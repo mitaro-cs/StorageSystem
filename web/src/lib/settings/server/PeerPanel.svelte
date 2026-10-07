@@ -137,6 +137,20 @@
 		});
 	}
 
+	// «проверено 4 с назад» – по часам этого компьютера; панель спрашивает сервер раз в 3 с.
+	let tick = $state(Date.now());
+	$effect(() => {
+		const t = setInterval(() => (tick = Date.now()), 1000);
+		return () => clearInterval(t);
+	});
+	const ago = (at: number) => {
+		const s = Math.max(0, Math.round((tick - at) / 1000));
+		return s < 60 ? `${s} с назад` : fmtAgo(at);
+	};
+	/** На связи – отвечал за последние 30 с. */
+	const online = (p: PeerView['peers'][number]) =>
+		p.here || (!!p.seenAt && tick - p.seenAt < 30_000) || isHost(p);
+
 	const seconds = (ms: number) => Math.max(0, Math.round((60_000 - ms) / 1000));
 </script>
 
@@ -230,11 +244,16 @@
 						{:else}Основной – другой компьютер, изменения отсюда уходят туда{/if}
 					</span>
 				</p>
-				{#if hostWindow}
-					<Button size="s" variant="ghost" loading={busy} onclick={check}
-						><RefreshCw size={15} /> Проверить</Button
-					>
-				{/if}
+				<span class="checked">
+					{#if v.checkedAt}<span class="faint small live" title="Статус обновляется сам каждые 10 с"
+							>проверено {ago(v.checkedAt)}</span
+						>{/if}
+					{#if hostWindow}
+						<Button size="s" variant="ghost" loading={busy} onclick={check}
+							><RefreshCw size={15} /> Проверить</Button
+						>
+					{/if}
+				</span>
 			</div>
 			{#if v.state === 'conflict' && hostWindow}
 				<div class="conflict">
@@ -260,7 +279,9 @@
 			<ul class="peers">
 				{#each v.peers as p (p.computerId)}
 					<li>
-						{#if isHost(p)}<Crown size={18} />{:else}<Laptop size={18} />{/if}
+						<span class="pc" class:on={online(p)} title={online(p) ? 'На связи' : 'Не на связи'}
+							>{#if isHost(p)}<Crown size={18} />{:else}<Laptop size={18} />{/if}</span
+						>
 						<span class="grow">
 							<strong
 								>{p.name}{#if p.here}<span class="me">этот компьютер</span>{/if}</strong
@@ -336,6 +357,45 @@
 	.lead :global(svg) {
 		flex: none;
 		margin-top: 2px;
+	}
+	.checked {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.live::before {
+		content: '';
+		display: inline-block;
+		width: 6px;
+		height: 6px;
+		margin-right: 6px;
+		border-radius: 50%;
+		background: #1fa37a;
+		vertical-align: 1px;
+		animation: live 2s ease-in-out infinite;
+	}
+	@keyframes live {
+		50% {
+			opacity: 0.3;
+		}
+	}
+	.pc {
+		position: relative;
+		display: inline-grid;
+	}
+	.pc::after {
+		content: '';
+		position: absolute;
+		right: -3px;
+		bottom: -2px;
+		width: 8px;
+		height: 8px;
+		border: 2px solid var(--surface);
+		border-radius: 50%;
+		background: var(--text-3);
+	}
+	.pc.on::after {
+		background: #1fa37a;
 	}
 	.where-row {
 		display: flex;

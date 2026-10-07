@@ -161,7 +161,7 @@
 						aria-current={s.value === tab ? 'page' : undefined}
 						onclick={() => select(s.value)}
 					>
-						<span class="ic {s.tone}"><s.icon size={22} /></span>
+						<span class="ic {s.tone}"><s.icon size={19} /></span>
 						<span class="txt"><strong>{s.label}</strong><span>{s.desc}</span></span>
 						<ChevronRight size={16} class="chev" />
 					</button>
@@ -173,7 +173,7 @@
 			class="item card logout"
 			onclick={() => import('$lib/profile/logout').then((m) => m.logout())}
 		>
-			<span class="ic red"><LogOut size={22} /></span>
+			<span class="ic red"><LogOut size={19} /></span>
 			<span class="txt"><strong>Выйти</strong><span>На этом устройстве</span></span>
 		</button>
 	</nav>
@@ -264,52 +264,63 @@
 		text-transform: uppercase;
 		color: var(--text-3);
 	}
+	/* Как «Управление» (0.9.6, по референсу-дашборду): спокойный список, тонкие значки, выбранный –
+	   мягкая заливка и тёмный значок. */
 	.items {
 		display: flex;
 		flex-direction: column;
-		padding: 6px;
-		border-radius: var(--r-l);
+		gap: 2px;
+		padding: 8px;
+		border-radius: 26px;
 		background: var(--surface);
 		box-shadow: var(--shadow-1);
 	}
-	/* Меню разделов (0.7): крупные пункты, выбранный – заливкой, полосой и цветной иконкой. */
 	.item {
 		position: relative;
 		display: flex;
 		align-items: center;
-		gap: 14px;
-		padding: 13px 12px;
+		gap: 12px;
+		padding: 10px 12px;
 		border: 0;
-		border-radius: 14px;
+		border-radius: 16px;
 		background: transparent;
-		color: var(--text);
+		color: var(--text-2);
 		font: inherit;
 		text-align: left;
-		transition: background-color var(--dur) var(--ease);
+		transition:
+			background-color var(--dur) var(--ease),
+			color var(--dur) var(--ease);
 	}
 	.item:hover {
 		background: var(--surface-2);
+		color: var(--text);
 	}
 	.item.on {
-		background: var(--accent-soft);
-		box-shadow: inset 4px 0 0 var(--accent);
+		background: var(--surface-2);
+		color: var(--text);
 	}
 	.item.on .txt strong {
-		font-weight: 720;
+		font-weight: 700;
 	}
 	.item.on .ic {
-		background: var(--c);
-		color: #fff;
+		background: var(--text);
+		color: var(--bg);
 	}
 	.ic {
 		flex: none;
 		display: grid;
 		place-items: center;
-		width: 44px;
-		height: 44px;
-		border-radius: 13px;
+		width: 38px;
+		height: 38px;
+		border-radius: 12px;
+		color: var(--text-2);
+		box-shadow: inset 0 0 0 1px var(--border);
+		transition:
+			background-color var(--dur) var(--ease),
+			color var(--dur) var(--ease);
+	}
+	.ic.red {
 		color: var(--c);
-		background: color-mix(in srgb, var(--c) 13%, transparent);
 	}
 	.blue {
 		--c: #3a6ff0;

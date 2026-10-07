@@ -122,6 +122,8 @@ export interface Subject {
 	cover?: string | null;
 	/** Чат предмета в Telegram (https://t.me/…). */
 	chatUrl: string | null;
+	/** Свой преподаватель у лекций, практики, семинаров, лабораторных (0.9.6; у старых серверов нет). */
+	teachers?: Partial<Record<'lecture' | 'practice' | 'seminar' | 'lab', string>>;
 	archived: boolean;
 	pinned: boolean;
 	/** Предмет этого человека; false – скрыл у себя как предмет другой подгруппы (с 0.4.10). */

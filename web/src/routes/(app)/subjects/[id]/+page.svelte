@@ -44,16 +44,25 @@
 	let refresh = $state(0);
 
 	const id = $derived(Number(page.params.id));
-	// Первая вкладка – задания, новости предмета – сразу за ними (0.6, просьба владельца).
+	// Первая вкладка – задания.
 	const tab = $derived(page.url.searchParams.get('tab') ?? 'homework');
-	// «Пары» – если у предмета есть расписание.
+	// Порядок (0.9.6, просьба владельца): ДЗ, Материалы, Расписание, Новости. «Участники» – только
+	// у подгруппы: у обычного предмета это вся группа, вкладка лишняя.
+	const subgroup = $derived(!!subject && /№\s*\d|\(\s*\d+\s*\)|\d\s*(под)?гр/i.test(subject.name));
+	// Свои преподаватели у видов пар (0.9.6) – под общим.
+	const KIND_LABELS = { lecture: 'Лекции', practice: 'Практика', seminar: 'Семинары', lab: 'Лабы' };
+	const teachersByKind = $derived(
+		Object.entries(subject?.teachers ?? {})
+			.filter(([, n]) => n)
+			.map(([k, n]) => ({ label: KIND_LABELS[k as keyof typeof KIND_LABELS] ?? k, name: n! }))
+	);
 	const tabs = $derived(
 		[
 			{ value: 'homework', label: 'ДЗ', icon: ClipboardList },
-			{ value: 'feed', label: 'Новости', icon: Newspaper },
-			...(subject?.lessons ? [{ value: 'lessons', label: 'Пары', icon: CalendarDays }] : []),
 			{ value: 'materials', label: 'Материалы', icon: FolderOpen },
-			{ value: 'members', label: 'Участники', icon: Users }
+			...(subject?.lessons ? [{ value: 'lessons', label: 'Расписание', icon: CalendarDays }] : []),
+			{ value: 'feed', label: 'Новости', icon: Newspaper },
+			...(subgroup ? [{ value: 'members', label: 'Участники', icon: Users }] : [])
 		].map((t) => ({
 			...t,
 			href: t.value === 'homework' ? `/subjects/${id}` : `/subjects/${id}?tab=${t.value}`
@@ -185,7 +194,7 @@
 	{/if}
 
 	<!-- Подгруппы «№1», «№2»: выбор своей (код – только у таких предметов). -->
-	{#if /№\s*\d|\(\s*\d+\s*\)|\d\s*(под)?гр/i.test(subject.name)}
+	{#if subgroup}
 		{#await import('$lib/content/SubgroupSwitch.svelte') then m}<m.default {subject} />{/await}
 	{/if}
 
@@ -230,6 +239,11 @@
 				<span class="sub"
 					><UserRound size={15} /> {subject.teacher || 'Преподаватель не указан'}</span
 				>
+				{#if teachersByKind.length}
+					<span class="by-kind">
+						{#each teachersByKind as t (t.label)}<span><b>{t.label}</b> {t.name}</span>{/each}
+					</span>
+				{/if}
 			</div>
 			<div class="facts">
 				<span class="fact"><Users size={14} /> {subject.groups.map((g) => g.name).join(', ')}</span>
@@ -384,7 +398,7 @@
 	}
 	/* Место под полосу предметов – сразу, чтобы шапка не прыгала, когда полоса подгрузится. */
 	.strip-slot {
-		min-height: 52px;
+		min-height: 124px;
 		margin-bottom: var(--s4);
 	}
 	.banner :global(.fill) {
@@ -453,6 +467,17 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--text-2);
+	}
+	.by-kind {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 14px;
+		font-size: 13.5px;
+		color: var(--text-2);
+	}
+	.by-kind b {
+		font-weight: 650;
+		color: var(--text);
 	}
 	.facts {
 		display: flex;

@@ -170,9 +170,16 @@ public class LessonService {
     "#4f7df5", "#1fa37a", "#e0633a", "#a35cf0", "#d9a21b", "#1f9bb8", "#d9487e", "#5b6ee1"
   };
 
+  /** Преподаватель пары из карточки предмета: по виду пары, иначе общий. */
+  static String teacherFor(String kind, String teachers, String teacher) {
+    String byKind = app.groupbase.content.SubjectStore.teacherOf(teachers, kind);
+    return byKind != null ? byKind : java.util.Objects.toString(teacher, "");
+  }
+
   private static final String SELECT =
       """
       SELECT l.*, s.name AS subject_name, s.color AS subject_color, s.teacher AS subject_teacher,
+        s.teachers AS subject_teachers,
         (SELECT count(*) FROM homework h WHERE h.lesson_id = l.id AND h.hidden = 0) AS hw_count,
         (SELECT count(*) FROM materials m WHERE m.lesson_id = l.id AND m.status = 'published'
           AND m.hidden = 0) AS mat_count
@@ -228,9 +235,13 @@ public class LessonService {
                     rs.getLong("starts_at"),
                     rs.getLong("ends_at"),
                     rs.getString("place"),
-                    // Нет в файле календаря — преподаватель из карточки предмета.
+                    // Нет в файле календаря — преподаватель из карточки предмета: свой у этого
+                    // вида пар (лекции, практика, семинары, лабораторные), иначе общий.
                     rs.getString("teacher").isBlank()
-                        ? java.util.Objects.toString(rs.getString("subject_teacher"), "")
+                        ? teacherFor(
+                            rs.getString("kind"),
+                            rs.getString("subject_teachers"),
+                            rs.getString("subject_teacher"))
                         : rs.getString("teacher"),
                     rs.getString("note"),
                     rs.getInt("hw_count"),

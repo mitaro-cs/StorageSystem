@@ -4,14 +4,8 @@
 
 	// ФИО – тремя полями: порядок «Фамилия Имя Отчество» больше не перепутать, а в базу уходит
 	// одна строка, как раньше.
-	let {
-		value = $bindable(),
-		legend = 'ФИО'
-	}: {
-		value: string;
-		/** Подпись над полями; пусто – только для читалок (у раздела уже есть заголовок «ФИО»). */
-		legend?: string;
-	} = $props();
+	// Подписи «ФИО» над полями нет (0.9.6): у полей свои подписи; для читалок – скрытая.
+	let { value = $bindable() }: { value: string } = $props();
 
 	const split = (v: string) => {
 		const w = v.trim() ? v.trim().split(/\s+/) : [];
@@ -42,19 +36,23 @@
 	const FIELDS: { id: string; label: string; ph: string; ac: FullAutoFill; need: boolean }[] = [
 		{ id: 'fio-last', label: 'Фамилия', ph: 'Иванов', ac: 'family-name', need: true },
 		{ id: 'fio-first', label: 'Имя', ph: 'Иван', ac: 'given-name', need: true },
-		{ id: 'fio-middle', label: 'Отчество', ph: 'Иванович', ac: 'additional-name', need: false }
+		{
+			id: 'fio-middle',
+			label: 'Отчество',
+			ph: 'Если есть',
+			ac: 'additional-name',
+			need: false
+		}
 	];
 </script>
 
 <fieldset class="fio">
-	<legend class={legend ? 'label' : 'sr-only'}>{legend || 'ФИО'}</legend>
+	<legend class="sr-only">ФИО</legend>
 	<div class="grid">
 		{#each FIELDS as f, i (f.id)}
 			{@const problem = capitalError(parts[i])}
 			<div class="cell">
-				<label class="sub" for={f.id}
-					>{f.label}{#if !f.need}<span class="faint">&nbsp;· если есть</span>{/if}</label
-				>
+				<label class="sub" for={f.id}>{f.label}</label>
 				<input
 					id={f.id}
 					class="input"
@@ -98,6 +96,7 @@
 		min-width: 0;
 	}
 	.sub {
+		white-space: nowrap;
 		font-size: 13px;
 		color: var(--text-2, var(--muted));
 	}

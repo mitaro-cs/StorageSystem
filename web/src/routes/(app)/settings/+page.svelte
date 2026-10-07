@@ -30,6 +30,8 @@
 		setManageMode
 	} from '$lib/session.svelte';
 	import { toastError } from '$lib/toasts.svelte';
+	import { get } from '$lib/api';
+	import { subjects } from '$lib/data.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import Empty from '$lib/ui/Empty.svelte';
 	import SectionHead from '$lib/ui/SectionHead.svelte';
@@ -178,6 +180,38 @@
 	/** На телефоне без выбранного раздела показываем меню, а не первый раздел. */
 	const menuOnly = $derived(!sections.some((s) => s.value === asked));
 
+	// Сводка сверху (0.9.6, по референсу-дашборду): люди, предметы, версия, группа – одним взглядом.
+	let people = $state<number | null>(null);
+	$effect(() => {
+		const g = group?.id;
+		people = null;
+		if (g)
+			get<unknown[]>(`/api/groups/${g}/members`)
+				.then((ms) => (people = ms.length))
+				.catch(() => (people = null));
+	});
+	const subjectCount = $derived(
+		subjects.list.filter((x) => !x.archived && (!group || x.groups.some((y) => y.id === group.id)))
+			.length
+	);
+	const stats = $derived([
+		{ label: 'Участники', value: people ?? '–', hint: group?.name ?? '', tab: 'accounts' },
+		{ label: 'Предметы', value: subjectCount, hint: 'в семестре', tab: 'semester' },
+		{
+			label: 'Версия',
+			value: session.me?.instance.version ?? '–',
+			hint: 'есть ли новее',
+			tab: 'updates'
+		},
+		{
+			label: desktop ? 'Сервер' : 'Сайт',
+			value: desktop ? 'на этом ПК' : session.me?.instance.name || 'Campus',
+			hint: desktop ? 'доступ, копии, два компьютера' : 'режим и вход',
+			tab: desktop ? 'server' : 'instance'
+		}
+	]);
+	const statShown = $derived(stats.filter((x) => sections.some((y) => y.value === x.tab)));
+
 	async function enableManage() {
 		try {
 			await setManageMode(true);
@@ -208,6 +242,18 @@
 		</select>
 	{/if}
 </div>
+
+{#if manageMode() && statShown.length}
+	<div class="tiles" class:hide-phone={!menuOnly}>
+		{#each statShown as x, i (x.label)}
+			<button class="tile" class:dark={i === 0} onclick={() => select(x.tab)}>
+				<span class="t-label">{x.label}</span>
+				<strong class="t-value num">{x.value}</strong>
+				<span class="t-hint">{x.hint}</span>
+			</button>
+		{/each}
+	</div>
+{/if}
 
 {#if !manageMode() && canToggleManage()}
 	<div class="card">
@@ -240,7 +286,7 @@
 							aria-current={s.value === tab ? 'page' : undefined}
 							onclick={() => select(s.value)}
 						>
-							<span class="ic {s.tone}"><s.icon size={22} /></span>
+							<span class="ic {s.tone}"><s.icon size={19} /></span>
 							<span class="txt"><strong>{s.label}</strong><span>{s.desc}</span></span>
 							<ChevronRight size={16} class="chev" />
 						</button>
@@ -335,52 +381,108 @@
 		text-transform: uppercase;
 		color: var(--text-3);
 	}
+	/* По референсу-дашборду (0.9.6): меню – спокойный список с тонкими значками, выбранный пункт –
+	   мягкая заливка; цвета остались только в значке выбранного. */
 	.items {
 		display: flex;
 		flex-direction: column;
-		padding: 6px;
-		border-radius: var(--r-l);
+		gap: 2px;
+		padding: 8px;
+		border-radius: 26px;
 		background: var(--surface);
 		box-shadow: var(--shadow-1);
 	}
-	/* Меню разделов (0.7): крупные пункты, выбранный – заливкой, полосой и цветной иконкой. */
 	.item {
 		position: relative;
 		display: flex;
 		align-items: center;
-		gap: 14px;
-		padding: 13px 12px;
+		gap: 12px;
+		padding: 10px 12px;
 		border: 0;
-		border-radius: 14px;
+		border-radius: 16px;
 		background: transparent;
-		color: var(--text);
+		color: var(--text-2);
 		font: inherit;
 		text-align: left;
-		transition: background-color var(--dur) var(--ease);
+		transition:
+			background-color var(--dur) var(--ease),
+			color var(--dur) var(--ease);
 	}
 	.item:hover {
 		background: var(--surface-2);
+		color: var(--text);
 	}
 	.item.on {
-		background: var(--accent-soft);
-		box-shadow: inset 4px 0 0 var(--accent);
+		background: var(--surface-2);
+		color: var(--text);
 	}
 	.item.on .txt strong {
-		font-weight: 720;
+		font-weight: 700;
 	}
 	.item.on .ic {
-		background: var(--c);
-		color: #fff;
+		background: var(--text);
+		color: var(--bg);
 	}
 	.ic {
 		flex: none;
 		display: grid;
 		place-items: center;
-		width: 44px;
-		height: 44px;
-		border-radius: 13px;
-		color: var(--c);
-		background: color-mix(in srgb, var(--c) 13%, transparent);
+		width: 38px;
+		height: 38px;
+		border-radius: 12px;
+		color: var(--text-2);
+		background: transparent;
+		box-shadow: inset 0 0 0 1px var(--border);
+		transition:
+			background-color var(--dur) var(--ease),
+			color var(--dur) var(--ease);
+	}
+	.tiles {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+		gap: var(--s3);
+		margin-bottom: var(--s5);
+	}
+	.tile {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 4px;
+		min-width: 0;
+		padding: 16px 18px;
+		border: 0;
+		border-radius: 24px;
+		background: var(--surface);
+		box-shadow: var(--shadow-1);
+		color: var(--text);
+		font: inherit;
+		text-align: left;
+		transition: transform 160ms var(--ease);
+	}
+	.tile:hover {
+		transform: translateY(-2px);
+	}
+	.tile.dark {
+		background: var(--inverse, #0d0d0f);
+		color: var(--inverse-text, #fff);
+	}
+	.t-label {
+		font-size: 13px;
+		font-weight: 600;
+		opacity: 0.75;
+	}
+	.t-value {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 26px;
+		font-weight: 760;
+		letter-spacing: -0.02em;
+	}
+	.t-hint {
+		font-size: 12.5px;
+		opacity: 0.6;
 	}
 	.blue {
 		--c: #3a6ff0;
@@ -434,7 +536,7 @@
 	}
 	.head {
 		padding: var(--s4) var(--s5);
-		border-radius: var(--r-l);
+		border-radius: 26px;
 		background: var(--surface);
 		box-shadow: var(--shadow-1);
 	}
@@ -492,6 +594,12 @@
 		}
 		.back {
 			display: inline-flex;
+		}
+		.tiles {
+			grid-template-columns: 1fr 1fr;
+		}
+		.tiles.hide-phone {
+			display: none;
 		}
 	}
 </style>
