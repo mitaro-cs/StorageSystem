@@ -81,7 +81,7 @@ fn rename_mac_bundle() {
     let Some(bundle) = exe.ancestors().nth(3).map(Path::to_path_buf) else {
         return;
     };
-    if bundle.file_name().is_none_or(|n| n != "groupbase.app") {
+    if bundle.file_name() != Some(std::ffi::OsStr::new("groupbase.app")) {
         return;
     }
     let to = bundle.with_file_name("Campus.app");
