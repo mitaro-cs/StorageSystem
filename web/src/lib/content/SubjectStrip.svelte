@@ -2,12 +2,13 @@
 	import { tick } from 'svelte';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import type { Subject } from '$lib/types';
-	import SubjectGlyph from '$lib/ui/SubjectGlyph.svelte';
+	import SubjectArt from '$lib/ui/SubjectArt.svelte';
 
-	// Карусель предметов на странице предмета (0.9.5): капсулы со значком и названием – видно, что
-	// за предмет, без угадывания по картинке; текущий – в цвете предмета и прокручен в середину.
+	// Полоса миниатюр предметов на странице предмета: текущий крупнее и прокручен в видимую область.
+	// 0.9.6: плитки снова картинками (просьба владельца), запас по высоте под увеличенную текущую и
+	// её обводку – не обрезается; плитки въезжают по очереди, текущая растёт с «пружиной».
 	// Что не поместилось – за краем с затуханием, у края – стрелка: мышью без сенсорной панели полосу
-	// иначе не прокрутить.
+	// иначе не прокрутить («часть уходит и не видна»).
 	let { subjects, current }: { subjects: Subject[]; current: number } = $props();
 
 	let strip: HTMLElement | undefined = $state();
@@ -44,18 +45,25 @@
 
 <div class="strip-wrap" class:more-left={moreLeft} class:more-right={moreRight}>
 	<nav class="strip" aria-label="Другие предметы" bind:this={strip} onscroll={edges}>
-		{#each subjects as o (o.id)}
+		{#each subjects as o, i (o.id)}
 			<a
+				style:--i={Math.min(i, 12)}
 				href="/subjects/{o.id}"
-				class="pill-s"
+				class="thumb"
 				class:on={o.id === current}
-				style:--c={o.color}
 				aria-current={o.id === current ? 'page' : undefined}
 				title={o.name}
+				aria-label={o.name}
 				data-sveltekit-replacestate
 			>
-				<SubjectGlyph id={o.id} name={o.name} color={o.color} icon={o.icon} size={30} />
-				<span class="n">{o.name}</span>
+				<SubjectArt
+					id={o.id}
+					name={o.name}
+					color={o.color}
+					avatar={o.avatar}
+					icon={o.icon}
+					class="fill"
+				/>
 			</a>
 		{/each}
 	</nav>
@@ -87,8 +95,10 @@
 	.strip {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		padding: 4px 3px;
+		gap: 10px;
+		/* Высота – под текущую плитку (96) с обводкой (5) и подъёмом при наведении: ничего не режется. */
+		min-height: 124px;
+		padding: 12px 8px;
 		scroll-padding-inline: 6px;
 		overflow-x: auto;
 		scrollbar-width: none;
@@ -147,53 +157,58 @@
 	.strip::-webkit-scrollbar {
 		display: none;
 	}
-	.pill-s {
+	.thumb {
+		position: relative;
 		flex: none;
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		height: 44px;
-		max-width: 230px;
-		padding: 0 14px 0 6px;
-		border: 1px solid var(--border);
-		border-radius: var(--r-full);
-		background: var(--surface);
-		color: var(--text-2);
-		font-size: 14px;
-		font-weight: 600;
-		text-decoration: none;
+		width: 60px;
+		height: 72px;
+		border-radius: 16px;
+		opacity: 0.78;
+		animation: thumb-in 460ms cubic-bezier(0.2, 0.9, 0.3, 1.25) calc(var(--i, 0) * 35ms) both;
 		transition:
-			background-color var(--dur) var(--ease),
-			border-color var(--dur) var(--ease),
-			color var(--dur) var(--ease),
-			transform 140ms var(--ease);
+			width 380ms cubic-bezier(0.34, 1.56, 0.64, 1),
+			height 380ms cubic-bezier(0.34, 1.56, 0.64, 1),
+			opacity var(--dur) var(--ease),
+			transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+			box-shadow 260ms var(--ease);
 	}
-	.pill-s:hover {
-		color: var(--text);
-		border-color: var(--border-strong);
-		text-decoration: none;
+	.thumb:hover {
+		opacity: 1;
+		transform: translateY(-4px);
+		box-shadow: 0 10px 22px -10px rgb(0 0 0 / 0.5);
 	}
-	.pill-s:active {
-		transform: scale(0.97);
+	.thumb:active {
+		transform: scale(0.95);
 	}
-	.pill-s :global(.glyph) {
-		border-radius: 50%;
+	.thumb.on {
+		width: 84px;
+		height: 96px;
+		opacity: 1;
+		box-shadow:
+			0 0 0 3px var(--bg),
+			0 0 0 5px var(--text),
+			0 14px 28px -12px rgb(0 0 0 / 0.55);
+		border-radius: 18px;
 	}
-	.pill-s.on {
-		border-color: var(--c);
-		background: color-mix(in srgb, var(--c) 16%, var(--surface));
-		color: var(--text);
-		box-shadow: 0 0 0 1px var(--c);
+	.thumb.on:hover {
+		transform: none;
 	}
-	.pill-s.on :global(.glyph) {
-		background: var(--c);
-		color: #fff;
+	@keyframes thumb-in {
+		from {
+			opacity: 0;
+			transform: translateY(10px) scale(0.85);
+		}
 	}
-	.n {
-		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+	@media (prefers-reduced-motion: reduce) {
+		.thumb {
+			animation: none;
+			transition: none;
+		}
+	}
+	.thumb :global(.fill) {
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
 	}
 	@media (min-width: 900px) {
 		.strip-wrap {

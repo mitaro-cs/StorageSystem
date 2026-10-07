@@ -35,10 +35,15 @@ test('материалы: сообщение из чата и закреплен
 	await login(page, ADMIN);
 	await page.goto('/subjects');
 	await page.locator('main a[href^="/subjects/"]').first().click();
-	// Первая вкладка предмета – задания, «Новости» – сразу за ними.
+	// Вкладки предмета (0.9.6): ДЗ, Материалы, [Расписание], Новости; «Участники» – только у подгрупп.
 	const tabs = page.getByRole('navigation', { name: 'Разделы предмета' }).getByRole('link');
-	await expect(tabs.nth(0)).toHaveText('ДЗ');
-	await expect(tabs.nth(1)).toHaveText('Новости');
+	await expect(tabs.first()).toHaveText('ДЗ');
+	const names = (await tabs.allTextContents()).map((x) => x.trim());
+	expect(names.filter((x) => x !== 'Расписание' && x !== 'Участники')).toEqual([
+		'ДЗ',
+		'Материалы',
+		'Новости'
+	]);
 	await page
 		.getByRole('navigation', { name: 'Разделы предмета' })
 		.getByRole('link', { name: 'Материалы' })

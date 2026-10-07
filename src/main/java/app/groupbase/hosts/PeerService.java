@@ -94,7 +94,10 @@ public class PeerService implements SmartLifecycle {
   }
 
   static final long TICK_MS = 5_000;
-  static final long PROBE_MS = 30_000;
+
+  /** Основной проверяет адрес сайта раз в 10 с (0.9.6: «статус должен обновляться сам»). */
+  static final long PROBE_MS = 10_000;
+
   static final long FILES_MS = 60_000;
   static final long TAKEOVER_MS = 60_000;
   static final Duration CODE_TTL = Duration.ofMinutes(15);
@@ -116,6 +119,7 @@ public class PeerService implements SmartLifecycle {
    *     checking (главный проверяет, не работает ли сайт на другом компьютере), conflict (этот
    *     считает себя основным, а по адресу сайта отвечает другой – тоже основной)
    * @param rival имя компьютера, который отвечает по адресу сайта при conflict
+   * @param checkedAt когда адрес сайта последний раз ответил (null – ещё не отвечал)
    * @param nobodyFor сколько главный уже не отвечает (мс) — до перехода сюда
    * @param serving имя компьютера, на котором сайт сейчас работает для группы (null — неизвестно)
    */
@@ -133,6 +137,7 @@ public class PeerService implements SmartLifecycle {
       long nobodyFor,
       String serving,
       String rival,
+      Long checkedAt,
       boolean cloud,
       List<Peer> peers,
       Code code,
@@ -175,6 +180,10 @@ public class PeerService implements SmartLifecycle {
   private volatile int filesMissing;
   private volatile long nobodySince;
   private volatile long lastProbe;
+
+  /** Когда адрес сайта последний раз ответил (кто бы там ни был) – «проверено N с назад». */
+  private volatile long checkedAt;
+
   private volatile long lastFiles;
   private volatile boolean checking;
 
@@ -977,6 +986,7 @@ public class PeerService implements SmartLifecycle {
       PeerClient c = client();
       replay(c);
       PeerClient.State st = c.state();
+      checkedAt = clock.millis();
       nobodySince = 0;
       holder = st.computer();
       if (cfg.computerId().equals(st.moveTo())) {
@@ -1055,6 +1065,7 @@ public class PeerService implements SmartLifecycle {
     lastProbe = now;
     try {
       PeerClient.State st = client().state();
+      checkedAt = clock.millis();
       if (st.computer().equals(cfg.computerId())) {
         confirmedHere = true;
         rival = null;
@@ -1477,6 +1488,7 @@ public class PeerService implements SmartLifecycle {
         nobodySince == 0 ? 0 : now - nobodySince,
         !available ? null : role == Role.MAIN ? cfg.computerName() : nameOf(peers, holder),
         rival == null || role != Role.MAIN ? null : nameOrId(peers, rival),
+        checkedAt == 0 ? null : checkedAt,
         available && hosts.cloudEnabled(),
         peers,
         role == Role.MAIN ? code() : null,

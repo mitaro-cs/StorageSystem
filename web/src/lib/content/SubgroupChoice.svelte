@@ -14,17 +14,35 @@
 
 	let skip = $state(dismissed());
 	let busy = $state<string | null>(null);
-	const list = $derived(
+	const all_ = $derived(
 		choices(
 			subjects.list.filter(
 				(s) => session.groupId === null || s.groups.some((g) => g.id === session.groupId)
 			)
-		).filter((c) => open(c, skip, session.me?.user.tips ?? []))
+		)
+	);
+	// Спрашиваем один раз (0.9.6): показали – сразу отмечено в аккаунте («sub-N»), и больше ни здесь,
+	// ни на другом устройстве не всплывёт. Карточка живёт, пока не ответили или не ушли со страницы.
+	let shown = $state<string[]>([]);
+	let answered = $state<string[]>([]);
+	$effect(() => {
+		for (const c of all_)
+			if (!shown.includes(c.key) && open(c, skip, session.me?.user.tips ?? [])) {
+				shown.push(c.key);
+				closeTip(askedKey(c));
+			}
+	});
+	const list = $derived(
+		all_.filter(
+			(c) =>
+				shown.includes(c.key) &&
+				!answered.includes(c.key) &&
+				c.options.every((o) => o.subject.mine !== false)
+		)
 	);
 
 	async function pick(c: Choice, id: number) {
 		busy = c.key;
-		closeTip(askedKey(c));
 		try {
 			for (const o of c.options)
 				await put(`/api/subjects/${o.subject.id}/mine`, { value: o.subject.id === id });
@@ -39,9 +57,9 @@
 	}
 
 	function all(c: Choice) {
-		closeTip(askedKey(c));
 		dismiss(c.key);
 		skip = dismissed();
+		answered.push(c.key);
 	}
 </script>
 

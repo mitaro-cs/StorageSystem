@@ -343,4 +343,50 @@ class ScheduleIT extends IntegrationTest {
     assertThat(empty.json().get("message").asString()).contains("нет пар");
     assertThat(headman.api().get("/api/schedule?group=" + g).status()).isEqualTo(400);
   }
+
+  @Test
+  void eachKindOfLessonCanHaveItsOwnTeacher() {
+    long g = newGroup("Преподаватели");
+    TestUser headman = newUser(g, "headman");
+    long s = subject(g, "Физика " + uniq());
+    var p =
+        headman
+            .api()
+            .patch(
+                "/api/subjects/" + s,
+                Map.of(
+                    "name",
+                    "Физика",
+                    "color",
+                    "#3355ff",
+                    "teacher",
+                    "Общий О. О.",
+                    "teachers",
+                    Map.of("lab", "Лабов Л. Л.", "lecture", "")));
+    assertThat(p.status()).as(p.body()).isEqualTo(200);
+    assertThat(p.json().get("teachers").get("lab").asString()).isEqualTo("Лабов Л. Л.");
+    assertThat(p.json().get("teachers").has("lecture")).isFalse();
+    long start = clock.millis() + DAY;
+    String range = "&from=" + (start - DAY) + "&to=" + (start + DAY);
+    for (String kind : List.of("lecture", "lab")) {
+      headman
+          .api()
+          .post(
+              "/api/groups/" + g + "/lessons",
+              Map.of("subjectId", s, "kind", kind, "startsAt", start, "endsAt", start + 5_400_000));
+      start += 2 * 3_600_000;
+    }
+    var list = headman.api().get("/api/schedule?subject=" + s + range).json();
+    Map<String, String> byKind = new java.util.HashMap<>();
+    list.forEach(l -> byKind.put(l.get("kind").asString(), l.get("teacher").asString()));
+    assertThat(byKind).containsEntry("lecture", "Общий О. О.").containsEntry("lab", "Лабов Л. Л.");
+    assertThat(
+            headman
+                .api()
+                .patch(
+                    "/api/subjects/" + s,
+                    Map.of("name", "Физика", "color", "#3355ff", "teachers", Map.of("exam", "X")))
+                .status())
+        .isEqualTo(400);
+  }
 }

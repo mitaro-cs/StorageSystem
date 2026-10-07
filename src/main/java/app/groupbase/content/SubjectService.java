@@ -27,9 +27,18 @@ public class SubjectService {
    * @param icon иконка из встроенного набора: null — не менять, пустая строка — подобрать по
    *     названию
    */
-  public record Input(String name, String teacher, String color, String chatUrl, String icon) {
+  /**
+   * @param teachers преподаватели по видам пар (lecture, practice, seminar, lab): null — не менять
+   */
+  public record Input(
+      String name,
+      String teacher,
+      String color,
+      String chatUrl,
+      String icon,
+      Map<String, String> teachers) {
     public Input(String name, String teacher, String color, String chatUrl) {
-      this(name, teacher, color, chatUrl, null);
+      this(name, teacher, color, chatUrl, null, null);
     }
   }
 
@@ -42,6 +51,8 @@ public class SubjectService {
       String icon,
       String cover,
       String chatUrl,
+      // Свой преподаватель у лекций, практики, семинаров, лабораторных (0.9.6).
+      Map<String, String> teachers,
       boolean archived,
       boolean pinned,
       // Предмет этого человека; false — скрыл у себя как предмет другой подгруппы.
@@ -130,6 +141,7 @@ public class SubjectService {
         r.icon(),
         r.cover(),
         r.chatUrl(),
+        r.teachers(),
         r.archivedAt() != null,
         pins.contains(r.id()),
         !hidden.contains(r.id()),
@@ -152,6 +164,9 @@ public class SubjectService {
     if (c.icon() != null && !c.icon().isEmpty()) {
       subjects.setIcon(id, c.icon());
     }
+    if (c.teachers() != null) {
+      subjects.setTeachers(id, c.teachers());
+    }
     subjects.link(id, groupId, now);
     audit.log(actor, groupId, "subject.create", "subject", id, Map.of("name", c.name()));
     return get(actor, id);
@@ -167,6 +182,9 @@ public class SubjectService {
     }
     if (c.icon() != null) {
       subjects.setIcon(id, c.icon().isEmpty() ? null : c.icon());
+    }
+    if (c.teachers() != null) {
+      subjects.setTeachers(id, c.teachers());
     }
     return get(actor, id);
   }
@@ -395,7 +413,33 @@ public class SubjectService {
     }
     String chat = in.chatUrl() == null ? null : Telegram.normalize(in.chatUrl(), "chatUrl");
     return new Input(
-        name, teacher, color.toLowerCase(java.util.Locale.ROOT), chat, icon(in.icon()));
+        name,
+        teacher,
+        color.toLowerCase(java.util.Locale.ROOT),
+        chat,
+        icon(in.icon()),
+        teachers(in.teachers()));
+  }
+
+  /** Преподаватели по видам: известные виды, до 80 символов, без переносов строк. */
+  static Map<String, String> teachers(Map<String, String> raw) {
+    if (raw == null) {
+      return null;
+    }
+    Map<String, String> out = new java.util.LinkedHashMap<>();
+    for (var e : raw.entrySet()) {
+      if (!SubjectStore.TEACHER_KINDS.contains(e.getKey())) {
+        throw ApiException.invalid("teachers", "Неизвестный вид пары");
+      }
+      String v = e.getValue() == null ? "" : e.getValue().strip().replaceAll("\\s+", " ");
+      if (v.length() > 80 || v.contains("=")) {
+        throw ApiException.invalid("teachers", "Имя преподавателя – до 80 символов");
+      }
+      if (!v.isEmpty()) {
+        out.put(e.getKey(), v);
+      }
+    }
+    return out;
   }
 
   /** null — не менять, пустая строка — убрать, иначе ключ из набора. */

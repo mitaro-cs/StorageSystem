@@ -57,8 +57,16 @@
 	// Время тикает раз в 15 с – идущая пара и полоска видны без перезагрузки.
 	let now = $state(Date.now());
 	onMount(() => {
+		// «Неделя» и «Месяц» – отдельные кусочки: подгружаем заранее, чтобы переключение было мгновенным.
+		const warm = setTimeout(() => {
+			import('$lib/schedule/WeekView.svelte');
+			import('$lib/schedule/MonthView.svelte');
+		}, 1500);
 		const t = setInterval(() => (now = Date.now()), 15_000);
-		return () => clearInterval(t);
+		return () => {
+			clearInterval(t);
+			clearTimeout(warm);
+		};
 	});
 	type View = 'day' | 'week' | 'month';
 	const VIEWS: { value: View; label: string }[] = [
@@ -97,7 +105,9 @@
 	let editorOpen = $state(false);
 
 	async function load() {
-		lessons = peek<Lesson[]>(key()) ?? null;
+		// Пока грузится новый диапазон (смена недели или вида), показываем прежнее – страница не
+		// схлопывается в «скелет» и не прыгает (0.9.6, «всё дёргается»).
+		lessons = peek<Lesson[]>(key()) ?? lessons;
 		homework = peek<Homework[]>(hwKey()) ?? [];
 		const range = { group: session.groupId, from, to };
 		try {

@@ -61,7 +61,7 @@ test('логотип: значок во вкладке, картинка для 
 	await page.goto('/такой-страницы-нет');
 	await expect(page.getByRole('heading', { name: 'Такой страницы нет' })).toBeVisible();
 	// Фигура и сетка глобуса берутся из /logo.svg – картинка должна дорисоваться.
-	const figure = page.locator('main.err use[href="/logo.svg#figure"]');
+	const figure = page.locator('main.err use[href^="/logo.svg"][href$="#figure"]');
 	await expect(figure).toHaveCount(1);
 	await expect.poll(async () => (await figure.boundingBox())?.width ?? 0).toBeGreaterThan(10);
 });

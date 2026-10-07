@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { ScanLine } from '@lucide/svelte';
 	import { post } from '$lib/api';
 	import { deviceLabel } from '$lib/push';
@@ -33,9 +34,15 @@
 		}
 	}
 
-	// Ввели шесть цифр – входим сразу, без кнопки.
+	// Ввели шесть цифр – входим сразу, без кнопки. Один раз на набранный код: раньше эффект
+	// зависел и от busy, после каждого ответа отправлял код снова – запросы шли по кругу, кнопка
+	// «висела», а неверные попытки сгорали (0.9.6).
+	let tried = '';
 	$effect(() => {
-		if (digits.length === 6) submit();
+		const d = digits;
+		if (d.length !== 6 || d === tried) return;
+		tried = d;
+		untrack(() => submit());
 	});
 </script>
 

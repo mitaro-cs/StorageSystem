@@ -57,10 +57,10 @@
 			<g transform="scale(0.0434783)">
 				<g class="globe">
 					<circle class="ball" cx="347.8" cy="273.1" r="165" />
-					<use href="/logo.svg#grid" />
+					<use href="/logo.svg?v=2#grid" />
 				</g>
-				<use href="/logo.svg#figure" />
-				<use href="/logo.svg#eye" />
+				<use href="/logo.svg?v=2#figure" />
+				<use href="/logo.svg?v=2#eye" />
 			</g>
 		</g>
 		<g class="badge">
