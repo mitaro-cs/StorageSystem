@@ -68,20 +68,23 @@
 	function place() {
 		const el = findTarget(s.targets);
 		const pad = 6;
+		// Масштаб интерфейса на компьютере – CSS zoom на <html> (lib/uiScale.ts): размеры от
+		// getBoundingClientRect уже умножены на него, а top/left подсветки умножатся ещё раз – делим.
+		const z = Number(document.documentElement.style.zoom) || 1;
 		if (el) {
 			const r = el.getBoundingClientRect();
 			hole = {
-				top: r.top - pad,
-				left: r.left - pad,
-				width: r.width + pad * 2,
-				height: r.height + pad * 2
+				top: r.top / z - pad,
+				left: r.left / z - pad,
+				width: r.width / z + pad * 2,
+				height: r.height / z + pad * 2
 			};
 		} else hole = null;
 		const c = card?.getBoundingClientRect();
 		pos = placeCard(
 			hole,
-			{ width: c?.width ?? 320, height: c?.height ?? 180 },
-			{ width: innerWidth, height: innerHeight }
+			{ width: (c?.width ?? 320) / z, height: (c?.height ?? 180) / z },
+			{ width: innerWidth / z, height: innerHeight / z }
 		);
 	}
 

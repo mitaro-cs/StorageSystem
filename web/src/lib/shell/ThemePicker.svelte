@@ -27,6 +27,8 @@
 	} from '$lib/looks';
 	import { appIcon, iconSrc, type AppIcon } from '$lib/appIcon.svelte';
 	import { session } from '$lib/session.svelte';
+	import { post } from '$lib/api';
+	import { SCALES, readScale, setScale } from '$lib/uiScale';
 	import { toast } from '$lib/toasts.svelte';
 	import Button from '$lib/ui/Button.svelte';
 
@@ -123,6 +125,37 @@
 		setIcon(i);
 	}
 
+	// Масштаб (0.9.5 – здесь, в «Оформлении»): у каждого устройства свой, не синхронизируется.
+	// В окне хоста – масштаб окна (его помнит оболочка), в браузере и на телефоне – интерфейса.
+	const hostWindow = $derived(!!session.me?.hostWindow);
+	let scale = $state(readScale());
+	function pickScale(v: number) {
+		scale = v;
+		setScale(v);
+	}
+	const ZOOMS = [0, 80, 90, 100, 110, 125, 150];
+	let zoom = $state(readZoom());
+	function readZoom(): number {
+		try {
+			return Number(localStorage.getItem('gb-host-zoom') ?? 0) || 0;
+		} catch {
+			return 0;
+		}
+	}
+	async function pickZoom(value: number) {
+		try {
+			await post('/api/desktop/zoom', { value });
+			zoom = value;
+			try {
+				localStorage.setItem('gb-host-zoom', String(value));
+			} catch {
+				/* приватный режим – просто не запомним, что показать */
+			}
+		} catch {
+			toast('Масштаб окна не изменился', 'error');
+		}
+	}
+
 	/** Образец цвета – ярким, как на кнопке. */
 	const dot = (hue: number) => oklch(0.62, 0.25, hue);
 	const satLabel = $derived(
@@ -146,6 +179,36 @@
 					{m.label}
 				</button>
 			{/each}
+		</div>
+	</div>
+
+	<div>
+		<p class="label" id="scale-label">
+			{hostWindow ? 'Масштаб окна' : 'Масштаб'}
+			<span class="faint">· только на этом устройстве</span>
+		</p>
+		<div class="zooms" role="radiogroup" aria-labelledby="scale-label">
+			{#if hostWindow}
+				{#each ZOOMS as z (z)}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={zoom === z}
+						class:on={zoom === z}
+						onclick={() => pickZoom(z)}>{z ? `${z}%` : 'Авто'}</button
+					>
+				{/each}
+			{:else}
+				{#each SCALES as z (z)}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={scale === z}
+						class:on={scale === z}
+						onclick={() => pickScale(z)}>{z === 100 ? 'Обычный' : `${z}%`}</button
+					>
+				{/each}
+			{/if}
 		</div>
 	</div>
 
@@ -358,6 +421,28 @@
 </div>
 
 <style>
+	.zooms {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.zooms button {
+		min-width: 60px;
+		height: 38px;
+		padding: 0 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--r-full);
+		background: var(--surface);
+		color: var(--text);
+		font: inherit;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.zooms button.on {
+		border-color: transparent;
+		background: var(--accent);
+		color: var(--accent-text);
+	}
 	.picker {
 		display: flex;
 		flex-direction: column;

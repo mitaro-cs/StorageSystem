@@ -30,7 +30,8 @@
 		return {
 			count: list.length,
 			off: (map.get(d)?.length ?? 0) - list.length,
-			kinds: [...new Set(list.map((l) => l.kind))].slice(0, 5),
+			// Точка на каждую пару (0.9.5): пять пар – пять точек, цвет – вид пары.
+			kinds: list.map((l) => l.kind).slice(0, 8),
 			names: names.slice(0, 3),
 			more: Math.max(0, names.length - 3)
 		};
@@ -61,7 +62,7 @@
 					<span class="n num">{new Date(d).getDate()}</span>
 					{#if c.kinds.length}
 						<span class="dots"
-							>{#each c.kinds as k (k)}<i style:--k={KIND_COLORS[k]}></i>{/each}</span
+							>{#each c.kinds as k, j (j)}<i style:--k={KIND_COLORS[k]}></i>{/each}</span
 						>
 					{/if}
 					<span class="ab">

@@ -58,11 +58,35 @@
 		}
 	}
 
-	const sync = () =>
+	// «Проверить» (0.9.5): спросить адрес сайта сейчас, кто на самом деле отвечает группе.
+	const check = () =>
 		run(async () => {
-			await post('/api/host/peers/sync');
-			toast('Синхронизировано', 'ok');
+			const r = await post<PeerView>('/api/host/peers/sync');
+			v = r;
+			if (r.state === 'conflict') toast('Два основных – выберите, какой оставить', 'error');
+			else if (r.state === 'ok')
+				toast(
+					r.role === 'main'
+						? 'Проверено: группа работает с этим компьютером'
+						: `Проверено: основной – «${r.serving ?? 'другой компьютер'}», данные свежие`,
+					'ok'
+				);
+			else toast(r.message ?? 'Нет связи с адресом сайта', 'error');
 		});
+
+	async function yieldTo() {
+		if (
+			!(await ask(
+				`Группа сейчас работает с «${v?.rival}». Этот компьютер станет копией и возьмёт его данные; свои изменения окна отсюда отправит туда.`,
+				{ title: `Оставить основным «${v?.rival}»?`, ok: 'Оставить тот' }
+			))
+		)
+			return;
+		run(async () => {
+			await post('/api/host/peers/yield');
+			toast('Этот компьютер теперь копия', 'ok');
+		});
+	}
 
 	const answer = (id: string, allow: boolean) =>
 		run(() => post(`/api/host/peers/requests/${encodeURIComponent(id)}`, { allow }));
@@ -191,21 +215,56 @@
 		</section>
 	{:else}
 		<section class="card pane">
-			<p class="where" class:wait={v.state === 'nobody'}>
-				<span class="dot" aria-hidden="true"></span>
-				{#if here}Основной – <strong>этот компьютер</strong>, сайт работает здесь
-				{:else if v.state === 'nobody'}Основной не отвечает – через {seconds(v.nobodyFor)} с основным
-					станет этот компьютер
-				{:else if v.serving}Основной – <strong>«{v.serving}»</strong>, изменения отсюда уходят туда
-				{:else}Основной – другой компьютер, изменения отсюда уходят туда{/if}
-			</p>
-			{#if v.message && v.state !== 'nobody'}<p class="small warn">{v.message}</p>{/if}
+			<div class="where-row">
+				<p class="where" class:wait={v.state === 'nobody'} class:bad={v.state === 'conflict'}>
+					<span class="dot" aria-hidden="true"></span>
+					<span>
+						{#if v.state === 'conflict'}Два основных: группа сейчас работает с <strong
+								>«{v.rival}»</strong
+							>
+						{:else if here}Основной – <strong>этот компьютер</strong>, сайт работает здесь
+						{:else if v.state === 'nobody'}Основной не отвечает – через {seconds(v.nobodyFor)} с основным
+							станет этот компьютер
+						{:else if v.serving}Основной – <strong>«{v.serving}»</strong>, изменения отсюда уходят
+							туда
+						{:else}Основной – другой компьютер, изменения отсюда уходят туда{/if}
+					</span>
+				</p>
+				{#if hostWindow}
+					<Button size="s" variant="ghost" loading={busy} onclick={check}
+						><RefreshCw size={15} /> Проверить</Button
+					>
+				{/if}
+			</div>
+			{#if v.state === 'conflict' && hostWindow}
+				<div class="conflict">
+					<p class="small">
+						Оба компьютера считают себя основными, а группа ходит на «{v.rival}». Выберите, какой
+						оставить – второй станет копией и возьмёт его данные.
+					</p>
+					<div class="row wrap">
+						<Button size="s" variant="primary" loading={busy} onclick={yieldTo}
+							>Оставить «{v.rival}»</Button
+						>
+						<Button
+							size="s"
+							loading={busy}
+							onclick={() => {
+								const me = v?.peers.find((p) => p.here);
+								if (me) makeHost(me);
+							}}>Сделать основным этот</Button
+						>
+					</div>
+				</div>
+			{:else if v.message && v.state !== 'nobody'}<p class="small warn">{v.message}</p>{/if}
 			<ul class="peers">
 				{#each v.peers as p (p.computerId)}
 					<li>
 						{#if isHost(p)}<Crown size={18} />{:else}<Laptop size={18} />{/if}
 						<span class="grow">
-							<strong>{p.name}{p.here ? ' – этот' : ''}</strong>
+							<strong
+								>{p.name}{#if p.here}<span class="me">этот компьютер</span>{/if}</strong
+							>
 							<span class="faint small"
 								>{isHost(p)
 									? 'основной'
@@ -245,13 +304,6 @@
 					{/if}
 				</dl>
 			{/if}
-			{#if hostWindow && !here}
-				<div>
-					<Button size="s" variant="ghost" loading={busy} onclick={sync}
-						><RefreshCw size={15} /> Синхронизировать</Button
-					>
-				</div>
-			{/if}
 			{#if hostWindow}
 				{#if siteKey}{@render keyCard()}
 				{:else}
@@ -285,11 +337,44 @@
 		flex: none;
 		margin-top: 2px;
 	}
+	.where-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
 	.where {
 		display: flex;
 		align-items: center;
 		gap: 8px;
 		margin: 0;
+	}
+	.where.bad .dot {
+		background: var(--danger);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent);
+	}
+	.conflict {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding: 12px 14px;
+		border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent);
+		border-radius: var(--r);
+		background: color-mix(in srgb, var(--danger) 8%, transparent);
+	}
+	.conflict p {
+		margin: 0;
+	}
+	.me {
+		margin-left: 8px;
+		padding: 2px 8px;
+		border-radius: var(--r-full);
+		background: var(--surface-2);
+		color: var(--text-2);
+		font-size: 12px;
+		font-weight: 600;
+		vertical-align: 2px;
 	}
 	.dot {
 		width: 8px;

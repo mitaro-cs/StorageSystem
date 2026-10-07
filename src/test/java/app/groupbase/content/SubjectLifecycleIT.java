@@ -3,6 +3,7 @@ package app.groupbase.content;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import app.groupbase.IntegrationTest;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +43,27 @@ class SubjectLifecycleIT extends IntegrationTest {
         .isEqualTo(200);
     assertThat(student.api().get("/api/subjects/" + second).status()).isEqualTo(200);
     assertThat(headman.api().post("/api/subjects/" + s + "/subgroups", Map.of("count", 9)).status())
+        .isEqualTo(400);
+
+    // Подписи подгрупп – после номера: расписание из файла по-прежнему находит «№2».
+    long t = subject(g, "Физкультура " + uniq());
+    var named =
+        headman
+            .api()
+            .post(
+                "/api/subjects/" + t + "/subgroups",
+                Map.of("count", 2, "names", List.of("Волейбол", "")));
+    assertThat(named.status()).as(named.body()).isEqualTo(200);
+    assertThat(named.json().get(0).get("name").asString()).endsWith("№1 Волейбол");
+    assertThat(named.json().get(1).get("name").asString()).endsWith("№2");
+    long u = subject(g, "Химия " + uniq());
+    assertThat(
+            headman
+                .api()
+                .post(
+                    "/api/subjects/" + u + "/subgroups",
+                    Map.of("count", 2, "names", List.of("Группа 305", "")))
+                .status())
         .isEqualTo(400);
   }
 

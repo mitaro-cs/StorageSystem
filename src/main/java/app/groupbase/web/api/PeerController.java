@@ -166,6 +166,15 @@ class PeerController {
     return v;
   }
 
+  /** Два основных: этот уступает тому, кто отвечает по адресу сайта. */
+  @PostMapping("/api/host/peers/yield")
+  PeerService.View yieldToRival(Actor actor, HttpServletRequest req) {
+    requireWindow(actor, req);
+    PeerService.View v = run(peers::yieldToRival);
+    audit.log(actor, null, "hosts.peer_yield", "instance", null);
+    return v;
+  }
+
   /** Ключ сайта — показать (и создать, если ещё нет). */
   @GetMapping("/api/host/peers/key")
   Map<String, String> key(Actor actor, HttpServletRequest req) {

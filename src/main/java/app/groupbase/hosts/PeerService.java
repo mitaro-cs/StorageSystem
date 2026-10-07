@@ -113,7 +113,9 @@ public class PeerService implements SmartLifecycle {
    * Что показать в «Управление → Сервер».
    *
    * @param state ok, offline (нет связи), nobody (главный не отвечает), behind (версии разные),
-   *     checking (главный проверяет, не работает ли сайт на другом компьютере)
+   *     checking (главный проверяет, не работает ли сайт на другом компьютере), conflict (этот
+   *     считает себя основным, а по адресу сайта отвечает другой – тоже основной)
+   * @param rival имя компьютера, который отвечает по адресу сайта при conflict
    * @param nobodyFor сколько главный уже не отвечает (мс) — до перехода сюда
    * @param serving имя компьютера, на котором сайт сейчас работает для группы (null — неизвестно)
    */
@@ -130,6 +132,7 @@ public class PeerService implements SmartLifecycle {
       int filesMissing,
       long nobodyFor,
       String serving,
+      String rival,
       boolean cloud,
       List<Peer> peers,
       Code code,
@@ -180,6 +183,9 @@ public class PeerService implements SmartLifecycle {
 
   /** Главный убедился, что адрес сайта ведёт сюда: журнал изменений без связи не нужен. */
   private volatile boolean confirmedHere;
+
+  /** По адресу сайта отвечает другой основной (поколение не старше нашего) – его номер. */
+  private volatile String rival;
 
   private final Map<String, Long> seen = new ConcurrentHashMap<>();
 
@@ -1051,6 +1057,7 @@ public class PeerService implements SmartLifecycle {
       PeerClient.State st = client().state();
       if (st.computer().equals(cfg.computerId())) {
         confirmedHere = true;
+        rival = null;
         queue.clear();
         state = "ok";
         message = null;
@@ -1058,8 +1065,16 @@ public class PeerService implements SmartLifecycle {
       }
       if (st.epoch() >= cfg.peerEpoch()) {
         // Пока этот компьютер был без связи, главным стал другой.
+        rival = null;
         demote(st);
+        return;
       }
+      // Оба считают себя основными, а группа ходит на другой (0.9.5: «на ПК тоже „основной“»).
+      // Сам не уступаем – решает человек: «Оставить основным тот» или «Сделать основным этот».
+      confirmedHere = false;
+      rival = st.computer();
+      state = "conflict";
+      message = "По адресу сайта отвечает другой компьютер – он тоже считает себя основным";
     } catch (PeerClient.NoServer e) {
       // По адресу сайта никто не отвечает: сайт нигде не работает — поднимаем туннель здесь.
       confirmedHere = false;
@@ -1280,6 +1295,11 @@ public class PeerService implements SmartLifecycle {
    */
   public View moveHere() {
     requireApp();
+    if (role == Role.MAIN && rival != null) {
+      // Два основных: сначала этот становится копией того, с кем работает группа (берёт его
+      // данные), потом забирает сайт себе обычным переездом – ничего не теряется.
+      yieldToRival();
+    }
     if (role == Role.MAIN) {
       throw new Problem("Сайт и так работает на этом компьютере");
     }
@@ -1456,11 +1476,48 @@ public class PeerService implements SmartLifecycle {
         filesMissing,
         nobodySince == 0 ? 0 : now - nobodySince,
         !available ? null : role == Role.MAIN ? cfg.computerName() : nameOf(peers, holder),
+        rival == null || role != Role.MAIN ? null : nameOrId(peers, rival),
         available && hosts.cloudEnabled(),
         peers,
         role == Role.MAIN ? code() : null,
         available ? requests() : List.of(),
         ask);
+  }
+
+  private static String nameOrId(List<Peer> peers, String computerId) {
+    String n = nameOf(peers, computerId);
+    return n == null ? "другой компьютер" : n;
+  }
+
+  /**
+   * «Оставить основным тот»: этот компьютер при conflict уступает – становится копией того, кто
+   * отвечает по адресу сайта (его база важнее: группа работала с ним).
+   */
+  public View yieldToRival() {
+    requireApp();
+    stepLock.lock();
+    try {
+      if (role != Role.MAIN) {
+        throw new Problem("Этот компьютер и так не основной");
+      }
+      PeerClient.State st;
+      try {
+        st = client().state();
+      } catch (IOException e) {
+        throw new Problem("Нет связи с адресом сайта – проверьте интернет и попробуйте ещё раз");
+      }
+      if (st.computer().equals(cfg.computerId())) {
+        rival = null;
+        state = "ok";
+        message = null;
+        throw new Problem("По адресу сайта отвечает этот компьютер – он и есть основной");
+      }
+      rival = null;
+      demote(st);
+    } finally {
+      stepLock.unlock();
+    }
+    return view();
   }
 
   private static String nameOf(List<Peer> peers, String computerId) {

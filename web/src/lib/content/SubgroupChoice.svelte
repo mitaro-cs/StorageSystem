@@ -5,7 +5,8 @@
 	import { session } from '$lib/session.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import { typo } from '$lib/typo';
-	import { choices, dismiss, dismissed, open, type Choice } from './subgroups';
+	import { closeTip } from '$lib/onboarding.svelte';
+	import { askedKey, choices, dismiss, dismissed, open, type Choice } from './subgroups';
 
 	// «Английский идёт по подгруппам – ваша?»: выбрали – задания, новости и уведомления другой
 	// подгруппы больше не приходят. Передумали – «Не мой предмет» на странице предмета.
@@ -18,11 +19,12 @@
 			subjects.list.filter(
 				(s) => session.groupId === null || s.groups.some((g) => g.id === session.groupId)
 			)
-		).filter((c) => open(c, skip))
+		).filter((c) => open(c, skip, session.me?.user.tips ?? []))
 	);
 
 	async function pick(c: Choice, id: number) {
 		busy = c.key;
+		closeTip(askedKey(c));
 		try {
 			for (const o of c.options)
 				await put(`/api/subjects/${o.subject.id}/mine`, { value: o.subject.id === id });
@@ -37,6 +39,7 @@
 	}
 
 	function all(c: Choice) {
+		closeTip(askedKey(c));
 		dismiss(c.key);
 		skip = dismissed();
 	}

@@ -58,6 +58,7 @@ const LABELS: Record<string, string> = {
 	'hosts.peer_code': 'взял код для второго компьютера хоста',
 	'hosts.peer_here': 'перенёс сайт на этот компьютер',
 	'hosts.peer_host': 'выбрал основной компьютер',
+	'hosts.peer_yield': 'уступил роль основного другому компьютеру',
 	'hosts.peer_key': 'сменил ключ сайта',
 	'hosts.peer_allow': 'разрешил подключить компьютер',
 	'hosts.peer_remove': 'отключил второй компьютер хоста',

@@ -180,7 +180,12 @@
 		)
 	);
 	/** Точки видов пар под днём – как на сайте вуза. */
-	const dots = (d: number) => [...new Set((map.get(d) ?? []).map((l) => l.kind))].slice(0, 4);
+	// Точка на каждую пару дня (не на вид): пять пар – пять точек.
+	const dots = (d: number) =>
+		(map.get(d) ?? [])
+			.filter((l) => !l.cancelled)
+			.map((l) => l.kind)
+			.slice(0, 6);
 
 	async function setCancelled(l: Lesson, value: boolean) {
 		const updated = await (await import('$lib/schedule/manage')).setCancelled(l, value);
@@ -352,7 +357,7 @@
 				<span class="wd">{short(d.day)}</span>
 				<strong class="num">{new Date(d.day).getDate()}</strong>
 				<span class="dots" aria-hidden="true"
-					>{#each dots(d.day) as k (k)}<i style:--k={KIND_COLORS[k]}></i>{:else}<span class="cnt"
+					>{#each dots(d.day) as k, j (j)}<i style:--k={KIND_COLORS[k]}></i>{:else}<span class="cnt"
 							>–</span
 						>{/each}</span
 				>
@@ -951,13 +956,16 @@
 	}
 	.dots {
 		display: flex;
-		gap: 3px;
-		height: 14px;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 2px;
+		max-width: 100%;
+		min-height: 14px;
 		align-items: center;
 	}
 	.dots i {
-		width: 6px;
-		height: 6px;
+		width: 5px;
+		height: 5px;
 		border-radius: 50%;
 		background: var(--k);
 	}

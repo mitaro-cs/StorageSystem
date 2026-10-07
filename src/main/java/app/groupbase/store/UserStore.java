@@ -237,8 +237,12 @@ public class UserStore {
   }
 
   /** Режим управления: false — интерфейс без кнопок администратора и старосты. */
-  /** Подсказка в разделе: латиница и дефис, коротко. */
-  public static final java.util.regex.Pattern TIP = java.util.regex.Pattern.compile("[a-z-]{1,24}");
+  /**
+   * Подсказка в разделе: латиница, цифры и дефис, коротко. «sub-N» — вопрос о подгруппе для набора
+   * предметов с наименьшим номером N уже задан (0.9.5: спрашиваем один раз на аккаунт).
+   */
+  public static final java.util.regex.Pattern TIP =
+      java.util.regex.Pattern.compile("[a-z0-9-]{1,24}");
 
   /** Закрытые подсказки разделов; «*» — все (у тех, кто пользовался сайтом до 0.6). */
   public List<String> tips(long id) {
@@ -251,10 +255,15 @@ public class UserStore {
     return raw.isEmpty() ? List.of() : List.of(raw.split(","));
   }
 
-  /** Подсказка закрыта — больше не показывается (на всех устройствах). Не больше 40 штук. */
+  /**
+   * Подсказка закрыта — больше не показывается (на всех устройствах). Не больше 40 штук. «*» (все
+   * подсказки разделов закрыты) не мешает записать ответ на вопрос о подгруппе.
+   */
   public void addTip(long id, String tip) {
     List<String> seen = tips(id);
-    if (seen.contains("*") || seen.contains(tip) || seen.size() >= 40) {
+    if (seen.contains(tip)
+        || seen.size() >= 40
+        || (seen.contains("*") && !tip.startsWith("sub-"))) {
       return;
     }
     db.sql(

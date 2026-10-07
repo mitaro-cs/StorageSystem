@@ -15,6 +15,9 @@
 		     (lib/looks.ts ICONS): если бы тут стоял стандартный, браузер успевал его прочитать, и
 		     выбранный на телефон не попадал. ?v=3 – иконки кешируются на месяц. -->
 		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<!-- Подпись под значком на экране «Домой» (iPhone берёт её отсюда при добавлении). -->
+		<meta name="apple-mobile-web-app-title" content="Campus" />
+		<meta name="application-name" content="Campus" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<link
 			rel="preload"
@@ -53,10 +56,38 @@
 						document.documentElement.style.setProperty('--bg-blur', bl + 'px');
 					}
 				}
-				// Масштаб интерфейса на этом устройстве (Профиль → Приложение); в окне хоста – свой.
+				// Масштаб интерфейса на этом устройстве (Профиль → Оформление; lib/uiScale.ts); в окне
+				// хоста – свой. Телефон – шириной в meta viewport (zoom там ломал касания), компьютер – zoom.
 				var sc = +localStorage.getItem('gb-ui-scale');
-				if (sc >= 80 && sc <= 150 && sc !== 100 && !/[?&]enter=/.test(location.search))
-					document.documentElement.style.zoom = String(sc / 100);
+				if (sc >= 80 && sc <= 150 && sc !== 100 && !/[?&]enter=/.test(location.search)) {
+					if (matchMedia('(hover: none) and (pointer: coarse)').matches) {
+						var vp = function () {
+							var k = sc / 100;
+							var land = matchMedia('(orientation: landscape)').matches;
+							var dw = land
+								? Math.max(screen.width, screen.height)
+								: Math.min(screen.width, screen.height);
+							var meta = document.querySelector('meta[name="viewport"]');
+							if (meta)
+								meta.setAttribute(
+									'content',
+									'width=' +
+										Math.round(dw / k) +
+										', initial-scale=' +
+										k +
+										', minimum-scale=' +
+										k +
+										', maximum-scale=' +
+										k +
+										', user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content'
+								);
+						};
+						vp();
+						addEventListener('orientationchange', function () {
+							setTimeout(vp, 50);
+						});
+					} else document.documentElement.style.zoom = String(sc / 100);
+				}
 				// Своей картинки нет – фон сайта, как на странице входа (lib/looks.ts applySiteBackground).
 				if (!img) {
 					var sb = localStorage.getItem('gb-login-bg') || 'preset:aurora';

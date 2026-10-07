@@ -61,13 +61,13 @@ class SubjectController {
     return Map.of("status", "ok");
   }
 
-  record SplitBody(Integer count) {}
+  record SplitBody(Integer count, List<String> names) {}
 
   /** Разделить на подгруппы «№1», «№2»… */
   @PostMapping("/api/subjects/{id}/subgroups")
   List<SubjectService.SubjectView> split(
       Actor actor, @PathVariable long id, @RequestBody SplitBody b) {
-    return subjects.split(actor, id, b.count() == null ? 2 : b.count());
+    return subjects.split(actor, id, b.count() == null ? 2 : b.count(), b.names());
   }
 
   /** Удалить совсем — со всеми заданиями и материалами (в архив — PUT …/archived). */

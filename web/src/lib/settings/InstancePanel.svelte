@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { get, patch, put } from '$lib/api';
+	import { del, get, patch, put } from '$lib/api';
+	import Button from '$lib/ui/Button.svelte';
 	import { t } from '$lib/i18n/ru';
 	import { loadMe, session } from '$lib/session.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
@@ -25,6 +26,7 @@
 		instanceRole: InstanceRole | null;
 		status: string;
 		totpEnabled: boolean;
+		groups: Record<string, string>;
 	}
 
 	let s = $state<Settings | null>(null);
@@ -68,8 +70,33 @@
 		}
 	}
 
+	// Исключённые из всех групп (их «удалили» из группы, а аккаунт остался) – не в общем списке,
+	// а отдельно, свёрнуто: удалить насовсем или вернуть роль. Администраторы – всегда в списке.
+	const inGroups = (u: UserRow) =>
+		u.instanceRole === 'admin' || Object.keys(u.groups ?? {}).length > 0;
+	const orphans = $derived(users.filter((u) => !inGroups(u)));
+	let showOrphans = $state(false);
+
+	async function remove(u: UserRow) {
+		if (
+			!(await ask(
+				`Аккаунт «${u.displayName}» удалится: войти в него больше нельзя, имя у записей заменится на «Удалённый пользователь».`,
+				{ title: 'Удалить аккаунт?', ok: 'Удалить', danger: true }
+			))
+		)
+			return;
+		try {
+			await del(`/api/admin/users/${u.id}`);
+			users = users.filter((x) => x.id !== u.id);
+			toast('Аккаунт удалён', 'ok');
+		} catch (e) {
+			toastError(e);
+		}
+	}
+
 	const shown = $derived(
 		users
+			.filter(inGroups)
 			.filter(
 				(u) =>
 					!query ||
@@ -206,9 +233,47 @@
 			</div>
 		{/each}
 	</div>
+	{#if orphans.length}
+		<button class="fold" aria-expanded={showOrphans} onclick={() => (showOrphans = !showOrphans)}>
+			<span>Без группы · <span class="num">{orphans.length}</span></span>
+			<span class="faint small">{showOrphans ? 'Свернуть' : 'Показать'}</span>
+		</button>
+		{#if showOrphans}
+			<p class="faint small">
+				Их исключили из всех групп, а аккаунт остался. Не нужны – удалите насовсем.
+			</p>
+			<div class="list">
+				{#each orphans as u (u.id)}
+					<div class="list-row">
+						<Avatar id={u.id} name={u.displayName} avatar={u.avatar} size={32} />
+						<div class="info">
+							<strong>{u.displayName}</strong><span class="faint small"
+								>@{u.username}{u.instanceRole ? ' · ' + t.roles[u.instanceRole] : ''}</span
+							>
+						</div>
+						<Button size="s" variant="danger" onclick={() => remove(u)}>Удалить</Button>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	{/if}
 </section>
 
 <style>
+	.fold {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		width: 100%;
+		margin-top: var(--s3);
+		padding: 12px 14px;
+		border: 1px dashed var(--border-strong);
+		border-radius: var(--r);
+		background: none;
+		color: var(--text);
+		font: inherit;
+		font-weight: 600;
+	}
 	.form {
 		display: flex;
 		flex-direction: column;
