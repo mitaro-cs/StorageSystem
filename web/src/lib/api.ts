@@ -72,6 +72,15 @@ export function hasFresh(path: string): boolean {
 	return fresh.has(path);
 }
 
+/** Ответил сам сервер группы: метка X-Groupbase или ответ в JSON (страница туннеля – HTML). */
+export function fromGroupServer(res: Response): boolean {
+	return (
+		res.headers.has('X-Groupbase') ||
+		((res.status < 502 || res.status > 504) &&
+			(res.headers.get('Content-Type') ?? '').startsWith('application/json'))
+	);
+}
+
 /** Запрос к API по сети: JSON, CSRF для мутаций, ошибки → ApiError с текстом по-русски. */
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 	const f = opts.fetch ?? fetch;
@@ -107,12 +116,21 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 			: await f(path, { method, headers, body, signal, credentials: 'same-origin' });
 	} catch (e) {
 		if ((e as Error).name === 'AbortError' && opts.signal?.aborted) throw e;
-		throw new ApiError(0, 'network', 'Нет связи с сервером. Проверьте интернет');
+		// Причина – в тексте: по скриншоту видно, сеть это или медленный сервер (0.9.7).
+		throw new ApiError(
+			0,
+			'network',
+			(e as Error).name === 'TimeoutError'
+				? `Сервер не ответил за ${wait / 1000} с – попробуйте ещё раз`
+				: 'Нет связи с сервером. Проверьте интернет'
+		);
 	}
 	// Ответ не от сервера группы: компьютер хоста выключен, и туннель отвечает своей страницей
-	// ошибки. Это то же, что нет сети: показываем сохранённое, действия уходят в очередь.
-	if (!res.headers.has('X-Groupbase')) {
-		throw new ApiError(0, 'network', 'Сервер группы сейчас выключен – попробуйте позже');
+	// ошибки (HTML). Это то же, что нет сети: показываем сохранённое, действия уходят в очередь.
+	// Ответ в JSON – всегда наш, даже если туннель потерял метку X-Groupbase (0.9.7: туннели могут
+	// не передавать свои заголовки, и тогда «не работало ничего»).
+	if (!fromGroupServer(res)) {
+		throw new ApiError(0, 'network', `Сервер группы выключен (туннель: ${res.status})`);
 	}
 	pwa.offline = false;
 	if (res.status === 401) dropEarly();

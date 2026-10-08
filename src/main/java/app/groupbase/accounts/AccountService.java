@@ -51,7 +51,7 @@ public class AccountService {
   public record TokenInfo(String username, String displayName, String purpose) {}
 
   /** Событие удаления аккаунта: подписчики стирают аватар и прочие файлы пользователя. */
-  public record UserDeleted(long userId, String avatar) {}
+  public record UserDeleted(long userId, String avatar, String background) {}
 
   private final UserStore users;
   private final GroupStore groups;
@@ -419,6 +419,37 @@ public class AccountService {
     }
     groups.removeMember(targetId, groupId);
     audit.log(actor, groupId, "member.remove", "user", targetId);
+    // Исключили из последней группы – аккаунт больше ни к чему: удаляем, логин освобождается
+    // (0.9.7, просьба владельца: «удалённые остаются, их ники заняты»). Себя так не удалить –
+    // для этого «Удалить аккаунт» с паролем.
+    if (targetId != actor.id()) {
+      users
+          .find(targetId)
+          .filter(u -> u.instanceRole() == null && groups.rolesOf(targetId).isEmpty())
+          .ifPresent(
+              u -> {
+                wipe(u);
+                audit.log(actor, groupId, "user.delete", "user", targetId);
+              });
+    }
+  }
+
+  /**
+   * Аккаунты без групп и без роли на сайте (исключённые раньше, до 0.9.7) – удалить, освободив
+   * логины. Возвращает, сколько удалено.
+   */
+  @Transactional
+  public int deleteOrphans() {
+    int n = 0;
+    for (User u : users.listAll()) {
+      if (u.instanceRole() == null
+          && u.status() != User.Status.DELETED
+          && groups.rolesOf(u.id()).isEmpty()) {
+        wipe(u);
+        n++;
+      }
+    }
+    return n;
   }
 
   // --- блокировка и удаление ---
@@ -467,8 +498,8 @@ public class AccountService {
     groups.removeAllMemberships(u.id());
     sessions.revokeAll(u.id());
     tokens.deleteForUser(u.id());
-    users.anonymize(u.id(), clock.millis());
-    events.publishEvent(new UserDeleted(u.id(), u.avatar()));
+    String background = users.anonymize(u.id(), clock.millis());
+    events.publishEvent(new UserDeleted(u.id(), u.avatar(), background));
   }
 
   private void requireAnotherAdmin(long exceptId) {

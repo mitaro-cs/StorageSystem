@@ -279,6 +279,20 @@ class PeerIT extends IntegrationTest {
       assertThat(groups(a)).contains(fromB);
       assertThat(groups(b)).contains(fromB);
 
+      // Код входа, показанный в окне копии, живёт на основном – телефон входит по нему через
+      // адрес сайта (0.9.7: «Код не подошёл»).
+      var issued = b.post("/api/auth/link", Map.of());
+      assertThat(issued.status()).as(issued.body()).isEqualTo(200);
+      var phone =
+          client()
+              .post(
+                  "/api/auth/link/redeem",
+                  Map.of("pin", issued.json().get("pin").asString(), "device", "Телефон"));
+      assertThat(phone.status()).as(phone.body()).isEqualTo(200);
+      var seen =
+          b.post("/api/auth/link/status", Map.of("code", issued.json().get("code").asString()));
+      assertThat(seen.json().get("status").asString()).isEqualTo("used");
+
       // Администратор на копии управляет сайтом, но доступ для группы и копии данных – только на
       // основном (0.9.7).
       var hostOnly = b.put("/api/admin/access", Map.of("mode", "lan"));

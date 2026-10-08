@@ -55,7 +55,9 @@ export function currentGroup(): MeGroup | undefined {
 }
 
 export function isMulti(): boolean {
-	return (session.me?.instance.mode ?? 'single') === 'multi' && groups().length > 1;
+	// С 0.9.7 Campus – сайт одной группы (просьба владельца): несколько групп в интерфейсе не
+	// показываем, даже если сайт создан в режиме «поток» – человек работает со своей группой.
+	return false;
 }
 
 /**

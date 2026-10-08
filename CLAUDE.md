@@ -564,3 +564,15 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
 - Живые обновления и состояние: `loadMe`/`loadSubjects` подменяют объект, только если JSON
   изменился; «Управление» держит прежний объект группы (`lastGroup`). Эффект, который сбрасывает
   состояние, пусть зависит от примитива (`$derived(groupId)`), а загрузку – через `untrack`.
+- Ответ «от своего сервера» (0.9.7): метка `X-Groupbase` **или** не-HTML ответ (JSON, файлы);
+  502–504 без метки – туннель. Фронт – `api.ts fromGroupServer`, service worker – `fromServer`,
+  сервер – `PeerClient.fromGroupServer` (и `TransferClient`, `HostService`). Туннели могут терять
+  свои заголовки.
+- Код входа на другом устройстве на копии: `/api/auth/link` и `/link/status` пересылаются
+  основному (`PeerForwardFilter.relayed`, без очереди и без снимка), основной принимает
+  `X-Groupbase-As` для них (`AuthFilter`).
+- Удаление из группы (0.9.7): `removeFromGroup` – из последней группы и без роли на сайте → `wipe`
+  (аккаунт удалён, логин свободен; `UserStore.anonymize` стирает и отметки, попытки тестов,
+  оформление, фон). Прежние «висящие» – `accounts/OrphanCleanup` один раз (`accounts.orphans.cleaned`).
+- Одна группа (0.9.7, просьба владельца): `isMulti()` всегда false, выбора режима и
+  `GroupSwitcher` нет; на сервере режим `multi` остался, интерфейс его не показывает.

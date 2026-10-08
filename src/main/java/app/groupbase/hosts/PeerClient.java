@@ -312,13 +312,34 @@ final class PeerClient {
       Thread.currentThread().interrupt();
       throw new IOException("Прервано", e);
     }
-    if (r.headers().firstValue("X-Groupbase").isEmpty()) {
+    if (!fromGroupServer(r.headers(), r.statusCode())) {
       if (r.body() instanceof InputStream in) {
         in.close();
       }
       throw new NoServer();
     }
     return r;
+  }
+
+  /**
+   * Ответил сам Campus: метка X-Groupbase, а если туннель её потерял – любой не-HTML ответ (наши
+   * ручки отдают JSON, снимки и файлы). Страница ошибки туннеля – HTML (0.9.7: без этого потеря
+   * метки выглядела как «основной выключен», и копия сама становилась вторым основным).
+   */
+  static boolean fromGroupServer(java.net.http.HttpHeaders h) {
+    return fromGroupServer(h, 200);
+  }
+
+  /** То же с кодом ответа: 502–504 без метки – всегда туннель («до сервера не достучался»). */
+  static boolean fromGroupServer(java.net.http.HttpHeaders h, int status) {
+    if (h.firstValue("X-Groupbase").isPresent()) {
+      return true;
+    }
+    if (status >= 502 && status <= 504) {
+      return false;
+    }
+    String type = h.firstValue("Content-Type").orElse("").toLowerCase(java.util.Locale.ROOT);
+    return !type.isEmpty() && !type.startsWith("text/html");
   }
 
   static String message(String body) {

@@ -159,9 +159,10 @@ class AvatarController {
     return s;
   }
 
-  /** При удалении аккаунта удаляется и аватар. */
+  /** При удалении аккаунта удаляются и аватар, и своя картинка фона. */
   @EventListener
   void onUserDeleted(AccountService.UserDeleted e) {
     avatars.delete(e.avatar());
+    avatars.delete(e.background());
   }
 }

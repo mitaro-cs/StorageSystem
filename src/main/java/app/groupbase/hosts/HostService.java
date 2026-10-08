@@ -823,7 +823,7 @@ public class HostService implements SmartLifecycle {
                   .GET()
                   .build(),
               HttpResponse.BodyHandlers.ofString());
-      if (r.headers().firstValue("X-Groupbase").isEmpty()) {
+      if (!PeerClient.fromGroupServer(r.headers(), r.statusCode())) {
         return new Probe(Seen.NOBODY, null, 0);
       }
       if (r.statusCode() != 200) {

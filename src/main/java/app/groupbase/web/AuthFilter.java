@@ -87,7 +87,10 @@ public class AuthFilter extends OncePerRequestFilter {
         req.setAttribute(PEER, computer);
         String uri = req.getRequestURI();
         String as = req.getHeader(AS_HEADER);
-        if (as != null && !uri.startsWith("/api/auth/") && !uri.startsWith("/api/desktop/")) {
+        // Вход и выход от имени человека копия не делает; код входа для другого устройства –
+        // можно: его показывают в окне копии, а живёт он на основном (0.9.7).
+        boolean auth = uri.startsWith("/api/auth/") && !PeerForwardFilter.relayed(uri);
+        if (as != null && !auth && !uri.startsWith("/api/desktop/")) {
           try {
             sessions.forPeer(Long.parseLong(as)).ifPresent(a -> req.setAttribute(ACTOR, a));
           } catch (NumberFormatException e) {

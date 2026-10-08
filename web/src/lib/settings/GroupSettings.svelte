@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { patch, post } from '$lib/api';
-	import { loadMe, session } from '$lib/session.svelte';
+	import { patch } from '$lib/api';
+	import { loadMe } from '$lib/session.svelte';
 	import { toast, toastError } from '$lib/toasts.svelte';
 	import type { MeGroup } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
@@ -13,7 +13,6 @@
 	let university = $state('');
 	let course = $state<number | null>(null);
 	let busy = $state(false);
-	let newName = $state('');
 	let cropper = $state(false);
 
 	$effect(() => {
@@ -33,18 +32,6 @@
 			toastError(err);
 		} finally {
 			busy = false;
-		}
-	}
-
-	async function create(e: SubmitEvent) {
-		e.preventDefault();
-		try {
-			await post('/api/groups', { name: newName, university });
-			newName = '';
-			await loadMe();
-			toast('Группа создана', 'ok');
-		} catch (err) {
-			toastError(err);
 		}
 	}
 </script>
@@ -78,23 +65,6 @@
 	title="Аватар группы"
 	ondone={() => loadMe()}
 />
-
-{#if session.me?.instance.mode === 'multi'}
-	<form class="card form" onsubmit={create}>
-		<h2>Новая группа</h2>
-		<div class="row">
-			<input
-				class="input"
-				bind:value={newName}
-				placeholder="БИН2510"
-				maxlength="40"
-				required
-				aria-label="Название новой группы"
-			/>
-			<Button type="submit">Создать</Button>
-		</div>
-	</form>
-{/if}
 
 <style>
 	.form {

@@ -1533,6 +1533,15 @@ public class PeerService implements SmartLifecycle {
 
   /** Ответ главного на пересланное изменение; null — нет связи (изменение остаётся здесь). */
   public Reply forward(String method, String uri, String contentType, long userId, Path body) {
+    return forward(method, uri, contentType, userId, body, true);
+  }
+
+  /**
+   * @param refresh после успешного изменения сразу взять свежую копию (для кода входа – нет: он
+   *     живёт только в памяти основного, база не менялась, а опрос идёт раз в пару секунд)
+   */
+  public Reply forward(
+      String method, String uri, String contentType, long userId, Path body, boolean refresh) {
     try {
       PeerClient c = client();
       PeerClient.Reply r = c.forward(method, uri, contentType, userId, body);
@@ -1541,7 +1550,7 @@ public class PeerService implements SmartLifecycle {
         // По адресу сайта отвечает компьютер, который сейчас не главный, — как без связи.
         return null;
       }
-      if (r.status() < 400) {
+      if (refresh && r.status() < 400) {
         // Окно сразу увидит своё изменение: копия обновляется до ответа.
         try {
           secondStep(true);

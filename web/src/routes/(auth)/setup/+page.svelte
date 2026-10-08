@@ -19,11 +19,9 @@
 	// Сервер печатает ссылку с кодом (а установщик сам её открывает) – вводить его не нужно.
 	const fromLink = page.url.searchParams.get('code');
 	let code = $state(fromLink ?? '');
-	let mode = $state<'single' | 'multi'>('single');
 	let groupName = $state('');
 	let university = $state('МТУСИ');
 	let course = $state<number | null>(1);
-	let instanceName = $state('');
 	let displayName = $state('');
 	let username = $state('');
 	let usernameTouched = $state(false);
@@ -146,8 +144,8 @@
 				'/api/setup',
 				{
 					code,
-					mode,
-					instanceName,
+					// С 0.9.7 – только сайт одной группы.
+					mode: 'single',
 					group: { name: groupName, university, course },
 					username,
 					displayName,
@@ -285,30 +283,8 @@
 				</div>
 			{/if}
 
-			<fieldset class="modes">
-				<legend class="label">Режим</legend>
-				<label class="mode" class:on={mode === 'single'}>
-					<input type="radio" bind:group={mode} value="single" />
-					<strong>Одна группа</strong><span class="faint small">Сайт одной группы</span>
-				</label>
-				<label class="mode" class:on={mode === 'multi'}>
-					<input type="radio" bind:group={mode} value="multi" />
-					<strong>Несколько групп</strong><span class="faint small">Поток или кафедра</span>
-				</label>
-			</fieldset>
-
-			{#if mode === 'multi'}
-				<div>
-					<label class="label" for="iname">Название сайта</label>
-					<input id="iname" class="input" bind:value={instanceName} placeholder="Поток БИН-25" />
-					<p class="hint">
-						Сайт – это весь ваш Campus: все группы потока, общие настройки и администраторы.
-					</p>
-				</div>
-			{/if}
-
 			<div>
-				<label class="label" for="gname">{mode === 'multi' ? 'Первая группа' : 'Группа'}</label>
+				<label class="label" for="gname">Группа</label>
 				<input id="gname" class="input" bind:value={groupName} placeholder="БИН2509" required />
 			</div>
 			<fieldset class="pick">
@@ -522,41 +498,6 @@
 		to {
 			transform: rotate(360deg);
 		}
-	}
-	.modes {
-		border: 0;
-		padding: 0;
-		margin: 0;
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: var(--s2);
-	}
-	.modes legend {
-		grid-column: 1 / -1;
-	}
-	.mode {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		padding: 12px;
-		border: 1px solid var(--border-strong);
-		border-radius: var(--r);
-		cursor: pointer;
-		transition:
-			border-color var(--dur) var(--ease),
-			background-color var(--dur) var(--ease);
-	}
-	.mode.on {
-		border-color: var(--accent);
-		background: var(--accent-soft);
-	}
-	.mode input {
-		position: absolute;
-		opacity: 0;
-	}
-	.mode:has(input:focus-visible) {
-		outline: 2px solid var(--focus);
-		outline-offset: 2px;
 	}
 	.linked {
 		display: flex;

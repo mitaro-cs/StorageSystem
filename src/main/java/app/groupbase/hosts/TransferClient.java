@@ -164,7 +164,7 @@ final class TransferClient {
                   .GET()
                   .build(),
               HttpResponse.BodyHandlers.discarding());
-      return r.headers().firstValue("X-Groupbase").isPresent();
+      return PeerClient.fromGroupServer(r.headers(), r.statusCode());
     } catch (IOException e) {
       return false;
     }
@@ -206,7 +206,7 @@ final class TransferClient {
 
   /** Ответ не от groupbase: туннель показывает свою страницу — компьютер с сайтом выключен. */
   private static void requireServer(HttpResponse<?> r) throws IOException {
-    if (r.headers().firstValue("X-Groupbase").isEmpty()) {
+    if (!PeerClient.fromGroupServer(r.headers(), r.statusCode())) {
       throw new IOException(
           "По этому адресу сейчас не отвечает Campus – компьютер с сайтом выключен или адрес"
               + " другой");

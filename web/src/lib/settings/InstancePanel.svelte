@@ -139,25 +139,6 @@
 			/>
 			<p class="hint">Видно в заголовке и при входе. Например, «Поток БИН-25» или «БИН2509».</p>
 		</div>
-		<fieldset>
-			<legend class="label">Режим</legend>
-			<label class="check"
-				><input
-					type="radio"
-					name="mode"
-					checked={s.mode === 'single'}
-					onchange={() => update({ mode: 'single' })}
-				/> Одна группа</label
-			>
-			<label class="check"
-				><input
-					type="radio"
-					name="mode"
-					checked={s.mode === 'multi'}
-					onchange={() => update({ mode: 'multi' })}
-				/> Несколько групп (поток)</label
-			>
-		</fieldset>
 	</section>
 	<section class="card form">
 		<SectionHead
