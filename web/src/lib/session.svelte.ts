@@ -12,7 +12,9 @@ export const session = $state<{ me: Me | null; groupId: number | null }>({
 
 export async function loadMe(f?: typeof fetch): Promise<Me> {
 	const me = await get<Me>('/api/me', { fetch: f });
-	session.me = me;
+	// Ничего не изменилось – прежний объект: иначе живое обновление (lib/live.ts) перезапускало
+	// эффекты страниц и сбрасывало открытые формы и только что созданное (0.9.7).
+	if (!session.me || JSON.stringify(session.me) !== JSON.stringify(me)) session.me = me;
 	restoreGroup(me);
 	rememberMe(me);
 	return me;

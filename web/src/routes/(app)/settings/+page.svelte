@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import type { Component } from 'svelte';
+	import type { MeGroup } from '$lib/types';
 	import {
 		Archive,
 		ArrowUpCircle,
@@ -49,7 +50,15 @@
 	}
 
 	let picked = $state<number | null>(null);
-	const group = $derived(groups().find((g) => g.id === picked) ?? currentGroup() ?? groups()[0]);
+	// Та же группа с тем же содержимым – прежний объект: живые обновления подменяют профиль, и
+	// разделы (приглашения, настройки группы) иначе сбрасывали созданное и недописанное (0.9.7).
+	let lastGroup: MeGroup | undefined;
+	const group = $derived.by(() => {
+		const g = groups().find((x) => x.id === picked) ?? currentGroup() ?? groups()[0];
+		if (g && lastGroup && JSON.stringify(g) === JSON.stringify(lastGroup)) return lastGroup;
+		lastGroup = g;
+		return g;
+	});
 	const desktop = $derived(!!session.me?.instance.desktop);
 
 	// Разделы настроек: у каждого своя иконка и одна фраза – что внутри. Группа отдельно от сайта.

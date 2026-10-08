@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { Link2, Copy, Maximize2, Share2 } from '@lucide/svelte';
 	import { del, get, post } from '$lib/api';
 	import { absolute, canShare, copy, share } from '$lib/copy';
@@ -32,10 +33,13 @@
 	async function load() {
 		list = await get<Invite[]>(`/api/groups/${groupId}/invites`);
 	}
+	// Сбрасываем созданную ссылку только при смене группы: номер – через $derived, иначе эффект
+	// перезапускался от каждого обновления профиля (живые обновления) и QR пропадал.
+	const gid = $derived(groupId);
 	$effect(() => {
-		void groupId;
+		void gid;
 		fresh = null;
-		load();
+		untrack(load);
 	});
 
 	async function create(e: SubmitEvent) {

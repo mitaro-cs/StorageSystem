@@ -39,7 +39,7 @@ test('материалы: сообщение из чата и закреплен
 	const tabs = page.getByRole('navigation', { name: 'Разделы предмета' }).getByRole('link');
 	await expect(tabs.first()).toHaveText('ДЗ');
 	const names = (await tabs.allTextContents()).map((x) => x.trim());
-	expect(names.filter((x) => x !== 'Расписание' && x !== 'Участники')).toEqual([
+	expect(names.filter((x) => x !== 'Расписание' && x !== 'Участники' && x !== 'Тесты')).toEqual([
 		'ДЗ',
 		'Материалы',
 		'Новости'

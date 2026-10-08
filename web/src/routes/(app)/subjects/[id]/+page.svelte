@@ -5,6 +5,7 @@
 	import {
 		Archive,
 		CalendarDays,
+		ClipboardCheck,
 		ClipboardList,
 		EyeOff,
 		FolderOpen,
@@ -64,6 +65,7 @@
 			{ value: 'materials', label: 'Материалы', icon: FolderOpen },
 			...(subject?.lessons ? [{ value: 'lessons', label: 'Расписание', icon: CalendarDays }] : []),
 			{ value: 'feed', label: 'Новости', icon: Newspaper },
+			{ value: 'tests', label: 'Тесты', icon: ClipboardCheck },
 			...(subgroup ? [{ value: 'members', label: 'Участники', icon: Users }] : [])
 		].map((t) => ({
 			...t,
@@ -326,6 +328,11 @@
 			{#await import('$lib/content/MaterialBrowser.svelte')}<Skeleton
 					lines={4}
 				/>{:then m}<m.default subjectId={subject.id} subjectName={subject.name} />{/await}
+		{:else if tab === 'tests'}
+			{#await import('$lib/quiz/QuizTab.svelte')}<Skeleton lines={3} />{:then m}<m.default
+					subjectId={subject.id}
+					canEdit={!!subject.can?.edit}
+				/>{/await}
 		{:else if tab === 'members'}
 			{#await import('$lib/content/MemberList.svelte')}<Skeleton lines={4} />{:then m}<m.default
 					groupIds={subject.groups.map((g) => g.id)}
