@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Plus, Users, Archive, ArrowRight, EyeOff, Send, Sparkles } from '@lucide/svelte';
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import { get, post } from '$lib/api';
 	import { can, currentGroup, groups, session } from '$lib/session.svelte';
 	import { loadSubjects, subjects } from '$lib/data.svelte';
@@ -15,7 +16,8 @@
 
 	let editor = $state(false);
 	let wizard = $state(false);
-	let showArchived = $state(false);
+	// «Управление → Семестр» ведёт сюда с ?archive=1 – архив сразу развёрнут.
+	let showArchived = $state(page.url.searchParams.has('archive'));
 	// «Не мои» свёрнуты: другая подгруппа не мешает, пока сам не развернёшь.
 	let showOthers = $state(false);
 	let requests = $state<LinkRequest[]>([]);
@@ -183,9 +185,19 @@
 			<span class="faint small">{showArchived ? 'Свернуть' : 'Развернуть'}</span>
 		</button>
 		{#if showArchived}
-			<div class="grid">
-				{#each archived as s, i (s.id)}{@render card(s, i)}{/each}
-			</div>
+			<!-- По семестрам (0.9.7): лениво, место на странице предметов дорогое. -->
+			{#await import('$lib/content/SemesterArchive.svelte')}
+				<div class="grid">
+					{#each archived as s, i (s.id)}{@render card(s, i)}{/each}
+				</div>
+			{:then m}
+				<m.default
+					{archived}
+					groupId={target?.id ?? null}
+					canManage={!!target && can('manage_subjects', target.id)}
+					{card}
+				/>
+			{/await}
 		{/if}
 	</section>
 {/if}

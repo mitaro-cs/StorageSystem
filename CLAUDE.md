@@ -576,3 +576,12 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   оформление, фон). Прежние «висящие» – `accounts/OrphanCleanup` один раз (`accounts.orphans.cleaned`).
 - Одна группа (0.9.7, просьба владельца): `isMulti()` всегда false, выбора режима и
   `GroupSwitcher` нет; на сервере режим `multi` остался, интерфейс его не показывает.
+- Архивы семестров (0.9.7, просьба владельца): `semesters` (V32, группа + название),
+  `subjects.semester_id`; `content/SemesterService`, `/api/groups/{id}/semesters` (GET – архивы и
+  `suggested`, POST `{name, subjects}` – `manage_subjects`), `PATCH/DELETE /api/semesters/{id}`
+  (DELETE – вернуть предметы). Вернули один предмет – `semester_id` обнуляется
+  (`SubjectStore.setArchived`). Задания архивных предметов не попадают в общие списки
+  (`HomeworkService.list` при `subject == null`, `offline/local.ts`) и в `Reminders`. Фронт:
+  `content/semesters.ts`, `ArchiveSemester` (окно), `SemesterArchive` (разделы в «Предметы →
+  Архив», лениво; `?archive=1` – развёрнут), список – `settings/SemesterPanel`, мастер
+  `NewSemester` шлёт выбранные предметы одним архивом.

@@ -1,6 +1,9 @@
 <script lang="ts">
-	import { CalendarRange, Sparkles } from '@lucide/svelte';
-	import type { MeGroup } from '$lib/types';
+	import { Archive, CalendarRange, Sparkles } from '@lucide/svelte';
+	import type { MeGroup, Semester } from '$lib/types';
+	import { offline } from '$lib/offline/engine';
+	import { loadSemesters, renameSemester, restoreSemester } from '$lib/content/semesters';
+	import Menu from '$lib/ui/Menu.svelte';
 	import { put } from '$lib/api';
 	import { fmtDate, plural } from '$lib/format';
 	import { phase, sessionNavVisible } from '$lib/content/session';
@@ -12,6 +15,23 @@
 
 	let datesOpen = $state(false);
 	let wizard = $state(false);
+	let archiveOpen = $state(false);
+	let semesters = $state<Semester[] | null>(null);
+	const gid = $derived(group.id);
+
+	async function loadArchives() {
+		try {
+			semesters = (await loadSemesters(gid)).items;
+		} catch {
+			semesters = semesters ?? [];
+		}
+	}
+	$effect(() => {
+		void gid;
+		// Живые обновления: архив собрали или вернули на другом устройстве.
+		void offline.version;
+		loadArchives();
+	});
 	const p = $derived(phase(group.session, Date.now()));
 
 	// Кнопка «Сессия» в меню нужна пару раз в год: староста решает, когда её показывать.
@@ -114,6 +134,51 @@
 			<Button variant="primary" onclick={() => (wizard = true)}>Начать</Button>
 		</div>
 	</section>
+
+	<section class="card block">
+		<div class="row">
+			<span class="ic"><Archive size={20} /></span>
+			<div class="spacer">
+				<h3>Архивы семестров</h3>
+				<p class="muted">
+					Предметы прошлого семестра – вместе, под одним названием. Задания, материалы и тесты
+					сохраняются, в текущих списках их нет.
+				</p>
+			</div>
+			<Button onclick={() => (archiveOpen = true)}>Создать</Button>
+		</div>
+		{#if semesters?.length}
+			<ul class="archives">
+				{#each semesters as s (s.id)}
+					<li>
+						<a href="/subjects?archive=1">{s.name}</a>
+						<span class="faint small num"
+							>{s.subjects}
+							{plural(s.subjects, ['предмет', 'предмета', 'предметов'])} ·
+							{fmtDate(s.createdAt)}</span
+						>
+						<span class="menu">
+							<Menu
+								label="Действия с архивом"
+								items={[
+									{
+										label: 'Переименовать',
+										onclick: () => renameSemester(s, loadArchives)
+									},
+									{
+										label: 'Вернуть предметы',
+										onclick: () => restoreSemester(s, loadArchives)
+									}
+								]}
+							/>
+						</span>
+					</li>
+				{/each}
+			</ul>
+		{:else if semesters}
+			<p class="hint">Архивов пока нет. «Новый семестр» соберёт его сам.</p>
+		{/if}
+	</section>
 </div>
 
 {#if datesOpen}
@@ -124,6 +189,11 @@
 {#if wizard}
 	{#await import('$lib/content/NewSemester.svelte') then m}
 		<m.default bind:open={wizard} {group} />
+	{/await}
+{/if}
+{#if archiveOpen}
+	{#await import('$lib/content/ArchiveSemester.svelte') then m}
+		<m.default bind:open={archiveOpen} groupId={group.id} onsaved={loadArchives} />
 	{/await}
 {/if}
 
@@ -148,6 +218,28 @@
 	}
 	h3 {
 		margin: 0 0 2px;
+	}
+	.archives {
+		display: flex;
+		flex-direction: column;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.archives li {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 2px 12px;
+		padding: 10px 0;
+		border-top: 1px solid var(--border);
+	}
+	.archives a {
+		color: var(--text);
+		font-weight: 600;
+	}
+	.archives .menu {
+		margin-left: auto;
 	}
 	.nav-pick {
 		display: flex;

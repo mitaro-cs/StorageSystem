@@ -108,7 +108,10 @@ class ReleasedMigrationsTest {
               "a4bb05344fa5c5ae0a428e99922701f2b21a38fa06be65e57906554fe1736ff1"),
           Map.entry(
               "V31__quizzes.sql",
-              "b6e2d94cda534fc50af14d096c74065d547caaaec3c441b3501f6f3ffb5e3517"));
+              "b6e2d94cda534fc50af14d096c74065d547caaaec3c441b3501f6f3ffb5e3517"),
+          Map.entry(
+              "V32__semesters.sql",
+              "a5f3ac5139a30da817757bb6159d857072320d197f77329601e709ad0729d2e1"));
 
   @Test
   void releasedMigrationsAreUnchanged() throws IOException, NoSuchAlgorithmException {

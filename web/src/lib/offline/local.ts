@@ -84,7 +84,9 @@ export function homeworkList(s: Snapshot, q: URLSearchParams, now: number): Home
 	const group = num(q, 'group');
 	const subject = num(q, 'subject');
 	const scope = group === null ? null : [group];
+	// Как на сервере: в общих списках нет и предметов в архиве (прошлый семестр).
 	const hidden = subject === null ? notMine(s) : new Set<number>();
+	if (subject === null) for (const x of s.subjects) if (x.archived) hidden.add(x.id);
 	const list = s.homework.filter(
 		(h) =>
 			inScope(h.groups, scope) &&

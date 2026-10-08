@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Archive, Check, ArrowLeft, ArrowRight } from '@lucide/svelte';
-	import { post, put } from '$lib/api';
+	import { get, post, put } from '$lib/api';
 	import { loadSubjects, subjects } from '$lib/data.svelte';
 	import { loadMe } from '$lib/session.svelte';
 	import { toast } from '$lib/toasts.svelte';
@@ -20,6 +20,8 @@
 	let step = $state(0);
 	/** id предметов, которые уходят в архив. */
 	let archive = $state<number[]>([]);
+	/** Название архива прошлого семестра (0.9.7): предметы уходят в него вместе. */
+	let archiveName = $state('');
 	let text = $state('');
 	let from = $state('');
 	let to = $state('');
@@ -51,6 +53,10 @@
 		if (!open) return;
 		step = 0;
 		archive = [];
+		archiveName = '';
+		get<{ suggested: string }>(`/api/groups/${group.id}/semesters`)
+			.then((r) => (archiveName ||= r.suggested))
+			.catch(() => {});
 		text = '';
 		from = '';
 		to = '';
@@ -74,12 +80,12 @@
 		errors = [];
 		const fail = (what: string, e: unknown) =>
 			errors.push(`${what}: ${e instanceof Error ? e.message : 'ошибка'}`);
-		for (const id of archive) {
-			const s = current.find((x) => x.id === id);
+		if (archive.length) {
 			try {
-				await put(`/api/subjects/${id}/archived`, { value: true });
+				await post(`/api/groups/${group.id}/semesters`, { name: archiveName, subjects: archive });
+				archive = [];
 			} catch (e) {
-				fail(`В архив «${s?.name}»`, e);
+				fail('Архив семестра', e);
 			}
 		}
 		for (let i = 0; i < fresh.length; i++) {
@@ -156,6 +162,19 @@
 					</div>
 				{/each}
 			</div>
+			{#if archive.length}
+				<label class="label" for="ns-archive">Название архива</label>
+				<input
+					id="ns-archive"
+					class="input"
+					bind:value={archiveName}
+					maxlength="80"
+					placeholder="Осенний семестр 2025"
+				/>
+				<p class="hint">
+					Предметы прошлого семестра соберутся в «Предметы → Архив» под этим названием.
+				</p>
+			{/if}
 		{/if}
 	{:else if step === 1}
 		<p class="muted lead">
@@ -217,7 +236,7 @@
 				<Archive size={17} />
 				<span>
 					{#if archive.length}
-						В архив: <strong>{archive.length}</strong>
+						В архив «{archiveName.trim() || 'прошлый семестр'}»: <strong>{archive.length}</strong>
 						{plural(archive.length, ['предмет', 'предмета', 'предметов'])}
 					{:else}
 						Все предметы продолжаются
