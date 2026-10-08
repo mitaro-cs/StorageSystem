@@ -199,7 +199,9 @@ class PeerIT extends IntegrationTest {
       // Код даёт администратор; этот компьютер становится главным.
       var code = wa.post("/api/host/peers/code", Map.of());
       assertThat(code.status()).as(code.body()).isEqualTo(200);
-      assertThat(code.json().get("role").asString()).isEqualTo("main");
+      // Код сам по себе основным не делает (0.9.7): иначе показавшие код на обоих компьютерах
+      // оставались двумя «основными» без связи и не могли подключиться друг к другу.
+      assertThat(code.json().get("role").asString()).isEqualTo("off");
       String pairing = code.json().get("code").get("code").asString();
 
       // Код переноса и код связи выглядят одинаково: код переноса для связи не годится — понятно
@@ -238,6 +240,7 @@ class PeerIT extends IntegrationTest {
       ctxB = startB(dataB);
       peersB = ctxB.getBean(PeerService.class);
       assertThat(peersB.role()).isEqualTo(PeerService.Role.SECOND);
+      assertThat(peers.role()).isEqualTo(PeerService.Role.MAIN);
       ApiClient b = new ApiClient(portOf(ctxB));
       var login = b.post("/api/auth/login", Map.of("username", ADMIN, "password", ADMIN_PASSWORD));
       assertThat(login.status()).as(login.body()).isEqualTo(200);
@@ -249,6 +252,25 @@ class PeerIT extends IntegrationTest {
       peersB.tick();
       assertThat(groups(b)).contains(fromA);
 
+      // Два основных с разными адресами (0.9.7): B стал основным, но его туннель поднялся по
+      // своему адресу – по нему B видит только себя. Он проверяет и прежний адрес сайта, находит
+      // там A и не считает себя единственным: «два разных сайта», выбор – за человеком.
+      var urlB = ctxB.getBean(app.groupbase.accounts.PublicUrl.class);
+      peersB.takeOver("проверка двух адресов");
+      urlB.set("http://127.0.0.1:" + portOf(ctxB));
+      peersB.tick();
+      assertThat(peersB.role()).isEqualTo(PeerService.Role.MAIN);
+      assertThat(peersB.view().state()).isEqualTo("conflict");
+      assertThat(peersB.view().rival()).isEqualTo(peers.view().computer());
+      assertThat(peersB.view().rivalUrl()).isEqualTo(tunnel.url());
+      // «Оставить тот»: B уступает A там, где A отвечает, и снова копия по адресу сайта.
+      peersB.yieldToRival();
+      assertThat(peersB.role()).isEqualTo(PeerService.Role.SECOND);
+      assertThat(peersB.view().url()).isEqualTo(tunnel.url());
+      assertThat(peers.role()).isEqualTo(PeerService.Role.MAIN);
+      peersB.tick();
+      assertThat(groups(b)).contains(fromA);
+
       // Изменение во втором окне уходит главному, и второй видит его сразу.
       String fromB = "Со второго " + uniq();
       var made = b.post("/api/groups", Map.of("name", fromB, "university", "МТУСИ"));
@@ -256,6 +278,26 @@ class PeerIT extends IntegrationTest {
       assertThat(made.raw().headers().firstValue("X-Groupbase-Queued")).isEmpty();
       assertThat(groups(a)).contains(fromB);
       assertThat(groups(b)).contains(fromB);
+
+      // Код входа, показанный в окне копии, живёт на основном – телефон входит по нему через
+      // адрес сайта (0.9.7: «Код не подошёл»).
+      var issued = b.post("/api/auth/link", Map.of());
+      assertThat(issued.status()).as(issued.body()).isEqualTo(200);
+      var phone =
+          client()
+              .post(
+                  "/api/auth/link/redeem",
+                  Map.of("pin", issued.json().get("pin").asString(), "device", "Телефон"));
+      assertThat(phone.status()).as(phone.body()).isEqualTo(200);
+      var seen =
+          b.post("/api/auth/link/status", Map.of("code", issued.json().get("code").asString()));
+      assertThat(seen.json().get("status").asString()).isEqualTo("used");
+
+      // Администратор на копии управляет сайтом, но доступ для группы и копии данных – только на
+      // основном (0.9.7).
+      var hostOnly = b.put("/api/admin/access", Map.of("mode", "lan"));
+      assertThat(hostOnly.status()).as(hostOnly.body()).isEqualTo(409);
+      assertThat(hostOnly.body()).contains("host_only");
 
       // Файл со второго — у главного, и у второго тоже.
       var bg = b.putRaw("/api/me/background", png());
@@ -416,6 +458,15 @@ class PeerIT extends IntegrationTest {
       } finally {
         ctxD.close();
       }
+
+      // Отвязали все компьютеры – этот снова «не связан» и может сам подключиться к другому сайту.
+      for (PeerService.Peer p : peers.view().peers()) {
+        if (!p.here()) {
+          peers.removePeer(p.computerId());
+        }
+      }
+      assertThat(peers.role()).isEqualTo(PeerService.Role.OFF);
+      assertThat(peers.view().role()).isEqualTo("off");
     } finally {
       if (ctxB != null) {
         ctxB.close();

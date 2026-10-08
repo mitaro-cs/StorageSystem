@@ -479,9 +479,20 @@ let flushing = false;
 
 export async function flushOutbox(): Promise<void> {
 	if (flushing || !userId || !navigator.onLine) return;
-	const ops = await all<Op>('outbox');
-	if (ops.length === 0) return;
+	// Флажок – до чтения очереди: иначе два запуска подряд (вернулась сеть + живое обновление)
+	// оба читали одни и те же изменения и отправляли их дважды (0.9.7).
 	flushing = true;
+	let ops: Op[];
+	try {
+		ops = await all<Op>('outbox');
+	} catch (e) {
+		flushing = false;
+		throw e;
+	}
+	if (ops.length === 0) {
+		flushing = false;
+		return;
+	}
 	const ids = new Map<number, number>();
 	let sent = 0;
 	const failed: string[] = [];

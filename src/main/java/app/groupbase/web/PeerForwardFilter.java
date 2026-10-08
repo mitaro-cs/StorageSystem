@@ -49,14 +49,16 @@ public class PeerForwardFilter extends OncePerRequestFilter {
     String uri = req.getRequestURI();
     return !uri.startsWith("/api/")
         || SAFE.contains(req.getMethod())
-        || uri.startsWith("/api/auth/")
+        || (uri.startsWith("/api/auth/") && !relayed(uri))
         || uri.startsWith("/api/desktop/")
         || uri.equals("/api/host")
         || uri.startsWith("/api/host/")
         || uri.equals("/api/setup")
         || uri.startsWith("/api/setup/")
         || uri.equals("/api/health")
-        || uri.equals("/api/live");
+        || uri.equals("/api/live")
+        // Обновления у каждого компьютера свои – проверяет сам.
+        || uri.equals("/api/admin/update-check");
   }
 
   @Override
@@ -74,6 +76,26 @@ public class PeerForwardFilter extends OncePerRequestFilter {
     }
     Actor actor = (Actor) req.getAttribute(AuthFilter.ACTOR);
     boolean second = peers.second();
+    if (relayed(req.getRequestURI())) {
+      if (second && actor != null) {
+        relay(req, res, actor, chain);
+      } else {
+        chain.doFilter(req, res);
+      }
+      return;
+    }
+    if (second && hostOnly(req.getRequestURI())) {
+      // Доступ для группы и резервные копии – дело компьютера, на котором сайт (0.9.7): на копии
+      // их не меняют, а переслать – значит поменять у основного, не видя его настроек.
+      String main = peers.view().serving();
+      deny(
+          res,
+          "host_only",
+          "Это настраивается на основном компьютере"
+              + (main == null ? "" : " «" + main + "»")
+              + " – или сделайте основным этот");
+      return;
+    }
     boolean journal = !second && actor != null && actor.local() && peers.journaling();
     if (actor == null || (!second && !journal)) {
       chain.doFilter(req, res);
@@ -130,6 +152,46 @@ public class PeerForwardFilter extends OncePerRequestFilter {
       if (!queued) {
         Files.deleteIfExists(body);
       }
+    }
+  }
+
+  /**
+   * Код входа на другом устройстве (0.9.7): показали в окне копии – код должен жить на основном,
+   * куда придёт телефон; иначе «Код не подошёл». Пересылаются, но в очередь не встают.
+   */
+  static boolean relayed(String uri) {
+    return uri.equals("/api/auth/link") || uri.equals("/api/auth/link/status");
+  }
+
+  /** Настройки самого компьютера с сайтом: туннель и копии данных. */
+  static boolean hostOnly(String uri) {
+    return uri.startsWith("/api/admin/access") || uri.startsWith("/api/admin/backups");
+  }
+
+  /** Переслать основному как есть; нет связи – ответить здесь, без очереди. */
+  private void relay(
+      HttpServletRequest req, HttpServletResponse res, Actor actor, FilterChain chain)
+      throws IOException, ServletException {
+    Path body = peers.tempBody();
+    try {
+      try (InputStream in = req.getInputStream()) {
+        Files.copy(in, body, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+      }
+      PeerService.Reply r =
+          peers.forward(
+              req.getMethod(), req.getRequestURI(), req.getContentType(), actor.id(), body, false);
+      if (r != null) {
+        res.setStatus(r.status());
+        if (r.contentType() != null) {
+          res.setContentType(r.contentType());
+        }
+        res.setHeader("Cache-Control", "no-store");
+        res.getOutputStream().write(r.body());
+        return;
+      }
+      chain.doFilter(new BodyRequest(req, body), res);
+    } finally {
+      Files.deleteIfExists(body);
     }
   }
 

@@ -28,7 +28,8 @@ public class SubjectStore {
       String chatUrl,
       String icon,
       String cover,
-      Map<String, String> teachers) {}
+      Map<String, String> teachers,
+      Long semesterId) {}
 
   public record GroupRef(long id, String name) {}
 
@@ -58,7 +59,8 @@ public class SubjectStore {
               rs.getString("chat_url"),
               rs.getString("icon"),
               rs.getString("cover"),
-              parseTeachers(rs.getString("teachers")));
+              parseTeachers(rs.getString("teachers")),
+              Rows.longOrNull(rs, "semester_id"));
 
   /** Виды пар, у которых бывает свой преподаватель. */
   public static final List<String> TEACHER_KINDS = List.of("lecture", "practice", "seminar", "lab");
@@ -173,8 +175,13 @@ public class SubjectStore {
     db.sql("UPDATE subjects SET chat_url = ? WHERE id = ?").params(url, id).update();
   }
 
+  /** В архив (at) или обратно (null); вернувшийся предмет выходит и из архива семестра. */
   public void setArchived(long id, Long at) {
-    db.sql("UPDATE subjects SET archived_at = ? WHERE id = ?").params(at, id).update();
+    db.sql(
+            "UPDATE subjects SET archived_at = ?,"
+                + " semester_id = CASE WHEN ? IS NULL THEN NULL ELSE semester_id END WHERE id = ?")
+        .params(at, at, id)
+        .update();
   }
 
   public void setCover(long id, String cover) {

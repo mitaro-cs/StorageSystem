@@ -5,7 +5,10 @@ import type { Subject } from './types';
 export const subjects = $state<{ list: Subject[]; loaded: boolean }>({ list: [], loaded: false });
 
 export async function loadSubjects(opts?: RequestOptions): Promise<Subject[]> {
-	subjects.list = await get<Subject[]>('/api/subjects', opts);
+	const list = await get<Subject[]>('/api/subjects', opts);
+	// Тот же список – не трогаем: страницы не перерисовываются от каждого живого обновления.
+	if (!subjects.loaded || JSON.stringify(subjects.list) !== JSON.stringify(list))
+		subjects.list = list;
 	subjects.loaded = true;
 	return subjects.list;
 }

@@ -230,13 +230,24 @@
 	{:else}
 		<section class="card pane">
 			<div class="where-row">
-				<p class="where" class:wait={v.state === 'nobody'} class:bad={v.state === 'conflict'}>
+				<p
+					class="where"
+					class:wait={v.state === 'nobody' || (here && v.state !== 'ok')}
+					class:bad={v.state === 'conflict'}
+				>
 					<span class="dot" aria-hidden="true"></span>
 					<span>
-						{#if v.state === 'conflict'}Два основных: группа сейчас работает с <strong
+						{#if v.state === 'conflict' && v.rivalUrl}Два основных: <strong>«{v.rival}»</strong>
+							тоже основной, по другому адресу – у группы два разных сайта
+						{:else if v.state === 'conflict'}Два основных: группа сейчас работает с <strong
 								>«{v.rival}»</strong
 							>
-						{:else if here}Основной – <strong>этот компьютер</strong>, сайт работает здесь
+						{:else if here && v.state === 'ok'}Основной – <strong>этот компьютер</strong>, сайт
+							работает здесь
+						{:else if here && v.state === 'checking'}Основной – <strong>этот компьютер</strong>,
+							проверяем адрес сайта…
+						{:else if here}Основной – <strong>этот компьютер</strong>, но адрес сайта сейчас не
+							отвечает
 						{:else if v.state === 'nobody'}Основной не отвечает – через {seconds(v.nobodyFor)} с основным
 							станет этот компьютер
 						{:else if v.serving}Основной – <strong>«{v.serving}»</strong>, изменения отсюда уходят
@@ -258,8 +269,14 @@
 			{#if v.state === 'conflict' && hostWindow}
 				<div class="conflict">
 					<p class="small">
-						Оба компьютера считают себя основными, а группа ходит на «{v.rival}». Выберите, какой
-						оставить – второй станет копией и возьмёт его данные.
+						{#if v.rivalUrl}
+							Оба компьютера – основные, у каждого свой адрес ({v.rivalUrl} – у «{v.rival}»).
+							Выберите, какой оставить: второй станет копией и возьмёт его данные, свои изменения он
+							сохранит в сторону.
+						{:else}
+							Оба компьютера считают себя основными, а группа ходит на «{v.rival}». Выберите, какой
+							оставить – второй станет копией и возьмёт его данные.
+						{/if}
 					</p>
 					<div class="row wrap">
 						<Button size="s" variant="primary" loading={busy} onclick={yieldTo}

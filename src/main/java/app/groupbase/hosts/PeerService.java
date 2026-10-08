@@ -119,6 +119,7 @@ public class PeerService implements SmartLifecycle {
    *     checking (главный проверяет, не работает ли сайт на другом компьютере), conflict (этот
    *     считает себя основным, а по адресу сайта отвечает другой – тоже основной)
    * @param rival имя компьютера, который отвечает по адресу сайта при conflict
+   * @param rivalUrl адрес, по которому ответил соперник, если он не адрес этого сайта (0.9.7)
    * @param checkedAt когда адрес сайта последний раз ответил (null – ещё не отвечал)
    * @param nobodyFor сколько главный уже не отвечает (мс) — до перехода сюда
    * @param serving имя компьютера, на котором сайт сейчас работает для группы (null — неизвестно)
@@ -137,6 +138,7 @@ public class PeerService implements SmartLifecycle {
       long nobodyFor,
       String serving,
       String rival,
+      String rivalUrl,
       Long checkedAt,
       boolean cloud,
       List<Peer> peers,
@@ -195,6 +197,9 @@ public class PeerService implements SmartLifecycle {
 
   /** По адресу сайта отвечает другой основной (поколение не старше нашего) – его номер. */
   private volatile String rival;
+
+  /** Адрес, по которому ответил соперник (0.9.7: у двух основных могут быть разные адреса). */
+  private volatile String rivalUrl;
 
   private final Map<String, Long> seen = new ConcurrentHashMap<>();
 
@@ -301,9 +306,8 @@ public class PeerService implements SmartLifecycle {
           "Сначала включите доступ для группы по адресу https://… – по нему другой компьютер"
               + " найдёт этот");
     }
-    if (role == Role.OFF) {
-      becomeMain(Math.max(1, cfg.peerEpoch()));
-    }
+    // Основным компьютер станет, когда к нему подключатся (pair): показали код или ключ на обоих
+    // – ни один не стал «основным без связи» (0.9.7, «оба пишут, что сайт на них»).
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < 12; i++) {
       sb.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
@@ -330,7 +334,7 @@ public class PeerService implements SmartLifecycle {
 
   /** Второй компьютер пришёл с кодом: выдать ему ключ. */
   public synchronized Map<String, Object> pair(String given, String computerId, String name) {
-    if (role != Role.MAIN) {
+    if (role == Role.SECOND) {
       throw new Problem("Сайт сейчас не на этом компьютере – возьмите код там, где он работает");
     }
     if (keyMatches(given)) {
@@ -358,6 +362,9 @@ public class PeerService implements SmartLifecycle {
     if (!id.matches("[0-9a-fA-F-]{8,64}") || id.equals(cfg.computerId())) {
       throw new Problem("Не похоже на компьютер Campus – обновите приложение там");
     }
+    if (role == Role.OFF) {
+      becomeMain(Math.max(1, cfg.peerEpoch()));
+    }
     String token = Tokens.newToken();
     savePeer(id, cleanName(name), token);
     log.info("Второй компьютер хоста подключён");
@@ -372,6 +379,40 @@ public class PeerService implements SmartLifecycle {
     }
     db.sql("DELETE FROM host_peers WHERE computer_id = ?").param(computerId).update();
     seen.remove(computerId);
+    if (alone()) {
+      becomeOff();
+    }
+  }
+
+  /** Основной, к которому не подключён ни один другой компьютер, – по сути не связан ни с кем. */
+  private boolean alone() {
+    return role == Role.MAIN
+        && db.sql("SELECT COUNT(*) FROM host_peers WHERE computer_id <> ?")
+                .param(cfg.computerId())
+                .query(Long.class)
+                .single()
+            == 0;
+  }
+
+  /**
+   * Снова «не связан»: основной без связанных компьютеров (до 0.9.7 им становились, просто показав
+   * ключ, – и два таких компьютера не могли подключиться друг к другу).
+   */
+  private void becomeOff() {
+    cfg.setPeerRole(Role.OFF.id());
+    saveCfg();
+    role = Role.OFF;
+    rival = null;
+    rivalUrl = null;
+    confirmedHere = false;
+    state = "ok";
+    message = null;
+    queue.clear();
+    if (checking) {
+      checking = false;
+      access.resume();
+    }
+    log.info("Компьютер ни с кем не связан – обычный сайт");
   }
 
   private void savePeer(String computerId, String name, String token) {
@@ -543,8 +584,12 @@ public class PeerService implements SmartLifecycle {
     Files.move(part, target, StandardCopyOption.ATOMIC_MOVE);
   }
 
+  /**
+   * Номер состояния данных: журнал changes плюс версия данных (0.9.7) – копия берёт снимок и когда
+   * изменились люди, роли или настройки, которых нет в журнале.
+   */
   private long seq() {
-    return db.sql("SELECT COALESCE(MAX(seq), 0) FROM changes").query(Long.class).single();
+    return app.groupbase.sync.LiveUpdates.revision(db);
   }
 
   private int schema() {
@@ -590,9 +635,6 @@ public class PeerService implements SmartLifecycle {
                   settings.set(KEY_SETTING, k);
                   return k;
                 });
-    if (role == Role.OFF) {
-      becomeMain(Math.max(1, cfg.peerEpoch()));
-    }
     String raw = url + "\n" + secret;
     return KEY_PREFIX
         + java.util.Base64.getUrlEncoder()
@@ -796,7 +838,7 @@ public class PeerService implements SmartLifecycle {
       throw new Problem(
           "Выключите перенос через облачную папку – компьютеры будут связаны напрямую");
     }
-    if (role != Role.OFF) {
+    if (role != Role.OFF && !alone()) {
       throw new Problem("Этот компьютер уже связан с другим");
     }
     if (List.of("asking", "waiting", "joining").contains(ask.phase())) {
@@ -890,7 +932,7 @@ public class PeerService implements SmartLifecycle {
       throw new Problem(
           "Выключите перенос через облачную папку – компьютеры будут связаны напрямую");
     }
-    if (role != Role.OFF) {
+    if (role != Role.OFF && !alone()) {
       throw new Problem("Этот компьютер уже связан с другим");
     }
     Path data = props.dataDir();
@@ -1068,8 +1110,22 @@ public class PeerService implements SmartLifecycle {
       checkedAt = clock.millis();
       if (st.computer().equals(cfg.computerId())) {
         confirmedHere = true;
-        rival = null;
         queue.clear();
+        publicUrl.get().ifPresent(this::rememberUrl);
+        // По своему адресу отвечает этот – но по прежнему адресу сайта может работать другой
+        // основной: тогда у группы два разных сайта (0.9.7, «оба пишут, что основные»).
+        Other other = otherMain();
+        if (other != null) {
+          rival = other.state().computer();
+          rivalUrl = other.url();
+          state = "conflict";
+          message =
+              "По другому адресу сайта работает ещё один основной – у группы сейчас два разных"
+                  + " сайта";
+          return;
+        }
+        rival = null;
+        rivalUrl = null;
         state = "ok";
         message = null;
         return;
@@ -1077,13 +1133,15 @@ public class PeerService implements SmartLifecycle {
       if (st.epoch() >= cfg.peerEpoch()) {
         // Пока этот компьютер был без связи, главным стал другой.
         rival = null;
-        demote(st);
+        rivalUrl = null;
+        demote(st, publicUrl.get().orElse(cfg.peerUrl()));
         return;
       }
       // Оба считают себя основными, а группа ходит на другой (0.9.5: «на ПК тоже „основной“»).
       // Сам не уступаем – решает человек: «Оставить основным тот» или «Сделать основным этот».
       confirmedHere = false;
       rival = st.computer();
+      rivalUrl = null;
       state = "conflict";
       message = "По адресу сайта отвечает другой компьютер – он тоже считает себя основным";
     } catch (PeerClient.NoServer e) {
@@ -1105,6 +1163,70 @@ public class PeerService implements SmartLifecycle {
               ? "Нет интернета – сайт для группы откроется, когда связь появится"
               : "Нет связи с адресом сайта – изменения сохраняются и здесь";
     }
+  }
+
+  static final String URLS_SETTING = "peers.urls";
+  static final int MAX_URLS = 6;
+
+  /** Другой основной этого же сайта и адрес, по которому он ответил. */
+  private record Other(String url, PeerClient.State state) {}
+
+  /**
+   * Адреса, по которым сайт когда-либо работал (едут в копиях вместе с базой). По ним основной ищет
+   * другого основного: если при переезде у компьютера поднялся туннель с другим адресом, каждый
+   * видел по своему адресу только себя – и у группы оказывалось два сайта.
+   */
+  List<String> knownUrls() {
+    return settings
+        .get(URLS_SETTING)
+        .map(v -> v.lines().map(String::strip).filter(x -> !x.isEmpty()).toList())
+        .orElse(List.of());
+  }
+
+  private void rememberUrl(String url) {
+    String u = trimUrl(url);
+    if (u.isEmpty()) {
+      return;
+    }
+    List<String> known = knownUrls();
+    if (known.stream().anyMatch(k -> trimUrl(k).equals(u))) {
+      return;
+    }
+    List<String> next = new ArrayList<>();
+    next.add(u);
+    next.addAll(known);
+    settings.set(URLS_SETTING, String.join("\n", next.subList(0, Math.min(MAX_URLS, next.size()))));
+  }
+
+  private static String trimUrl(String url) {
+    return url == null ? "" : url.strip().replaceAll("/+$", "").toLowerCase(java.util.Locale.ROOT);
+  }
+
+  /**
+   * Другой основной по прежним адресам сайта (и по адресу, к которому этот подключался). Сам не
+   * уступаем ни в какую сторону: чья база важнее, решает человек.
+   */
+  private Other otherMain() {
+    String own = trimUrl(publicUrl.get().orElse(""));
+    java.util.LinkedHashSet<String> urls = new java.util.LinkedHashSet<>(knownUrls());
+    if (cfg.peerUrl() != null && !cfg.peerUrl().isBlank()) {
+      urls.add(cfg.peerUrl());
+    }
+    for (String u : urls) {
+      if (trimUrl(u).equals(own)) {
+        continue;
+      }
+      try {
+        PeerClient.State st = new PeerClient(u, cfg.computerId(), cfg.peerToken()).state();
+        boolean sameSite = st.site().isBlank() || st.site().equals(siteId());
+        if (sameSite && !st.computer().equals(cfg.computerId())) {
+          return new Other(u, st);
+        }
+      } catch (IOException | RuntimeException e) {
+        // Там никого нет, чужой сайт или не пустили – это не соперник.
+      }
+    }
+    return null;
   }
 
   /** Отправить главному изменения из очереди — по порядку; при обрыве остановиться. */
@@ -1366,7 +1488,7 @@ public class PeerService implements SmartLifecycle {
    * Главным стал другой компьютер (этот был без связи): база этого — в сторону, изменения без связи
    * — новому главному, дальше этот — второй.
    */
-  private synchronized void demote(PeerClient.State st) {
+  private synchronized void demote(PeerClient.State st, String url) {
     if (role != Role.MAIN) {
       return;
     }
@@ -1374,7 +1496,7 @@ public class PeerService implements SmartLifecycle {
     access.suspend(SECOND_MESSAGE);
     putAside();
     cfg.setPeerRole(Role.SECOND.id());
-    cfg.setPeerUrl(publicUrl.get().orElse(cfg.peerUrl()));
+    cfg.setPeerUrl(url);
     cfg.setPeerApplied(-1);
     saveCfg();
     role = Role.SECOND;
@@ -1411,6 +1533,15 @@ public class PeerService implements SmartLifecycle {
 
   /** Ответ главного на пересланное изменение; null — нет связи (изменение остаётся здесь). */
   public Reply forward(String method, String uri, String contentType, long userId, Path body) {
+    return forward(method, uri, contentType, userId, body, true);
+  }
+
+  /**
+   * @param refresh после успешного изменения сразу взять свежую копию (для кода входа – нет: он
+   *     живёт только в памяти основного, база не менялась, а опрос идёт раз в пару секунд)
+   */
+  public Reply forward(
+      String method, String uri, String contentType, long userId, Path body, boolean refresh) {
     try {
       PeerClient c = client();
       PeerClient.Reply r = c.forward(method, uri, contentType, userId, body);
@@ -1419,7 +1550,7 @@ public class PeerService implements SmartLifecycle {
         // По адресу сайта отвечает компьютер, который сейчас не главный, — как без связи.
         return null;
       }
-      if (r.status() < 400) {
+      if (refresh && r.status() < 400) {
         // Окно сразу увидит своё изменение: копия обновляется до ответа.
         try {
           secondStep(true);
@@ -1488,10 +1619,11 @@ public class PeerService implements SmartLifecycle {
         nobodySince == 0 ? 0 : now - nobodySince,
         !available ? null : role == Role.MAIN ? cfg.computerName() : nameOf(peers, holder),
         rival == null || role != Role.MAIN ? null : nameOrId(peers, rival),
+        rival == null || role != Role.MAIN ? null : rivalUrl,
         checkedAt == 0 ? null : checkedAt,
         available && hosts.cloudEnabled(),
         peers,
-        role == Role.MAIN ? code() : null,
+        role != Role.SECOND ? code() : null,
         available ? requests() : List.of(),
         ask);
   }
@@ -1512,20 +1644,24 @@ public class PeerService implements SmartLifecycle {
       if (role != Role.MAIN) {
         throw new Problem("Этот компьютер и так не основной");
       }
+      // Соперник по другому адресу – уступаем ему там, где он отвечает.
+      String url = rivalUrl != null ? rivalUrl : publicUrl.get().orElse(cfg.peerUrl());
       PeerClient.State st;
       try {
-        st = client().state();
+        st = new PeerClient(url, cfg.computerId(), cfg.peerToken()).state();
       } catch (IOException e) {
         throw new Problem("Нет связи с адресом сайта – проверьте интернет и попробуйте ещё раз");
       }
       if (st.computer().equals(cfg.computerId())) {
         rival = null;
+        rivalUrl = null;
         state = "ok";
         message = null;
         throw new Problem("По адресу сайта отвечает этот компьютер – он и есть основной");
       }
       rival = null;
-      demote(st);
+      rivalUrl = null;
+      demote(st, url);
     } finally {
       stepLock.unlock();
     }
@@ -1559,6 +1695,15 @@ public class PeerService implements SmartLifecycle {
   @Override
   public synchronized void start() {
     running = true;
+    if (cfg != null) {
+      try {
+        if (alone()) {
+          becomeOff();
+        }
+      } catch (RuntimeException e) {
+        log.warn("Не удалось проверить, связан ли компьютер с другими", e);
+      }
+    }
     if (cfg == null || tickMs <= 0) {
       return;
     }

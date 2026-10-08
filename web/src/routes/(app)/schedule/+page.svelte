@@ -300,7 +300,7 @@
 			class="input"
 			type="search"
 			bind:value={query}
-			placeholder="Предмет, препод, ауд."
+			placeholder="Поиск пары"
 			aria-label="Поиск по расписанию"
 		/>
 	</label>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { get } from '$lib/api';
+	import { offline } from '$lib/offline/engine';
 	import { t } from '$lib/i18n/ru';
 	import { fly, stagger } from '$lib/motion';
 	import type { Member } from '$lib/types';
@@ -24,6 +25,8 @@
 
 	$effect(() => {
 		void reload;
+		// Кто-то вступил, сменилась роль – живое обновление перечитывает список.
+		void offline.version;
 		const ids = groupIds;
 		Promise.all(
 			ids.map((g) =>

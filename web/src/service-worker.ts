@@ -127,7 +127,9 @@ sw.addEventListener('message', (event) => {
  * Ответил ли сам сервер группы. Когда компьютер хоста выключен, туннель отвечает своей страницей
  * ошибки – такой ответ нельзя ни показывать вместо приложения, ни сохранять.
  */
-const fromServer = (res: Response) => res.headers.has('X-Groupbase');
+const fromServer = (res: Response) =>
+	res.headers.has('X-Groupbase') ||
+	(res.headers.get('Content-Type') ?? '').startsWith('application/json');
 
 /** Файл по id не меняется: сначала сохранённая копия, иначе сеть – и запоминаем. */
 async function fileFirst(req: Request, path: string): Promise<Response> {

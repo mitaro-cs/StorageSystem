@@ -167,7 +167,18 @@ public class UserStore {
   }
 
   /** Удаление аккаунта: персональные данные стираются, строка остаётся для подписи контента. */
-  public void anonymize(long id, long now) {
+  /**
+   * Стереть личные данные удалённого аккаунта (0.9.7, просьба владельца: «удалили из группы – все
+   * его личные данные удаляются»). Записи группы (новости, задания, материалы, комментарии)
+   * остаются с подписью «удалённый пользователь». Возвращает картинку фона – удалить файл.
+   */
+  public String anonymize(long id, long now) {
+    String background =
+        db.sql("SELECT background FROM users WHERE id = ?")
+            .param(id)
+            .query(String.class)
+            .optional()
+            .orElse(null);
     for (String table :
         new String[] {
           "totp_recovery_codes",
@@ -175,7 +186,11 @@ public class UserStore {
           "push_subscriptions",
           "notification_prefs",
           "homework_reminders",
-          "passkeys"
+          "passkeys",
+          "homework_done",
+          "subject_hidden",
+          "subject_pins",
+          "quiz_attempts"
         }) {
       db.sql("DELETE FROM " + table + " WHERE user_id = ?").param(id).update();
     }
@@ -184,12 +199,16 @@ public class UserStore {
             UPDATE users SET username = 'deleted-' || id, display_name = '', password_hash = NULL,
               must_change_password = 0, instance_role = NULL, status = 'deleted',
               totp_secret = NULL, totp_enabled = 0, totp_last_step = NULL, totp_drift = 0,
-              avatar = NULL,
+              avatar = NULL, appearance = '', background = NULL, tips_seen = '',
+              onboarded_at = NULL, terms_accepted = '',
               failed_logins = 0, locked_until = NULL, deleted_at = ?
             WHERE id = ?
             """)
         .params(now, id)
         .update();
+    // Жалобы, которые он отправлял, остаются у модераторов – без автора.
+    db.sql("UPDATE reports SET reporter_id = NULL WHERE reporter_id = ?").param(id).update();
+    return background;
   }
 
   public List<User> listAll() {

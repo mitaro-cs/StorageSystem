@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import {
 		Archive,
 		CalendarDays,
+		ClipboardCheck,
 		ClipboardList,
 		EyeOff,
 		FolderOpen,
@@ -18,6 +20,7 @@
 		Users
 	} from '@lucide/svelte';
 	import { get, put } from '$lib/api';
+	import { offline } from '$lib/offline/engine';
 	import { loadSubjects, sortedSubjects } from '$lib/data.svelte';
 	import { can, session } from '$lib/session.svelte';
 	import { track } from '$lib/recent';
@@ -62,6 +65,7 @@
 			{ value: 'materials', label: 'Материалы', icon: FolderOpen },
 			...(subject?.lessons ? [{ value: 'lessons', label: 'Расписание', icon: CalendarDays }] : []),
 			{ value: 'feed', label: 'Новости', icon: Newspaper },
+			{ value: 'tests', label: 'Тесты', icon: ClipboardCheck },
 			...(subgroup ? [{ value: 'members', label: 'Участники', icon: Users }] : [])
 		].map((t) => ({
 			...t,
@@ -81,7 +85,9 @@
 
 	$effect(() => {
 		void id;
-		load();
+		// Предмет изменили на другом устройстве – перечитываем (живые обновления).
+		void offline.version;
+		untrack(load);
 	});
 
 	// Полоса миниатюр предметов – отдельным кусочком (SubjectStrip): место под неё занято сразу.
@@ -322,6 +328,11 @@
 			{#await import('$lib/content/MaterialBrowser.svelte')}<Skeleton
 					lines={4}
 				/>{:then m}<m.default subjectId={subject.id} subjectName={subject.name} />{/await}
+		{:else if tab === 'tests'}
+			{#await import('$lib/quiz/QuizTab.svelte')}<Skeleton lines={3} />{:then m}<m.default
+					subjectId={subject.id}
+					canEdit={!!subject.can?.edit}
+				/>{/await}
 		{:else if tab === 'members'}
 			{#await import('$lib/content/MemberList.svelte')}<Skeleton lines={4} />{:then m}<m.default
 					groupIds={subject.groups.map((g) => g.id)}
@@ -570,5 +581,27 @@
 		background: var(--accent);
 		color: var(--accent-text);
 		box-shadow: 0 1px 4px rgb(0 0 0 / 0.12);
+	}
+	/* Телефон: все вкладки в ширину экрана – значок над подписью; иначе «Тесты» уезжали за край. */
+	@media (max-width: 560px) {
+		.subtabs {
+			border-radius: 18px;
+		}
+		.subtabs a {
+			flex: 1 1 0;
+			min-width: 0;
+			flex-direction: column;
+			gap: 2px;
+			height: 52px;
+			padding: 0 2px;
+			border-radius: 14px;
+			font-size: 12px;
+		}
+		.subtabs a span {
+			max-width: 100%;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
 	}
 </style>

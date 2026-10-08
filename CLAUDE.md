@@ -158,8 +158,8 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   сессию другого.
 - Два компьютера напрямую (0.8, `hosts/PeerService`, без облака): главный — сайт для группы,
   второй — копия. Оба ходят только на **адрес сайта** (туннель ведёт на главного), адресов друг друга
-  не знают. Сопряжение — код с главного (`POST /api/host/peers/code`, первый код делает компьютер
-  главным) → `POST /api/host/peer/pair` → ключ компьютера (открыт только в его `hosts.properties`
+  не знают. Сопряжение — код с главного (`POST /api/host/peers/code`; главным компьютер становится
+  при первом подключении к нему, с 0.9.7) → `POST /api/host/peer/pair` → ключ компьютера (открыт только в его `hosts.properties`
   `peer.token`, в базе — хеш, таблица `host_peers`, V26, едет в копиях) → полная копия
   (`/api/host/peer/copy`) и перезапуск. Запросы компьютеров — с `X-Groupbase-Peer: <номер> <ключ>`
   (и CSRF, как у страниц); с `X-Groupbase-As` — изменение от имени человека (`AuthFilter`,
@@ -198,8 +198,8 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   (`/peers/code`, `/peers/join`) остались для совместимости.
 - Ключ сайта (0.9.4, просьба владельца: «один шифрованный код — вставил и навсегда»):
   `PeerService.siteKey()` — `campus-` + base64url(«адрес сайта\nсекрет»), секрет — `settings`
-  `peers.key` (едет в копиях: показать ключ можно на любом связанном компьютере), первый показ делает
-  компьютер основным (MAIN). `pair()` принимает ключ вместо кода без «Разрешить»; `joinByKey` на
+  `peers.key` (едет в копиях: показать ключ можно на любом связанном компьютере); основным (MAIN)
+  компьютер становится, когда по ключу к нему подключились (до 0.9.7 – уже при показе). `pair()` принимает ключ вместо кода без «Разрешить»; `joinByKey` на
   новом. Ручки: `GET/POST /api/host/peers/key` (показать / сменить), `POST /api/host/peers/join-key`,
   `/api/setup/peer/key`, `/api/host/standby/key`. В интерфейсе — «основной», не «хост».
 - Экран ожидания (0.9.4): у компьютера в роли `moved` вместо «Вернуть сайт сюда» — `PeerJoin standby`
@@ -530,3 +530,58 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   – «проверено N с назад», у компьютеров – точка «на связи».
 - «Управление» и «Профиль» (0.9.6, по референсу-дашборду): плитки-сводка сверху (первая тёмная),
   меню – тонкие значки, выбранный – тёмный значок.
+- Два компьютера (0.9.7): код и ключ сайта основным **не** делают – `becomeMain` в `issue()` при
+  первом подключении. `alone()` (MAIN без других в `host_peers`) → `becomeOff()` при запуске и
+  после «Отвязать»; `join`/`startAsk` разрешены и для `alone()`. На копии
+  `PeerForwardFilter.hostOnly` (`/api/admin/access`, `/api/admin/backups`) отвечает 409
+  `host_only`, `/api/admin/update-check` – свой; `ServerPanel` на копии прячет доступ и копии.
+- «Управление» и «Профиль» (0.9.7): `main.wide` в макете; раскладка – по контейнерному запросу
+  (`container: settings` / `profile`, 820 px), не по `@media`: под CSS zoom масштаба медиазапросы
+  видят окно целиком.
+- Живые обновления на всё (0.9.7, просьба владельца): `data_version` (V30, одна строка) поднимает
+  `web/LiveBumpFilter` после каждого успешного изменения через API (кроме `QUIET`: вход, опросы,
+  свои настройки, ручки хоста). Номер состояния – `LiveUpdates.revision` = MAX(changes.seq) + v; его
+  же отдаёт копии `/api/host/peer/state` (`PeerService.seq`) – копия берёт снимок и при изменениях не
+  из журнала. Сравнение – «не равно». Фронт (`live.ts`): `offline.version++` сразу, `loadMe`,
+  `loadSubjects`; на `offline.version` подписаны «Сегодня», расписание, ленты, страница предмета,
+  `MemberList`, плитки «Управления».
+- Два основных с разными адресами (0.9.7): основной помнит адреса сайта (`settings` `peers.urls`,
+  `rememberUrl` при подтверждении, едут в копиях) и проверяет их и `cfg.peerUrl` (`otherMain`).
+  Нашёл другого основного – `conflict` с `rivalUrl`, сам не уступает; `yieldToRival` идёт по
+  `rivalUrl`, `demote(st, url)` делает копией этого адреса.
+- Отметка «сделано» (`ui/DoneToggle`) – цвет `--ok` и белая галочка, не акцент: у тёмных палитр
+  акцент сливался с фоном строки.
+- Тесты онлайн (0.9.7, пакет `quiz`): `quizzes` (вопросы – JSON) и `quiz_attempts` (V31),
+  `QuizService` (вести – MANAGE_SUBJECTS во всех группах предмета, проходить – кто видит предмет;
+  проверка ответов – `mark`, текст без учёта регистра, пробелов и «ё»; время – `timeLimit` + 60 с
+  запаса, истёкшие попытки закрываются нулём), `/api/subjects/{id}/quizzes`, `/api/quizzes/{id}`
+  (+ `/attempts`, `/results`), `/api/quiz-attempts/{id}` (+ `/finish`). Фронт – `lib/quiz/`
+  (`QuizTab` – вкладка «Тесты» предмета, `QuizEditor`), страница `routes/(app)/quizzes/[id]`
+  (ответы попытки – localStorage `gb-quiz-<id>`). e2e – `26-quizzes`.
+- Иконки lucide: макет импортирует `@lucide/svelte`, поэтому **любая новая иконка где угодно**
+  попадает в общий код `shell` и утяжеляет «Сегодня» – берите уже используемые (0.9.7: тесты
+  сначала вывели «Сегодня» за 100 КБ).
+- Живые обновления и состояние: `loadMe`/`loadSubjects` подменяют объект, только если JSON
+  изменился; «Управление» держит прежний объект группы (`lastGroup`). Эффект, который сбрасывает
+  состояние, пусть зависит от примитива (`$derived(groupId)`), а загрузку – через `untrack`.
+- Ответ «от своего сервера» (0.9.7): метка `X-Groupbase` **или** не-HTML ответ (JSON, файлы);
+  502–504 без метки – туннель. Фронт – `api.ts fromGroupServer`, service worker – `fromServer`,
+  сервер – `PeerClient.fromGroupServer` (и `TransferClient`, `HostService`). Туннели могут терять
+  свои заголовки.
+- Код входа на другом устройстве на копии: `/api/auth/link` и `/link/status` пересылаются
+  основному (`PeerForwardFilter.relayed`, без очереди и без снимка), основной принимает
+  `X-Groupbase-As` для них (`AuthFilter`).
+- Удаление из группы (0.9.7): `removeFromGroup` – из последней группы и без роли на сайте → `wipe`
+  (аккаунт удалён, логин свободен; `UserStore.anonymize` стирает и отметки, попытки тестов,
+  оформление, фон). Прежние «висящие» – `accounts/OrphanCleanup` один раз (`accounts.orphans.cleaned`).
+- Одна группа (0.9.7, просьба владельца): `isMulti()` всегда false, выбора режима и
+  `GroupSwitcher` нет; на сервере режим `multi` остался, интерфейс его не показывает.
+- Архивы семестров (0.9.7, просьба владельца): `semesters` (V32, группа + название),
+  `subjects.semester_id`; `content/SemesterService`, `/api/groups/{id}/semesters` (GET – архивы и
+  `suggested`, POST `{name, subjects}` – `manage_subjects`), `PATCH/DELETE /api/semesters/{id}`
+  (DELETE – вернуть предметы). Вернули один предмет – `semester_id` обнуляется
+  (`SubjectStore.setArchived`). Задания архивных предметов не попадают в общие списки
+  (`HomeworkService.list` при `subject == null`, `offline/local.ts`) и в `Reminders`. Фронт:
+  `content/semesters.ts`, `ArchiveSemester` (окно), `SemesterArchive` (разделы в «Предметы →
+  Архив», лениво; `?archive=1` – развёрнут), список – `settings/SemesterPanel`, мастер
+  `NewSemester` шлёт выбранные предметы одним архивом.

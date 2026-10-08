@@ -321,12 +321,14 @@ public class HomeworkService {
             AND (h.hidden = 0 OR h.author_id = :uid OR EXISTS (
               SELECT 1 FROM homework_targets t2 WHERE t2.homework_id = h.id AND t2.group_id IN (:mod)))
             """);
-    // Общие списки — без предметов, которые человек скрыл у себя (другая подгруппа); на странице
-    // самого предмета видно всё.
+    // Общие списки — без предметов, которые человек скрыл у себя (другая подгруппа), и без
+    // предметов в архиве (прошлый семестр); на странице самого предмета видно всё.
     if (subject == null) {
       where.append(
           " AND NOT EXISTS (SELECT 1 FROM subject_hidden sh"
-              + " WHERE sh.user_id = :uid AND sh.subject_id = h.subject_id)");
+              + " WHERE sh.user_id = :uid AND sh.subject_id = h.subject_id)"
+              + " AND NOT EXISTS (SELECT 1 FROM subjects xs"
+              + " WHERE xs.id = h.subject_id AND xs.archived_at IS NOT NULL)");
     }
     long now = clock.millis();
     switch (view) {

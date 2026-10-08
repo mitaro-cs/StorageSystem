@@ -395,4 +395,27 @@ class AccountsIT extends IntegrationTest {
         .isEqualTo(200);
     assertThat(u.api().get("/api/me").json().get("user").get("tips").toString()).contains("sub-12");
   }
+
+  @Test
+  void removedFromLastGroupFreesTheUsername() {
+    long g = newGroup("Удаление " + uniq());
+    TestUser student = newUser(g, "student");
+    var removed = admin().delete("/api/groups/" + g + "/members/" + student.id());
+    assertThat(removed.status()).as(removed.body()).isLessThan(300);
+    // Логин свободен – того же человека можно завести заново.
+    var again =
+        admin()
+            .post(
+                "/api/groups/" + g + "/accounts",
+                Map.of(
+                    "accounts",
+                    List.of(Map.of("username", student.username(), "displayName", "Тестов Тест")),
+                    "role",
+                    "student",
+                    "delivery",
+                    "LINK"));
+    assertThat(again.status()).as(again.body()).isEqualTo(200);
+    // И старый вход больше не работает.
+    assertThat(student.api().get("/api/me").status()).isEqualTo(401);
+  }
 }

@@ -25,6 +25,8 @@
 	);
 	// Новость и задание целиком – узкой колонкой: длинные строки на большом мониторе читать трудно.
 	const narrow = $derived(/^\/(homework|news)\/[^/]+$/.test(page.url.pathname));
+	// «Управление» и «Профиль» – меню разделов слева и раздел справа: им нужна зона шире (0.9.7).
+	const wide = $derived(/^\/(settings|profile)(\/|$)/.test(page.url.pathname));
 	let collapsed = $state(false);
 	onMount(initPwa);
 	onMount(startBell);
@@ -193,7 +195,7 @@
 				</span>
 			</div>
 		{/if}
-		<main id="content" tabindex="-1" class:narrow>
+		<main id="content" tabindex="-1" class:narrow class:wide>
 			{#key page.url.pathname}
 				<div class="page" in:fly={{ y: 14, duration: 300 }}>
 					{@render children()}
@@ -248,6 +250,9 @@
 	}
 	main.narrow {
 		max-width: calc(860px + 2 * var(--s5));
+	}
+	main.wide {
+		max-width: calc(max(var(--content), 1240px) + 2 * var(--s5));
 	}
 	.desktop-only {
 		display: none;

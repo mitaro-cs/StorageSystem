@@ -125,6 +125,8 @@ export interface Subject {
 	/** Свой преподаватель у лекций, практики, семинаров, лабораторных (0.9.6; у старых серверов нет). */
 	teachers?: Partial<Record<'lecture' | 'practice' | 'seminar' | 'lab', string>>;
 	archived: boolean;
+	/** Архив семестра, в котором предмет (0.9.7); null – не в архиве или без семестра. */
+	semester?: number | null;
 	pinned: boolean;
 	/** Предмет этого человека; false – скрыл у себя как предмет другой подгруппы (с 0.4.10). */
 	mine?: boolean;
@@ -513,4 +515,12 @@ export interface ModLogEntry {
 	targetType: ModType | null;
 	targetId: number | null;
 	title: string | null;
+}
+
+/** Архив прошлого семестра (0.9.7). */
+export interface Semester {
+	id: number;
+	name: string;
+	createdAt: number;
+	subjects: number;
 }

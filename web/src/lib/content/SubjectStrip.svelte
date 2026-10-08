@@ -98,8 +98,10 @@
 		gap: 10px;
 		/* Высота – под текущую плитку (96) с обводкой (5) и подъёмом при наведении: ничего не режется. */
 		min-height: 124px;
-		padding: 12px 8px;
-		scroll-padding-inline: 6px;
+		/* Запас по бокам – под обводку текущей плитки (3 + 2 px) и тень: у первой и последней она
+		   не срезается краем полосы (0.9.7; раньше на компьютере отступ был 2 px). */
+		padding: 12px 10px;
+		scroll-padding-inline: 10px;
 		overflow-x: auto;
 		scrollbar-width: none;
 		scroll-behavior: smooth;
@@ -213,10 +215,6 @@
 	@media (min-width: 900px) {
 		.strip-wrap {
 			margin: 0;
-		}
-		.strip {
-			padding-left: 2px;
-			padding-right: 2px;
 		}
 	}
 </style>

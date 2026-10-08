@@ -54,6 +54,8 @@ public class SubjectService {
       // Свой преподаватель у лекций, практики, семинаров, лабораторных (0.9.6).
       Map<String, String> teachers,
       boolean archived,
+      // Архив семестра, в котором предмет (0.9.7); null – не в архиве или без семестра.
+      Long semester,
       boolean pinned,
       // Предмет этого человека; false — скрыл у себя как предмет другой подгруппы.
       boolean mine,
@@ -143,6 +145,7 @@ public class SubjectService {
         r.chatUrl(),
         r.teachers(),
         r.archivedAt() != null,
+        r.archivedAt() != null ? r.semesterId() : null,
         pins.contains(r.id()),
         !hidden.contains(r.id()),
         gs,

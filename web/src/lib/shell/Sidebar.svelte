@@ -8,7 +8,6 @@
 	import {
 		canToggleManage,
 		currentGroup,
-		isMulti,
 		session,
 		setManageMode,
 		visibleNav
@@ -71,20 +70,11 @@
 		const fio = session.me?.user.displayName ?? '';
 		return [firstName(fio), lastName(fio)].filter(Boolean).join(' ') || fio;
 	});
-	const title = $derived(
-		group?.name ??
-			(isMulti()
-				? session.me?.instance.name || t.nav.allGroups
-				: (session.me?.groups[0]?.name ?? ''))
-	);
+	const title = $derived(group?.name ?? session.me?.groups[0]?.name ?? '');
 </script>
 
 <aside class="sidebar" class:collapsed aria-label="Навигация">
 	<div class="top">
-		<!-- Переключатель групп – только у потока из нескольких групп, код грузится тогда же. -->
-		{#if !collapsed && isMulti()}
-			{#await import('./GroupSwitcher.svelte') then m}<m.default />{/await}
-		{/if}
 		<!-- Иконка группы (её картинка или буквы на цвете), у «Всех групп» – логотип сайта. -->
 		<div class="title" class:only-mark={collapsed}>
 			<span class="mark" title={collapsed ? title : undefined}>

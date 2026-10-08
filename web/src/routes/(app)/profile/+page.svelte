@@ -118,103 +118,109 @@
 
 <div class="page-head"><h1>{t.nav.mySettings}</h1></div>
 
-<div class="layout" class:menu-only={menuOnly}>
-	<nav class="menu" aria-label="Разделы настроек">
-		<a class="me card" href="/profile?tab=account" aria-label="Профиль">
-			<Avatar id={me.user.id} name={me.user.displayName} avatar={me.user.avatar} size={52} ring />
-			<span class="me-txt">
-				<strong>{me.user.displayName}</strong>
-				<span
-					>@{me.user.username}{me.user.instanceRole
-						? ` · ${t.roles[me.user.instanceRole]}`
-						: ''}</span
-				>
-			</span>
-		</a>
-
-		<!-- На телефоне: разделы, которых нет в нижней панели. -->
-		<div class="quick mobile">
-			<a href="/schedule"><CalendarDays size={18} /> <span>{t.nav.schedule}</span></a>
-			<a href="/members"><Users size={18} /> <span>{t.nav.members}</span></a>
-			{#if canModerate()}<a href="/moderation"
-					><ShieldCheck size={18} />
-					<span>{t.nav.moderation}</span>{#if moderation.reports + moderation.pending}<b
-							class="count num">{moderation.reports + moderation.pending}</b
-						>{/if}</a
-				>{/if}
-			{#if showSession}<a href="/session"
-					><GraduationCap size={18} /> <span>{t.nav.session}</span></a
-				>{/if}
-			<a href="/notifications"><Bell size={18} /> <span>{t.nav.notifications}</span></a>
-			{#if hasSettings()}<a href="/settings"
-					><SlidersHorizontal size={18} /> <span>{t.nav.settings}</span></a
-				>{/if}
-		</div>
-
-		{#each PARTS as p (p.key)}
-			<h2 class="part">{p.title}</h2>
-			<div class="items card">
-				{#each p.items as s (s.value)}
-					<button
-						class="item"
-						class:on={s.value === tab}
-						aria-current={s.value === tab ? 'page' : undefined}
-						onclick={() => select(s.value)}
+<!-- Ширину считает контейнер: под масштабом интерфейса медиазапросы видят окно целиком (0.9.7). -->
+<div class="profile">
+	<div class="layout" class:menu-only={menuOnly}>
+		<nav class="menu" aria-label="Разделы настроек">
+			<a class="me card" href="/profile?tab=account" aria-label="Профиль">
+				<Avatar id={me.user.id} name={me.user.displayName} avatar={me.user.avatar} size={52} ring />
+				<span class="me-txt">
+					<strong>{me.user.displayName}</strong>
+					<span
+						>@{me.user.username}{me.user.instanceRole
+							? ` · ${t.roles[me.user.instanceRole]}`
+							: ''}</span
 					>
-						<span class="ic {s.tone}"><s.icon size={19} /></span>
-						<span class="txt"><strong>{s.label}</strong><span>{s.desc}</span></span>
-						<ChevronRight size={16} class="chev" />
-					</button>
-				{/each}
-			</div>
-		{/each}
-		<!-- Выйти – на этом устройстве (код выхода грузится по нажатию). -->
-		<button
-			class="item card logout"
-			onclick={() => import('$lib/profile/logout').then((m) => m.logout())}
-		>
-			<span class="ic red"><LogOut size={19} /></span>
-			<span class="txt"><strong>Выйти</strong><span>На этом устройстве</span></span>
-		</button>
-	</nav>
+				</span>
+			</a>
 
-	<section class="content" aria-labelledby="profile-section">
-		<button class="back" onclick={() => goto('/profile', { noScroll: true })}
-			><ChevronLeft size={18} /> Все настройки</button
-		>
-		<div class="head card">
-			<SectionHead
-				icon={current.icon}
-				tone={current.tone}
-				title={current.label}
-				text={current.desc}
-				id="profile-section"
-			/>
-		</div>
-		{#key tab}
-			<div class="panel">
-				<!-- Каждый раздел грузит свой код при открытии: страница открывается быстро. -->
-				{#if tab === 'account'}
-					{#await import('$lib/profile/AccountPanel.svelte') then m}<m.default />{/await}
-				{:else if tab === 'security'}
-					{#await import('$lib/profile/SecurityPanel.svelte') then m}<m.default />{/await}
-				{:else if tab === 'appearance'}
-					{#await import('$lib/shell/ThemePicker.svelte') then m}
-						<section class="card pane"><m.default /></section>
-					{/await}
-				{:else if tab === 'notifications'}
-					{#await import('$lib/settings/NotificationSettings.svelte') then m}<m.default />{/await}
-				{:else if tab === 'offline'}
-					{#await import('$lib/settings/OfflineSettings.svelte') then m}<m.default />{/await}
-				{:else if tab === 'app'}
-					{#await import('$lib/profile/AppPanel.svelte') then m}<m.default />{/await}
-				{/if}
+			<!-- На телефоне: разделы, которых нет в нижней панели. -->
+			<div class="quick mobile">
+				<a href="/schedule"><CalendarDays size={18} /> <span>{t.nav.schedule}</span></a>
+				<a href="/members"><Users size={18} /> <span>{t.nav.members}</span></a>
+				{#if canModerate()}<a href="/moderation"
+						><ShieldCheck size={18} />
+						<span>{t.nav.moderation}</span>{#if moderation.reports + moderation.pending}<b
+								class="count num">{moderation.reports + moderation.pending}</b
+							>{/if}</a
+					>{/if}
+				{#if showSession}<a href="/session"
+						><GraduationCap size={18} /> <span>{t.nav.session}</span></a
+					>{/if}
+				<a href="/notifications"><Bell size={18} /> <span>{t.nav.notifications}</span></a>
+				{#if hasSettings()}<a href="/settings"
+						><SlidersHorizontal size={18} /> <span>{t.nav.settings}</span></a
+					>{/if}
 			</div>
-		{/key}
-	</section>
+
+			{#each PARTS as p (p.key)}
+				<h2 class="part">{p.title}</h2>
+				<div class="items card">
+					{#each p.items as s (s.value)}
+						<button
+							class="item"
+							class:on={s.value === tab}
+							aria-current={s.value === tab ? 'page' : undefined}
+							onclick={() => select(s.value)}
+						>
+							<span class="ic {s.tone}"><s.icon size={19} /></span>
+							<span class="txt"><strong>{s.label}</strong><span>{s.desc}</span></span>
+							<ChevronRight size={16} class="chev" />
+						</button>
+					{/each}
+				</div>
+			{/each}
+			<!-- Выйти – на этом устройстве (код выхода грузится по нажатию). -->
+			<button
+				class="item card logout"
+				onclick={() => import('$lib/profile/logout').then((m) => m.logout())}
+			>
+				<span class="ic red"><LogOut size={19} /></span>
+				<span class="txt"><strong>Выйти</strong><span>На этом устройстве</span></span>
+			</button>
+		</nav>
+
+		<section class="content" aria-labelledby="profile-section">
+			<button class="back" onclick={() => goto('/profile', { noScroll: true })}
+				><ChevronLeft size={18} /> Все настройки</button
+			>
+			<div class="head card">
+				<SectionHead
+					icon={current.icon}
+					tone={current.tone}
+					title={current.label}
+					text={current.desc}
+					id="profile-section"
+				/>
+			</div>
+			{#key tab}
+				<div class="panel">
+					<!-- Каждый раздел грузит свой код при открытии: страница открывается быстро. -->
+					{#if tab === 'account'}
+						{#await import('$lib/profile/AccountPanel.svelte') then m}<m.default />{/await}
+					{:else if tab === 'security'}
+						{#await import('$lib/profile/SecurityPanel.svelte') then m}<m.default />{/await}
+					{:else if tab === 'appearance'}
+						{#await import('$lib/shell/ThemePicker.svelte') then m}
+							<section class="card pane"><m.default /></section>
+						{/await}
+					{:else if tab === 'notifications'}
+						{#await import('$lib/settings/NotificationSettings.svelte') then m}<m.default />{/await}
+					{:else if tab === 'offline'}
+						{#await import('$lib/settings/OfflineSettings.svelte') then m}<m.default />{/await}
+					{:else if tab === 'app'}
+						{#await import('$lib/profile/AppPanel.svelte') then m}<m.default />{/await}
+					{/if}
+				</div>
+			{/key}
+		</section>
+	</div>
 </div>
 
 <style>
+	.profile {
+		container: profile / inline-size;
+	}
 	.layout {
 		display: grid;
 		grid-template-columns: 340px minmax(0, 1fr);
@@ -446,13 +452,13 @@
 		line-height: 22px;
 		text-align: center;
 	}
-	@media (min-width: 901px) {
+	@container profile (min-width: 821px) {
 		.mobile {
 			display: none;
 		}
 	}
 	/* Телефон и узкое окно: либо профиль с меню разделов, либо открытый раздел с «назад». */
-	@media (max-width: 900px) {
+	@container profile (max-width: 820px) {
 		.layout {
 			grid-template-columns: minmax(0, 1fr);
 		}
