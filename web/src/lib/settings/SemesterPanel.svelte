@@ -286,6 +286,14 @@
 		box-shadow: 0 1px 3px rgb(16 18 24 / 0.1);
 	}
 	@media (max-width: 520px) {
+		/* «Около сессии» и «Не показывать» – в две строки, а не «Около сес…». */
+		.seg button {
+			height: auto;
+			min-height: 38px;
+			padding: 6px;
+			white-space: normal;
+			line-height: 1.2;
+		}
 		.row {
 			flex-wrap: wrap;
 		}

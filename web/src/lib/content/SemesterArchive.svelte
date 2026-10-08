@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Archive, Plus } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
-	import { plural } from '$lib/format';
+	import { fmtDate, plural } from '$lib/format';
 	import type { Semester, Subject } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
 	import Menu from '$lib/ui/Menu.svelte';
@@ -46,9 +46,6 @@
 	const loose = $derived(
 		archived.filter((s) => !s.semester || !semesters.some((x) => x.id === s.semester))
 	);
-
-	const fmt = (ms: number) =>
-		new Date(ms).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
 </script>
 
 {#if canManage && groupId !== null}
@@ -64,7 +61,9 @@
 			<h3>{sem.name}</h3>
 			<span class="faint small"
 				>{list.length}
-				{plural(list.length, ['предмет', 'предмета', 'предметов'])} · с {fmt(sem.createdAt)}</span
+				{plural(list.length, ['предмет', 'предмета', 'предметов'])} · в архиве с {fmtDate(
+					sem.createdAt
+				)}</span
 			>
 			{#if canManage}
 				<span class="menu">

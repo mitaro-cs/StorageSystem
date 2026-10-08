@@ -582,4 +582,26 @@
 		color: var(--accent-text);
 		box-shadow: 0 1px 4px rgb(0 0 0 / 0.12);
 	}
+	/* Телефон: все вкладки в ширину экрана – значок над подписью; иначе «Тесты» уезжали за край. */
+	@media (max-width: 560px) {
+		.subtabs {
+			border-radius: 18px;
+		}
+		.subtabs a {
+			flex: 1 1 0;
+			min-width: 0;
+			flex-direction: column;
+			gap: 2px;
+			height: 52px;
+			padding: 0 2px;
+			border-radius: 14px;
+			font-size: 12px;
+		}
+		.subtabs a span {
+			max-width: 100%;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+	}
 </style>
