@@ -545,3 +545,9 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   из журнала. Сравнение – «не равно». Фронт (`live.ts`): `offline.version++` сразу, `loadMe`,
   `loadSubjects`; на `offline.version` подписаны «Сегодня», расписание, ленты, страница предмета,
   `MemberList`, плитки «Управления».
+- Два основных с разными адресами (0.9.7): основной помнит адреса сайта (`settings` `peers.urls`,
+  `rememberUrl` при подтверждении, едут в копиях) и проверяет их и `cfg.peerUrl` (`otherMain`).
+  Нашёл другого основного – `conflict` с `rivalUrl`, сам не уступает; `yieldToRival` идёт по
+  `rivalUrl`, `demote(st, url)` делает копией этого адреса.
+- Отметка «сделано» (`ui/DoneToggle`) – цвет `--ok` и белая галочка, не акцент: у тёмных палитр
+  акцент сливался с фоном строки.

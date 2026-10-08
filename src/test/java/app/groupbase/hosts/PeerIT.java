@@ -252,6 +252,25 @@ class PeerIT extends IntegrationTest {
       peersB.tick();
       assertThat(groups(b)).contains(fromA);
 
+      // Два основных с разными адресами (0.9.7): B стал основным, но его туннель поднялся по
+      // своему адресу – по нему B видит только себя. Он проверяет и прежний адрес сайта, находит
+      // там A и не считает себя единственным: «два разных сайта», выбор – за человеком.
+      var urlB = ctxB.getBean(app.groupbase.accounts.PublicUrl.class);
+      peersB.takeOver("проверка двух адресов");
+      urlB.set("http://127.0.0.1:" + portOf(ctxB));
+      peersB.tick();
+      assertThat(peersB.role()).isEqualTo(PeerService.Role.MAIN);
+      assertThat(peersB.view().state()).isEqualTo("conflict");
+      assertThat(peersB.view().rival()).isEqualTo(peers.view().computer());
+      assertThat(peersB.view().rivalUrl()).isEqualTo(tunnel.url());
+      // «Оставить тот»: B уступает A там, где A отвечает, и снова копия по адресу сайта.
+      peersB.yieldToRival();
+      assertThat(peersB.role()).isEqualTo(PeerService.Role.SECOND);
+      assertThat(peersB.view().url()).isEqualTo(tunnel.url());
+      assertThat(peers.role()).isEqualTo(PeerService.Role.MAIN);
+      peersB.tick();
+      assertThat(groups(b)).contains(fromA);
+
       // Изменение во втором окне уходит главному, и второй видит его сразу.
       String fromB = "Со второго " + uniq();
       var made = b.post("/api/groups", Map.of("name", fromB, "university", "МТУСИ"));

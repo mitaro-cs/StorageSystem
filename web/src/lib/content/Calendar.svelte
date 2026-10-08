@@ -87,8 +87,11 @@
 		{#each byDay[selected] ?? [] as h (h.id)}
 			<a class="list-row" href="/homework/{h.id}">
 				<SubjectGlyph id={h.subject.id} name={h.subject.name} color={h.subject.color} size={28} />
-				<span class="t" class:done={h.done}>{h.title}</span>
-				<span class="faint small">{h.subject.name}</span>
+				<!-- Название и предмет – столбиком: в строку на телефоне они налезали друг на друга. -->
+				<span class="txt">
+					<span class="t" class:done={h.done}>{h.title}</span>
+					<span class="faint small subj">{h.subject.name}</span>
+				</span>
 			</a>
 		{:else}
 			<p class="faint empty">В этот день дедлайнов нет</p>
@@ -181,10 +184,22 @@
 	.day-list > * + * {
 		border-top: 1px solid var(--border);
 	}
-	.t {
+	.txt {
 		flex: 1;
 		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		line-height: 1.3;
+	}
+	.t {
 		font-weight: 550;
+		overflow-wrap: anywhere;
+	}
+	.subj {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.t.done {
 		text-decoration: line-through;

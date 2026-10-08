@@ -61,7 +61,7 @@
 	}
 	.tick {
 		fill: none;
-		stroke: var(--accent-text);
+		stroke: #fff;
 		stroke-width: 2.4;
 		stroke-linecap: round;
 		stroke-linejoin: round;
@@ -72,9 +72,11 @@
 	.done:hover .ring {
 		stroke: var(--accent);
 	}
+	/* «Сделано» – всегда зелёный кружок с белой галочкой (0.9.7): в цвете акцента он на тёмном фоне
+	   у части палитр сливался со строкой, и галочка «пропадала». */
 	.on .ring {
-		fill: var(--accent);
-		stroke: var(--accent);
+		fill: var(--ok);
+		stroke: var(--ok);
 	}
 	.on .tick {
 		stroke-dashoffset: 0;
