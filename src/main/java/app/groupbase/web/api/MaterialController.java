@@ -42,6 +42,13 @@ class MaterialController {
     return materials.create(actor, subjectId, in);
   }
 
+  /** Много файлов разом (1.0.1): одно уведомление на всю пачку. */
+  @PostMapping("/api/subjects/{subjectId}/materials/batch")
+  List<MaterialService.Item> createMany(
+      Actor actor, @PathVariable long subjectId, @RequestBody MaterialService.Batch in) {
+    return materials.createMany(actor, subjectId, in);
+  }
+
   @PostMapping("/api/subjects/{subjectId}/folders")
   MaterialService.Folder folder(
       Actor actor, @PathVariable long subjectId, @RequestBody MaterialService.FolderInput in) {
@@ -85,6 +92,14 @@ class MaterialController {
   }
 
   record PinBody(boolean pinned) {}
+
+  record FlagBody(boolean value) {}
+
+  /** «Скрыть у себя» – только для этого человека (0.9.8). */
+  @PutMapping("/api/materials/{id}/dismissed")
+  MaterialService.Item dismiss(Actor actor, @PathVariable long id, @RequestBody FlagBody b) {
+    return materials.dismiss(actor, id, b.value());
+  }
 
   @PutMapping("/api/materials/{id}/pinned")
   MaterialService.Item pin(Actor actor, @PathVariable long id, @RequestBody PinBody b) {

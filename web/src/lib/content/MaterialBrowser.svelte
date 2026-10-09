@@ -104,6 +104,10 @@
 	}
 
 	let shown = $state<Material[]>([]);
+	// Скрытые у себя (0.9.8) – свёрнутым разделом в конце списка.
+	const mine = $derived(shown.filter((m) => !m.dismissed));
+	const dismissed = $derived(shown.filter((m) => m.dismissed));
+	let showDismissed = $state(false);
 </script>
 
 {#if !data}
@@ -160,15 +164,33 @@
 
 	<TypeChips list={data.materials} onshown={(l) => (shown = l)} />
 
-	{#if shown.length}
+	{#if mine.length}
 		<div class="list">
-			{#each shown as m, i (m.id)}
+			{#each mine as m, i (m.id)}
 				<div in:fly={{ y: 8, delay: stagger(i) }}>
 					<MaterialRow {m} actions={materialActions(m, load)} />
 				</div>
 			{/each}
 		</div>
-	{:else if data.folders.length === 0}
+	{/if}
+	{#if dismissed.length}
+		<button
+			class="fold"
+			aria-expanded={showDismissed}
+			onclick={() => (showDismissed = !showDismissed)}
+		>
+			<span>Скрытые · <span class="num">{dismissed.length}</span></span>
+			<span class="faint small">{showDismissed ? 'Свернуть' : 'Показать'}</span>
+		</button>
+		{#if showDismissed}
+			<div class="list dim">
+				{#each dismissed as m (m.id)}
+					<MaterialRow {m} actions={materialActions(m, load)} />
+				{/each}
+			</div>
+		{/if}
+	{/if}
+	{#if !shown.length && data.folders.length === 0}
 		<div class="card">
 			<Empty
 				title="Здесь пока пусто"
@@ -189,6 +211,31 @@
 {/if}
 
 <style>
+	.fold {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: 100%;
+		margin-top: var(--s4);
+		padding: 12px 16px;
+		border: 1px solid var(--border);
+		border-radius: var(--r-l, 18px);
+		background: var(--surface);
+		color: var(--text);
+		font: inherit;
+		font-weight: 650;
+		text-align: left;
+	}
+	.fold > span:first-child {
+		flex: 1;
+	}
+	.fold:hover {
+		border-color: var(--border-strong);
+	}
+	.dim {
+		margin-top: var(--s2);
+		opacity: 0.75;
+	}
 	.bar {
 		display: flex;
 		align-items: center;

@@ -9,10 +9,18 @@
 </div>
 
 <style>
+	/* Заглушка – только когда правда ждём: данные из памяти приходят за кадр, и мелькнувшая
+	   на кадр заглушка выглядела рывком при смене раздела. */
 	.skeleton {
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+		animation: skeleton-in 160ms 120ms both;
+	}
+	@keyframes skeleton-in {
+		from {
+			opacity: 0;
+		}
 	}
 	.bar {
 		height: 12px;

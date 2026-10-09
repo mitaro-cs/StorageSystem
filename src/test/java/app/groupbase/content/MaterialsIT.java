@@ -77,6 +77,72 @@ class MaterialsIT extends IntegrationTest {
   }
 
   @Test
+  void manyFilesAtOnceSendOneNotification() throws InterruptedException {
+    long g = newGroup("Пачка");
+    TestUser headman = newUser(g, "headman");
+    TestUser student = newUser(g, "student");
+    long s = subject(g);
+    List<Long> ids = new java.util.ArrayList<>();
+    for (int i = 1; i <= 3; i++) {
+      ids.add(headman.api().upload("Лаба " + i + ".pdf", PDF).json().get("id").asLong());
+    }
+    String url = "/api/subjects/" + s + "/materials/batch";
+    assertThat(headman.api().post(url, Map.of("fileIds", List.of())).status()).isEqualTo(400);
+    var r =
+        headman
+            .api()
+            .post(url, Map.of("fileIds", ids, "description", "", "notice", "Добавлены лабы 1–3"));
+    assertThat(r.status()).as(r.body()).isEqualTo(200);
+    assertThat(r.json().size()).isEqualTo(3);
+    // Тот же файл второй раз не прикрепить – и пачка целиком не проходит.
+    assertThat(headman.api().post(url, Map.of("fileIds", ids)).status()).isEqualTo(403);
+
+    long until = System.currentTimeMillis() + 5000;
+    tools.jackson.databind.JsonNode items;
+    do {
+      Thread.sleep(100);
+      items = student.api().get("/api/notifications").json().get("items");
+    } while (items.isEmpty() && System.currentTimeMillis() < until);
+    Thread.sleep(300);
+    items = student.api().get("/api/notifications").json().get("items");
+    assertThat(items.size()).isEqualTo(1);
+    assertThat(items.get(0).get("body").asString()).isEqualTo("Добавлены лабы 1–3");
+    assertThat(items.get(0).get("title").asString()).startsWith("Новые материалы");
+  }
+
+  @Test
+  void listIsInNaturalOrderAndEachPersonCanDismiss() {
+    long g = newGroup("Порядок");
+    TestUser headman = newUser(g, "headman");
+    TestUser student = newUser(g, "student");
+    long s = subject(g);
+    for (String n : List.of("Лабораторная 10", "Лабораторная 2", "лабораторная 1", "Билеты")) {
+      headman
+          .api()
+          .post(
+              "/api/subjects/" + s + "/materials",
+              Map.of("kind", "note", "title", n, "description", n));
+    }
+    var list = student.api().get("/api/subjects/" + s + "/materials").json().get("materials");
+    List<String> titles = new java.util.ArrayList<>();
+    list.forEach(m -> titles.add(m.get("title").asString()));
+    assertThat(titles)
+        .containsExactly("Билеты", "лабораторная 1", "Лабораторная 2", "Лабораторная 10");
+
+    // «Скрыть у себя» – только у студента, у старосты на месте.
+    long id = list.get(0).get("id").asLong();
+    var hid = student.api().put("/api/materials/" + id + "/dismissed", Map.of("value", true));
+    assertThat(hid.status()).as(hid.body()).isEqualTo(200);
+    assertThat(hid.json().get("dismissed").asBoolean()).isTrue();
+    var again = student.api().get("/api/subjects/" + s + "/materials").json().get("materials");
+    assertThat(again.get(0).get("dismissed").asBoolean()).isTrue();
+    var theirs = headman.api().get("/api/subjects/" + s + "/materials").json().get("materials");
+    assertThat(theirs.get(0).get("dismissed").asBoolean()).isFalse();
+    var back = student.api().put("/api/materials/" + id + "/dismissed", Map.of("value", false));
+    assertThat(back.json().get("dismissed").asBoolean()).isFalse();
+  }
+
+  @Test
   void otherGroupCannotReadFiles() {
     long a = newGroup("Ф-A");
     long b = newGroup("Ф-B");

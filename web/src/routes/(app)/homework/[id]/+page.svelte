@@ -2,7 +2,8 @@
 	import { offline } from '$lib/offline/engine';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Paperclip, MessageCircle, Check, RotateCcw, Clock } from '@lucide/svelte';
+	import { Paperclip, MessageCircle, Check, RotateCcw, Clock, Pencil } from '@lucide/svelte';
+	import Button from '$lib/ui/Button.svelte';
 	import { del, get, put } from '$lib/api';
 	import {
 		fmtAgo,
@@ -60,7 +61,6 @@
 		if (!item) return [];
 		const h = item;
 		const out: MenuItem[] = [];
-		if (h.can.edit) out.push({ label: 'Изменить', onclick: () => (composer = true) });
 		if (h.can.hide)
 			out.push({
 				label: h.hidden ? 'Вернуть' : 'Скрыть',
@@ -99,7 +99,12 @@
 
 <svelte:head><title>{item?.title ?? 'Задание'} · Campus</title></svelte:head>
 
-<BackBar href="/homework" label="Задания"><Menu items={actions} /></BackBar>
+<BackBar href="/homework" label="Задания"
+	><!-- Изменить – на виду: староста и администратор правят и задания, добавленные студентами. -->
+	{#if item?.can.edit}<Button size="s" onclick={() => (composer = true)}
+			><Pencil size={15} /> Изменить</Button
+		>{/if}<Menu items={actions} /></BackBar
+>
 
 {#if missing}
 	<div class="card">

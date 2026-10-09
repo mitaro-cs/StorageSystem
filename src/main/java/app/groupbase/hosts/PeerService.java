@@ -1564,6 +1564,22 @@ public class PeerService implements SmartLifecycle {
     }
   }
 
+  /**
+   * Копия: код входа на другом устройстве проверяет главный (там его выдали – окно копии пересылает
+   * выдачу, телефоны ходят по адресу сайта). null – главного не достать, пусть проверит копия.
+   */
+  public PeerClient.LinkAnswer redeemOnMain(String code, String pin, String device, String ip) {
+    if (role != Role.SECOND) {
+      return null;
+    }
+    try {
+      PeerClient.LinkAnswer a = client().redeemLink(code, pin, device, ip);
+      return a.status() == 200 || a.status() == 410 || a.status() == 429 ? a : null;
+    } catch (IOException e) {
+      return null;
+    }
+  }
+
   /** Записать изменение в очередь (тело переносится в очередь). */
   public void enqueue(String method, String uri, String contentType, long userId, Path body)
       throws IOException {

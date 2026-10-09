@@ -138,6 +138,12 @@ public class LoginService {
     byte[] secret = secrets.open(u.totpSecret(), TOTP_CONTEXT);
     long now = clock.millis();
     long step = Totp.verify(secret, code, now, u.totpLastStep(), u.totpDrift(), Totp.WINDOW);
+    if (step < 0) {
+      // Часы телефона или компьютера с сайтом ушли (часто – после переезда сайта на другой
+      // компьютер): верный код в пределах ±5 минут принимаем и запоминаем новый сдвиг – как при
+      // подключении. Подбор это не облегчает: на билет 5 попыток, дальше – блокировка входа.
+      step = Totp.verify(secret, code, now, u.totpLastStep(), 0, Totp.MAX_DRIFT);
+    }
     return step >= 0 && users.useTotpStep(u.id(), step, Totp.drift(step, now));
   }
 

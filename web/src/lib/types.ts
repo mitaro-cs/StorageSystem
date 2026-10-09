@@ -202,7 +202,7 @@ export interface Homework {
 }
 
 export type LessonKind =
-	'lecture' | 'practice' | 'seminar' | 'lab' | 'consult' | 'credit' | 'exam' | 'other';
+	'lecture' | 'practice' | 'seminar' | 'lab' | 'consult' | 'credit' | 'exam' | 'retake' | 'other';
 
 /** Пара из расписания группы. */
 export interface Lesson {
@@ -394,6 +394,8 @@ export interface Material {
 	lessonId?: number | null;
 	/** Закреплён сверху (с 0.6); null – нет. */
 	pinnedAt?: number | null;
+	/** Скрыт этим человеком у себя (0.9.8) – в списке свёрнутым разделом «Скрытые». */
+	dismissed?: boolean;
 	/** Создано без сети и ещё не отправлено на сервер. */
 	pending?: boolean;
 }

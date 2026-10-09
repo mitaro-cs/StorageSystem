@@ -139,7 +139,7 @@
 		{ value: '', label: 'Все занятия' },
 		...kindsHere.map((k) => ({
 			value: k.value as string,
-			label: k.forms[2] === 'занятий' ? 'Другие' : cap(k.forms[1])
+			label: k.value === 'other' ? 'Другие' : k.label
 		}))
 	]);
 	const map = $derived(byDay(shown));
@@ -278,7 +278,9 @@
 </div>
 
 {#if tipOpen('schedule')}
+	<!-- Лениво (бюджет страницы): подсказка раскрывается плавно, а не сдвигает пары рывком. -->
 	{#await import('$lib/tour/Tip.svelte') then m}<m.default
+			grow
 			id="schedule"
 			text="Выберите день – увидите, сколько пар, когда начало и конец, окна и что сдать. Пара открывается целиком: тема, задания и материалы."
 		/>{/await}

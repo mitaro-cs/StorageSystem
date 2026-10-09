@@ -127,6 +127,28 @@ class StaffTotpIT extends IntegrationTest {
                         codes.get(1).asString()))
                 .status())
         .isEqualTo(401);
+
+    // Сайт переехал на компьютер, чьи часы отстают на 3 минуты (0.9.8): верный код всё равно
+    // принимается, сдвиг запоминается; совсем чужой код – нет.
+    clock.advance(Duration.ofSeconds(30));
+    ApiClient g = client();
+    var t4 = g.post("/api/auth/login", Map.of("username", ADMIN, "password", ADMIN_PASSWORD));
+    String shifted = Totp.code(secret, Totp.step(clock.millis()) + PHONE_AHEAD_STEPS + 6);
+    assertThat(
+            g.post(
+                    "/api/auth/login/totp",
+                    Map.of("ticket", t4.json().get("ticket").asString(), "code", shifted))
+                .status())
+        .isEqualTo(200);
+    ApiClient h = client();
+    var t5 = h.post("/api/auth/login", Map.of("username", ADMIN, "password", ADMIN_PASSWORD));
+    String far = Totp.code(secret, Totp.step(clock.millis()) + 40);
+    assertThat(
+            h.post(
+                    "/api/auth/login/totp",
+                    Map.of("ticket", t5.json().get("ticket").asString(), "code", far))
+                .status())
+        .isEqualTo(401);
   }
 
   @Override

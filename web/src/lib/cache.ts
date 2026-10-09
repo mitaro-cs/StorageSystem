@@ -17,3 +17,6 @@ export function put<T>(key: string, value: T): T {
 export function clearCache() {
 	store.clear();
 }
+
+/** Ключи кеша – lib/warm.ts запоминает адреса запросов разделов. */
+export const cacheKeys = () => [...store.keys()];

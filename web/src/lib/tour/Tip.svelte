@@ -5,7 +5,8 @@
 
 	// Подсказка при первом заходе в раздел (0.6): одна строка, крестик – и больше не появится
 	// (на всех устройствах). Показывать – по tipOpen(id), код грузится лениво.
-	let { id, text }: { id: string; text: string } = $props();
+	// grow – подсказка подгружается после страницы: раскрывается по высоте, а не сдвигает её рывком.
+	let { id, text, grow = false }: { id: string; text: string; grow?: boolean } = $props();
 	let open = $state(true);
 
 	function close() {
@@ -15,7 +16,7 @@
 </script>
 
 {#if open}
-	<div class="tip" role="note" out:slide>
+	<div class="tip" role="note" in:slide|global={{ duration: grow ? 220 : 0 }} out:slide>
 		<span class="icon"><Lightbulb size={17} /></span>
 		<p>{text}</p>
 		<button onclick={close} aria-label="Понятно, скрыть подсказку"><X size={16} /></button>

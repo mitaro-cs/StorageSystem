@@ -36,7 +36,8 @@ public class LiveBumpFilter extends OncePerRequestFilter {
           "/api/me/preferences",
           "/api/me/notifications",
           "/api/push/",
-          "/api/files/missing",
+          // Загруженный файл виден другим только в записи (её сохранение и поднимет версию).
+          "/api/files",
           "/api/host",
           "/api/desktop/",
           "/api/setup",
@@ -59,7 +60,9 @@ public class LiveBumpFilter extends OncePerRequestFilter {
     return uri.startsWith("/api/")
         && !SAFE.contains(method)
         && QUIET.stream().noneMatch(uri::startsWith)
-        && !uri.endsWith("/schedule/preview");
+        && !uri.endsWith("/schedule/preview")
+        // «Скрыть у себя» – личное (0.9.8).
+        && !uri.endsWith("/dismissed");
   }
 
   @Override

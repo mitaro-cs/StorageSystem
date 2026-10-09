@@ -45,6 +45,12 @@ export const LESSON_KINDS: {
 		short: 'Экзамен',
 		forms: ['экзамен', 'экзамена', 'экзаменов']
 	},
+	{
+		value: 'retake',
+		label: 'Пересдача',
+		short: 'Пересдача',
+		forms: ['пересдача', 'пересдачи', 'пересдач']
+	},
 	{ value: 'other', label: 'Занятие', short: '', forms: ['занятие', 'занятия', 'занятий'] }
 ];
 
@@ -178,6 +184,7 @@ export const KIND_COLORS: Record<LessonKind, string> = {
 	consult: '#1f9bb8',
 	credit: '#d9a21b',
 	exam: '#d9487e',
+	retake: '#c2410c',
 	other: '#8a8f98'
 };
 

@@ -40,6 +40,7 @@ class AuthController {
   private final RecoveryCodes recovery;
   private final DeviceLinks links;
   private final UserStore users;
+  private final app.groupbase.hosts.PeerService peers;
 
   AuthController(
       LoginService login,
@@ -49,7 +50,9 @@ class AuthController {
       Http http,
       RecoveryCodes recovery,
       DeviceLinks links,
-      UserStore users) {
+      UserStore users,
+      app.groupbase.hosts.PeerService peers) {
+    this.peers = peers;
     this.links = links;
     this.users = users;
     this.login = login;
@@ -108,7 +111,25 @@ class AuthController {
   @PostMapping("/link/redeem")
   Map<String, String> linkRedeem(
       @RequestBody RedeemBody b, HttpServletRequest req, HttpServletResponse res) {
-    long userId = links.redeem(req.getRemoteAddr(), b.code(), b.pin(), b.device());
+    // На копии код проверяет основной (0.9.8): там его выдали – «Показать код» в любом окне идёт
+    // на основной. Нет связи – проверяем здесь (код могли выдать и здесь, пока связи не было).
+    var main = peers.redeemOnMain(b.code(), b.pin(), b.device(), req.getRemoteAddr());
+    long userId;
+    if (main != null && main.status() == 200) {
+      userId = main.userId();
+    } else {
+      try {
+        userId = links.redeem(req.getRemoteAddr(), b.code(), b.pin(), b.device());
+      } catch (ApiException e) {
+        if (main != null) {
+          throw new ApiException(
+              org.springframework.http.HttpStatus.valueOf(main.status()),
+              main.error(),
+              main.message());
+        }
+        throw e;
+      }
+    }
     User user = users.find(userId).orElseThrow(ApiException::unauthorized);
     if (user.status() != User.Status.ACTIVE) {
       throw ApiException.forbidden();

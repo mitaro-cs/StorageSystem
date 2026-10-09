@@ -118,6 +118,37 @@ final class PeerClient {
     return SiteFolder.JSON.readTree(r.body()).path("secret").asString("");
   }
 
+  /**
+   * Код входа на другом устройстве (0.9.8) живёт у главного: спросить, за кого войти. Ответ – номер
+   * человека или отказ главного (410 «не подошёл», 429 «слишком много») как есть.
+   */
+  LinkAnswer redeemLink(String code, String pin, String device, String ip) throws IOException {
+    HttpResponse<String> r =
+        send(
+            json("/api/host/peer/link-redeem")
+                .POST(
+                    HttpRequest.BodyPublishers.ofString(
+                        SiteFolder.JSON.writeValueAsString(
+                            Map.of(
+                                "code", code == null ? "" : code,
+                                "pin", pin == null ? "" : pin,
+                                "device", device == null ? "" : device,
+                                "ip", ip == null ? "" : ip))))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+    JsonNode j = r.body().isBlank() ? null : SiteFolder.JSON.readTree(r.body());
+    if (r.statusCode() == 200 && j != null) {
+      return new LinkAnswer(j.path("userId").asLong(), 200, null, null);
+    }
+    return new LinkAnswer(
+        0,
+        r.statusCode(),
+        j == null ? "" : j.path("error").asString(""),
+        j == null ? "" : j.path("message").asString(""));
+  }
+
+  public record LinkAnswer(long userId, int status, String error, String message) {}
+
   /** Ответ на запрос: waiting, approved (и код), denied, expired. */
   PeerService.Answer answer(String secret) throws IOException {
     HttpResponse<String> r =
