@@ -105,15 +105,41 @@
 		}
 	}
 
-	async function add(list: FileList | File[] | null) {
-		if (!list) return;
-		const room = Math.max(0, (multiple ? max : 1) - files.length - pending.length);
-		for (const file of Array.from(list).map(named).slice(0, room)) {
-			pending.push({ key: ++seq, name: file.name || 'файл', file, progress: 0 });
-			await send(pending[pending.length - 1]);
-			if (!multiple) break;
+	// Много файлов разом (1.0.1): все сразу в очереди, отправляются по три – окно не замирает, а
+	// туннель (HTTP/1.1, 6 соединений) остаётся свободным для остального сайта.
+	const PARALLEL = 3;
+	let running = 0;
+	let queue: Pending[] = [];
+
+	function pump() {
+		while (running < PARALLEL && queue.length) {
+			const item = queue.shift()!;
+			running++;
+			send(item).finally(() => {
+				running--;
+				pump();
+			});
 		}
 	}
+
+	function add(list: FileList | File[] | null) {
+		if (!list) return;
+		const room = Math.max(0, (multiple ? max : 1) - files.length - pending.length);
+		const all = Array.from(list);
+		const fresh = all
+			.slice(0, room)
+			.map(named)
+			.map((file) => ({ key: ++seq, name: file.name || 'файл', file, progress: 0 }));
+		if (all.length > room) skipped = all.length - room;
+		if (!fresh.length) return;
+		pending.push(...fresh);
+		// Очередь – из реактивных копий: прогресс и ошибки видны в строках.
+		queue.push(...pending.slice(-fresh.length));
+		pump();
+	}
+
+	/** Сколько файлов не влезло в лимит – подсказка под полем. */
+	let skipped = $state(0);
 
 	// Брошенные в любое место окна и вставленные (Ctrl+V / ⌘V) файлы получает это поле – пока оно
 	// последнее открытое (макет, lib/files/drop.svelte.ts); ждавшие его файлы – сразу.
@@ -153,51 +179,75 @@
 		onchange={(e) => add(e.currentTarget.files)}
 	/>
 
+	{#if skipped}
+		<p class="faint small" role="status">
+			Не больше {max} файлов за раз – {skipped} не добавлено.
+		</p>
+	{/if}
+	{#if files.length + pending.length > 3}
+		<p class="faint small num" role="status">
+			Загружено {files.length} из {files.length + pending.length}
+		</p>
+	{/if}
 	<!-- Загрузился – строка просто становится готовой: без второй анимации поверх первой. -->
-	{#each files as f (f.id)}
-		<div class="item" out:slide>
-			<span class="name">{f.name}</span>
-			<span class="faint small num">{fmtSize(f.size)}</span>
-			<button
-				type="button"
-				class="x"
-				aria-label="Убрать {f.name}"
-				onclick={() => (files = files.filter((x) => x.id !== f.id))}><X size={15} /></button
-			>
-		</div>
-	{/each}
-	{#each pending as p (p.key)}
-		<div class="item" in:slide>
-			<span class="name">{p.name}</span>
-			{#if p.error}
-				<span class="error-text small">{p.error}</span>
+	<div class="queue">
+		{#each files as f (f.id)}
+			<div class="item" out:slide>
+				<span class="name">{f.name}</span>
+				<span class="faint small num">{fmtSize(f.size)}</span>
 				<button
 					type="button"
 					class="x"
-					aria-label="Повторить"
-					title="Повторить"
-					onclick={() => send(p)}><RotateCw size={15} /></button
+					aria-label="Убрать {f.name}"
+					onclick={() => (files = files.filter((x) => x.id !== f.id))}><X size={15} /></button
 				>
-				<button
-					type="button"
-					class="x"
-					aria-label="Убрать"
-					onclick={() => (pending = pending.filter((x) => x.key !== p.key))}><X size={15} /></button
-				>
-			{:else}
-				<span
-					class="bar"
-					role="progressbar"
-					aria-valuenow={Math.round(p.progress * 100)}
-					aria-valuemin={0}
-					aria-valuemax={100}><span style:width="{p.progress * 100}%"></span></span
-				>
-			{/if}
-		</div>
-	{/each}
+			</div>
+		{/each}
+		{#each pending as p (p.key)}
+			<div class="item" in:slide>
+				<span class="name">{p.name}</span>
+				{#if p.error}
+					<span class="error-text small">{p.error}</span>
+					<button
+						type="button"
+						class="x"
+						aria-label="Повторить"
+						title="Повторить"
+						onclick={() => (queue.push(p), pump())}><RotateCw size={15} /></button
+					>
+					<button
+						type="button"
+						class="x"
+						aria-label="Убрать"
+						onclick={() => (pending = pending.filter((x) => x.key !== p.key))}
+						><X size={15} /></button
+					>
+				{:else}
+					<span
+						class="bar"
+						role="progressbar"
+						aria-valuenow={Math.round(p.progress * 100)}
+						aria-valuemin={0}
+						aria-valuemax={100}><span style:width="{p.progress * 100}%"></span></span
+					>
+				{/if}
+			</div>
+		{/each}
+	</div>
 </div>
 
 <style>
+	/* Много файлов – прокрутка внутри поля, окно не растёт за экран. */
+	.queue {
+		display: flex;
+		flex-direction: column;
+		gap: inherit;
+		max-height: min(46vh, 420px);
+		overflow-y: auto;
+	}
+	.queue:empty {
+		display: none;
+	}
 	.dz {
 		display: flex;
 		flex-direction: column;

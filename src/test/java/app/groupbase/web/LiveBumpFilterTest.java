@@ -20,6 +20,8 @@ class LiveBumpFilterTest {
     assertThat(LiveBumpFilter.counts("POST", "/api/auth/link/status")).isFalse();
     assertThat(LiveBumpFilter.counts("PATCH", "/api/me/preferences")).isFalse();
     assertThat(LiveBumpFilter.counts("POST", "/api/files/missing")).isFalse();
+    assertThat(LiveBumpFilter.counts("POST", "/api/files")).isFalse();
+    assertThat(LiveBumpFilter.counts("PUT", "/api/materials/5/dismissed")).isFalse();
     assertThat(LiveBumpFilter.counts("POST", "/api/host/peer/pair")).isFalse();
     assertThat(LiveBumpFilter.counts("POST", "/api/groups/1/schedule/preview")).isFalse();
     assertThat(LiveBumpFilter.counts("POST", "/login")).isFalse();

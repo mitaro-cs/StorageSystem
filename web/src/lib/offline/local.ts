@@ -228,9 +228,11 @@ export function materialListing(s: Snapshot, subjectId: number, folder: number |
 		cur = f.parentId;
 	}
 	const published = (m: Material) => m.status === 'published' && !m.hidden;
+	// Как на сервере (NaturalOrder): «Лабораторная 2» раньше «Лабораторной 10».
+	const natural = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' }).compare;
 	const folders = s.folders
 		.filter((f) => f.subjectId === subjectId && f.parentId === folder)
-		.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+		.sort((a, b) => natural(a.name, b.name))
 		.map((f) => ({
 			id: f.id,
 			parentId: f.parentId,
@@ -240,7 +242,11 @@ export function materialListing(s: Snapshot, subjectId: number, folder: number |
 	const materials = s.materials
 		.filter((m) => m.subjectId === subjectId && m.folderId === folder)
 		.sort(
-			(a, b) => Number(b.status === 'pending') - Number(a.status === 'pending') || newest(a, b)
+			(a, b) =>
+				Number(!!b.pinnedAt) - Number(!!a.pinnedAt) ||
+				(b.pinnedAt ?? 0) - (a.pinnedAt ?? 0) ||
+				Number(b.status === 'pending') - Number(a.status === 'pending') ||
+				natural(a.title, b.title)
 		);
 	const groupIds = subject.groups.map((g) => g.id);
 	return {

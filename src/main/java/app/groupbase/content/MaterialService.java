@@ -12,8 +12,10 @@ import app.groupbase.web.ApiException;
 import java.net.URI;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -77,7 +79,9 @@ public class MaterialService {
       // Пара из расписания, к которой материал; null — просто в предмете.
       Long lessonId,
       // Закреплён сверху с этого момента; null — нет.
-      Long pinnedAt) {}
+      Long pinnedAt,
+      // Скрыт этим человеком у себя (0.9.8): в списке – свёрнутым разделом «Скрытые».
+      boolean dismissed) {}
 
   public record Folder(long id, Long parentId, String name, int count) {}
 
@@ -90,7 +94,32 @@ public class MaterialService {
       boolean canUpload,
       boolean canSuggest) {}
 
-  public record Submitted(long id, long subjectId, String title, String status, long authorId) {}
+  /**
+   * Материал добавлен или одобрен – уведомление. Пачка файлов (1.0.1) – одно уведомление: count
+   * материалов, notice – текст, который написал автор («Добавлены лабы 1–5»), или null.
+   */
+  public record Submitted(
+      long id,
+      long subjectId,
+      String title,
+      String status,
+      long authorId,
+      int count,
+      String notice) {
+
+    public Submitted(long id, long subjectId, String title, String status, long authorId) {
+      this(id, subjectId, title, status, authorId, 1, null);
+    }
+  }
+
+  /** Пачка файлов одним запросом (1.0.1): все – с одним описанием, папкой и парой. */
+  public record Batch(
+      List<Long> fileIds, String description, Long folderId, Long lessonId, String notice) {}
+
+  /** Больше за раз не принимаем – и столько же DropZone даёт выбрать. */
+  public static final int BATCH_MAX = 100;
+
+  static final int NOTICE_MAX = 200;
 
   private record Row(
       long id,
@@ -208,8 +237,6 @@ public class MaterialService {
             m.subject_id = :s AND m.folder_id IS :f
             AND ((m.status = 'published' AND m.hidden = 0) OR m.author_id = :uid OR :mod = 1)
             AND m.status != 'rejected'
-            ORDER BY m.pinned_at IS NULL, m.pinned_at DESC, m.status = 'pending' DESC,
-              m.created_at DESC
             """,
             p);
     List<Folder> folders =
@@ -219,7 +246,6 @@ public class MaterialService {
                   (SELECT count(*) FROM materials m WHERE m.folder_id = f.id
                      AND m.status = 'published' AND m.hidden = 0) AS cnt
                 FROM folders f WHERE f.subject_id = ? AND f.parent_id IS ?
-                ORDER BY f.name COLLATE NOCASE
                 """)
             .params(subjectId, folderId)
             .query(
@@ -230,10 +256,20 @@ public class MaterialService {
                         rs.getString(3),
                         rs.getInt(4)))
             .list();
+    // Порядок (0.9.8): закреплённые, на проверке, дальше – по названию, как у людей («2» раньше
+    // «10»).
+    folders = new ArrayList<>(folders);
+    folders.sort(Comparator.comparing(Folder::name, NaturalOrder.INSTANCE));
+    List<Item> items = new ArrayList<>(views(actor, rows));
+    items.sort(
+        Comparator.comparing((Item m) -> m.pinnedAt() == null)
+            .thenComparing((Item m) -> m.pinnedAt() == null ? 0L : -m.pinnedAt())
+            .thenComparing((Item m) -> !"pending".equals(m.status()))
+            .thenComparing(Item::title, NaturalOrder.INSTANCE));
     return new Listing(
         path(subjectId, folderId),
         folders,
-        views(actor, rows),
+        items,
         access.can(actor, Permission.UPLOAD_MATERIALS, groups),
         access.can(actor, Permission.SUGGEST_MATERIALS, groups));
   }
@@ -332,6 +368,8 @@ public class MaterialService {
               SELECT 1 FROM subject_groups sg WHERE sg.subject_id = m.subject_id AND sg.group_id IN (:g))
             AND NOT EXISTS (SELECT 1 FROM subject_hidden sh
               WHERE sh.user_id = :uid AND sh.subject_id = m.subject_id)
+            AND NOT EXISTS (SELECT 1 FROM material_dismissed md
+              WHERE md.user_id = :uid AND md.material_id = m.id)
             ORDER BY m.created_at DESC LIMIT :limit
             """,
             Map.of("g", scope, "limit", limit, "uid", actor.id()));
@@ -388,6 +426,53 @@ public class MaterialService {
 
   @Transactional
   public Item create(Actor actor, long subjectId, Input in) {
+    Added a = add(actor, subjectId, in);
+    events.publishEvent(new Submitted(a.id(), subjectId, a.title(), a.status(), actor.id()));
+    return get(actor, a.id());
+  }
+
+  /**
+   * Много файлов разом: все материалы – в одной транзакции (или ни одного), уведомление – одно на
+   * всю пачку, а не по штуке на файл.
+   */
+  @Transactional
+  public List<Item> createMany(Actor actor, long subjectId, Batch in) {
+    List<Long> ids =
+        in.fileIds() == null ? List.of() : List.copyOf(new LinkedHashSet<>(in.fileIds()));
+    if (ids.isEmpty()) {
+      throw ApiException.invalid("fileIds", "Добавьте хотя бы один файл");
+    }
+    if (ids.size() > BATCH_MAX) {
+      throw ApiException.invalid("fileIds", "За раз – не больше " + BATCH_MAX + " файлов");
+    }
+    String notice = in.notice() == null ? "" : in.notice().strip().replaceAll("\\s+", " ");
+    if (notice.length() > NOTICE_MAX) {
+      throw ApiException.invalid("notice", "Уведомление – до " + NOTICE_MAX + " символов");
+    }
+    List<Added> added = new ArrayList<>(ids.size());
+    for (long fileId : ids) {
+      added.add(
+          add(
+              actor,
+              subjectId,
+              new Input("file", "", in.description(), null, fileId, in.folderId(), in.lessonId())));
+    }
+    Added first = added.getFirst();
+    events.publishEvent(
+        new Submitted(
+            first.id(),
+            subjectId,
+            first.title(),
+            first.status(),
+            actor.id(),
+            added.size(),
+            notice.isEmpty() ? null : notice));
+    return visible(actor, added.stream().map(Added::id).toList());
+  }
+
+  private record Added(long id, String title, String status) {}
+
+  private Added add(Actor actor, long subjectId, Input in) {
     subjects.visible(actor, subjectId);
     List<Long> groups = subjectStore.groupIds(subjectId);
     String status;
@@ -482,8 +567,7 @@ public class MaterialService {
         "material",
         id,
         Map.of("title", title == null ? "" : title));
-    events.publishEvent(new Submitted(id, subjectId, title, status, actor.id()));
-    return get(actor, id);
+    return new Added(id, title, status);
   }
 
   @Transactional
@@ -520,6 +604,22 @@ public class MaterialService {
   }
 
   /** Закрепить сверху списка материалов предмета (или открепить). */
+  /** «Скрыть у себя» (0.9.8): только для этого человека, у остальных материал на месте. */
+  public Item dismiss(Actor actor, long id, boolean value) {
+    Row r = row(id);
+    access.requireSee(actor, subjectStore.groupIds(r.subjectId()));
+    if (value) {
+      db.sql("INSERT OR IGNORE INTO material_dismissed (user_id, material_id, at) VALUES (?, ?, ?)")
+          .params(actor.id(), id, clock.millis())
+          .update();
+    } else {
+      db.sql("DELETE FROM material_dismissed WHERE user_id = ? AND material_id = ?")
+          .params(actor.id(), id)
+          .update();
+    }
+    return get(actor, id);
+  }
+
   public Item pin(Actor actor, long id, boolean pinned) {
     Row r = row(id);
     List<Long> groups = subjectStore.groupIds(r.subjectId());
@@ -798,6 +898,14 @@ public class MaterialService {
     Map<Long, Person> authors = people.load(authorIds);
     Map<Long, List<Long>> groupsCache = new HashMap<>();
     Map<Long, Boolean> pinRights = new HashMap<>();
+    Set<Long> dismissed =
+        rows.isEmpty()
+            ? Set.of()
+            : new HashSet<>(
+                db.sql("SELECT material_id FROM material_dismissed WHERE user_id = ?")
+                    .param(actor.id())
+                    .query(Long.class)
+                    .list());
     List<Item> out = new ArrayList<>();
     for (Row r : rows) {
       List<Long> groups = groupsCache.computeIfAbsent(r.subjectId(), subjectStore::groupIds);
@@ -826,7 +934,8 @@ public class MaterialService {
               r.comments(),
               new Can(isAuthor(actor, r) || mod, isAuthor(actor, r) || mod, mod, pin),
               r.lessonId(),
-              r.pinnedAt()));
+              r.pinnedAt(),
+              dismissed.contains(r.id())));
     }
     return out;
   }

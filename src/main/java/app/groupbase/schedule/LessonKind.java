@@ -13,6 +13,7 @@ public enum LessonKind {
   CONSULT,
   CREDIT,
   EXAM,
+  RETAKE,
   OTHER;
 
   @JsonValue
@@ -28,7 +29,7 @@ public enum LessonKind {
     }
     throw ApiException.invalid(
         "kind",
-        "Вид занятия: лекция, практика, семинар, лабораторная, консультация, зачёт, экзамен или"
-            + " другое");
+        "Вид занятия: лекция, практика, семинар, лабораторная, консультация, зачёт, экзамен,"
+            + " пересдача или другое");
   }
 }

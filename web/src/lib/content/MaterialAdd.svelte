@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { FilePlus2, Files, Link2, MessageSquareText } from '@lucide/svelte';
 	import { post } from '$lib/api';
+	import { plural } from '$lib/format';
 	import { toast } from '$lib/toasts.svelte';
 	import type { FileInfo, Material } from '$lib/types';
 	import Modal from '$lib/ui/Modal.svelte';
@@ -38,14 +39,16 @@
 	let url = $state('');
 	let title = $state('');
 	let description = $state('');
+	/** Текст уведомления для пачки файлов (1.0.1): одно на всех, а не по штуке на файл. */
+	let notice = $state('');
 	let error = $state('');
 	let busy = $state(false);
-	const dirty = $derived(files.length > 0 || !!url || !!title || !!description);
+	const dirty = $derived(files.length > 0 || !!url || !!title || !!description || !!notice);
 
 	$effect(() => {
 		if (open) {
 			files = [];
-			url = title = description = error = '';
+			url = title = description = notice = error = '';
 		}
 	});
 
@@ -78,21 +81,40 @@
 				);
 			} else {
 				if (files.length === 0) throw new Error('Добавьте хотя бы один файл');
-				for (const f of files) {
-					created.push(
-						await post<Material>(`/api/subjects/${subjectId}/materials`, {
-							kind: 'file',
-							fileId: f.id,
-							title: files.length === 1 ? title : '',
-							description,
-							folderId,
-							lessonId
-						})
-					);
+				// Пачка – одним запросом и одним уведомлением. Без сети (файлы ждут на устройстве) –
+				// по одному, через очередь офлайн-копии.
+				if (files.length > 1 && files.every((f) => f.id > 0)) {
+					created = await post<Material[]>(`/api/subjects/${subjectId}/materials/batch`, {
+						fileIds: files.map((f) => f.id),
+						description,
+						folderId,
+						lessonId,
+						notice
+					});
+				} else {
+					for (const f of files) {
+						created.push(
+							await post<Material>(`/api/subjects/${subjectId}/materials`, {
+								kind: 'file',
+								fileId: f.id,
+								title: files.length === 1 ? title : '',
+								description,
+								folderId,
+								lessonId
+							})
+						);
+					}
 				}
 			}
 			const pending = created.some((m) => m.status === 'pending');
-			toast(pending ? 'Отправлено на проверку старосте' : 'Материал добавлен', 'ok');
+			toast(
+				pending
+					? 'Отправлено на проверку старосте'
+					: created.length > 1
+						? `Добавлено: ${created.length}`
+						: 'Материал добавлен',
+				'ok'
+			);
 			open = false;
 			created = [];
 			onsaved();
@@ -127,7 +149,7 @@
 			{/each}
 		</div>
 		{#if mode === 'file'}
-			<DropZone bind:files bind:uploading />
+			<DropZone bind:files bind:uploading max={100} />
 		{:else if mode === 'note'}
 			<!-- Текст сообщения – сразу, название не обязательно: возьмём первую строку. -->
 		{:else}
@@ -140,6 +162,20 @@
 					bind:value={url}
 					placeholder="https://"
 					required
+				/>
+			</div>
+		{/if}
+		{#if mode === 'file' && files.length > 1}
+			<div>
+				<label class="label" for="m-notice"
+					>Текст уведомления <span class="faint">(необязательно)</span></label
+				>
+				<input
+					id="m-notice"
+					class="input"
+					bind:value={notice}
+					maxlength="200"
+					placeholder={`Добавлено ${files.length} ${plural(files.length, ['материал', 'материала', 'материалов'])}`}
 				/>
 			</div>
 		{/if}

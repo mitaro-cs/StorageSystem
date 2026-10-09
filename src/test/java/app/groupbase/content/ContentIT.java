@@ -368,6 +368,56 @@ class ContentIT extends IntegrationTest {
   }
 
   @Test
+  void adminAndHeadmanEditStudentHomeworkWithItsFiles() {
+    long g = newGroup("Чужое ДЗ");
+    TestUser headman = newUser(g, "headman");
+    TestUser student = newUser(g, "student");
+    long s = subject(headman.api(), g, "Сети");
+    long file =
+        student.api().upload("Задание.pdf", "%PDF-1.4 x".getBytes()).json().get("id").asLong();
+    long due = clock.millis() + 3 * 86_400_000L;
+    var hw =
+        student
+            .api()
+            .post(
+                "/api/homework",
+                Map.of(
+                    "subjectId", s, "title", "Лаба", "dueAt", due, "attachments", List.of(file)));
+    assertThat(hw.status()).as(hw.body()).isEqualTo(200);
+    long id = hw.json().get("id").asLong();
+    // Как шлёт окно правки: все поля, вложения автора – как были.
+    for (var editor : List.of(admin(), headman.api())) {
+      var r =
+          editor.patch(
+              "/api/homework/" + id,
+              Map.of(
+                  "subjectId",
+                  s,
+                  "title",
+                  "Лаба 1",
+                  "body",
+                  "",
+                  "dueAt",
+                  due,
+                  "groupIds",
+                  List.of(g),
+                  "attachments",
+                  List.of(file),
+                  "kind",
+                  "lab",
+                  "lessonId",
+                  0,
+                  "opensAt",
+                  0,
+                  "retake",
+                  false));
+      assertThat(r.status()).as(r.body()).isEqualTo(200);
+      assertThat(r.json().get("can").get("edit").asBoolean()).isTrue();
+      assertThat(r.json().get("attachments").size()).isEqualTo(1);
+    }
+  }
+
+  @Test
   void homeworkDifficultyIsOptionalAndValidated() {
     long g = newGroup("Сложность");
     TestUser headman = newUser(g, "headman");

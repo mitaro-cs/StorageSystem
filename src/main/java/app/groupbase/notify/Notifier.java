@@ -230,13 +230,24 @@ public class Notifier implements DisposableBean {
   private void material(MaterialService.Submitted e) {
     String subject = subjects.find(e.subjectId()).map(SubjectStore.Row::name).orElse("Предмет");
     List<Long> groupIds = subjects.groupIds(e.subjectId());
+    // Пачка файлов – одно уведомление: текст автора или «Добавлено 12 материалов».
+    boolean many = e.count() > 1;
+    String body =
+        e.notice() != null
+            ? e.notice()
+            : many
+                ? "Добавлено "
+                    + e.count()
+                    + " "
+                    + plural(e.count(), "материал", "материала", "материалов")
+                : e.title();
     if ("pending".equals(e.status())) {
       deliver(
           moderators(groupIds, e.authorId()),
           new Message(
               "material_pending",
-              "Материал на проверку · " + subject,
-              e.title(),
+              (many ? "Материалы на проверку · " : "Материал на проверку · ") + subject,
+              body,
               "/moderation",
               false),
           p -> true);
@@ -244,7 +255,11 @@ public class Notifier implements DisposableBean {
       deliver(
           followers(groupIds, e.authorId(), e.subjectId()),
           new Message(
-              "material", "Новый материал · " + subject, e.title(), "/materials/" + e.id(), false),
+              "material",
+              (many ? "Новые материалы · " : "Новый материал · ") + subject,
+              body,
+              many ? "/subjects/" + e.subjectId() + "?tab=materials" : "/materials/" + e.id(),
+              false),
           Prefs::materials);
     }
   }
@@ -263,5 +278,15 @@ public class Notifier implements DisposableBean {
                     "/moderation",
                     false),
                 p -> true));
+  }
+
+  /** «1 материал, 2 материала, 5 материалов». */
+  static String plural(int n, String one, String few, String many) {
+    int m10 = n % 10;
+    int m100 = n % 100;
+    if (m10 == 1 && m100 != 11) {
+      return one;
+    }
+    return m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
   }
 }

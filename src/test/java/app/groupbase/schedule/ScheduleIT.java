@@ -368,7 +368,7 @@ class ScheduleIT extends IntegrationTest {
     assertThat(p.json().get("teachers").has("lecture")).isFalse();
     long start = clock.millis() + DAY;
     String range = "&from=" + (start - DAY) + "&to=" + (start + DAY);
-    for (String kind : List.of("lecture", "lab")) {
+    for (String kind : List.of("lecture", "lab", "retake")) {
       headman
           .api()
           .post(
@@ -380,6 +380,8 @@ class ScheduleIT extends IntegrationTest {
     Map<String, String> byKind = new java.util.HashMap<>();
     list.forEach(l -> byKind.put(l.get("kind").asString(), l.get("teacher").asString()));
     assertThat(byKind).containsEntry("lecture", "Общий О. О.").containsEntry("lab", "Лабов Л. Л.");
+    // Пересдача (1.0.1) – свой вид пары, преподаватель – общий.
+    assertThat(byKind).containsEntry("retake", "Общий О. О.");
     assertThat(
             headman
                 .api()

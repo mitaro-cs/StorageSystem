@@ -50,11 +50,26 @@ export function materialActions(m: Material, changed: () => void): MenuItem[] {
 		out.push({ label: 'Одобрить', onclick: act('approve', 'Материал опубликован') });
 		out.push({ label: 'Отклонить', danger: true, onclick: act('reject', 'Материал отклонён') });
 	}
+	// «Скрыть у себя» (0.9.8) – личное: у остальных материал на месте, вернуть – в «Скрытых».
+	if (m.id > 0 && m.status === 'published') {
+		out.push({
+			label: m.dismissed ? 'Показать у себя' : 'Скрыть у себя',
+			onclick: async () => {
+				try {
+					await put(`/api/materials/${m.id}/dismissed`, { value: !m.dismissed });
+					toast(m.dismissed ? 'Снова в списке' : 'Скрыто у вас – внизу, в «Скрытых»', 'ok');
+					changed();
+				} catch (e) {
+					toastError(e);
+				}
+			}
+		});
+	}
 	if (m.can.moderate && m.status === 'published') {
 		out.push(
 			m.hidden
-				? { label: 'Вернуть', onclick: act('unhide', 'Материал снова виден') }
-				: { label: 'Скрыть', onclick: act('hide', 'Материал скрыт') }
+				? { label: 'Вернуть всем', onclick: act('unhide', 'Материал снова виден') }
+				: { label: 'Скрыть для всех', onclick: act('hide', 'Материал скрыт') }
 		);
 	}
 	if (

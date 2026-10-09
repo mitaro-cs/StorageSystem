@@ -23,7 +23,10 @@ final class Titles {
   private static final int F =
       Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.UNICODE_CHARACTER_CLASS;
 
-  /** Слова вида занятия — и полные, и сокращения; «лаб.» раньше «лек.», консультация — экзамена. */
+  /**
+   * Слова вида занятия — и полные, и сокращения; «лаб.» раньше «лек.», консультация и пересдача —
+   * экзамена.
+   */
   private static final List<Map.Entry<LessonKind, Pattern>> KINDS =
       List.of(
           Map.entry(
@@ -43,6 +46,7 @@ final class Titles {
           Map.entry(
               LessonKind.CONSULT,
               Pattern.compile("\\b(?:консультац\\w*|конс|consultation)\\b\\.?", F)),
+          Map.entry(LessonKind.RETAKE, Pattern.compile("\\b(?:пересда\\w*|retake\\w*)\\b", F)),
           Map.entry(LessonKind.EXAM, Pattern.compile("\\b(?:экзамен\\w*|экз|exam\\w*)\\b\\.?", F)),
           Map.entry(
               LessonKind.CREDIT,

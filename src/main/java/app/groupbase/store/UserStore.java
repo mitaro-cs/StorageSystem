@@ -190,6 +190,7 @@ public class UserStore {
           "homework_done",
           "subject_hidden",
           "subject_pins",
+          "material_dismissed",
           "quiz_attempts"
         }) {
       db.sql("DELETE FROM " + table + " WHERE user_id = ?").param(id).update();
