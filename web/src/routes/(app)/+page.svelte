@@ -1,3 +1,9 @@
+<script lang="ts" module>
+	// «Первые шаги» – лениво, но загруженный код помним: при возврате на «Сегодня» карточка есть с
+	// первого кадра и не сдвигает страницу.
+	let FirstStepsCode: typeof import('$lib/content/FirstSteps.svelte').default | undefined;
+</script>
+
 <script lang="ts">
 	import { offline } from '$lib/offline/engine';
 	import { firstName } from '$lib/names';
@@ -44,6 +50,13 @@
 	});
 	let chatsOpen = $state(false);
 	let hwOpen = $state(false);
+	let FirstSteps = $state(FirstStepsCode);
+	$effect(() => {
+		if (canInvite && !FirstSteps)
+			import('$lib/content/FirstSteps.svelte').then(
+				(m) => (FirstSteps = FirstStepsCode = m.default)
+			);
+	});
 	const now = Date.now();
 
 	async function load(group: number | null) {
@@ -158,10 +171,8 @@
 </div>
 
 <!-- «Первые шаги» – только тем, кто приглашает (староста, замы): код грузится лишь для них. -->
-{#if canInvite}
-	{#await import('$lib/content/FirstSteps.svelte') then m}<m.default
-			oncreate={() => (hwOpen = true)}
-		/>{/await}
+{#if canInvite && FirstSteps}
+	<FirstSteps oncreate={() => (hwOpen = true)} />
 {/if}
 
 {#if askSubgroup}

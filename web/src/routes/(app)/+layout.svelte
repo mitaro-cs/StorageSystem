@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { fade } from '$lib/motion';
 	import Sidebar from '$lib/shell/Sidebar.svelte';
 	import BottomNav from '$lib/shell/BottomNav.svelte';
 	import MobileBar from '$lib/shell/MobileBar.svelte';
@@ -29,6 +28,8 @@
 	const wide = $derived(/^\/(settings|profile)(\/|$)/.test(page.url.pathname));
 	let collapsed = $state(false);
 	onMount(initPwa);
+	// Разделы заранее: через туннель переход иначе показывает заглушку, а потом рывок.
+	onMount(() => void setTimeout(() => import('$lib/warm').then((m) => m.warm()), 2500));
 	onMount(startBell);
 	// Новые комментарии, новости и задания появляются сами – без перезагрузки страницы.
 	onMount(() => {
@@ -202,8 +203,9 @@
 			<!-- Предмет → предмет – та же страница: полоса предметов остаётся на месте, а содержимое
 			     въезжает сбоку (страница предмета анимирует его сама). -->
 			{#key page.url.pathname.replace(/^\/subjects\/\d+$/, '/subjects/*')}
-				<!-- Только прозрачность: сдвиг страницы на телефоне выглядел как рывок. -->
-				<div class="page" in:fade={{ duration: 180 }}>
+				<!-- Раздел сменяется сразу, как вкладки приложения на телефоне: и сдвиг, и затухание
+				     выглядели рывком (данные разделов – из памяти, lib/warm.ts). -->
+				<div class="page">
 					{@render children()}
 				</div>
 			{/key}

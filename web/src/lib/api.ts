@@ -3,6 +3,7 @@ import { untrack } from 'svelte';
 import { pwa } from './pwa.svelte';
 import { dropEarly, takeEarly } from './early';
 import { within } from './race';
+import { clearCache, peek, put as stash } from './cache';
 import {
 	enabled as offlineEnabled,
 	enqueue,
@@ -66,6 +67,13 @@ const AFTER_WRITE_MS = 10_000;
 let lastWrite = 0;
 /** Свежие ответы, пришедшие позже копии: страница перечитает себя и получит их без запроса. */
 const fresh = new Map<string, { data: unknown; at: number }>();
+
+/**
+ * Разделы открываются сразу (1.0.1): последний ответ на запрос раздела рисуется без ожидания сети,
+ * свежий приходит следом и заменяет его, только если что-то изменилось (страницы разделов
+ * подписаны на offline.version). Через туннель иначе каждый переход – заглушка, потом рывок.
+ */
+const SECTION = /^\/(news|homework|schedule|materials|session)?$/;
 
 /** Есть свежий ответ на этот запрос, пришедший после показанной копии. */
 export function hasFresh(path: string): boolean {
@@ -133,7 +141,10 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 		throw new ApiError(0, 'network', `Сервер группы выключен (туннель: ${res.status})`);
 	}
 	pwa.offline = false;
-	if (res.status === 401) dropEarly();
+	if (res.status === 401) {
+		dropEarly();
+		clearCache();
+	}
 	if (method !== 'GET' && res.ok) lastWrite = Date.now();
 	const isJson = res.headers.get('Content-Type')?.startsWith('application/json');
 	const data = isJson ? await res.json() : null;
@@ -175,23 +186,19 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
 		fresh.delete(path);
 		if (Date.now() - later.at < 30_000) return later.data as T;
 	}
+	const reading = method === 'GET' && !opts.signal && Date.now() - lastWrite > AFTER_WRITE_MS;
+	const shown = reading ? peek('api:' + path) : undefined;
 	const net = request<T>(path, opts);
-	if (local && method === 'GET' && !opts.signal && Date.now() - lastWrite > AFTER_WRITE_MS) {
+	if (method === 'GET' && (shown !== undefined || SECTION.test(location.pathname)))
+		net.then(
+			(data) => stash('api:' + path, data),
+			() => {}
+		);
+	if (shown !== undefined) return after(path, net, shown) as T;
+	if (local && reading) {
 		const quick = await within(net, SLOW_MS);
 		const copy = quick === null ? await localCopy(path) : undefined;
-		if (copy !== undefined) {
-			net.then(
-				(data) => {
-					if (JSON.stringify(data) === JSON.stringify(copy)) return;
-					fresh.set(path, { data, at: Date.now() });
-					offline.version++;
-				},
-				() => {
-					/* сеть так и не ответила – копия уже на экране */
-				}
-			);
-			return copy as T;
-		}
+		if (copy !== undefined) return after(path, net, copy) as T;
 	}
 	try {
 		return await net;
@@ -200,6 +207,24 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
 			return fallback<T>(method, path, opts.body);
 		throw e;
 	}
+}
+
+/**
+ * Показали ответ из памяти или копии – свежий приходит следом: отличается – страница перечитает
+ * себя (offline.version) и получит его без запроса.
+ */
+function after(path: string, net: Promise<unknown>, shown: unknown) {
+	net.then(
+		(data) => {
+			if (JSON.stringify(data) === JSON.stringify(shown)) return;
+			fresh.set(path, { data, at: Date.now() });
+			offline.version++;
+		},
+		() => {
+			/* сеть так и не ответила – показанное уже на экране */
+		}
+	);
+	return shown;
 }
 
 /** Ответ из копии на устройстве, если она есть и знает этот запрос. */

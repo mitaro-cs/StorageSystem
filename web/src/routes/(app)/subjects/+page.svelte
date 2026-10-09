@@ -13,6 +13,8 @@
 	import SubjectArt from '$lib/ui/SubjectArt.svelte';
 	import type { Subject } from '$lib/types';
 	import { tipOpen } from '$lib/onboarding.svelte';
+	// Подсказка – вместе со страницей: подгруженная следом, она сдвигала страницу вниз.
+	import Tip from '$lib/tour/Tip.svelte';
 
 	let editor = $state(false);
 	let wizard = $state(false);
@@ -66,10 +68,10 @@
 	{/if}
 </div>
 {#if tipOpen('subjects')}
-	{#await import('$lib/tour/Tip.svelte') then m}<m.default
-			id="subjects"
-			text="Не ходите на какой-то предмет? Откройте его → «…» → «Не мой предмет»: он пропадёт из заданий, расписания и уведомлений."
-		/>{/await}
+	<Tip
+		id="subjects"
+		text="Не ходите на какой-то предмет? Откройте его → «…» → «Не мой предмет»: он пропадёт из заданий, расписания и уведомлений."
+	/>
 {/if}
 
 {#if requests.length}

@@ -1,5 +1,15 @@
+<script lang="ts" module>
+	// Прошлый ответ – на всю вкладку: при возврате на «Сегодня» карточка рисуется сразу, а не
+	// кадром позже, сдвигая страницу вниз.
+	const last: {
+		progress?: { subjects: number; members: number; homework: number; news: number } | null;
+		push?: boolean;
+		hidden?: boolean;
+	} = {};
+</script>
+
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { Check, ChevronRight } from '@lucide/svelte';
 	import { get } from '$lib/api';
 	import { currentSubscription, pushSupported } from '$lib/push';
@@ -29,21 +39,26 @@
 	const manager = $derived(!!group && can('create_invites', group.id));
 	const key = $derived(`gb-steps-hidden:${group?.id ?? 0}`);
 
-	let progress = $state<Progress | null>(null);
+	let progress = $state<Progress | null>(last.progress ?? null);
 	let isInstalled = $state(true);
-	let pushOn = $state(true);
-	let hidden = $state(true);
+	let pushOn = $state(last.push ?? true);
+	let hidden = $state(last.hidden ?? true);
+	/** Первый показ за вкладку – карточка раскрывается плавно; дальше она есть сразу. */
+	const grow = last.progress === undefined;
 
 	onMount(async () => {
 		try {
-			hidden = localStorage.getItem(key) === '1';
+			hidden = last.hidden = localStorage.getItem(untrack(() => key)) === '1';
 		} catch {
 			hidden = false;
 		}
 		isInstalled = installed();
-		pushOn = !pushSupported() || (await currentSubscription()) !== null;
+		pushOn = last.push = !pushSupported() || (await currentSubscription()) !== null;
 		if (manager && group)
-			progress = await get<Progress>(`/api/groups/${group.id}/progress`).catch(() => null);
+			progress = last.progress = await get<Progress>(`/api/groups/${group.id}/progress`).catch(
+				() => null
+			);
+		else last.progress = null;
 	});
 
 	const steps = $derived.by((): Step[] => {
@@ -116,7 +131,12 @@
 </script>
 
 {#if visible}
-	<section class="steps card" out:slide aria-labelledby="steps-title">
+	<section
+		class="steps card"
+		in:slide|global={{ duration: grow ? 260 : 0 }}
+		out:slide
+		aria-labelledby="steps-title"
+	>
 		<header>
 			<div>
 				<h2 id="steps-title">Первые шаги</h2>
