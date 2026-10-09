@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { Megaphone, Pin, Siren, Users } from '@lucide/svelte';
 	import { patch, post } from '$lib/api';
 	import { groupsWith, session } from '$lib/session.svelte';
@@ -54,19 +55,22 @@
 
 	$effect(() => {
 		if (!open) return;
-		title = edit?.title ?? '';
-		body = edit?.bodyMd ?? '';
-		subject = edit?.subject?.id ?? subjectId;
-		pinned = edit?.pinned ?? false;
-		urgent = edit?.urgent ?? false;
-		files = edit?.attachments ? [...edit.attachments] : [];
-		error = '';
-		const preferred = session.groupId;
-		groupIds = edit
-			? edit.groups.map((g) => g.id)
-			: preferred !== null && allowed.some((g) => g.id === preferred)
-				? [preferred]
-				: allowed.map((g) => g.id).slice(0, 1);
+		// Только при открытии: живое обновление (новые объекты предметов, группы) не стирает введённое.
+		untrack(() => {
+			title = edit?.title ?? '';
+			body = edit?.bodyMd ?? '';
+			subject = edit?.subject?.id ?? subjectId;
+			pinned = edit?.pinned ?? false;
+			urgent = edit?.urgent ?? false;
+			files = edit?.attachments ? [...edit.attachments] : [];
+			error = '';
+			const preferred = session.groupId;
+			groupIds = edit
+				? edit.groups.map((g) => g.id)
+				: preferred !== null && allowed.some((g) => g.id === preferred)
+					? [preferred]
+					: allowed.map((g) => g.id).slice(0, 1);
+		});
 	});
 
 	$effect(() => {

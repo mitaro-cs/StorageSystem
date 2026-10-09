@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Select from '$lib/ui/Select.svelte';
 	import { untrack } from 'svelte';
 	import { Link2, Copy, Maximize2, Share2 } from '@lucide/svelte';
 	import { del, get, post } from '$lib/api';
@@ -81,29 +82,41 @@
 	<div class="grid">
 		<div>
 			<label class="label" for="inv-role">Роль</label>
-			<select id="inv-role" class="select" bind:value={role}>
-				<option value="student">{t.roles.student}</option>
-				{#if can('assign_deputy', groupId)}<option value="deputy">{t.roles.deputy}</option>{/if}
-				{#if can('assign_headman', groupId)}<option value="headman">{t.roles.headman}</option>{/if}
-			</select>
+			<Select
+				id="inv-role"
+				bind:value={role}
+				options={[
+					{ value: 'student', label: t.roles.student },
+					...(can('assign_deputy', groupId) ? [{ value: 'deputy', label: t.roles.deputy }] : []),
+					...(can('assign_headman', groupId) ? [{ value: 'headman', label: t.roles.headman }] : [])
+				]}
+			/>
 		</div>
 		<div>
 			<label class="label" for="inv-uses">Сколько раз</label>
-			<select id="inv-uses" class="select" bind:value={uses}>
-				<option value="1">Одноразовая</option>
-				<option value="10">До 10 человек</option>
-				<option value="50">До 50 человек</option>
-				<option value="inf">Без ограничения</option>
-			</select>
+			<Select
+				id="inv-uses"
+				bind:value={uses}
+				options={[
+					{ value: '1', label: 'Одноразовая' },
+					{ value: '10', label: 'До 10 человек' },
+					{ value: '50', label: 'До 50 человек' },
+					{ value: 'inf', label: 'Без ограничения' }
+				]}
+			/>
 		</div>
 		<div>
 			<label class="label" for="inv-ttl">Действует</label>
-			<select id="inv-ttl" class="select" bind:value={ttl}>
-				<option value="24">1 день</option>
-				<option value="72">3 дня</option>
-				<option value="168">Неделю</option>
-				<option value="720">30 дней</option>
-			</select>
+			<Select
+				id="inv-ttl"
+				bind:value={ttl}
+				options={[
+					{ value: '24', label: '1 день' },
+					{ value: '72', label: '3 дня' },
+					{ value: '168', label: 'Неделю' },
+					{ value: '720', label: '30 дней' }
+				]}
+			/>
 		</div>
 	</div>
 	<div>

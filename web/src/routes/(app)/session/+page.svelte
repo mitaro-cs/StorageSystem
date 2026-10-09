@@ -142,7 +142,11 @@
 					<span class="faint">{weekday.format(h.dueAt)}</span>
 				</span>
 				<a class="body" href="/homework/{h.id}">
-					<span class="tags"><KindBadge kind={h.kind} compact /><SubjectTag {...h.subject} /></span>
+					<span class="tags"
+						><KindBadge kind={h.kind} retake={h.retake} compact /><SubjectTag
+							{...h.subject}
+						/></span
+					>
 					<span class="title">{h.title}</span>
 					<span class="meta num">
 						<span>{fmtTime(h.dueAt)}</span>

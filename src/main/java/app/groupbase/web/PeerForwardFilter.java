@@ -110,8 +110,11 @@ public class PeerForwardFilter extends OncePerRequestFilter {
         Files.copy(in, body, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
       }
       if (second) {
+        // Загрузка файла копию не меняет (файл – у основного, к копии придёт обычной сверкой
+        // файлов): ответ сразу, без снимка базы на каждый файл (0.9.8).
+        boolean upload = req.getRequestURI().equals("/api/files");
         PeerService.Reply r =
-            peers.forward(req.getMethod(), uri, req.getContentType(), actor.id(), body);
+            peers.forward(req.getMethod(), uri, req.getContentType(), actor.id(), body, !upload);
         if (r != null) {
           res.setStatus(r.status());
           if (r.contentType() != null) {

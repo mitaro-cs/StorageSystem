@@ -4,7 +4,8 @@ import { ADMIN, login, watchConsole } from './helpers';
 const day = (offset: number) => {
 	const d = new Date(Date.now() + offset * 86_400_000);
 	const p = (n: number) => String(n).padStart(2, '0');
-	return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+	// Поля дат сайта (0.9.8) – «дд.мм.гггг», как печатают люди.
+	return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`;
 };
 
 async function fitsScreen(page: Page) {
@@ -24,9 +25,14 @@ test('сессия: экзамен с аудиторией, даты, отсчё
 	await page.goto('/homework?new=1');
 	const dialog = page.getByRole('dialog');
 	await dialog.getByRole('radio', { name: 'Экзамен' }).click();
-	await expect(dialog.getByLabel('Когда')).toBeVisible();
+	await expect(dialog.getByLabel('Когда', { exact: true })).toBeVisible();
 	await dialog.getByRole('radio', { name: 'Математический анализ' }).click();
-	await dialog.getByLabel('Когда').fill(`${day(7)}T09:00`);
+	await dialog.getByLabel('Когда', { exact: true }).fill(day(7));
+	// Время – из своего списка часов и минут.
+	await dialog.getByRole('button', { name: 'Выбрать время' }).click();
+	await page.getByRole('group', { name: 'Часы' }).getByRole('button', { name: '09' }).click();
+	await page.getByRole('group', { name: 'Минуты' }).getByRole('button', { name: '00' }).click();
+	await expect(dialog.getByLabel('Когда, время')).toHaveValue('09:00');
 	await dialog.getByLabel(/Где/).fill('ауд. 305');
 	await dialog.getByLabel('Название').fill('Экзамен по матанализу');
 	await dialog.getByRole('button', { name: 'Опубликовать' }).click();

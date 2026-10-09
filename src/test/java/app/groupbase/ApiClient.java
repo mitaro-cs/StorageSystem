@@ -86,12 +86,15 @@ public class ApiClient {
         get("/api/health");
       }
       HttpRequest req =
-          HttpRequest.newBuilder(URI.create(base.apply(port) + "/api/files"))
+          HttpRequest.newBuilder(
+                  URI.create(
+                      base.apply(port)
+                          + "/api/files?name="
+                          + java.net.URLEncoder.encode(
+                                  name, java.nio.charset.StandardCharsets.UTF_8)
+                              .replace("+", "%20")))
               .POST(HttpRequest.BodyPublishers.ofByteArray(data))
               .header("Content-Type", "application/octet-stream")
-              .header(
-                  "X-File-Name",
-                  java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8))
               .header("X-CSRF-Token", csrfToken())
               .build();
       HttpResponse<String> r = http.send(req, HttpResponse.BodyHandlers.ofString());

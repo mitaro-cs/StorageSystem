@@ -67,9 +67,11 @@ test('расписание из файла календаря: загрузка,
 	});
 	// Предпросмотр: 8 пар, «Мат. анализ» – тот же предмет, разовый классный час – без предмета.
 	await expect(dialog.getByRole('button', { name: 'Загрузить 8 пар' })).toBeVisible();
-	await expect(dialog.getByLabel('Предмет для «Математический анализ»')).toHaveValue(/^subject:/);
-	await expect(dialog.getByLabel('Предмет для «Мат. анализ»')).toHaveValue(/^subject:/);
-	await expect(dialog.getByLabel('Предмет для «Классный час»')).toHaveValue('none');
+	// Выбор – свой список сайта (0.9.8): на кнопке – название выбранного.
+	const notSubject = /Без предмета|Новый предмет|Не загружать/;
+	await expect(dialog.getByLabel('Предмет для «Математический анализ»')).not.toHaveText(notSubject);
+	await expect(dialog.getByLabel('Предмет для «Мат. анализ»')).not.toHaveText(notSubject);
+	await expect(dialog.getByLabel('Предмет для «Классный час»')).toHaveText('Без предмета');
 	await dialog.getByRole('button', { name: 'Загрузить 8 пар' }).click();
 	await expect(dialog).toBeHidden();
 

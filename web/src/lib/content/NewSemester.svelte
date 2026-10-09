@@ -1,4 +1,6 @@
 <script lang="ts">
+	import DateField from '$lib/ui/DateField.svelte';
+	import { untrack } from 'svelte';
 	import { Archive, Check, ArrowLeft, ArrowRight } from '@lucide/svelte';
 	import { get, post, put } from '$lib/api';
 	import { loadSubjects, subjects } from '$lib/data.svelte';
@@ -51,18 +53,21 @@
 
 	$effect(() => {
 		if (!open) return;
-		step = 0;
-		archive = [];
-		archiveName = '';
-		get<{ suggested: string }>(`/api/groups/${group.id}/semesters`)
-			.then((r) => (archiveName ||= r.suggested))
-			.catch(() => {});
-		text = '';
-		from = '';
-		to = '';
-		errors = [];
-		clearOld = false;
-		if (!subjects.loaded) loadSubjects();
+		// Только при открытии: живое обновление (новые объекты предметов, группы) не стирает введённое.
+		untrack(() => {
+			step = 0;
+			archive = [];
+			archiveName = '';
+			get<{ suggested: string }>(`/api/groups/${group.id}/semesters`)
+				.then((r) => (archiveName ||= r.suggested))
+				.catch(() => {});
+			text = '';
+			from = '';
+			to = '';
+			errors = [];
+			clearOld = false;
+			if (!subjects.loaded) loadSubjects();
+		});
 	});
 	$effect(() => {
 		// Прошлая сессия закончилась – по умолчанию её даты убираем.
@@ -216,11 +221,11 @@
 		<div class="grid">
 			<div>
 				<label class="label" for="ns-from">Первый день</label>
-				<input id="ns-from" class="input num" type="date" bind:value={from} />
+				<DateField id="ns-from" bind:value={from} />
 			</div>
 			<div>
 				<label class="label" for="ns-to">Последний день</label>
-				<input id="ns-to" class="input num" type="date" bind:value={to} min={from} />
+				<DateField id="ns-to" bind:value={to} min={from} />
 			</div>
 		</div>
 		{#if !datesValid}<p class="error-text">Укажите оба дня; последний – не раньше первого.</p>{/if}

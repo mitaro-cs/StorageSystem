@@ -585,3 +585,27 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
   `content/semesters.ts`, `ArchiveSemester` (окно), `SemesterArchive` (разделы в «Предметы →
   Архив», лениво; `?archive=1` – развёрнут), список – `settings/SemesterPanel`, мастер
   `NewSemester` шлёт выбранные предметы одним архивом.
+- Имя загружаемого файла (0.9.8): `POST /api/files?name=…` (и прежний `X-File-Name`) – заголовок
+  терялся при пересылке с копии, файл назывался «file». Пересылка загрузки с копии – без снимка
+  базы (`PeerForwardFilter`, `refresh=false`). `DropZone` сам повторяет сбой связи (0, 502–504).
+- Файлы в любое место окна (0.9.8): `lib/files/drop.svelte.ts` (`registerDrop` – последнее
+  открытое поле вложений, `deliver`, `takeWaiting`), обработчики окна и вставки –
+  `lib/files/DropCatcher.svelte` (лениво из макета), плашка – `DropOverlay`. Нет поля – открывается
+  `UploadPicker` (на странице предмета сразу этот предмет), `DropZone` забирает ждущие файлы.
+- Окна с вводом заполняются только при открытии: `$effect` с `if (!open) return` + `untrack(...)`
+  – иначе живое обновление (новый объект `edit`, предметов, группы) стирало введённое.
+- Поля дат и выбора (0.9.8): `ui/Select`, `ui/DateField` («дд.мм.гггг» + календарь),
+  `ui/TimeField` («чч:мм» + часы/минуты), `ui/DateTimeField` (значение как у datetime-local),
+  всплывающая часть – `ui/FieldPopup` (Popover API, `menuPlace.placeField`), разбор – `ui/dates.ts`.
+  Системные `<select>` и `type=date|time|datetime-local` не использовать. В `vite.config.ts` они
+  исключены из `common` (`FIELDS`) – иначе «Сегодня» за 100 КБ; на расписании `Select` – лениво.
+- Пересдача и начало (0.9.8): `homework.retake` (V33) – у test/credit/exam (`HomeworkService.retake`),
+  `opens_at` – у всех, кроме зачёта и экзамена (`opens(value, due, kind)`); фронт – `kinds.ts
+  canRetake/retakeLabel`, `KindBadge retake`.
+- Предмет → предмет (0.9.8): макет не пересоздаёт страницу (`{#key}` по пути с `/subjects/*`),
+  страница предмета сразу берёт предмет из `subjects.list` и анимирует содержимое `{#key
+  subject.id}` (`dir` – сторона по порядку полосы). Переход между разделами – `fade` 180 мс.
+- «Тесты» у предметов убраны из интерфейса (0.9.8, просьба владельца); пакет `quiz` и таблицы
+  остались. `SubgroupSwitch` удалён; в полосе предметов «не мои» не показываются.
+- «Отметить выполненным» – `.cta-dock` (липкий) на странице задания, `.glass-cta` в app.css – только вид.
+

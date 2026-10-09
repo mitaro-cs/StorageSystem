@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Select from '$lib/ui/Select.svelte';
 	import { untrack } from 'svelte';
 	import { CalendarDays, FileUp, TriangleAlert } from '@lucide/svelte';
 	import { post } from '$lib/api';
@@ -217,20 +218,18 @@
 								: ''}</span
 						>
 					</div>
-					<select
-						class="select"
-						bind:value={choice[t.key]}
-						aria-label="Предмет для «{t.name}»"
-						class:skip={choice[t.key] === 'skip'}
+					<span class="choice" class:skip={choice[t.key] === 'skip'}
+						><Select
+							bind:value={choice[t.key]}
+							label="Предмет для «{t.name}»"
+							options={[
+								...groupSubjects.map((s) => ({ value: `subject:${s.id}`, label: s.name })),
+								...(canCreate ? [{ value: 'create', label: `Новый предмет «${t.name}»` }] : []),
+								{ value: 'none', label: 'Без предмета' },
+								{ value: 'skip', label: 'Не загружать' }
+							]}
+						/></span
 					>
-						<optgroup label="Предметы группы">
-							{#each groupSubjects as s (s.id)}<option value="subject:{s.id}">{s.name}</option
-								>{/each}
-						</optgroup>
-						{#if canCreate}<option value="create">Новый предмет «{t.name}»</option>{/if}
-						<option value="none">Без предмета</option>
-						<option value="skip">Не загружать</option>
-					</select>
 				</div>
 			{/each}
 		</div>
@@ -356,7 +355,11 @@
 	.t-info strong {
 		overflow-wrap: anywhere;
 	}
-	.select.skip {
+	.choice {
+		display: block;
+		min-width: 0;
+	}
+	.choice.skip :global(.value) {
 		color: var(--text-3);
 	}
 	.replace {

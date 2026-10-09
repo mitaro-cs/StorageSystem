@@ -1,16 +1,21 @@
 <script lang="ts">
-	import { kindOf } from './kinds';
+	import { canRetake, kindOf, retakeLabel } from './kinds';
 	import KindIcon from './KindIcon.svelte';
 
 	// Домашнее – обычный случай, метка не нужна; остальные типы видно сразу.
-	let { kind, compact = false }: { kind: string | null | undefined; compact?: boolean } = $props();
+	let {
+		kind,
+		compact = false,
+		retake = false
+	}: { kind: string | null | undefined; compact?: boolean; retake?: boolean } = $props();
 	const k = $derived(kindOf(kind));
+	const label = $derived(retake && canRetake(k.value) ? retakeLabel(k.value) : k.label);
 </script>
 
 {#if k.value !== 'homework'}
-	<span class="kind {k.value}" class:compact title={k.label}>
+	<span class="kind {k.value}" class:compact class:retake title={label}>
 		<KindIcon kind={k.value} size={compact ? 12 : 13} />
-		<span class="t">{k.label}</span>
+		<span class="t">{label}</span>
 	</span>
 {/if}
 
@@ -44,5 +49,10 @@
 	.exam {
 		color: var(--inverse-text);
 		background: var(--inverse);
+	}
+	/* Пересдача – пунктирная рамка поверх цвета типа: видно, что это не первая попытка. */
+	.retake {
+		box-shadow: inset 0 0 0 1.5px currentColor;
+		background-image: none;
 	}
 </style>

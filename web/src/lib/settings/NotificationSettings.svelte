@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Select from '$lib/ui/Select.svelte';
+	import TimeField from '$lib/ui/TimeField.svelte';
 	import { onMount } from 'svelte';
 	import { Monitor, Smartphone, X } from '@lucide/svelte';
 	import { del, get, post, put } from '$lib/api';
@@ -202,16 +204,17 @@
 			</div>
 			<div>
 				<label for="news-pref">Новости</label>
-				<select
+				<Select
 					id="news-pref"
-					class="select"
+					compact
 					value={s.prefs.news}
-					onchange={(e) => save({ news: e.currentTarget.value as NotificationPrefs['news'] })}
-				>
-					<option value="all">все</option>
-					<option value="urgent">только срочные</option>
-					<option value="none">не присылать</option>
-				</select>
+					options={[
+						{ value: 'all', label: 'все' },
+						{ value: 'urgent', label: 'только срочные' },
+						{ value: 'none', label: 'не присылать' }
+					]}
+					onchange={(v) => save({ news: v as NotificationPrefs['news'] })}
+				/>
 			</div>
 			<div>
 				<span>Новые материалы</span>
@@ -228,16 +231,16 @@
 				</span>
 				<span class="row">
 					{#if s.prefs.digest}
-						<input
-							class="input time num"
-							type="time"
-							value={time}
-							aria-label="Время сводки"
-							onchange={(e) => {
-								const [h, m] = e.currentTarget.value.split(':').map(Number);
-								if (!Number.isNaN(h)) save({ digestAt: h * 60 + (m || 0) });
-							}}
-						/>
+						<span class="time"
+							><TimeField
+								value={time}
+								label="Время сводки"
+								onchange={(v) => {
+									const [h, m] = v.split(':').map(Number);
+									if (!Number.isNaN(h)) save({ digestAt: h * 60 + (m || 0) });
+								}}
+							/></span
+						>
 					{/if}
 					<Switch
 						label="Утренняя сводка"
@@ -299,14 +302,12 @@
 	.prefs > div {
 		min-height: 56px;
 	}
-	.prefs select {
+	.prefs :global(.select) {
 		width: auto;
-		min-height: 40px;
 	}
 	.time {
-		width: auto;
-		min-height: 40px;
-		padding: 6px 12px;
+		display: block;
+		width: 132px;
 	}
 	.sub {
 		display: block;

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import DateField from '$lib/ui/DateField.svelte';
+	import TimeField from '$lib/ui/TimeField.svelte';
 	import { untrack } from 'svelte';
 	import { CalendarPlus, Clock, MapPin, NotebookPen, Repeat } from '@lucide/svelte';
 	import { get, patch, post, qs } from '$lib/api';
@@ -209,29 +211,15 @@
 			<div class="grid three">
 				<div>
 					<label class="label" for="l-date">День</label>
-					<input id="l-date" class="input num" type="date" bind:value={date} required />
+					<DateField id="l-date" bind:value={date} required />
 				</div>
 				<div>
 					<label class="label" for="l-start">Начало</label>
-					<input
-						id="l-start"
-						class="input num"
-						type="time"
-						value={start}
-						oninput={(e) => moveStart(e.currentTarget.value)}
-						required
-					/>
+					<TimeField id="l-start" value={start} onchange={moveStart} required />
 				</div>
 				<div>
 					<label class="label" for="l-end">Конец</label>
-					<input
-						id="l-end"
-						class="input num"
-						type="time"
-						bind:value={end}
-						oninput={() => (endTouched = true)}
-						required
-					/>
+					<TimeField id="l-end" bind:value={end} onchange={() => (endTouched = true)} required />
 				</div>
 			</div>
 			{#if slots.length}

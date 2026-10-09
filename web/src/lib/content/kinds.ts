@@ -30,6 +30,15 @@ export function kindOf(v: string | null | undefined): KindInfo {
 	return KINDS.find((k) => k.value === v) ?? KINDS[0];
 }
 
+/** Пересдача бывает у контрольной, зачёта и экзамена (0.9.8). */
+export function canRetake(v: string | null | undefined): boolean {
+	return v === 'test' || v === 'credit' || v === 'exam';
+}
+
+/** «Пересдача экзамена» – тип в родительном падеже. */
+export const retakeLabel = (v: string | null | undefined) =>
+	'Пересдача ' + (v === 'exam' ? 'экзамена' : v === 'credit' ? 'зачёта' : 'контрольной');
+
 /** Зачёт и экзамен: срок – время начала, есть место, входят в сессию. */
 export function isExam(v: string | null | undefined): boolean {
 	return v === 'credit' || v === 'exam';

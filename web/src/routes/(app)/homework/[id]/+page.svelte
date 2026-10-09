@@ -157,17 +157,25 @@
 			{#if item.kind !== 'homework'}
 				<div>
 					<dt>Тип</dt>
-					<dd><KindBadge kind={item.kind} /></dd>
+					<dd><KindBadge kind={item.kind} retake={item.retake} /></dd>
 				</div>
 			{/if}
 			{#if item.opensAt}
 				<div>
-					<dt>Откроется</dt>
+					<dt>{item.kind === 'test' ? 'Откроется' : 'Начинается'}</dt>
 					<dd class="num">{fmtDue(item.opensAt, now)}</dd>
 				</div>
 			{/if}
 			<div>
-				<dt>{isExam(item.kind) ? 'Когда' : item.opensAt ? 'Закроется' : 'Срок'}</dt>
+				<dt>
+					{isExam(item.kind)
+						? 'Когда'
+						: item.opensAt
+							? item.kind === 'test'
+								? 'Закроется'
+								: 'Сдать до'
+							: 'Срок'}
+				</dt>
 				<dd class="num">{fmtDue(item.dueAt, now)}</dd>
 			</div>
 			{#if item.place}
@@ -253,14 +261,17 @@
 		base="/api/homework/{item.id}"
 		canComment={item.groups.some((g) => can('comment', g.id))}
 	/>
-	<div class="cta-space" aria-hidden="true"></div>
-	<button
-		class="glass-cta"
-		aria-pressed={item.done}
-		onclick={() => item && toggleDone(item, !item.done)}
-	>
-		{#if item.done}<RotateCcw size={18} /> Вернуть в работу{:else}<Check size={19} /> Отметить выполненным{/if}
-	</button>
+	<!-- Липкая, а не поверх страницы: в длинном задании плавает над нижней панелью, в конце
+	     встаёт после комментариев и не закрывает поле ввода (0.9.8). -->
+	<div class="cta-dock">
+		<button
+			class="glass-cta"
+			aria-pressed={item.done}
+			onclick={() => item && toggleDone(item, !item.done)}
+		>
+			{#if item.done}<RotateCcw size={18} /> Вернуть в работу{:else}<Check size={19} /> Отметить выполненным{/if}
+		</button>
+	</div>
 	{#if composer}
 		{#await import('$lib/content/HomeworkComposer.svelte') then m}
 			<m.default bind:open={composer} edit={item} onsaved={(h) => (item = h)} />
@@ -379,8 +390,24 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.cta-space {
-		height: 88px;
+	.cta-dock {
+		position: sticky;
+		z-index: 35;
+		bottom: calc(var(--bottom-nav) + var(--bottom-gap) * 2 + env(safe-area-inset-bottom));
+		display: flex;
+		justify-content: center;
+		margin-top: var(--s5);
+		pointer-events: none;
+		/* Поправка на ошибку iOS после клавиатуры – lib/shell/viewport.ts. */
+		translate: 0 var(--vv-shift, 0px);
+	}
+	.cta-dock .glass-cta {
+		pointer-events: auto;
+	}
+	@media (min-width: 900px) {
+		.cta-dock {
+			bottom: var(--s6);
+		}
 	}
 	/* Узко – пункты переносятся: разделитель-черта тогда только мешает */
 	@media (max-width: 480px) {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Select from '$lib/ui/Select.svelte';
 	import { del, get, patch, put } from '$lib/api';
 	import Button from '$lib/ui/Button.svelte';
 	import { t } from '$lib/i18n/ru';
@@ -201,16 +202,19 @@
 						>@{u.username}{u.instanceRole && !u.totpEnabled ? ' · 2FA не включена' : ''}</span
 					>
 				</div>
-				<select
-					class="select role"
-					value={u.instanceRole ?? ''}
-					onchange={(e) => setRole(u, e.currentTarget.value)}
-					aria-label="Роль на сайте: {u.displayName}"
+				<span class="role"
+					><Select
+						compact
+						value={u.instanceRole ?? ''}
+						onchange={(v) => setRole(u, v)}
+						label="Роль на сайте: {u.displayName}"
+						options={[
+							{ value: '', label: 'Без роли на сайте' },
+							{ value: 'moderator', label: t.roles.moderator },
+							{ value: 'admin', label: t.roles.admin }
+						]}
+					/></span
 				>
-					<option value="">Без роли на сайте</option>
-					<option value="moderator">{t.roles.moderator}</option>
-					<option value="admin">{t.roles.admin}</option>
-				</select>
 			</div>
 		{/each}
 	</div>

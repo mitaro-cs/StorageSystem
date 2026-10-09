@@ -135,6 +135,13 @@
 		(lessons ?? []).filter((l) => (!kind || l.kind === kind) && lessonMatches(l, query))
 	);
 	const kindsHere = $derived(LESSON_KINDS.filter((k) => lessons?.some((l) => l.kind === k.value)));
+	const kindOptions = $derived([
+		{ value: '', label: 'Все занятия' },
+		...kindsHere.map((k) => ({
+			value: k.value as string,
+			label: k.forms[2] === 'занятий' ? 'Другие' : cap(k.forms[1])
+		}))
+	]);
 	const map = $derived(byDay(shown));
 	const weekLessons = $derived(
 		shown.filter((l) => l.startsAt >= week && l.startsAt < addDays(week, 7))
@@ -304,12 +311,15 @@
 			aria-label="Поиск по расписанию"
 		/>
 	</label>
-	<select class="select" bind:value={kind} aria-label="Вид занятий">
-		<option value="">Все занятия</option>
-		{#each kindsHere as k (k.value)}<option value={k.value}
-				>{k.forms[2] === 'занятий' ? 'Другие' : cap(k.forms[1])}</option
-			>{/each}
-	</select>
+	<!-- Список – отдельным кусочком: страница расписания на грани бюджета. -->
+	<span class="kindsel"
+		>{#await import('$lib/ui/Select.svelte')}<span class="select ph">Все занятия</span
+			>{:then m}<m.default
+				bind:value={kind}
+				label="Вид занятий"
+				options={kindOptions}
+			/>{/await}</span
+	>
 </div>
 
 <nav class="weeks" aria-label={view === 'month' ? 'Месяц' : 'Неделя'}>
@@ -959,9 +969,14 @@
 		width: 100%;
 		padding-left: 38px;
 	}
-	.filters .select {
+	.ph {
+		display: flex;
+		align-items: center;
+		color: var(--text);
+	}
+	.kindsel {
 		flex: none;
-		width: auto;
+		min-width: 0;
 		max-width: 44%;
 	}
 	.dots {

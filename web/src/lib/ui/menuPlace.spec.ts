@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { placeMenu } from './menuPlace';
+import { placeField, placeMenu } from './menuPlace';
 
 const screen = { width: 390, height: 844 };
 const menu = { width: 200, height: 180 };
@@ -24,5 +24,28 @@ describe('выпадающее меню', () => {
 		expect(p.left).toBe(8);
 		expect(p.top).toBeGreaterThanOrEqual(8);
 		expect(p.top + menu.height).toBeLessThanOrEqual(200 - 8 + 0.001);
+	});
+});
+
+describe('список поля', () => {
+	it('под полем, прижат к левому краю – и для DOMRect', () => {
+		// Как DOMRect: значения – геттеры прототипа, «...rect» их не видит.
+		class Rect {
+			get top() {
+				return 400;
+			}
+			get bottom() {
+				return 446;
+			}
+			get left() {
+				return 20;
+			}
+		}
+		const rect = new Rect();
+		expect(placeField(rect, { width: 200, height: 120 }, { width: 390, height: 664 })).toEqual({
+			top: 450,
+			left: 20,
+			up: false
+		});
 	});
 });

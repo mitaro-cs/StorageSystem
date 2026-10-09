@@ -299,6 +299,11 @@ class PeerIT extends IntegrationTest {
       assertThat(hostOnly.status()).as(hostOnly.body()).isEqualTo(409);
       assertThat(hostOnly.body()).contains("host_only");
 
+      // Файл, загруженный в окне копии, сохраняет имя (0.9.8: у основного он назывался «file»).
+      var up = b.upload("Лекция 3 – сети.pdf", "%PDF-1.4\n".getBytes(StandardCharsets.UTF_8));
+      assertThat(up.status()).as(up.body()).isEqualTo(200);
+      assertThat(up.json().get("name").asString()).isEqualTo("Лекция 3 – сети.pdf");
+
       // Файл со второго — у главного, и у второго тоже.
       var bg = b.putRaw("/api/me/background", png());
       assertThat(bg.status()).as(bg.body()).isEqualTo(200);

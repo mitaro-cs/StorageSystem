@@ -241,16 +241,6 @@
 
 <div class="page-head">
 	<h1>{t.nav.settings}</h1>
-	{#if isMulti() && current?.part === 'group'}
-		<select
-			class="select pick"
-			value={group?.id}
-			onchange={(e) => (picked = Number(e.currentTarget.value))}
-			aria-label="Группа"
-		>
-			{#each groups() as g (g.id)}<option value={g.id}>{g.name}</option>{/each}
-		</select>
-	{/if}
 </div>
 
 <!-- Ширину считает контейнер, а не окно: под масштабом интерфейса (CSS zoom) медиазапросы видят

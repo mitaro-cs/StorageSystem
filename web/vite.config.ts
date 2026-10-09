@@ -10,6 +10,8 @@ import { sveltekit } from '@sveltejs/kit/vite';
  * грузит первый экран в полтора десятка очередей. Каждой странице этот код нужен целиком всё равно.
  */
 const shell = new Set<string>();
+const FIELDS =
+	/[\\/]lib[\\/]ui[\\/](Select|DateField|TimeField|DateTimeField|FieldPopup\.svelte|dates\.ts)/;
 const shellChunk: Plugin = {
 	name: 'groupbase-shell-chunk',
 	apply: 'build',
@@ -62,7 +64,14 @@ export default defineConfig({
 					// тяжёлая страница выходит за 100 КБ (scripts/bundle-size.mjs).
 					groups: [
 						{ name: 'shell', test: (id) => shell.has(id), priority: 2 },
-						{ name: 'common', test: /[\\/]src[\\/]lib[\\/]/, minShareCount: 6, priority: 1 }
+						{
+							name: 'common',
+							// Поля дат и выбора (0.9.8) – только в окнах и формах: им не место в общем
+							// файле, который грузит каждая страница («Сегодня» вышла бы за 100 КБ).
+							test: (id) => /[\\/]src[\\/]lib[\\/]/.test(id) && !FIELDS.test(id),
+							minShareCount: 6,
+							priority: 1
+						}
 					]
 				}
 			}

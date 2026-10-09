@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Select from '$lib/ui/Select.svelte';
+	import { untrack } from 'svelte';
 	import { Copy, Link2, ListPlus, Maximize2, Share2, UserPlus } from '@lucide/svelte';
 	import { post } from '$lib/api';
 	import { absolute, canShare, copy, share } from '$lib/copy';
@@ -41,12 +43,15 @@
 
 	$effect(() => {
 		if (!open) return;
-		tab = canCreate ? 'one' : 'link';
-		fio = '';
-		role = 'student';
-		error = '';
-		created = null;
-		invite = null;
+		// Только при открытии: живое обновление (новые объекты предметов, группы) не стирает введённое.
+		untrack(() => {
+			tab = canCreate ? 'one' : 'link';
+			fio = '';
+			role = 'student';
+			error = '';
+			created = null;
+			invite = null;
+		});
 	});
 
 	async function createOne(e: SubmitEvent) {
@@ -164,12 +169,19 @@
 				<FioField bind:value={fio} />
 				<div>
 					<label class="label" for="add-role">Роль в группе</label>
-					<select id="add-role" class="select" bind:value={role}>
-						<option value="student">{t.roles.student}</option>
-						{#if can('assign_deputy', groupId)}<option value="deputy">{t.roles.deputy}</option>{/if}
-						{#if can('assign_headman', groupId)}<option value="headman">{t.roles.headman}</option
-							>{/if}
-					</select>
+					<Select
+						id="add-role"
+						bind:value={role}
+						options={[
+							{ value: 'student', label: t.roles.student },
+							...(can('assign_deputy', groupId)
+								? [{ value: 'deputy', label: t.roles.deputy }]
+								: []),
+							...(can('assign_headman', groupId)
+								? [{ value: 'headman', label: t.roles.headman }]
+								: [])
+						]}
+					/>
 				</div>
 				{#if error}<p class="error-text" role="alert">{error}</p>{/if}
 				<Button variant="primary" type="submit" loading={busy}>Добавить и показать QR-код</Button>
@@ -212,10 +224,14 @@
 			{:else}
 				<div>
 					<label class="label" for="inv-role2">Кого приглашаем</label>
-					<select id="inv-role2" class="select" bind:value={role}>
-						<option value="student">{t.roles.student}</option>
-						{#if can('assign_deputy', groupId)}<option value="deputy">{t.roles.deputy}</option>{/if}
-					</select>
+					<Select
+						id="inv-role2"
+						bind:value={role}
+						options={[
+							{ value: 'student', label: t.roles.student },
+							...(can('assign_deputy', groupId) ? [{ value: 'deputy', label: t.roles.deputy }] : [])
+						]}
+					/>
 				</div>
 				<Button variant="primary" onclick={createInvite} loading={busy}
 					><Link2 size={16} /> Создать ссылку и QR-код</Button

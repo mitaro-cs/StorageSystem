@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { Archive } from '@lucide/svelte';
 	import { post } from '$lib/api';
 	import { loadSubjects, subjects } from '$lib/data.svelte';
@@ -29,14 +30,17 @@
 
 	$effect(() => {
 		if (!open) return;
-		name = '';
-		// Уже архивные без семестра – сразу отмечены: их и собирают.
-		picked = subjects.list
-			.filter((s) => s.archived && !s.semester && s.groups.some((g) => g.id === groupId))
-			.map((s) => s.id);
-		loadSemesters(groupId)
-			.then((r) => (name ||= r.suggested))
-			.catch(() => {});
+		// Только при открытии: живое обновление (новые объекты предметов, группы) не стирает введённое.
+		untrack(() => {
+			name = '';
+			// Уже архивные без семестра – сразу отмечены: их и собирают.
+			picked = subjects.list
+				.filter((s) => s.archived && !s.semester && s.groups.some((g) => g.id === groupId))
+				.map((s) => s.id);
+			loadSemesters(groupId)
+				.then((r) => (name ||= r.suggested))
+				.catch(() => {});
+		});
 	});
 
 	function toggle(id: number) {
