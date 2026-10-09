@@ -64,6 +64,7 @@ class PeerController {
   private final TransferService transfers;
   private final PeerDiscovery discovery;
   private final HostService hosts;
+  private final app.groupbase.auth.DeviceLinks links;
 
   PeerController(
       PeerService peers,
@@ -72,8 +73,10 @@ class PeerController {
       AuditService audit,
       TransferService transfers,
       PeerDiscovery discovery,
-      HostService hosts) {
+      HostService hosts,
+      app.groupbase.auth.DeviceLinks links) {
     this.hosts = hosts;
+    this.links = links;
     this.transfers = transfers;
     this.discovery = discovery;
     this.peers = peers;
@@ -261,6 +264,17 @@ class PeerController {
     Map<String, Object> p = run(() -> peers.pair(b.code(), b.computer(), b.name()));
     audit.log(null, null, "hosts.peer_add", "instance", null, Map.of("name", nameOf(b.name())));
     return p;
+  }
+
+  record LinkBody(String code, String pin, String device, String ip) {}
+
+  /** Копия спрашивает: за кого войти по коду на другом устройстве (0.9.8). Код сгорает здесь. */
+  @PostMapping("/api/host/peer/link-redeem")
+  Map<String, Object> linkRedeem(HttpServletRequest req, @RequestBody LinkBody b) {
+    requirePeer(req);
+    requireMain();
+    String code = b.code() == null || b.code().isBlank() ? null : b.code();
+    return Map.of("userId", links.redeem(b.ip(), code, b.pin(), b.device()));
   }
 
   @GetMapping("/api/host/peer/state")

@@ -293,6 +293,17 @@ class PeerIT extends IntegrationTest {
           b.post("/api/auth/link/status", Map.of("code", issued.json().get("code").asString()));
       assertThat(seen.json().get("status").asString()).isEqualTo("used");
 
+      // И наоборот (0.9.8): код показали на основном (телефон, браузер) – ввести цифры можно и
+      // на копии, её проверка спрашивает основной.
+      var onMain = a.post("/api/auth/link", Map.of());
+      assertThat(onMain.status()).as(onMain.body()).isEqualTo(200);
+      var laptop =
+          new ApiClient(portOf(ctxB))
+              .post(
+                  "/api/auth/link/redeem",
+                  Map.of("pin", onMain.json().get("pin").asString(), "device", "Ноутбук"));
+      assertThat(laptop.status()).as(laptop.body()).isEqualTo(200);
+
       // Администратор на копии управляет сайтом, но доступ для группы и копии данных – только на
       // основном (0.9.7).
       var hostOnly = b.put("/api/admin/access", Map.of("mode", "lan"));
