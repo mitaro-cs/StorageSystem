@@ -69,8 +69,14 @@ class FileController {
           "too_large",
           "Файл больше " + (files.maxBytes() / 1024 / 1024) + " МБ");
     }
+    // Имя – из адреса (?name=, с 0.9.8) или заголовка: заголовок не доходил при пересылке с
+    // копии на основной компьютер и через некоторые туннели – файл назывался «file».
+    String param = req.getParameter("name");
     String header = req.getHeader("X-File-Name");
-    String name = header == null ? "file" : URLDecoder.decode(header, StandardCharsets.UTF_8);
+    String name =
+        param != null && !param.isBlank()
+            ? param
+            : header == null ? "file" : URLDecoder.decode(header, StandardCharsets.UTF_8);
     try (InputStream body = req.getInputStream()) {
       StoredFile f = files.store(body, name, actor.id());
       return new Uploaded(f.id(), f.name(), f.mime(), f.size());

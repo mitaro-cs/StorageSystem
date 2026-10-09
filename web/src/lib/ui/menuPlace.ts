@@ -24,3 +24,17 @@ export function placeMenu(
 	);
 	return { top, left, up };
 }
+
+/**
+ * Где показать список поля (выбор, календарь, время): под полем, прижав к его левому краю; не
+ * помещается снизу – над ним. Целиком на экране, с отступом 8 px от краёв.
+ */
+export function placeField(
+	field: { top: number; bottom: number; left: number },
+	size: { width: number; height: number },
+	viewport: { width: number; height: number }
+): { top: number; left: number; up: boolean } {
+	// Поля DOMRect – на прототипе: «...field» их не копирует, поэтому – явно.
+	const { top, bottom, left } = field;
+	return placeMenu({ top, bottom, right: left + size.width }, size, viewport);
+}

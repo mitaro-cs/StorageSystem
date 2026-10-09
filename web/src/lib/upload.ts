@@ -24,7 +24,9 @@ export function uploadFile(
 		return stashFile(file).then((f) => (onProgress?.(1), f));
 	return new Promise((resolve, reject) => {
 		const xhr = new XMLHttpRequest();
-		xhr.open('POST', '/api/files');
+		// Имя – и в адресе: заголовок теряется при пересылке со второго компьютера хоста и в
+		// некоторых туннелях, и файл назывался «file».
+		xhr.open('POST', `/api/files?name=${encodeURIComponent(file.name)}`);
 		xhr.setRequestHeader('X-CSRF-Token', csrf());
 		xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
 		xhr.setRequestHeader('Content-Type', 'application/octet-stream');

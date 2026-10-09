@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Select from '$lib/ui/Select.svelte';
 	import { Printer, Copy, Download } from '@lucide/svelte';
 	import { post } from '$lib/api';
 	import { absolute, copy } from '$lib/copy';
@@ -131,19 +132,28 @@
 		<div class="grid">
 			<div>
 				<label class="label" for="acc-role">Роль</label>
-				<select id="acc-role" class="select" bind:value={role}>
-					<option value="student">{t.roles.student}</option>
-					{#if can('assign_deputy', groupId)}<option value="deputy">{t.roles.deputy}</option>{/if}
-					{#if can('assign_headman', groupId)}<option value="headman">{t.roles.headman}</option
-						>{/if}
-				</select>
+				<Select
+					id="acc-role"
+					bind:value={role}
+					options={[
+						{ value: 'student', label: t.roles.student },
+						...(can('assign_deputy', groupId) ? [{ value: 'deputy', label: t.roles.deputy }] : []),
+						...(can('assign_headman', groupId)
+							? [{ value: 'headman', label: t.roles.headman }]
+							: [])
+					]}
+				/>
 			</div>
 			<div>
 				<label class="label" for="acc-delivery">Как выдать доступ</label>
-				<select id="acc-delivery" class="select" bind:value={delivery}>
-					<option value="LINK">Ссылка активации (человек сам задаёт пароль)</option>
-					<option value="PASSWORD">Временный пароль</option>
-				</select>
+				<Select
+					id="acc-delivery"
+					bind:value={delivery}
+					options={[
+						{ value: 'LINK', label: 'Ссылка активации', hint: 'человек сам задаёт пароль' },
+						{ value: 'PASSWORD', label: 'Временный пароль' }
+					]}
+				/>
 			</div>
 		</div>
 		<div class="row">

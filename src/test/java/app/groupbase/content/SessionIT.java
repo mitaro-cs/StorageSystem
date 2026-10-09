@@ -86,6 +86,71 @@ class SessionIT extends IntegrationTest {
   }
 
   @Test
+  void retakesAndStartsForHomeworkAndLabs() {
+    long g = newGroup("Пересдачи");
+    TestUser headman = newUser(g, "headman");
+    long s = subject(headman, g, "Сети связи");
+    long now = clock.millis();
+    // Пересдача экзамена – отметка остаётся; у домашнего её не бывает.
+    JsonNode retake =
+        homework(
+            headman,
+            Map.of(
+                "subjectId",
+                s,
+                "title",
+                "Экзамен",
+                "kind",
+                "exam",
+                "retake",
+                true,
+                "dueAt",
+                now + DAY));
+    assertThat(retake.get("retake").asBoolean()).isTrue();
+    JsonNode plain =
+        homework(
+            headman,
+            Map.of("subjectId", s, "title", "Задачи", "retake", true, "dueAt", now + 2 * DAY));
+    assertThat(plain.get("retake").asBoolean()).isFalse();
+    // Правка без retake её не снимает.
+    var kept =
+        headman.api().patch("/api/homework/" + retake.get("id").asLong(), Map.of("title", "Э2"));
+    assertThat(kept.json().get("retake").asBoolean()).isTrue();
+
+    // «Когда начинается» – у лабораторной и домашнего; у экзамена начала нет.
+    JsonNode lab =
+        homework(
+            headman,
+            Map.of(
+                "subjectId",
+                s,
+                "title",
+                "Лаба 2",
+                "kind",
+                "lab",
+                "opensAt",
+                now + DAY,
+                "dueAt",
+                now + 3 * DAY));
+    assertThat(lab.get("opensAt").asLong()).isEqualTo(now + DAY);
+    JsonNode exam =
+        homework(
+            headman,
+            Map.of(
+                "subjectId",
+                s,
+                "title",
+                "Экзамен 2",
+                "kind",
+                "exam",
+                "opensAt",
+                now + DAY,
+                "dueAt",
+                now + 3 * DAY));
+    assertThat(exam.get("opensAt").isNull()).isTrue();
+  }
+
+  @Test
   void examHasKindAndPlaceAndLandsInExamsView() {
     long g = newGroup("Сессия");
     TestUser headman = newUser(g, "headman");

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import DateField from '$lib/ui/DateField.svelte';
+	import { untrack } from 'svelte';
 	import { put } from '$lib/api';
 	import { loadMe } from '$lib/session.svelte';
 	import { toast } from '$lib/toasts.svelte';
@@ -19,9 +21,12 @@
 
 	$effect(() => {
 		if (!open) return;
-		from = dates ? msToDay(dates.from) : '';
-		to = dates ? msToDay(dates.to) : '';
-		error = '';
+		// Только при открытии: живое обновление (новые объекты предметов, группы) не стирает введённое.
+		untrack(() => {
+			from = dates ? msToDay(dates.from) : '';
+			to = dates ? msToDay(dates.to) : '';
+			error = '';
+		});
 	});
 
 	async function save(body: { from: number | null; to: number | null }, message: string) {
@@ -54,11 +59,11 @@
 		<div class="grid">
 			<div>
 				<label class="label" for="session-from">Первый день</label>
-				<input id="session-from" class="input num" type="date" bind:value={from} required />
+				<DateField id="session-from" bind:value={from} required />
 			</div>
 			<div>
 				<label class="label" for="session-to">Последний день</label>
-				<input id="session-to" class="input num" type="date" bind:value={to} min={from} required />
+				<DateField id="session-to" bind:value={to} min={from} required />
 			</div>
 		</div>
 		{#if error}<p class="error-text" role="alert">{error}</p>{/if}

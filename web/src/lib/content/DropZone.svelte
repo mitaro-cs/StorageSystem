@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { Camera, RotateCw, Upload, X } from '@lucide/svelte';
+	import { onMount } from 'svelte';
+	import { ApiError } from '$lib/api';
+	import { drop, registerDrop, takeWaiting } from '$lib/files/drop.svelte';
 	import { uploadFile } from '$lib/upload';
 	import { fmtSize } from '$lib/format';
 	import { slide } from '$lib/motion';
@@ -42,7 +45,6 @@
 	$effect(() => {
 		if (uploading !== busy) uploading = busy;
 	});
-	let over = $state(false);
 	let input: HTMLInputElement | undefined = $state();
 	let camera: HTMLInputElement | undefined = $state();
 	let seq = 0;
@@ -69,12 +71,33 @@
 		}
 	}
 
+	/** Скриншот из буфера приходит как «image.png» – даём понятное имя с датой. */
+	function named(f: File): File {
+		if (f.name && f.name !== 'image.png') return f;
+		const stamp = new Date().toLocaleString('ru-RU').replace(/[/:]/g, '.');
+		return new File([f], `Скриншот ${stamp}.png`, { type: f.type || 'image/png' });
+	}
+
+	/** Сбой связи (туннель, мобильная сеть) – повторяем сами, а не сразу показываем ошибку. */
+	const transient = (e: unknown) =>
+		e instanceof ApiError && (e.status === 0 || (e.status >= 502 && e.status <= 504));
+
 	async function send(item: Pending) {
 		item.error = undefined;
 		item.progress = 0;
 		try {
 			item.file = await smaller(item.file);
-			const info = await uploadFile(item.file, (f) => (item.progress = f));
+			let info;
+			for (let attempt = 0; ; attempt++) {
+				try {
+					info = await uploadFile(item.file, (f) => (item.progress = f));
+					break;
+				} catch (e) {
+					if (attempt >= 2 || !transient(e)) throw e;
+					item.progress = 0;
+					await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+				}
+			}
 			files = [...files, info];
 			pending = pending.filter((x) => x.key !== item.key);
 		} catch (e) {
@@ -84,54 +107,27 @@
 
 	async function add(list: FileList | File[] | null) {
 		if (!list) return;
-		for (const file of Array.from(list).slice(0, Math.max(0, max - files.length))) {
+		const room = Math.max(0, (multiple ? max : 1) - files.length - pending.length);
+		for (const file of Array.from(list).map(named).slice(0, room)) {
 			pending.push({ key: ++seq, name: file.name || 'файл', file, progress: 0 });
 			await send(pending[pending.length - 1]);
 			if (!multiple) break;
 		}
 	}
 
-	// Файл или скриншот из буфера обмена (Ctrl+V / ⌘V) – сразу во вложения.
-	function onpaste(e: ClipboardEvent) {
-		const list = Array.from(e.clipboardData?.files ?? []);
-		if (!list.length) return;
-		e.preventDefault();
-		add(
-			list.map((f) =>
-				f.name && f.name !== 'image.png'
-					? f
-					: new File(
-							[f],
-							`Скриншот ${new Date().toLocaleString('ru-RU').replace(/[/:]/g, '.')}.png`,
-							{
-								type: f.type
-							}
-						)
-			)
-		);
-	}
+	// Брошенные в любое место окна и вставленные (Ctrl+V / ⌘V) файлы получает это поле – пока оно
+	// последнее открытое (макет, lib/files/drop.svelte.ts); ждавшие его файлы – сразу.
+	onMount(() => {
+		const off = registerDrop((list) => add(list));
+		const waiting = takeWaiting();
+		if (waiting.length) add(waiting);
+		return off;
+	});
 </script>
-
-<svelte:window {onpaste} />
 
 <div class="dz">
 	<span class="label">{label}</span>
-	<button
-		type="button"
-		class="zone"
-		class:over
-		onclick={() => input?.click()}
-		ondragover={(e) => {
-			e.preventDefault();
-			over = true;
-		}}
-		ondragleave={() => (over = false)}
-		ondrop={(e) => {
-			e.preventDefault();
-			over = false;
-			add(e.dataTransfer?.files ?? null);
-		}}
-	>
+	<button type="button" class="zone" class:over={drop.over} onclick={() => input?.click()}>
 		<Upload size={20} />
 		<span><strong>Выберите файл</strong> или перетащите сюда</span>
 		<span class="faint small">{hint}{touch ? '' : ' · можно вставить Ctrl+V'}</span>
@@ -157,8 +153,9 @@
 		onchange={(e) => add(e.currentTarget.files)}
 	/>
 
+	<!-- Загрузился – строка просто становится готовой: без второй анимации поверх первой. -->
 	{#each files as f (f.id)}
-		<div class="item" transition:slide>
+		<div class="item" out:slide>
 			<span class="name">{f.name}</span>
 			<span class="faint small num">{fmtSize(f.size)}</span>
 			<button
@@ -170,7 +167,7 @@
 		</div>
 	{/each}
 	{#each pending as p (p.key)}
-		<div class="item" transition:slide>
+		<div class="item" in:slide>
 			<span class="name">{p.name}</span>
 			{#if p.error}
 				<span class="error-text small">{p.error}</span>

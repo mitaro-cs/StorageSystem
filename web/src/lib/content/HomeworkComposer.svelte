@@ -1,4 +1,6 @@
 <script lang="ts">
+	import DateTimeField from '$lib/ui/DateTimeField.svelte';
+	import { untrack } from 'svelte';
 	import { CalendarClock, ClipboardList, Paperclip } from '@lucide/svelte';
 	import { get, patch, post, qs } from '$lib/api';
 	import { groupsWith, session } from '$lib/session.svelte';
@@ -15,7 +17,8 @@
 	import GroupPicker from './GroupPicker.svelte';
 	import DifficultyPicker from './DifficultyPicker.svelte';
 	import KindPicker from './KindPicker.svelte';
-	import { isExam, kindOf, type HomeworkKind } from './kinds';
+	import { canRetake, isExam, kindOf, type HomeworkKind } from './kinds';
+	import Switch from '$lib/ui/Switch.svelte';
 
 	interface Props {
 		open: boolean;
@@ -48,6 +51,8 @@
 	let place = $state('');
 	// Тест: когда откроется (закроется – в срок). Пусто – открыт сразу.
 	let opens = $state('');
+	/** Пересдача (контрольная, зачёт, экзамен). */
+	let retake = $state(false);
 	// Пара, к которой задание, и ближайшие пары выбранного предмета – выбрать срок одним нажатием.
 	let lessonId = $state<number | null>(null);
 	let upcoming = $state<{ id: number; startsAt: number }[]>([]);
@@ -98,21 +103,29 @@
 
 	$effect(() => {
 		if (!open) return;
-		subject = edit?.subject.id ?? lesson?.subjectId ?? subjectId ?? subjectOptions[0]?.id ?? null;
-		title = edit?.title ?? '';
-		body = edit?.bodyMd ?? '';
-		// Не читаем kind после записи: иначе эффект зависел бы от него и сбрасывал выбор типа.
-		const k = edit?.kind ?? initialKind;
-		kind = k;
-		place = edit?.place ?? '';
-		opens = edit?.opensAt ? toLocalInput(edit.opensAt) : '';
-		dueTouched = !!lesson;
-		due = edit ? toLocalInput(edit.dueAt) : lesson ? toLocalInput(lesson.startsAt) : defaultDue(k);
-		lessonId = edit?.lesson?.id ?? lesson?.id ?? null;
-		groupIds = edit?.groups.map((g) => g.id) ?? (lesson ? [lesson.groupId] : []);
-		files = edit ? [...edit.attachments] : [];
-		difficulty = edit?.difficulty ?? null;
-		error = '';
+		// Только при открытии: живое обновление (новые объекты предметов, группы) не стирает введённое.
+		untrack(() => {
+			subject = edit?.subject.id ?? lesson?.subjectId ?? subjectId ?? subjectOptions[0]?.id ?? null;
+			title = edit?.title ?? '';
+			body = edit?.bodyMd ?? '';
+			// Не читаем kind после записи: иначе эффект зависел бы от него и сбрасывал выбор типа.
+			const k = edit?.kind ?? initialKind;
+			kind = k;
+			place = edit?.place ?? '';
+			opens = edit?.opensAt ? toLocalInput(edit.opensAt) : '';
+			retake = edit?.retake ?? false;
+			dueTouched = !!lesson;
+			due = edit
+				? toLocalInput(edit.dueAt)
+				: lesson
+					? toLocalInput(lesson.startsAt)
+					: defaultDue(k);
+			lessonId = edit?.lesson?.id ?? lesson?.id ?? null;
+			groupIds = edit?.groups.map((g) => g.id) ?? (lesson ? [lesson.groupId] : []);
+			files = edit ? [...edit.attachments] : [];
+			difficulty = edit?.difficulty ?? null;
+			error = '';
+		});
 	});
 
 	$effect(() => {
@@ -173,7 +186,8 @@
 				kind,
 				place: isExam(kind) ? place : '',
 				lessonId: lessonId ?? 0,
-				opensAt: kind === 'test' && opens ? fromLocalInput(opens) : 0
+				opensAt: !isExam(kind) && opens ? fromLocalInput(opens) : 0,
+				retake: canRetake(kind) && retake
 			};
 			const item = edit
 				? await patch<Homework>(`/api/homework/${edit.id}`, payload)
@@ -220,25 +234,31 @@
 			<div class="grid">
 				<div>
 					<label class="label" for="hw-due"
-						>{isExam(kind) ? 'Когда' : kind === 'test' ? 'Закроется' : 'Сдать до'}</label
+						>{isExam(kind) ? 'Когда' : kind === 'test' && opens ? 'Закроется' : 'Сдать до'}</label
 					>
-					<input
+					<DateTimeField
 						id="hw-due"
-						class="input num"
-						type="datetime-local"
+						label={isExam(kind) ? 'Когда' : kind === 'test' && opens ? 'Закроется' : 'Сдать до'}
 						bind:value={due}
-						oninput={() => (dueTouched = true)}
+						onchange={() => (dueTouched = true)}
 						required
 					/>
 				</div>
-				{#if kind === 'test'}
+				{#if !isExam(kind)}
+					<!-- «Когда начинается» (0.9.8) – у домашних и лабораторных тоже, не только у контрольной. -->
 					<div>
 						<label class="label" for="hw-opens"
-							>Откроется <span class="faint">(иначе открыт сразу)</span></label
+							>{kind === 'test' ? 'Откроется' : 'Начинается'}
+							<span class="faint">(необязательно)</span></label
 						>
-						<input id="hw-opens" class="input num" type="datetime-local" bind:value={opens} />
+						<DateTimeField
+							id="hw-opens"
+							label={kind === 'test' ? 'Откроется' : 'Начинается'}
+							defaultTime="09:00"
+							bind:value={opens}
+						/>
 					</div>
-				{:else if isExam(kind)}
+				{:else}
 					<div>
 						<label class="label" for="hw-place"
 							>Где <span class="faint">(необязательно)</span></label
@@ -253,6 +273,14 @@
 					</div>
 				{/if}
 			</div>
+			{#if canRetake(kind)}
+				<div class="retake">
+					<Switch bind:checked={retake} label="Пересдача" />
+					<span
+						>Пересдача <span class="faint small">– для тех, кто не сдал с первого раза</span></span
+					>
+				</div>
+			{/if}
 			{#if lessonChips.length}
 				<div class="to-lesson" role="group" aria-label="Срок – к паре">
 					<span class="faint small">К паре:</span>
@@ -289,6 +317,12 @@
 </Modal>
 
 <style>
+	.retake {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		font-weight: 550;
+	}
 	.form {
 		gap: var(--s3);
 	}

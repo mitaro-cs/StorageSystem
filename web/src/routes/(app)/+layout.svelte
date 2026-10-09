@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { fly } from '$lib/motion';
+	import { fade } from '$lib/motion';
 	import Sidebar from '$lib/shell/Sidebar.svelte';
 	import BottomNav from '$lib/shell/BottomNav.svelte';
 	import MobileBar from '$lib/shell/MobileBar.svelte';
@@ -179,6 +179,9 @@
 	});
 </script>
 
+<!-- Файлы – в любое место окна и из буфера (0.9.8): обработчики – отдельным кусочком. -->
+{#await import('$lib/files/DropCatcher.svelte') then m}<m.default />{/await}
+
 <a class="skip" href="#content">Перейти к содержимому</a>
 <div class="shell" class:collapsed>
 	<div class="desktop-only"><Sidebar bind:collapsed /></div>
@@ -196,8 +199,11 @@
 			</div>
 		{/if}
 		<main id="content" tabindex="-1" class:narrow class:wide>
-			{#key page.url.pathname}
-				<div class="page" in:fly={{ y: 14, duration: 300 }}>
+			<!-- Предмет → предмет – та же страница: полоса предметов остаётся на месте, а содержимое
+			     въезжает сбоку (страница предмета анимирует его сама). -->
+			{#key page.url.pathname.replace(/^\/subjects\/\d+$/, '/subjects/*')}
+				<!-- Только прозрачность: сдвиг страницы на телефоне выглядел как рывок. -->
+				<div class="page" in:fade={{ duration: 180 }}>
 					{@render children()}
 				</div>
 			{/key}

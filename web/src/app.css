@@ -904,14 +904,8 @@ button {
 }
 
 /* Матовая плавающая кнопка над нижней панелью */
+/* Стеклянная кнопка действия; место (липкое внизу) задаёт страница – см. homework/[id]. */
 .glass-cta {
-	position: fixed;
-	z-index: 35;
-	left: 50%;
-	bottom: calc(var(--bottom-nav) + var(--bottom-gap) * 2 + env(safe-area-inset-bottom));
-	transform: translateX(-50%);
-	/* Поправка на ошибку iOS после клавиатуры – lib/shell/viewport.ts. */
-	translate: 0 var(--vv-shift, 0px);
 	display: inline-flex;
 	align-items: center;
 	gap: 10px;
@@ -932,13 +926,7 @@ button {
 	visibility: hidden;
 }
 .glass-cta:active {
-	transform: translateX(-50%) scale(0.97);
-}
-@media (min-width: 900px) {
-	.glass-cta {
-		bottom: var(--s6);
-		left: calc(50% + var(--sidebar) / 2);
-	}
+	transform: scale(0.97);
 }
 
 /* Стопка аватаров */

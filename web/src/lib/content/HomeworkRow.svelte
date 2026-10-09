@@ -15,7 +15,7 @@
 
 	const overdue = $derived(!item.done && item.dueAt < now);
 	const soon = $derived(!item.done && !overdue && item.dueAt - now < 24 * 3600 * 1000);
-	// Тест ещё не открылся – показываем, когда откроется.
+	// Ещё не началось (контрольная не открылась) – показываем, когда.
 	const closed = $derived(!!item.opensAt && item.opensAt > now);
 </script>
 
@@ -27,7 +27,7 @@
 	<div class="main">
 		<a href="/homework/{item.id}" class="title">{item.title}</a>
 		<div class="meta">
-			<KindBadge kind={item.kind} compact />
+			<KindBadge kind={item.kind} retake={item.retake} compact />
 			<SubjectTag {...item.subject} link={false} />
 			{#if item.place}<span class="faint small row place"
 					><MapPin size={13} /><span class="ellipsis">{item.place}</span></span
@@ -46,7 +46,9 @@
 		</div>
 	</div>
 	<span class="due num" class:overdue class:soon
-		>{closed ? `откроется ${fmtDue(item.opensAt!, now)}` : fmtDue(item.dueAt, now)}</span
+		>{closed
+			? `${item.kind === 'test' ? 'откроется' : 'с'} ${fmtDue(item.opensAt!, now)}`
+			: fmtDue(item.dueAt, now)}</span
 	>
 </div>
 

@@ -5,7 +5,6 @@
 	import {
 		Archive,
 		CalendarDays,
-		ClipboardCheck,
 		ClipboardList,
 		EyeOff,
 		FolderOpen,
@@ -21,7 +20,8 @@
 	} from '@lucide/svelte';
 	import { get, put } from '$lib/api';
 	import { offline } from '$lib/offline/engine';
-	import { loadSubjects, sortedSubjects } from '$lib/data.svelte';
+	import { loadSubjects, sortedSubjects, subjects } from '$lib/data.svelte';
+	import { fly } from '$lib/motion';
 	import { can, session } from '$lib/session.svelte';
 	import { track } from '$lib/recent';
 	import { toast, toastError } from '$lib/toasts.svelte';
@@ -45,6 +45,8 @@
 	let fileOpen = $state(false);
 	// После добавления вкладка перезагружается (номер меняется – {#key} пересоздаёт её).
 	let refresh = $state(0);
+	/** Куда уехал выбор в полосе предметов: новый предмет въезжает с той стороны (1 – справа). */
+	let dir = $state(1);
 
 	const id = $derived(Number(page.params.id));
 	// Первая вкладка – задания.
@@ -65,7 +67,6 @@
 			{ value: 'materials', label: 'Материалы', icon: FolderOpen },
 			...(subject?.lessons ? [{ value: 'lessons', label: 'Расписание', icon: CalendarDays }] : []),
 			{ value: 'feed', label: 'Новости', icon: Newspaper },
-			{ value: 'tests', label: 'Тесты', icon: ClipboardCheck },
 			...(subgroup ? [{ value: 'members', label: 'Участники', icon: Users }] : [])
 		].map((t) => ({
 			...t,
@@ -87,11 +88,25 @@
 		void id;
 		// Предмет изменили на другом устройстве – перечитываем (живые обновления).
 		void offline.version;
-		untrack(load);
+		untrack(() => {
+			// Переход к другому предмету из полосы: страница та же (макет не пересоздаёт её), сразу
+			// показываем предмет из списка – без скелета и мигания, свежий приходит следом.
+			if (subject && subject.id !== id) {
+				const order = others.map((s) => s.id);
+				dir = order.indexOf(id) < order.indexOf(subject.id) ? -1 : 1;
+				const known = subjects.list.find((s) => s.id === id);
+				if (known) subject = known;
+				hwOpen = newsOpen = fileOpen = editor = share = splitOpen = false;
+			}
+			load();
+		});
 	});
 
 	// Полоса миниатюр предметов – отдельным кусочком (SubjectStrip): место под неё занято сразу.
-	const others = $derived(sortedSubjects(session.groupId));
+	// Предметы другой подгруппы («не мой предмет») в полосе не показываем – кроме открытого сейчас.
+	const others = $derived(
+		sortedSubjects(session.groupId).filter((s) => s.mine !== false || s.id === id)
+	);
 
 	async function togglePin() {
 		if (!subject) return;
@@ -199,195 +214,188 @@
 		</div>
 	{/if}
 
-	<!-- Подгруппы «№1», «№2»: выбор своей (код – только у таких предметов). -->
-	{#if subgroup}
-		{#await import('$lib/content/SubgroupSwitch.svelte') then m}<m.default {subject} />{/await}
-	{/if}
+	{#key subject.id}<div class="swap" in:fly={{ x: 32 * dir, y: 0, duration: 320 }}>
+			{#if subject.mine === false}
+				<div class="not-mine card" role="status">
+					<EyeOff size={18} />
+					<p>
+						<strong>Не ваш предмет.</strong>
+						<span class="muted"
+							>Его задания и новости не показываются в общих списках и не приходят уведомлениями.</span
+						>
+					</p>
+					<Button size="s" onclick={() => setMine(true)}>Это мой предмет</Button>
+				</div>
+			{/if}
 
-	{#if subject.mine === false}
-		<div class="not-mine card" role="status">
-			<EyeOff size={18} />
-			<p>
-				<strong>Не ваш предмет.</strong>
-				<span class="muted"
-					>Его задания и новости не показываются в общих списках и не приходят уведомлениями.</span
-				>
-			</p>
-			<Button size="s" onclick={() => setMine(true)}>Это мой предмет</Button>
-		</div>
-	{/if}
-
-	<!-- Шапка предмета (0.9.4): фон полосой, значок предмета поверх края – виден и с фоном,
+			<!-- Шапка предмета (0.9.4): фон полосой, значок предмета поверх края – виден и с фоном,
 	     ниже название, факты и все действия одной строкой. -->
-	<header class="hero" style:--c={subject.color}>
-		<div class="banner" class:plain={!subject.cover && !subject.avatar}>
-			<SubjectArt
-				id={subject.id}
-				name={subject.name}
-				color={subject.color}
-				avatar={subject.avatar}
-				icon={subject.icon}
-				badge={false}
-				class="fill"
-			/>
-		</div>
-		<div class="hero-body">
-			<span class="emblem"
-				><SubjectGlyph
-					name={subject.name}
-					color={subject.color}
-					icon={subject.icon}
-					size={56}
-				/></span
-			>
-			<div class="titles">
-				<h1>{subject.name}</h1>
-				<span class="sub"
-					><UserRound size={15} /> {subject.teacher || 'Преподаватель не указан'}</span
-				>
-				{#if teachersByKind.length}
-					<span class="by-kind">
-						{#each teachersByKind as t (t.label)}<span><b>{t.label}</b> {t.name}</span>{/each}
-					</span>
-				{/if}
-			</div>
-			<div class="facts">
-				<span class="fact"><Users size={14} /> {subject.groups.map((g) => g.name).join(', ')}</span>
-				{#if subject.archived}<span class="fact"><Archive size={14} /> в архиве</span>{/if}
-				{#if subject.pinned}<span class="fact"><Pin size={14} /> закреплён</span>{/if}
-				{#if subject.chatUrl}
-					<a class="fact chat" href={subject.chatUrl} target="_blank" rel="noreferrer"
-						><Send size={14} /> Чат предмета</a
+			<header class="hero" style:--c={subject.color}>
+				<div class="banner" class:plain={!subject.cover && !subject.avatar}>
+					<SubjectArt
+						id={subject.id}
+						name={subject.name}
+						color={subject.color}
+						avatar={subject.avatar}
+						icon={subject.icon}
+						badge={false}
+						class="fill"
+					/>
+				</div>
+				<div class="hero-body">
+					<span class="emblem"
+						><SubjectGlyph
+							name={subject.name}
+							color={subject.color}
+							icon={subject.icon}
+							size={56}
+						/></span
 					>
-				{/if}
-			</div>
-			<!-- Управление предметом – одной строкой: добавить, закрепить, изменить, остальное – в «…». -->
-			<div class="toolbar" role="toolbar" aria-label="Действия с предметом">
-				{#if canHomework}
-					<Button size="s" variant="primary" onclick={() => (hwOpen = true)}
-						><Plus size={16} /> Задание</Button
+					<div class="titles">
+						<h1>{subject.name}</h1>
+						<span class="sub"
+							><UserRound size={15} /> {subject.teacher || 'Преподаватель не указан'}</span
+						>
+						{#if teachersByKind.length}
+							<span class="by-kind">
+								{#each teachersByKind as t (t.label)}<span><b>{t.label}</b> {t.name}</span>{/each}
+							</span>
+						{/if}
+					</div>
+					<div class="facts">
+						<span class="fact"
+							><Users size={14} /> {subject.groups.map((g) => g.name).join(', ')}</span
+						>
+						{#if subject.archived}<span class="fact"><Archive size={14} /> в архиве</span>{/if}
+						{#if subject.pinned}<span class="fact"><Pin size={14} /> закреплён</span>{/if}
+						{#if subject.chatUrl}
+							<a class="fact chat" href={subject.chatUrl} target="_blank" rel="noreferrer"
+								><Send size={14} /> Чат предмета</a
+							>
+						{/if}
+					</div>
+					<!-- Управление предметом – одной строкой: добавить, закрепить, изменить, остальное – в «…». -->
+					<div class="toolbar" role="toolbar" aria-label="Действия с предметом">
+						{#if canHomework}
+							<Button size="s" variant="primary" onclick={() => (hwOpen = true)}
+								><Plus size={16} /> Задание</Button
+							>
+						{/if}
+						{#if canNews}
+							<Button size="s" onclick={() => (newsOpen = true)}><Plus size={16} /> Новость</Button>
+						{/if}
+						{#if canFiles}
+							<Button size="s" onclick={() => (fileOpen = true)}
+								><Upload size={16} /> {canUpload ? 'Загрузить файл' : 'Предложить файл'}</Button
+							>
+						{/if}
+						<span class="spacer"></span>
+						<button
+							class="circle"
+							onclick={togglePin}
+							aria-label={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
+							title={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
+							aria-pressed={subject.pinned}
+						>
+							{#if subject.pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
+						</button>
+						{#if subject.can.edit}
+							<button
+								class="circle"
+								onclick={() => (editor = true)}
+								aria-label="Изменить предмет"
+								title="Изменить: название, преподаватель, цвет, иконка, фон, чат"
+								><Pencil size={17} /></button
+							>
+						{/if}
+						<Menu items={actions} label="Ещё действия с предметом" />
+					</div>
+				</div>
+			</header>
+
+			<nav class="subtabs" aria-label="Разделы предмета" style:--c={subject.color}>
+				{#each activeTabs as t (t.label)}
+					<a
+						href={t.href}
+						class:active={t.active}
+						aria-current={t.active ? 'page' : undefined}
+						data-sveltekit-noscroll
+						data-sveltekit-replacestate
+						><t.icon size={16} aria-hidden="true" /><span>{t.label}</span></a
 					>
-				{/if}
-				{#if canNews}
-					<Button size="s" onclick={() => (newsOpen = true)}><Plus size={16} /> Новость</Button>
-				{/if}
-				{#if canFiles}
-					<Button size="s" onclick={() => (fileOpen = true)}
-						><Upload size={16} /> {canUpload ? 'Загрузить файл' : 'Предложить файл'}</Button
-					>
-				{/if}
-				<span class="spacer"></span>
-				<button
-					class="circle"
-					onclick={togglePin}
-					aria-label={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
-					title={subject.pinned ? 'Открепить' : 'Закрепить в боковой панели'}
-					aria-pressed={subject.pinned}
-				>
-					{#if subject.pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
-				</button>
-				{#if subject.can.edit}
-					<button
-						class="circle"
-						onclick={() => (editor = true)}
-						aria-label="Изменить предмет"
-						title="Изменить: название, преподаватель, цвет, иконка, фон, чат"
-						><Pencil size={17} /></button
-					>
-				{/if}
-				<Menu items={actions} label="Ещё действия с предметом" />
-			</div>
-		</div>
-	</header>
+				{/each}
+			</nav>
 
-	<nav class="subtabs" aria-label="Разделы предмета" style:--c={subject.color}>
-		{#each activeTabs as t (t.label)}
-			<a
-				href={t.href}
-				class:active={t.active}
-				aria-current={t.active ? 'page' : undefined}
-				data-sveltekit-noscroll
-				data-sveltekit-replacestate><t.icon size={16} aria-hidden="true" /><span>{t.label}</span></a
-			>
-		{/each}
-	</nav>
+			<!-- Вкладки подгружаются при открытии: страница предмета – самая тяжёлая, грузим только нужное. -->
+			{#key refresh}
+				{#if tab === 'homework'}
+					{#await import('$lib/content/HomeworkBoard.svelte')}<Skeleton
+							lines={4}
+						/>{:then m}<m.default subjectId={subject.id} title={false} compose={false} />{/await}
+				{:else if tab === 'lessons'}
+					{#await import('$lib/schedule/SubjectLessons.svelte') then m}<m.default
+							subjectId={subject.id}
+						/>{/await}
+				{:else if tab === 'materials'}
+					{#await import('$lib/content/MaterialBrowser.svelte')}<Skeleton
+							lines={4}
+						/>{:then m}<m.default subjectId={subject.id} subjectName={subject.name} />{/await}
+				{:else if tab === 'members'}
+					{#await import('$lib/content/MemberList.svelte')}<Skeleton lines={4} />{:then m}<m.default
+							groupIds={subject.groups.map((g) => g.id)}
+						/>{/await}
+				{:else}
+					<!-- Новости предмета – вторая вкладка (0.6): код грузится, когда её открыли. -->
+					{#await import('$lib/content/NewsFeed.svelte')}<Skeleton lines={4} />{:then m}<m.default
+							subjectId={subject.id}
+							compose={false}
+						/>{/await}
+				{/if}
+			{/key}
 
-	<!-- Вкладки подгружаются при открытии: страница предмета – самая тяжёлая, грузим только нужное. -->
-	{#key refresh}
-		{#if tab === 'homework'}
-			{#await import('$lib/content/HomeworkBoard.svelte')}<Skeleton lines={4} />{:then m}<m.default
-					subjectId={subject.id}
-					title={false}
-					compose={false}
-				/>{/await}
-		{:else if tab === 'lessons'}
-			{#await import('$lib/schedule/SubjectLessons.svelte') then m}<m.default
-					subjectId={subject.id}
-				/>{/await}
-		{:else if tab === 'materials'}
-			{#await import('$lib/content/MaterialBrowser.svelte')}<Skeleton
-					lines={4}
-				/>{:then m}<m.default subjectId={subject.id} subjectName={subject.name} />{/await}
-		{:else if tab === 'tests'}
-			{#await import('$lib/quiz/QuizTab.svelte')}<Skeleton lines={3} />{:then m}<m.default
-					subjectId={subject.id}
-					canEdit={!!subject.can?.edit}
-				/>{/await}
-		{:else if tab === 'members'}
-			{#await import('$lib/content/MemberList.svelte')}<Skeleton lines={4} />{:then m}<m.default
-					groupIds={subject.groups.map((g) => g.id)}
-				/>{/await}
-		{:else}
-			<!-- Новости предмета – вторая вкладка (0.6): код грузится, когда её открыли. -->
-			{#await import('$lib/content/NewsFeed.svelte')}<Skeleton lines={4} />{:then m}<m.default
-					subjectId={subject.id}
-					compose={false}
-				/>{/await}
-		{/if}
-	{/key}
+			<!-- Формы добавления грузятся по кнопке. -->
+			{#if hwOpen}
+				{#await import('$lib/content/HomeworkComposer.svelte') then m}
+					<m.default bind:open={hwOpen} subjectId={subject.id} onsaved={() => added('homework')} />
+				{/await}
+			{/if}
+			{#if newsOpen}
+				{#await import('$lib/content/NewsComposer.svelte') then m}
+					<m.default bind:open={newsOpen} subjectId={subject.id} onsaved={() => added('feed')} />
+				{/await}
+			{/if}
+			{#if fileOpen}
+				{#await import('$lib/content/MaterialAdd.svelte') then m}
+					<m.default
+						bind:open={fileOpen}
+						subjectId={subject.id}
+						folderId={null}
+						suggest={!canUpload}
+						onsaved={() => added('materials')}
+					/>
+				{/await}
+			{/if}
 
-	<!-- Формы добавления грузятся по кнопке. -->
-	{#if hwOpen}
-		{#await import('$lib/content/HomeworkComposer.svelte') then m}
-			<m.default bind:open={hwOpen} subjectId={subject.id} onsaved={() => added('homework')} />
-		{/await}
-	{/if}
-	{#if newsOpen}
-		{#await import('$lib/content/NewsComposer.svelte') then m}
-			<m.default bind:open={newsOpen} subjectId={subject.id} onsaved={() => added('feed')} />
-		{/await}
-	{/if}
-	{#if fileOpen}
-		{#await import('$lib/content/MaterialAdd.svelte') then m}
-			<m.default
-				bind:open={fileOpen}
-				subjectId={subject.id}
-				folderId={null}
-				suggest={!canUpload}
-				onsaved={() => added('materials')}
-			/>
-		{/await}
-	{/if}
-
-	{#if editor}
-		{#await import('$lib/content/SubjectEditor.svelte') then m}
-			<m.default
-				bind:open={editor}
-				edit={subject}
-				onsaved={(s) => ((subject = s), loadSubjects())}
-			/>
-		{/await}
-	{/if}
-	{#if splitOpen}
-		{#await import('$lib/content/SubgroupSplit.svelte') then m}
-			<m.default bind:open={splitOpen} {subject} />
-		{/await}
-	{/if}
-	{#if share}
-		{#await import('$lib/content/SubjectShare.svelte') then m}
-			<m.default bind:open={share} {subject} onsaved={() => (load(), loadSubjects())} />
-		{/await}
-	{/if}
+			{#if editor}
+				{#await import('$lib/content/SubjectEditor.svelte') then m}
+					<m.default
+						bind:open={editor}
+						edit={subject}
+						onsaved={(s) => ((subject = s), loadSubjects())}
+					/>
+				{/await}
+			{/if}
+			{#if splitOpen}
+				{#await import('$lib/content/SubgroupSplit.svelte') then m}
+					<m.default bind:open={splitOpen} {subject} />
+				{/await}
+			{/if}
+			{#if share}
+				{#await import('$lib/content/SubjectShare.svelte') then m}
+					<m.default bind:open={share} {subject} onsaved={() => (load(), loadSubjects())} />
+				{/await}
+			{/if}
+		</div>{/key}
 {/if}
 
 <style>

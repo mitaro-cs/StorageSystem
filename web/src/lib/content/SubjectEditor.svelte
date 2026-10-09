@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { del, patch, post } from '$lib/api';
 	import { ImagePlus, Trash2 } from '@lucide/svelte';
 	import SubjectArt from '$lib/ui/SubjectArt.svelte';
@@ -137,17 +138,20 @@
 
 	$effect(() => {
 		if (!open) return;
-		name = edit?.name ?? '';
-		teacher = edit?.teacher ?? '';
-		byKind = { ...(edit?.teachers ?? {}) };
-		showKinds = Object.values(edit?.teachers ?? {}).some(Boolean);
-		chatUrl = edit?.chatUrl ?? '';
-		color = edit?.color ?? palette[Math.floor(Math.random() * 8)];
-		icon = edit?.icon ?? null;
-		cover = edit?.cover ?? null;
-		iconQuery = '';
-		pickerOpen = false;
-		error = '';
+		// Только при открытии: живое обновление (новые объекты предметов, группы) не стирает введённое.
+		untrack(() => {
+			name = edit?.name ?? '';
+			teacher = edit?.teacher ?? '';
+			byKind = { ...(edit?.teachers ?? {}) };
+			showKinds = Object.values(edit?.teachers ?? {}).some(Boolean);
+			chatUrl = edit?.chatUrl ?? '';
+			color = edit?.color ?? palette[Math.floor(Math.random() * 8)];
+			icon = edit?.icon ?? null;
+			cover = edit?.cover ?? null;
+			iconQuery = '';
+			pickerOpen = false;
+			error = '';
+		});
 	});
 
 	async function save(e: SubmitEvent) {

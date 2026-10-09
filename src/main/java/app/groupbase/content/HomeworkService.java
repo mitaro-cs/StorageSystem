@@ -79,7 +79,9 @@ public class HomeworkService {
    * @param place аудитория или ссылка; при изменении null — не менять
    * @param lessonId пара из расписания, к которой задание; при изменении null — не менять, 0 —
    *     отвязать
-   * @param opensAt когда откроется (тест): раньше срока; при изменении null — не менять, 0 — убрать
+   * @param opensAt когда начинается (домашнее, лабораторная) или откроется (контрольная): раньше
+   *     срока; при изменении null — не менять, 0 — убрать. У зачёта и экзамена не бывает
+   * @param retake пересдача (контрольная, зачёт, экзамен); при изменении null — не менять
    */
   public record Input(
       Long subjectId,
@@ -92,7 +94,35 @@ public class HomeworkService {
       String kind,
       String place,
       Long lessonId,
-      Long opensAt) {
+      Long opensAt,
+      Boolean retake) {
+
+    public Input(
+        Long subjectId,
+        String title,
+        String body,
+        Long dueAt,
+        List<Long> groupIds,
+        List<Long> attachments,
+        Integer difficulty,
+        String kind,
+        String place,
+        Long lessonId,
+        Long opensAt) {
+      this(
+          subjectId,
+          title,
+          body,
+          dueAt,
+          groupIds,
+          attachments,
+          difficulty,
+          kind,
+          place,
+          lessonId,
+          opensAt,
+          null);
+    }
 
     public Input(
         Long subjectId,
@@ -116,6 +146,7 @@ public class HomeworkService {
           kind,
           place,
           lessonId,
+          null,
           null);
     }
 
@@ -139,6 +170,7 @@ public class HomeworkService {
           difficulty,
           kind,
           place,
+          null,
           null,
           null);
     }
@@ -167,8 +199,10 @@ public class HomeworkService {
       Can can,
       // Пара из расписания, к которой задание; null — просто срок.
       LessonRef lesson,
-      // Когда откроется (тест); закрывается в срок. null — открыто сразу.
-      Long opensAt) {}
+      // Когда начинается (домашнее, лабораторная) или откроется (контрольная); null — сразу.
+      Long opensAt,
+      // Пересдача (контрольная, зачёт, экзамен).
+      boolean retake) {}
 
   public record Published(
       long id,
@@ -200,7 +234,8 @@ public class HomeworkService {
       boolean done,
       int comments,
       LessonRef lesson,
-      Long opensAt) {}
+      Long opensAt,
+      boolean retake) {}
 
   private static final long DAY = 24L * 60 * 60 * 1000;
   static final long EXAMS_BEFORE = 45 * DAY;
@@ -279,7 +314,8 @@ public class HomeworkService {
                     Rows.bool(rs, "done"),
                     rs.getInt("comment_count"),
                     lesson(rs),
-                    Rows.longOrNull(rs, "opens_at")))
+                    Rows.longOrNull(rs, "opens_at"),
+                    Rows.bool(rs, "retake")))
         .list();
   }
 
@@ -439,15 +475,28 @@ public class HomeworkService {
     return rows.getFirst();
   }
 
-  /** Когда откроется: 0 или null — сразу; должно быть раньше срока. */
-  static Long opens(Long value, long due) {
-    if (value == null || value <= 0) {
+  /**
+   * Когда начинается: 0 или null — сразу; должно быть раньше срока. У зачёта и экзамена срок — это
+   * само событие, начала нет.
+   */
+  static Long opens(Long value, long due, Kind kind) {
+    if (value == null || value <= 0 || kind == Kind.CREDIT || kind == Kind.EXAM) {
       return null;
     }
     if (value >= due) {
-      throw ApiException.invalid("opensAt", "Тест должен открыться раньше, чем закроется");
+      throw ApiException.invalid(
+          "opensAt",
+          kind == Kind.TEST
+              ? "Контрольная должна открыться раньше, чем закроется"
+              : "Начало должно быть раньше срока сдачи");
     }
     return value;
+  }
+
+  /** Пересдача бывает у контрольной, зачёта и экзамена. */
+  static boolean retake(Boolean value, Kind kind) {
+    return Boolean.TRUE.equals(value)
+        && (kind == Kind.TEST || kind == Kind.CREDIT || kind == Kind.EXAM);
   }
 
   @Transactional
@@ -467,15 +516,16 @@ public class HomeworkService {
     if (lesson != null) {
       LessonRef.check(db, access, actor, lesson, in.subjectId());
     }
-    Long opens = opens(in.opensAt(), due);
+    Long opens = opens(in.opensAt(), due, kind);
+    boolean retake = retake(in.retake(), kind);
     long now = clock.millis();
     long id =
         db.sql(
                 """
                 INSERT INTO homework (subject_id, author_id, title, body_md, body_html, due_at,
-                                      difficulty, kind, place, lesson_id, opens_at, created_at,
-                                      updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                                      difficulty, kind, place, lesson_id, opens_at, retake,
+                                      created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """)
             .params(
                 in.subjectId(),
@@ -489,6 +539,7 @@ public class HomeworkService {
                 place,
                 lesson,
                 opens,
+                retake ? 1 : 0,
                 now,
                 now)
             .query(Long.class)
@@ -527,11 +578,12 @@ public class HomeworkService {
     }
     Long opens =
         in.opensAt() == null
-            ? (r.opensAt() != null && r.opensAt() < due ? r.opensAt() : null)
-            : opens(in.opensAt(), due);
+            ? opens(r.opensAt() != null && r.opensAt() < due ? r.opensAt() : null, due, kind)
+            : opens(in.opensAt(), due, kind);
+    boolean retake = retake(in.retake() == null ? r.retake() : in.retake(), kind);
     db.sql(
             "UPDATE homework SET title = ?, body_md = ?, body_html = ?, due_at = ?,"
-                + " difficulty = ?, kind = ?, place = ?, lesson_id = ?, opens_at = ?,"
+                + " difficulty = ?, kind = ?, place = ?, lesson_id = ?, opens_at = ?, retake = ?,"
                 + " updated_at = ? WHERE id = ?")
         .params(
             title,
@@ -543,6 +595,7 @@ public class HomeworkService {
             place,
             lesson,
             opens,
+            retake ? 1 : 0,
             clock.millis(),
             id)
         .update();
@@ -695,7 +748,8 @@ public class HomeworkService {
               files.getOrDefault(r.id(), List.of()),
               new Can(canEdit(actor, r, tg), isAuthor(actor, r) || mod, mod),
               r.lesson(),
-              r.opensAt()));
+              r.opensAt(),
+              r.retake()));
     }
     return out;
   }

@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { untrack } from 'svelte';
+	import { takeWaiting } from '$lib/files/drop.svelte';
 	import { ChevronRight, Upload } from '@lucide/svelte';
 	import { sortedSubjects } from '$lib/data.svelte';
 	import { can, session } from '$lib/session.svelte';
@@ -26,6 +29,20 @@
 		open = false;
 		adding = true;
 	}
+
+	// Открыли на странице предмета (или бросили туда файл) – предмет уже понятен, сразу к загрузке.
+	$effect(() => {
+		if (!open) return;
+		untrack(() => {
+			const id = page.route.id?.endsWith('/subjects/[id]') ? Number(page.params.id) : NaN;
+			const here = list.find((s) => s.id === id);
+			if (here) pick(here);
+		});
+	});
+	// Закрыли выбор предмета, не выбрав, – брошенные файлы не должны всплыть в другой форме.
+	$effect(() => {
+		if (!open && !adding) untrack(takeWaiting);
+	});
 </script>
 
 <Modal
