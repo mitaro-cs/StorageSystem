@@ -3,3 +3,4 @@
 export { default as FirstSteps } from './FirstSteps.svelte';
 export { default as OnlineNow } from './OnlineNow.svelte';
 export { newsActions } from './newsActions';
+export { default as WeekLoad } from './WeekLoad.svelte';

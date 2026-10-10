@@ -21,6 +21,11 @@ test('новости на главной заметнее, комментари�
 	// Срочная новость – с янтарной плашкой по верху карточки.
 	await expect(page.locator('.news.urgent .band').first()).toHaveText(/Срочно/i);
 	await page.screenshot({ path: 'test-results/shots/today-news-mobile.png' });
+	// Нагрузка недели: семь дней с сегодняшнего, в ширину телефона.
+	const load = page.getByRole('group', { name: 'Нагрузка по дням' });
+	await expect(load.getByRole('button')).toHaveCount(7);
+	await expect(load.getByRole('button').first()).toContainText('сег.');
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
 	// Комментарии: только имя, без ФИО.
 	await page.getByRole('link', { name: 'Перенос пары в четверг' }).first().click();

@@ -680,6 +680,11 @@ SemVer (бета младше выпуска). Заметки – раздел `
   `file_text` (статус) и FTS5 `file_search` (V37). `SearchService` вид `file` – с теми же правами,
   что материалы, вложения заданий и новостей; фильтр `subject`, `sort=new`. Запрос
   (`SearchQuery.fts`): `"фраза"` – подряд без основы слова, `-слово` – NOT (только запрет – пусто).
+- Нагрузка недели (1.0.2): `content/weekLoad.ts` (семь дней с сегодняшнего по местной полуночи, вес
+  по виду – `WEIGHT`, уровни 0–4, `describe`, `peak`) и `content/WeekLoad.svelte` – сводка «N на
+  неделе» и столбики (тёплая шкала `--amber` → `--danger`, не акцент: в «Классике» он чёрный).
+  На «Сегодня» – из ленивого `todayExtras`, место занято `.week-load` (`min-height` = высота блока,
+  подпись пика в одну строку); день – к `#day-<полночь>` в «Дедлайнах». Данные – те же `upcoming`.
 - Репозиторий – `mitaro-cs/Campus` (переименован из StorageSystem): `UpdateCheck.LATEST`,
   `VapidKeys.PROJECT`, ссылка выпуска в `StatusController`, `tauri.conf.json` (обновление
   оболочки). `UpdateCheck` идёт по перенаправлениям (`Redirect.NORMAL`): на старый адрес GitHub

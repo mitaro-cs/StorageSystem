@@ -7,15 +7,7 @@
 <script lang="ts">
 	import { offline } from '$lib/offline/engine';
 	import { firstName } from '$lib/names';
-	import {
-		Plus,
-		Search,
-		ArrowRight,
-		CalendarCheck,
-		TriangleAlert,
-		Send,
-		Upload
-	} from '@lucide/svelte';
+	import { Plus, Search, ArrowRight, Send, Upload } from '@lucide/svelte';
 	import { get } from '$lib/api';
 	import { peek, put } from '$lib/cache';
 	import { TODAY_KEY } from '$lib/early';
@@ -191,15 +183,18 @@
 		<div class="block" in:fly={{ y: 10 }}><NextDeadline item={next} {now} /></div>
 	{/if}
 
-	<div class="stats summary">
-		<span><CalendarCheck size={17} /> <strong class="num">{open.length}</strong> на неделе</span>
-		{#if overdue.length}
-			<span class="bad"
-				><TriangleAlert size={17} /> <strong class="num">{overdue.length}</strong> просрочено</span
-			>
-		{:else}
-			<span>{open.length === 0 ? 'Всё сдано – можно выдохнуть' : 'Без просрочек'}</span>
-		{/if}
+	<!-- Сводка и нагрузка недели (1.0.2) – лениво вместе с остальным необязательным; место занято
+	     сразу, чтобы дедлайны ниже не прыгали. -->
+	<div class="week-load">
+		{#if extras}<extras.WeekLoad
+				items={data.upcoming}
+				overdue={overdue.length}
+				{now}
+				onpick={(day) =>
+					document
+						.getElementById(`day-${day}`)
+						?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+			/>{/if}
 	</div>
 
 	<!-- На широком экране – две колонки: задания слева, новости справа. -->
@@ -266,7 +261,7 @@
 						{#each days as d, di (d.day)}
 							<!-- Значок предмета первого несделанного задания дня; без предмета – число. -->
 							{@const lead = d.items.find((h) => !h.done) ?? d.items[0]}
-							<li in:fly={{ y: 8, delay: stagger(di, 50) }}>
+							<li id="day-{d.day}" in:fly={{ y: 8, delay: stagger(di, 50) }}>
 								<span class="node num" aria-hidden="true"
 									>{#if lead?.subject}<SubjectGlyph
 											id={lead.subject.id}
@@ -423,17 +418,9 @@
 	.block {
 		margin-bottom: var(--s6);
 	}
-	.summary {
-		margin: calc(-1 * var(--s4)) 0 var(--s5);
-		background: transparent;
-		padding: 0;
-	}
-	.summary > span:first-child {
-		padding-left: 0;
-	}
-	.summary .bad,
-	.summary .bad strong {
-		color: var(--danger);
+	.week-load {
+		min-height: 199px;
+		margin: calc(-1 * var(--s3)) 0 var(--s5);
 	}
 	.danger {
 		color: var(--danger);
