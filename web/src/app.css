@@ -1334,3 +1334,64 @@ button.list-row:active {
 *::-webkit-scrollbar {
 	display: none;
 }
+
+/* Смена раздела (1.0.2, lib/shell/transition.ts): View Transitions – снимок новой страницы
+   въезжает сбоку и проявляется; панели вокруг остаются на месте. Имя странице даётся только на
+   время перехода: постоянный view-transition-name делал бы её слоем, и окна внутри неё уходили бы
+   под нижнюю панель. Прежний снимок не показываем: после прокрутки он прыгал бы к верху. */
+:root[data-nav] #content > .page {
+	view-transition-name: page;
+}
+/* Панели телефона – своими слоями поверх страницы, иначе въезжающий снимок закрывал их. */
+:root[data-nav] .main-col > .mobile-only > header {
+	view-transition-name: top-bar;
+}
+:root[data-nav] .shell > .mobile-only > .fade {
+	view-transition-name: nav-fade;
+}
+:root[data-nav] .shell > .mobile-only > .bottom-nav {
+	view-transition-name: bottom-nav;
+}
+::view-transition-group(top-bar) {
+	z-index: 1;
+}
+::view-transition-group(top-bar),
+::view-transition-group(nav-fade),
+::view-transition-group(bottom-nav),
+::view-transition-new(top-bar),
+::view-transition-new(nav-fade),
+::view-transition-new(bottom-nav) {
+	animation: none;
+}
+::view-transition-old(top-bar),
+::view-transition-old(nav-fade),
+::view-transition-old(bottom-nav) {
+	display: none;
+}
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-group(page) {
+	animation: none;
+}
+::view-transition-old(page) {
+	display: none;
+}
+::view-transition-new(page) {
+	animation: page-in 260ms var(--ease) both;
+}
+:root[data-nav='fwd'] {
+	--nav-x: 28px;
+}
+:root[data-nav='back'] {
+	--nav-x: -28px;
+}
+@keyframes page-in {
+	from {
+		opacity: 0.25;
+		transform: translateX(var(--nav-x, 0)) translateY(var(--nav-y, 6px));
+	}
+}
+:root[data-nav='fwd'],
+:root[data-nav='back'] {
+	--nav-y: 0px;
+}

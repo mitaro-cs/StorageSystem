@@ -288,7 +288,13 @@
 		{#await import('$lib/content/HomeworkComposer.svelte') then m}
 			<m.default
 				bind:open={hwOpen}
-				lesson={{ id: l.id, startsAt: l.startsAt, groupId: l.groupId, subjectId: l.subject.id }}
+				lesson={{
+					id: l.id,
+					startsAt: l.startsAt,
+					groupId: l.groupId,
+					subjectId: l.subject.id,
+					kind: l.kind
+				}}
 				onsaved={load}
 			/>
 		{/await}

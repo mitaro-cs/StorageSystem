@@ -8,7 +8,8 @@ import java.util.regex.Pattern;
 
 /**
  * Запрос пользователя → выражение FTS5. Каждое слово ищется по префиксу, у русских слов отрезается
- * окончание: «задачи» и «задача» дают «задач*». Кавычки и операторы FTS5 из ввода не проходят.
+ * окончание: «задачи» и «задача» дают «задач*». С 1.0.2: «"точная фраза"» – слова подряд, «-слово»
+ * – без него. Сами операторы FTS5 из ввода не проходят: из слов собирается выражение заново.
  */
 public final class SearchQuery {
 
@@ -26,18 +27,46 @@ public final class SearchQuery {
 
   private SearchQuery() {}
 
+  private static final Pattern PART =
+      Pattern.compile(
+          "((?<![\\p{L}\\p{N}])-)?\"([^\"]*)\"?|((?<![\\p{L}\\p{N}])-)?([\\p{L}\\p{N}]+)");
+
   /** Выражение для MATCH или пустая строка, если искать нечего. */
   public static String fts(String input) {
     if (input == null) {
       return "";
     }
     String q = input.toLowerCase(Locale.ROOT).replace('ё', 'е');
-    List<String> terms = new ArrayList<>();
-    Matcher m = WORD.matcher(q);
-    while (m.find() && terms.size() < MAX_TERMS) {
-      terms.add("\"" + stem(m.group()) + "\"*");
+    List<String> include = new ArrayList<>();
+    List<String> exclude = new ArrayList<>();
+    Matcher m = PART.matcher(q);
+    while (m.find() && include.size() + exclude.size() < MAX_TERMS) {
+      boolean not = m.group(1) != null || m.group(3) != null;
+      String term;
+      if (m.group(2) != null) {
+        // Фраза: слова подряд, как написаны (без отрезания окончаний), последнее – по началу.
+        List<String> words = new ArrayList<>();
+        Matcher w = WORD.matcher(m.group(2));
+        while (w.find()) {
+          words.add(w.group());
+        }
+        if (words.isEmpty()) {
+          continue;
+        }
+        term = "\"" + String.join(" ", words) + "\"" + (words.size() == 1 ? "*" : "");
+      } else {
+        term = "\"" + stem(m.group(4)) + "\"*";
+      }
+      (not ? exclude : include).add(term);
     }
-    return String.join(" ", terms);
+    if (include.isEmpty()) {
+      return "";
+    }
+    String base = String.join(" ", include);
+    if (exclude.isEmpty()) {
+      return base;
+    }
+    return "(" + base + ")" + exclude.stream().map(x -> " NOT " + x).reduce("", String::concat);
   }
 
   /** Основа слова: длинные окончания — если остаётся от 4 букв, однобуквенные — от 3 («ряды»). */

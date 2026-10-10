@@ -67,15 +67,17 @@
 				title={item.title}
 			/>{/await}
 	{/if}
-	{#if !full}
-		<footer class="faint small">
+	<!-- Реакции (1.0.2) – лениво; строка подвала той же высоты, пока код не пришёл: без сдвига. -->
+	<footer class="faint small">
+		{#if !full}
 			<MessageCircle size={15} />
 			<span class="num">{item.comments}</span>
 			{#if item.attachments?.length && compact}<span class="clip"
 					><Paperclip size={14} /> <span class="num">{item.attachments.length}</span></span
 				>{/if}
-		</footer>
-	{/if}
+		{/if}
+		{#await import('./Reactions.svelte') then m}<m.default {item} />{/await}
+	</footer>
 </article>
 
 <style>
@@ -233,8 +235,13 @@
 	}
 	footer {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: 6px;
+		min-height: 30px;
+	}
+	footer :global(.reactions) {
+		margin-left: 6px;
 	}
 	.clip {
 		display: inline-flex;

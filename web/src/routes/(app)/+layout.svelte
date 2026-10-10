@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { onNavigate } from '$app/navigation';
 	import Sidebar from '$lib/shell/Sidebar.svelte';
 	import BottomNav from '$lib/shell/BottomNav.svelte';
 	import MobileBar from '$lib/shell/MobileBar.svelte';
@@ -14,8 +15,6 @@
 	import { rememberAccount } from '$lib/accounts';
 	import { loadMe, session } from '$lib/session.svelte';
 	import { onMount, untrack } from 'svelte';
-	import { slide } from '$lib/motion';
-	import { CloudOff, CloudUpload, WifiOff } from '@lucide/svelte';
 
 	let { children } = $props();
 	// На страницах деталей верхнюю панель заменяет «← Раздел» (BackBar), как на макете.
@@ -28,8 +27,16 @@
 	const wide = $derived(/^\/(settings|profile)(\/|$)/.test(page.url.pathname));
 	let collapsed = $state(false);
 	onMount(initPwa);
-	// Разделы заранее: через туннель переход иначе показывает заглушку, а потом рывок.
-	onMount(() => void setTimeout(() => import('$lib/warm').then((m) => m.warm()), 2500));
+	// Редкое и необязательное с первого кадра – отдельным файлом (бюджет «Сегодня»): плашка связи,
+	// анимация смены раздела (пока код не пришёл – без неё), разделы заранее (через 2,5 с).
+	let extras = $state<typeof import('$lib/shell/extras')>();
+	onMount(() => {
+		import('$lib/shell/extras').then((m) => {
+			extras = m;
+			setTimeout(m.warm, 2500);
+		});
+	});
+	onNavigate((n) => extras?.transition(n));
 	onMount(startBell);
 	// Новые комментарии, новости и задания появляются сами – без перезагрузки страницы.
 	onMount(() => {
@@ -189,22 +196,13 @@
 	<div class="main-col">
 		{#if !detail}<div class="mobile-only"><MobileBar /></div>{/if}
 		<!-- Связь с сервером: небольшая плашка над страницей (данные – из копии на устройстве). -->
-		{#if pwa.offline || offline.pending}
-			<div class="net" role="status" transition:slide>
-				<span class="pill" class:send={!pwa.offline}>
-					{#if !pwa.offline}<CloudUpload size={14} /> Отправляем
-					{:else if pwa.network}<CloudOff size={14} /> Сервер не работает
-					{:else}<WifiOff size={14} /> Нет сети{/if}{#if offline.pending}<b>{offline.pending}</b
-						>{/if}
-				</span>
-			</div>
-		{/if}
+		{#if (pwa.offline || offline.pending) && extras}<extras.NetPill />{/if}
 		<main id="content" tabindex="-1" class:narrow class:wide>
 			<!-- Предмет → предмет – та же страница: полоса предметов остаётся на месте, а содержимое
 			     въезжает сбоку (страница предмета анимирует его сама). -->
 			{#key page.url.pathname.replace(/^\/subjects\/\d+$/, '/subjects/*')}
-				<!-- Раздел сменяется сразу, как вкладки приложения на телефоне: и сдвиг, и затухание
-				     выглядели рывком (данные разделов – из памяти, lib/warm.ts). -->
+				<!-- Анимация смены раздела – View Transitions (lib/shell/transition.ts, app.css): снимок
+				     въезжает целиком, разметка не сдвигается (данные разделов – из памяти, lib/warm.ts). -->
 				<div class="page">
 					{@render children()}
 				</div>
@@ -275,36 +273,6 @@
 		main {
 			padding: var(--s6) var(--s5) var(--s7);
 		}
-	}
-	.net {
-		display: flex;
-		justify-content: center;
-		padding: 6px 16px 0;
-	}
-	.pill {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 4px 12px;
-		border-radius: var(--r-full);
-		background: var(--amber-soft);
-		color: var(--amber);
-		font-size: 12.5px;
-		font-weight: 650;
-	}
-	.pill.send {
-		background: var(--surface-2);
-		color: var(--text-2);
-	}
-	.pill b {
-		min-width: 18px;
-		padding: 0 5px;
-		border-radius: var(--r-full);
-		background: currentColor;
-		text-align: center;
-	}
-	.pill b {
-		color: var(--surface);
 	}
 	.skip {
 		position: absolute;

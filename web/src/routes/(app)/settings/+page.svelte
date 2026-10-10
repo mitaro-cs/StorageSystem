@@ -16,7 +16,8 @@
 		Palette,
 		Server,
 		ShieldCheck,
-		Users
+		Users,
+		Wifi
 	} from '@lucide/svelte';
 	import { t } from '$lib/i18n/ru';
 	import {
@@ -137,6 +138,15 @@
 					label: 'Сервер',
 					desc: desktop ? 'Доступ для группы, копии, состояние' : 'Состояние сервера',
 					icon: Server,
+					tone: 'teal',
+					part: 'site',
+					show: isAdmin()
+				},
+				{
+					value: 'monitor',
+					label: 'Мониторинг',
+					desc: 'Задержки, доступность, кто на сайте',
+					icon: Wifi,
 					tone: 'teal',
 					part: 'site',
 					show: isAdmin()
@@ -340,6 +350,8 @@
 							{:else if tab === 'server'}
 								{#await import('$lib/settings/server/ServerPanel.svelte') then m}<m.default
 									/>{/await}
+							{:else if tab === 'monitor'}
+								{#await import('$lib/settings/MonitorPanel.svelte') then m}<m.default />{/await}
 							{:else if tab === 'updates'}
 								{#await import('$lib/settings/UpdatesPanel.svelte') then m}<m.default />{/await}
 							{:else if group && tab === 'audit'}

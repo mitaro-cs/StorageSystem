@@ -34,7 +34,8 @@ public class SearchService {
       SubjectRef subject,
       Long date,
       String url,
-      boolean hidden) {}
+      boolean hidden,
+      String file) {}
 
   public record Result(String query, List<Hit> items, Map<String, Integer> counts) {}
 
@@ -51,6 +52,15 @@ public class SearchService {
   }
 
   public Result search(Actor actor, String input, Long group, String onlyKind) {
+    return search(actor, input, group, onlyKind, null, false);
+  }
+
+  /**
+   * @param subject только этот предмет (null – все)
+   * @param newest сначала новые, а не самые подходящие (1.0.2)
+   */
+  public Result search(
+      Actor actor, String input, Long group, String onlyKind, Long subject, boolean newest) {
     String match = SearchQuery.fts(input);
     String q = input == null ? "" : input.strip();
     List<Long> scope = access.scope(actor, group);
@@ -65,6 +75,7 @@ public class SearchService {
     p.put("mod", Targets.nonEmpty(mod));
     p.put("uid", actor.id());
     p.put("limit", PER_KIND);
+    p.put("subject", subject);
 
     List<Ranked> all = new ArrayList<>();
     for (Kind k : Kind.values()) {
@@ -75,7 +86,12 @@ public class SearchService {
       counts.put(k.id, found.size());
       all.addAll(found);
     }
-    all.sort(Comparator.comparingDouble(Ranked::rank));
+    all.sort(
+        newest
+            ? Comparator.comparing(
+                (Ranked r) -> r.hit().date() == null ? Long.MIN_VALUE : r.hit().date(),
+                Comparator.reverseOrder())
+            : Comparator.comparingDouble(Ranked::rank));
     return new Result(q, all.stream().map(Ranked::hit).toList(), counts);
   }
 
@@ -89,8 +105,10 @@ public class SearchService {
         rs.wasNull() ? null : new SubjectRef(sid, rs.getString("s_name"), rs.getString("s_color"));
     long date = rs.getLong("date");
     Long d = rs.wasNull() ? null : date;
+    // Совпадение в тексте файла (1.0.2) ведёт туда, где файл лежит: материал, задание, новость.
+    String in = "file".equals(kind) ? rs.getString("parent") : kind;
     String url =
-        switch (kind) {
+        switch (in) {
           case "news" -> "/news/" + id;
           case "homework" -> "/homework/" + id;
           case "material" -> "/materials/" + id;
@@ -105,7 +123,8 @@ public class SearchService {
             subject,
             d,
             url,
-            rs.getInt("hidden") == 1);
+            rs.getInt("hidden") == 1,
+            "file".equals(kind) ? rs.getString("file_name") : null);
     return new Ranked(hit, rs.getDouble("rank"));
   }
 
@@ -204,6 +223,58 @@ public class SearchService {
         + ", '…', 14) AS snip, bm25(search_index, 4.0, 1.0) AS rank, ";
   }
 
+  private static final String FILE_HEAD =
+      """
+      SELECT 'file' AS kind, %s AS id, '%s' AS parent, %s AS title_hl, %s AS orig_title,
+        snippet(file_search, 0, char(2), char(3), '…', 16) AS snip, NULL AS orig_body,
+        bm25(file_search) AS rank, f.name AS file_name,
+      """;
+
+  private static final String FILES =
+      String.format(FILE_HEAD, "m.id", "material", "m.title", "m.title")
+          + """
+            m.subject_id, s.name AS s_name, s.color AS s_color, m.created_at AS date,
+              (m.hidden = 1 OR m.status = 'pending') AS hidden
+            FROM file_search JOIN materials m ON m.file_id = file_search.rowid
+            JOIN files f ON f.id = m.file_id
+            JOIN subjects s ON s.id = m.subject_id
+            WHERE file_search MATCH :q
+              AND (:subject IS NULL OR m.subject_id = :subject)
+              AND m.status != 'rejected'
+              AND EXISTS (SELECT 1 FROM subject_groups sg WHERE sg.subject_id = m.subject_id AND sg.group_id IN (:g))
+              AND ((m.status = 'published' AND m.hidden = 0) OR m.author_id = :uid OR EXISTS (
+                SELECT 1 FROM subject_groups sg2 WHERE sg2.subject_id = m.subject_id AND sg2.group_id IN (:mod)))
+          UNION ALL
+          """
+          + String.format(FILE_HEAD, "h.id", "homework", "h.title", "h.title")
+          + """
+            h.subject_id, s.name AS s_name, s.color AS s_color, h.due_at AS date, h.hidden
+            FROM file_search JOIN homework_attachments a ON a.file_id = file_search.rowid
+            JOIN homework h ON h.id = a.homework_id
+            JOIN files f ON f.id = a.file_id
+            JOIN subjects s ON s.id = h.subject_id
+            WHERE file_search MATCH :q
+              AND (:subject IS NULL OR h.subject_id = :subject)
+              AND EXISTS (SELECT 1 FROM homework_targets t WHERE t.homework_id = h.id AND t.group_id IN (:g))
+              AND (h.hidden = 0 OR h.author_id = :uid OR EXISTS (
+                SELECT 1 FROM homework_targets t2 WHERE t2.homework_id = h.id AND t2.group_id IN (:mod)))
+          UNION ALL
+          """
+          + String.format(FILE_HEAD, "p.id", "news", "p.title", "p.title")
+          + """
+            p.subject_id, s.name AS s_name, s.color AS s_color, p.created_at AS date, p.hidden
+            FROM file_search JOIN post_attachments a ON a.file_id = file_search.rowid
+            JOIN posts p ON p.id = a.post_id
+            JOIN files f ON f.id = a.file_id
+            LEFT JOIN subjects s ON s.id = p.subject_id
+            WHERE file_search MATCH :q
+              AND (:subject IS NULL OR p.subject_id = :subject)
+              AND EXISTS (SELECT 1 FROM post_targets t WHERE t.post_id = p.id AND t.group_id IN (:g))
+              AND (p.hidden = 0 OR p.author_id = :uid OR EXISTS (
+                SELECT 1 FROM post_targets t2 WHERE t2.post_id = p.id AND t2.group_id IN (:mod)))
+          ORDER BY rank LIMIT :limit
+          """;
+
   private enum Kind {
     HOMEWORK(
         "homework",
@@ -214,6 +285,7 @@ public class SearchService {
             FROM search_index JOIN homework h ON search_index.rowid = h.id * 4 + 1
             JOIN subjects s ON s.id = h.subject_id
             WHERE search_index MATCH :q
+              AND (:subject IS NULL OR h.subject_id = :subject)
               AND EXISTS (SELECT 1 FROM homework_targets t WHERE t.homework_id = h.id AND t.group_id IN (:g))
               AND (h.hidden = 0 OR h.author_id = :uid OR EXISTS (
                 SELECT 1 FROM homework_targets t2 WHERE t2.homework_id = h.id AND t2.group_id IN (:mod)))
@@ -228,6 +300,7 @@ public class SearchService {
             FROM search_index JOIN posts p ON search_index.rowid = p.id * 4
             LEFT JOIN subjects s ON s.id = p.subject_id
             WHERE search_index MATCH :q
+              AND (:subject IS NULL OR p.subject_id = :subject)
               AND EXISTS (SELECT 1 FROM post_targets t WHERE t.post_id = p.id AND t.group_id IN (:g))
               AND (p.hidden = 0 OR p.author_id = :uid OR EXISTS (
                 SELECT 1 FROM post_targets t2 WHERE t2.post_id = p.id AND t2.group_id IN (:mod)))
@@ -244,6 +317,7 @@ public class SearchService {
             JOIN subjects s ON s.id = m.subject_id
             LEFT JOIN files f ON f.id = m.file_id
             WHERE search_index MATCH :q
+              AND (:subject IS NULL OR m.subject_id = :subject)
               AND m.status != 'rejected'
               AND EXISTS (SELECT 1 FROM subject_groups sg WHERE sg.subject_id = m.subject_id AND sg.group_id IN (:g))
               AND ((m.status = 'published' AND m.hidden = 0) OR m.author_id = :uid OR EXISTS (
@@ -258,9 +332,15 @@ public class SearchService {
               (s.archived_at IS NOT NULL) AS hidden, s.name AS orig_title, s.teacher AS orig_body
             FROM search_index JOIN subjects s ON search_index.rowid = s.id * 4 + 3
             WHERE search_index MATCH :q
+              AND (:subject IS NULL OR s.id = :subject)
               AND EXISTS (SELECT 1 FROM subject_groups sg WHERE sg.subject_id = s.id AND sg.group_id IN (:g))
             ORDER BY rank LIMIT :limit
-            """);
+            """),
+    /**
+     * Текст внутри файлов (1.0.2, files/FileText): материалы, вложения заданий и новостей – с теми
+     * же правами, что у них самих. Заголовок – где файл лежит, фрагмент – из файла.
+     */
+    FILE("file", FILES);
 
     final String id;
     final String sql;

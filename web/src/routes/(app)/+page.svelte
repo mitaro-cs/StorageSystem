@@ -1,7 +1,7 @@
 <script lang="ts" module>
-	// «Первые шаги» – лениво, но загруженный код помним: при возврате на «Сегодня» карточка есть с
-	// первого кадра и не сдвигает страницу.
-	let FirstStepsCode: typeof import('$lib/content/FirstSteps.svelte').default | undefined;
+	// «Первые шаги» и «кто на сайте» – лениво, но загруженный код помним: при возврате на «Сегодня»
+	// они есть с первого кадра и не сдвигают страницу.
+	let extrasCode: typeof import('$lib/content/todayExtras') | undefined;
 </script>
 
 <script lang="ts">
@@ -29,7 +29,6 @@
 	import type { NewsItem, Today } from '$lib/types';
 	import HomeworkRow from '$lib/content/HomeworkRow.svelte';
 	import NewsCard from '$lib/content/NewsCard.svelte';
-	import type { MenuItem } from '$lib/ui/Menu.svelte';
 	import NextDeadline from '$lib/content/NextDeadline.svelte';
 	import { datesFor, sessionExams, sessionVisible } from '$lib/content/session';
 	import Avatar from '$lib/ui/Avatar.svelte';
@@ -41,22 +40,10 @@
 	let data = $state<Today | null>(untrack(() => peek<Today>(`today:${session.groupId}`) ?? null));
 	let newsOpen = $state(false);
 	let editingNews = $state<NewsItem | null>(null);
-	// Меню «…» у новостей (скрыть, удалить, пожаловаться) – отдельным кусочком: главная легче.
-	let newsMenu = $state<
-		((n: NewsItem, h: { edit(): void; removed(): void; changed(): void }) => MenuItem[]) | null
-	>(null);
-	$effect(() => {
-		import('$lib/content/newsActions').then((m) => (newsMenu = m.newsActions));
-	});
 	let chatsOpen = $state(false);
 	let hwOpen = $state(false);
-	let FirstSteps = $state(FirstStepsCode);
-	$effect(() => {
-		if (canInvite && !FirstSteps)
-			import('$lib/content/FirstSteps.svelte').then(
-				(m) => (FirstSteps = FirstStepsCode = m.default)
-			);
-	});
+	let extras = $state(extrasCode);
+	import('$lib/content/todayExtras').then((m) => (extras = extrasCode = m));
 	const now = Date.now();
 
 	async function load(group: number | null) {
@@ -124,6 +111,7 @@
 		<h1>Привет, {name}</h1>
 		<p class="muted">
 			{cap(fmtWeekday(now))}, <span class="num">{fmtDate(now)}</span>{place ? ` · ${place}` : ''}
+			{#if extras}<extras.OnlineNow />{/if}
 		</p>
 	</div>
 	<!-- Уведомления на компьютере – здесь, на «Сегодня» (в боковой панели пункта нет). На телефоне
@@ -171,8 +159,8 @@
 </div>
 
 <!-- «Первые шаги» – только тем, кто приглашает (староста, замы): код грузится лишь для них. -->
-{#if canInvite && FirstSteps}
-	<FirstSteps oncreate={() => (hwOpen = true)} />
+{#if canInvite && extras}
+	<extras.FirstSteps oncreate={() => (hwOpen = true)} />
 {/if}
 
 {#if askSubgroup}
@@ -229,7 +217,7 @@
 							<NewsCard
 								item={n}
 								compact
-								actions={newsMenu?.(n, {
+								actions={extras?.newsActions(n, {
 									edit: () => ((editingNews = n), (newsOpen = true)),
 									removed: () => load(session.groupId),
 									changed: () => load(session.groupId)

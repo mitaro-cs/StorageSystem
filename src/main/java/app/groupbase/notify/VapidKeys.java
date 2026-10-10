@@ -28,7 +28,7 @@ public class VapidKeys {
   static final String FILE = "vapid.key";
 
   /** Контакт по умолчанию, когда у сайта нет своего адреса https: страница проекта. */
-  static final String PROJECT = "https://github.com/mitaro-cs/StorageSystem";
+  static final String PROJECT = "https://github.com/mitaro-cs/Campus";
 
   private static final Logger log = LoggerFactory.getLogger(VapidKeys.class);
 

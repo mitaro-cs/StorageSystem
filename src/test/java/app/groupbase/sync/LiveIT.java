@@ -82,6 +82,23 @@ class LiveIT extends IntegrationTest {
   }
 
   @Test
+  void shortSeqAnswersWhenTheStreamDoesNotGetThrough() {
+    long g = newGroup("Номер");
+    TestUser student = newUser(g, "student");
+    long post =
+        admin()
+            .post("/api/news", Map.of("title", "Новость", "groupIds", List.of(g)))
+            .json()
+            .get("id")
+            .asLong();
+    long before = student.api().get("/api/live/seq").json().get("seq").asLong();
+    student.api().post("/api/news/" + post + "/comments", Map.of("body", "Есть"));
+    long after = student.api().get("/api/live/seq").json().get("seq").asLong();
+    assertThat(after).isNotEqualTo(before);
+    assertThat(client().get("/api/live/seq").status()).isEqualTo(401);
+  }
+
+  @Test
   void streamWithoutLoginIsUnauthorizedNotServerError() {
     // EventSource после выхода переподключается без cookie: нужен 401, а не 500.
     var r = client().header("Accept", "text/event-stream").get("/api/live");

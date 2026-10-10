@@ -8,6 +8,8 @@
 	import Menu, { type MenuItem } from '$lib/ui/Menu.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
 	import { session } from '$lib/session.svelte';
+	import { isOnline, loadPresence } from '$lib/presence.svelte';
+	import { onMount } from 'svelte';
 
 	interface Props {
 		groupIds: number[];
@@ -52,6 +54,7 @@
 				!q || r.member.displayName.toLowerCase().includes(q) || !!r.member.username?.includes(q)
 		)
 	);
+	onMount(() => void loadPresence());
 </script>
 
 {#if rows === null}
@@ -70,7 +73,12 @@
 		{#each filtered as r, i (r.member.userId)}
 			{@const m = r.member}
 			<div class="list-row" in:fly={{ y: 6, delay: stagger(i, 20) }}>
-				<Avatar id={m.userId} name={m.displayName} avatar={m.avatar} size={36} />
+				<span
+					class="av"
+					class:on={isOnline(m.userId)}
+					title={isOnline(m.userId) ? 'На сайте' : undefined}
+					><Avatar id={m.userId} name={m.displayName} avatar={m.avatar} size={36} /></span
+				>
 				<div class="who">
 					<strong>{m.displayName}</strong>
 					{#if m.username}<span class="faint small">@{m.username}</span>{/if}
@@ -93,6 +101,23 @@
 {/if}
 
 <style>
+	/* На сайте (1.0.2) – зелёная точка у аватара. */
+	.av {
+		position: relative;
+		flex: none;
+		line-height: 0;
+	}
+	.av.on::after {
+		content: '';
+		position: absolute;
+		right: -1px;
+		bottom: -1px;
+		width: 11px;
+		height: 11px;
+		border-radius: 50%;
+		background: var(--ok, #22a06b);
+		box-shadow: 0 0 0 2px var(--surface);
+	}
 	.filter {
 		margin-bottom: var(--s3);
 	}

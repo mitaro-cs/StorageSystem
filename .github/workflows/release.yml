@@ -186,6 +186,8 @@ jobs:
           done
           sig() { cat "dist/groupbase-$v-$1.sig"; }
           notes=$(awk -v h="## $v" '$0==h{f=1;next} /^## /{f=0} f' CHANGELOG.md 2>/dev/null)
+          # Бета (1.0.2-beta.1) – заметки выпуска 1.0.2, если своего раздела нет.
+          [ -n "$notes" ] || notes=$(awk -v h="## ${v%%-*}" '$0==h{f=1;next} /^## /{f=0} f' CHANGELOG.md 2>/dev/null)
           jq -n --arg v "$v" --arg notes "$notes" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg a "$base/groupbase-$v-macos-apple-silicon.app.tar.gz" \
             --arg as "$(sig macos-apple-silicon.app.tar.gz)" \
@@ -205,6 +207,12 @@ jobs:
         run: |
           v="${{ needs.jar.outputs.version }}"
           notes=$(awk -v h="## $v" '$0==h{f=1;next} /^## /{f=0} f' CHANGELOG.md 2>/dev/null)
+          [ -n "$notes" ] || notes=$(awk -v h="## ${v%%-*}" '$0==h{f=1;next} /^## /{f=0} f' CHANGELOG.md 2>/dev/null)
           [ -n "$notes" ] || notes="Скачайте установщик для своего компьютера — инструкция в README."
-          gh release create "$GITHUB_REF_NAME" dist/* --title "Campus $v" --notes "$notes" \
+          # Тег с «-» (v1.0.2-beta.1) – предварительный выпуск: GitHub не считает его последним, и
+          # ни проверка обновлений сервера, ни обновление приложения (releases/latest) его не
+          # предлагают – бету ставят вручную.
+          pre=()
+          if [[ "$v" == *-* ]]; then pre=(--prerelease --latest=false); notes=$'**Бета** – для проверки, обновления на неё не приходят. Установщик – ниже.\n\n'"$notes"; fi
+          gh release create "$GITHUB_REF_NAME" dist/* --title "Campus $v" --notes "$notes" "${pre[@]}" \
             || gh release upload "$GITHUB_REF_NAME" dist/* --clobber

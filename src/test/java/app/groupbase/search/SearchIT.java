@@ -165,4 +165,98 @@ class SearchIT extends IntegrationTest {
     }
     assertThat(student.api().get("/api/search?q=" + "a".repeat(201)).status()).isEqualTo(400);
   }
+
+  @org.springframework.beans.factory.annotation.Autowired
+  private app.groupbase.files.FileText fileText;
+
+  private static byte[] pdf(String text) throws Exception {
+    try (var doc = new org.apache.pdfbox.pdmodel.PDDocument();
+        var out = new java.io.ByteArrayOutputStream()) {
+      var page = new org.apache.pdfbox.pdmodel.PDPage();
+      doc.addPage(page);
+      try (var cs = new org.apache.pdfbox.pdmodel.PDPageContentStream(doc, page)) {
+        cs.beginText();
+        cs.setFont(
+            new org.apache.pdfbox.pdmodel.font.PDType1Font(
+                org.apache.pdfbox.pdmodel.font.Standard14Fonts.FontName.HELVETICA),
+            12);
+        cs.newLineAtOffset(72, 700);
+        cs.showText(text);
+        cs.endText();
+      }
+      doc.save(out);
+      return out.toByteArray();
+    }
+  }
+
+  private static byte[] docx(String text) throws Exception {
+    var out = new java.io.ByteArrayOutputStream();
+    try (var zip = new java.util.zip.ZipOutputStream(out)) {
+      zip.putNextEntry(new java.util.zip.ZipEntry("word/document.xml"));
+      zip.write(
+          ("<w:document><w:body><w:p><w:r><w:t>"
+                  + text
+                  + "</w:t></w:r></w:p></w:body></w:document>")
+              .getBytes(StandardCharsets.UTF_8));
+      zip.closeEntry();
+    }
+    return out.toByteArray();
+  }
+
+  private long material(TestUser u, long subject, String name, byte[] data) {
+    long file = u.api().upload(name, data).json().get("id").asLong();
+    var r =
+        u.api()
+            .post(
+                "/api/subjects/" + subject + "/materials",
+                Map.of("kind", "file", "fileId", file, "title", name));
+    assertThat(r.status()).as(r.body()).isEqualTo(200);
+    return r.json().get("id").asLong();
+  }
+
+  @Test
+  void findsTextInsideFilesWithFiltersAndOperators() throws Exception {
+    long a = newGroup("Файлы-поиск");
+    TestUser headman = newUser(a, "headman");
+    TestUser student = newUser(a, "student");
+    TestUser stranger = newUser(newGroup("Чужие файлы"), "student");
+    long phys = subject(headman.api(), a, "Физика");
+    long math = subject(headman.api(), a, "Матанализ");
+    long pdfMat = material(headman, phys, "Лекция 3.pdf", pdf("Maxwell equations and waveguides"));
+    long docMat = material(headman, math, "Ряды.docx", docx("Формула Эйлера и ряды Тейлора"));
+    long mdMat =
+        material(
+            headman,
+            math,
+            "Конспект.md",
+            "# Пределы\nЗамечательный предел и отчёт".getBytes(StandardCharsets.UTF_8));
+    fileText.indexNow();
+
+    assertThat(found(student.api(), "waveguides")).containsExactly("file:" + pdfMat);
+    assertThat(found(student.api(), "эйлера")).contains("file:" + docMat);
+    assertThat(found(student.api(), "замечательный")).contains("file:" + mdMat);
+    // Чужая группа не видит ни материалов, ни текста их файлов.
+    assertThat(found(stranger.api(), "waveguides")).isEmpty();
+
+    var r = student.api().get("/api/search?q=waveguides").json().get("items").get(0);
+    assertThat(r.get("url").asString()).isEqualTo("/materials/" + pdfMat);
+    assertThat(r.get("file").asString()).isEqualTo("Лекция 3.pdf");
+    assertThat(r.get("snippet").toString()).contains("waveguides");
+
+    // Фраза, исключение и фильтр по предмету.
+    assertThat(found(student.api(), "\"ряды тейлора\"")).contains("file:" + docMat);
+    assertThat(found(student.api(), "\"тейлора ряды\"")).doesNotContain("file:" + docMat);
+    assertThat(found(student.api(), "предел -отчёт")).doesNotContain("file:" + mdMat);
+    var onlyPhys =
+        student
+            .api()
+            .get(
+                "/api/search?q="
+                    + java.net.URLEncoder.encode("эйлера", StandardCharsets.UTF_8)
+                    + "&subject="
+                    + phys)
+            .json()
+            .get("items");
+    assertThat(onlyPhys.size()).isZero();
+  }
 }

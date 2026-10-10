@@ -55,6 +55,18 @@ class UpdateCheckTest {
   }
 
   @Test
+  void betaIsOlderThanItsRelease() {
+    assertThat(UpdateCheck.newer("1.0.2", "1.0.2-beta.1")).isTrue();
+    assertThat(UpdateCheck.newer("1.0.2-beta.1", "1.0.2")).isFalse();
+    assertThat(UpdateCheck.newer("1.0.2-beta.1", "1.0.1")).isTrue();
+    assertThat(UpdateCheck.newer("1.0.1", "1.0.2-beta.1")).isFalse();
+    assertThat(UpdateCheck.newer("1.0.2-beta.10", "1.0.2-beta.2")).isTrue();
+    assertThat(UpdateCheck.newer("1.0.2-rc.1", "1.0.2-beta.3")).isTrue();
+    assertThat(UpdateCheck.newer("1.0.2-beta.1", "1.0.2-beta")).isTrue();
+    assertThat(UpdateCheck.newer("1.0.2+7", "1.0.2")).isFalse();
+  }
+
+  @Test
   void checkNowAsksGithubAndRemembersTheLatestRelease() throws Exception {
     UpdateCheck u = new UpdateCheck(true, clock, github(), () -> "0.4.6");
     var r = u.checkNow();
@@ -69,6 +81,23 @@ class UpdateCheckTest {
     clock.advance(Duration.ofSeconds(20));
     u.checkNow();
     assertThat(calls.get()).isEqualTo(2);
+  }
+
+  @Test
+  void followsRedirectWhenTheRepositoryWasRenamed() throws Exception {
+    URI target = github();
+    // Прежний адрес отвечает 301 на новый – как GitHub после переименования репозитория.
+    github.createContext(
+        "/old",
+        ex -> {
+          ex.getResponseHeaders().add("Location", target.toString());
+          ex.sendResponseHeaders(301, -1);
+          ex.close();
+        });
+    URI old = URI.create("http://127.0.0.1:" + github.getAddress().getPort() + "/old");
+    var r = new UpdateCheck(true, clock, old, () -> "0.4.6").checkNow();
+    assertThat(r.error()).isNull();
+    assertThat(r.latest()).isEqualTo("0.5.0");
   }
 
   @Test

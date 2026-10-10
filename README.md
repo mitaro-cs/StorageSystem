@@ -6,15 +6,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/mitaro-cs/StorageSystem/releases/latest"><img src="https://img.shields.io/github/v/release/mitaro-cs/StorageSystem?label=%D1%81%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C&color=0d0d0f&style=for-the-badge" alt="Скачать последний выпуск"></a>
-  <a href="https://github.com/mitaro-cs/StorageSystem/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mitaro-cs/StorageSystem/ci.yml?branch=miaro&label=%D0%BF%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B8&color=0d0d0f&style=for-the-badge" alt="Проверки"></a>
+  <a href="https://github.com/mitaro-cs/Campus/releases/latest"><img src="https://img.shields.io/github/v/release/mitaro-cs/Campus?label=%D1%81%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C&color=0d0d0f&style=for-the-badge" alt="Скачать последний выпуск"></a>
+  <a href="https://github.com/mitaro-cs/Campus/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mitaro-cs/Campus/ci.yml?branch=miaro&label=%D0%BF%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B8&color=0d0d0f&style=for-the-badge" alt="Проверки"></a>
   <img src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS-0d0d0f?style=for-the-badge" alt="Windows и macOS">
   <img src="https://img.shields.io/badge/iPhone%20%C2%B7%20Android-0d0d0f?style=for-the-badge" alt="iPhone и Android">
   <a href="LICENSE"><img src="https://img.shields.io/badge/AGPL--3.0-0d0d0f?style=for-the-badge" alt="Лицензия AGPL-3.0"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/mitaro-cs/StorageSystem/releases/latest"><b>Скачать</b></a> ·
+  <a href="https://github.com/mitaro-cs/Campus/releases/latest"><b>Скачать</b></a> ·
   <a href="#быстрый-старт">Быстрый старт</a> ·
   <a href="docs/desktop.md">Инструкция для хоста</a> ·
   <a href="#частые-вопросы">Вопросы</a> ·
@@ -233,7 +233,7 @@ flowchart LR
 
 ## Быстрый старт
 
-**1. Скачайте** со страницы [последнего выпуска](https://github.com/mitaro-cs/StorageSystem/releases/latest):
+**1. Скачайте** со страницы [последнего выпуска](https://github.com/mitaro-cs/Campus/releases/latest):
 
 | Компьютер | Файл |
 |---|---|
@@ -356,7 +356,7 @@ QR-код.
 Java).
 
 ```bash
-git clone https://github.com/mitaro-cs/StorageSystem.git campus
+git clone https://github.com/mitaro-cs/Campus.git campus
 cd campus
 make build
 java -jar target/groupbase.jar serve

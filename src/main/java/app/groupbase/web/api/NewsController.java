@@ -67,6 +67,15 @@ class NewsController {
     return Map.of("status", "ok");
   }
 
+  record ReactionBody(String emoji, Boolean value) {}
+
+  /** Реакция на новость (1.0.2): value – поставить или снять. */
+  @PutMapping("/api/news/{id}/reactions")
+  List<NewsService.Reaction> react(
+      Actor actor, @PathVariable long id, @RequestBody ReactionBody b) {
+    return news.react(actor, id, b.emoji(), !Boolean.FALSE.equals(b.value()));
+  }
+
   @GetMapping("/api/news/{id}/comments")
   List<CommentService.Comment> comments(Actor actor, @PathVariable long id) {
     return comments.list(actor, CommentService.Parent.POST, id);

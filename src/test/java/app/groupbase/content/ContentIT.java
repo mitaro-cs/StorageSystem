@@ -368,6 +368,45 @@ class ContentIT extends IntegrationTest {
   }
 
   @Test
+  void reactionsOnNewsAreCountedPerPersonAndVisibleToTheGroup() {
+    long g = newGroup("Реакции");
+    TestUser headman = newUser(g, "headman");
+    TestUser student = newUser(g, "student");
+    TestUser outsider = newUser(newGroup("Чужие"), "student");
+    long post =
+        headman
+            .api()
+            .post("/api/news", Map.of("title", "Пара переносится", "groupIds", List.of(g)))
+            .json()
+            .get("id")
+            .asLong();
+    String url = "/api/news/" + post + "/reactions";
+    var r = student.api().put(url, Map.of("emoji", "👍", "value", true));
+    assertThat(r.status()).as(r.body()).isEqualTo(200);
+    // Повтор не удваивает.
+    student.api().put(url, Map.of("emoji", "👍", "value", true));
+    headman.api().put(url, Map.of("emoji", "👍", "value", true));
+    headman.api().put(url, Map.of("emoji", "❓", "value", true));
+    assertThat(student.api().put(url, Map.of("emoji", "💩", "value", true)).status())
+        .isEqualTo(400);
+    assertThat(outsider.api().put(url, Map.of("emoji", "👍", "value", true)).status())
+        .isIn(403, 404);
+
+    JsonNode list = student.api().get("/api/news/" + post).json().get("reactions");
+    assertThat(list.size()).isEqualTo(2);
+    assertThat(list.get(0).get("emoji").asString()).isEqualTo("👍");
+    assertThat(list.get(0).get("count").asInt()).isEqualTo(2);
+    assertThat(list.get(0).get("mine").asBoolean()).isTrue();
+    assertThat(list.get(1).get("mine").asBoolean()).isFalse();
+    assertThat(list.get(0).get("who").size()).isEqualTo(2);
+
+    // Сняли – у остальных счётчик меньше.
+    JsonNode after = student.api().put(url, Map.of("emoji", "👍", "value", false)).json();
+    assertThat(after.get(0).get("count").asInt()).isEqualTo(1);
+    assertThat(after.get(0).get("mine").asBoolean()).isFalse();
+  }
+
+  @Test
   void adminAndHeadmanEditStudentHomeworkWithItsFiles() {
     long g = newGroup("Чужое ДЗ");
     TestUser headman = newUser(g, "headman");

@@ -46,20 +46,59 @@
 	$effect(() => {
 		void offline.version;
 		get<Comment[]>(`${base}/comments`)
-			.then((c) => ((items = c), (loaded = true)))
+			// Свои, ещё не дошедшие до сервера, – остаются в конце списка; свой новый с сервера, пока
+			// отправка не вернулась, не показываем – иначе на миг два одинаковых.
+			.then((c) => {
+				const me = session.me?.user.id;
+				const fresh = sending
+					? c.filter((x) => x.author.id !== me || items.some((y) => y.id === x.id))
+					: c;
+				items = [...fresh, ...items.filter((x) => x.sending)];
+				loaded = true;
+			})
 			.catch(() => (loaded = true));
 	});
 
+	/** Текст как есть, без разметки – пока сервер не вернул готовый комментарий. */
+	const plain = (t: string) =>
+		t.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`).replace(/\n/g, '<br>');
+
+	// Свой комментарий – сразу (1.0.2): через туннель ответ идёт полсекунды и дольше, и казалось,
+	// что ничего не отправилось. Сервер ответил – подменяем готовым, ошибка – текст возвращается.
+	let draftId = 0;
+	let sending = 0;
+	/** Готовые, что заменили временный, и удалённые человеком: только у удалённых – анимация ухода. */
+	const swapped: number[] = [];
+	const removed: number[] = [];
 	async function send(e: SubmitEvent) {
 		e.preventDefault();
-		if (!text.trim()) return;
+		const body = text.trim();
+		const me = session.me?.user;
+		if (!body || !me) return;
+		const temp: Comment = {
+			id: -1e12 - ++draftId,
+			author: { id: me.id, displayName: me.displayName, avatar: me.avatar, deleted: false },
+			bodyHtml: `<p>${plain(body)}</p>`,
+			createdAt: Date.now(),
+			hidden: false,
+			canDelete: false,
+			sending: true
+		};
+		items.push(temp);
+		text = '';
 		busy = true;
+		sending++;
 		try {
-			items.push(await post<Comment>(`${base}/comments`, { body: text }));
-			text = '';
+			const c = await post<Comment>(`${base}/comments`, { body });
+			swapped.push(c.id);
+			const rest = items.filter((x) => x.id !== temp.id && x.id !== c.id);
+			items = [...rest, c].sort((a, b) => a.createdAt - b.createdAt);
 		} catch (err) {
+			items = items.filter((x) => x.id !== temp.id);
+			if (!text) text = body;
 			toastError(err);
 		} finally {
+			sending--;
 			busy = false;
 		}
 	}
@@ -77,6 +116,7 @@
 	async function remove(c: Comment) {
 		try {
 			await del(`/api/comments/${c.id}`);
+			removed.push(c.id);
 			items = items.filter((x) => x.id !== c.id);
 		} catch (err) {
 			toastError(err);
@@ -89,7 +129,12 @@
 		Комментарии {#if loaded}<span class="faint num">{items.length}</span>{/if}
 	</h2>
 	{#each items as c (c.id)}
-		<div class="comment" in:fly={{ y: 6 }} out:slide>
+		<div
+			class="comment"
+			class:sending={c.sending}
+			in:fly={{ y: 6, duration: swapped.includes(c.id) ? 0 : 400 }}
+			out:slide={{ duration: removed.includes(c.id) ? 200 : 0 }}
+		>
 			<div class="head">
 				<Author person={c.author} size={24} label={names.get(c.author.id)} />
 				<span class="faint small num">{fmtAgo(c.createdAt)}</span>
@@ -150,6 +195,9 @@
 	}
 	h2 {
 		font-size: 17px;
+	}
+	.comment.sending {
+		opacity: 0.6;
 	}
 	.comment {
 		display: flex;

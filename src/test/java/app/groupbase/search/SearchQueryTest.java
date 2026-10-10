@@ -29,6 +29,18 @@ class SearchQueryTest {
   }
 
   @Test
+  void phrasesAndExclusions() {
+    assertThat(SearchQuery.fts("\"формула эйлера\"")).isEqualTo("\"формула эйлера\"");
+    assertThat(SearchQuery.fts("лаба -отчёт")).isEqualTo("(\"лаб\"*) NOT \"отчет\"*");
+    // Дефис внутри слова – не исключение.
+    assertThat(SearchQuery.fts("Иванов-Петров")).isEqualTo("\"иван\"* \"петр\"*");
+    // Только исключения – искать нечего.
+    assertThat(SearchQuery.fts("-зачёт")).isEmpty();
+    // Незакрытая кавычка – фраза до конца строки.
+    assertThat(SearchQuery.fts("\"ряды Тейлора")).isEqualTo("\"ряды тейлора\"");
+  }
+
+  @Test
   void highlightMarkersBecomeSegments() {
     assertThat(SearchService.segments("Типовой \u0002расчёт\u0003 №1"))
         .containsExactly(

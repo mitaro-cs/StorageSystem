@@ -38,6 +38,7 @@
     <owasp-sanitizer.version>20260922.1</owasp-sanitizer.version>
     <commonmark.version>0.30.0</commonmark.version>
     <tika.version>4.0.0</tika.version>
+    <pdfbox.version>3.0.5</pdfbox.version>
     <webp-imageio.version>0.11.0</webp-imageio.version>
     <jacoco.version>0.8.15</jacoco.version>
     <spotless.version>3.10.2</spotless.version>
@@ -106,6 +107,12 @@
       <groupId>org.apache.tika</groupId>
       <artifactId>tika-core</artifactId>
       <version>${tika.version}</version>
+    </dependency>
+    <!-- Текст PDF для поиска по содержимому файлов (1.0.2). -->
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox</artifactId>
+      <version>${pdfbox.version}</version>
     </dependency>
     <dependency>
       <groupId>com.github.usefulness</groupId>
