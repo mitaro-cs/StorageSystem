@@ -161,6 +161,16 @@ export interface NewsItem {
 	can: ItemCan;
 	/** Создано без сети и ещё не отправлено на сервер. */
 	pending?: boolean;
+	/** Реакции (1.0.2; у серверов раньше поля нет). */
+	reactions?: Reaction[];
+}
+
+export interface Reaction {
+	emoji: string;
+	count: number;
+	mine: boolean;
+	/** Кто поставил – для подсказки, до 30 имён. */
+	who: string[];
 }
 
 export interface NewsPage {
@@ -293,6 +303,8 @@ export interface Comment {
 	canHide?: boolean;
 	/** Создано без сети и ещё не отправлено на сервер. */
 	pending?: boolean;
+	/** Своё, ещё в пути к серверу – показано сразу (Comments.svelte). */
+	sending?: boolean;
 }
 
 export interface Member {
@@ -420,7 +432,7 @@ export interface SearchSegment {
 	hit: boolean;
 }
 
-export type SearchKind = 'homework' | 'news' | 'material' | 'subject';
+export type SearchKind = 'homework' | 'news' | 'material' | 'subject' | 'file';
 
 export interface SearchHit {
 	kind: SearchKind;
@@ -431,6 +443,8 @@ export interface SearchHit {
 	date: number | null;
 	url: string;
 	hidden: boolean;
+	/** Совпадение в тексте файла (1.0.2): имя файла; заголовок – где он лежит. */
+	file?: string | null;
 }
 
 export interface SearchResult {

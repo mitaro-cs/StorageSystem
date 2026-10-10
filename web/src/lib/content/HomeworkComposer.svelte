@@ -7,7 +7,8 @@
 	import { subjects } from '$lib/data.svelte';
 	import { fromLocalInput, toLocalInput } from '$lib/format';
 	import { toast } from '$lib/toasts.svelte';
-	import type { FileInfo, Homework, Lesson } from '$lib/types';
+	import type { FileInfo, Homework, Lesson, LessonKind } from '$lib/types';
+	import { KIND_COLORS, lessonKind } from '$lib/schedule/lessons';
 	import DropZone from './DropZone.svelte';
 	import Modal from '$lib/ui/Modal.svelte';
 	import Button from '$lib/ui/Button.svelte';
@@ -27,7 +28,13 @@
 		/** Тип нового задания: со страницы «Сессия» – сразу экзамен. */
 		initialKind?: HomeworkKind;
 		/** Задание к паре расписания: предмет, группа и срок – от неё. */
-		lesson?: { id: number; startsAt: number; groupId: number; subjectId: number } | null;
+		lesson?: {
+			id: number;
+			startsAt: number;
+			groupId: number;
+			subjectId: number;
+			kind?: LessonKind;
+		} | null;
 		onsaved: (item: Homework) => void;
 	}
 
@@ -55,7 +62,7 @@
 	let retake = $state(false);
 	// Пара, к которой задание, и ближайшие пары выбранного предмета – выбрать срок одним нажатием.
 	let lessonId = $state<number | null>(null);
-	let upcoming = $state<{ id: number; startsAt: number }[]>([]);
+	let upcoming = $state<{ id: number; startsAt: number; kind?: LessonKind }[]>([]);
 	// Срок, который человек не трогал, подстраивается под тип: экзамен – в 9:00, задание – к 23:59.
 	let dueTouched = $state(false);
 	// Вложение ещё грузится – «Опубликовать» ждёт, иначе задание ушло бы без файла.
@@ -284,13 +291,17 @@
 			{#if lessonChips.length}
 				<div class="to-lesson" role="group" aria-label="Срок – к паре">
 					<span class="faint small">К паре:</span>
+					<!-- Вид пары на кнопке (1.0.2): сразу видно, к лекции задание или к практике. -->
 					{#each lessonChips as l (l.id)}
 						<button
 							type="button"
-							class="pill small num"
+							class="pill small num lesson-chip"
 							class:ink={lessonId === l.id}
 							aria-pressed={lessonId === l.id}
-							onclick={() => toLesson(l)}>{chipTime.format(l.startsAt)}</button
+							style:--k={l.kind ? KIND_COLORS[l.kind] : null}
+							onclick={() => toLesson(l)}
+							>{#if l.kind}<i aria-hidden="true"></i><b>{lessonKind(l.kind).label}</b
+								>{/if}{chipTime.format(l.startsAt)}</button
 						>
 					{/each}
 					{#if lessonId}<button
@@ -347,6 +358,19 @@
 		height: 32px;
 		padding: 0 12px;
 		font-size: 13px;
+	}
+	.lesson-chip {
+		gap: 6px;
+	}
+	.lesson-chip i {
+		flex: none;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--k, var(--text-3));
+	}
+	.lesson-chip b {
+		font-weight: 650;
 	}
 	@media (max-width: 520px) {
 		.grid {

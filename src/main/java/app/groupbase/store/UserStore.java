@@ -191,6 +191,7 @@ public class UserStore {
           "subject_hidden",
           "subject_pins",
           "material_dismissed",
+          "post_reactions",
           "quiz_attempts"
         }) {
       db.sql("DELETE FROM " + table + " WHERE user_id = ?").param(id).update();

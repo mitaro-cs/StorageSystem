@@ -3,14 +3,16 @@ import { refreshUnread } from './notify.svelte';
 import { refreshModeration } from './moderation.svelte';
 import { loadMe } from './session.svelte';
 import { loadSubjects } from './data.svelte';
+import { loadPresence } from './presence.svelte';
 
 /**
  * Живые обновления: сервер сообщает, что что-то изменилось (комментарий, новость, задание,
  * материал, а с 0.9.7 – любое изменение: люди, роли, группа, предметы, настройки), – открытые
  * страницы перечитывают себя сами, без перезагрузки. Соединение держим, пока
  * вкладка на экране: на телефоне через туннель одновременно открыто не больше 6 соединений. Если
- * поток не доходит (туннель копит ответ – «hello» не пришло за 8 секунд), раз в 20 секунд
- * проверяем сами.
+ * поток не доходит (туннель копит ответ – «hello» не пришло за 8 секунд), раз в 3 секунды
+ * спрашиваем короткий номер состояния (`/api/live/seq`) и перечитываем страницу, только когда он
+ * сменился (1.0.2: раньше раз в 10 секунд перечитывали всё вслепую – комментарии запаздывали).
  */
 export function startLive(): () => void {
 	if (typeof EventSource === 'undefined') return () => {};
@@ -34,7 +36,7 @@ export function startLive(): () => void {
 			// Роли, группы, правила и предметы – в шапке и меню на каждой странице.
 			loadMe().catch(() => {});
 			loadSubjects().catch(() => {});
-		}, 300);
+		}, 120);
 	}
 
 	function seqOf(e: MessageEvent): number {
@@ -56,7 +58,10 @@ export function startLive(): () => void {
 			// копия на втором компьютере хоста взяла снимок).
 			if (lastSeq && seq !== lastSeq) refresh();
 			lastSeq = seq;
+			loadPresence(true);
 		});
+		// Кто-то открыл или закрыл сайт (1.0.2) – «на сайте» и точки у участников.
+		source.addEventListener('presence', () => loadPresence(true));
 		source.addEventListener('change', (e) => {
 			lastSeq = seqOf(e as MessageEvent);
 			refresh();
@@ -74,9 +79,22 @@ export function startLive(): () => void {
 	function fallBack() {
 		close();
 		polling = true;
-		pollTimer = setInterval(() => {
-			if (document.visibilityState === 'visible') refresh();
-		}, 10_000);
+		let ticks = 0;
+		pollTimer = setInterval(async () => {
+			if (document.visibilityState !== 'visible') return;
+			if (++ticks % 5 === 0) loadPresence(true);
+			try {
+				const res = await fetch('/api/live/seq', { credentials: 'same-origin' });
+				if (!res.ok) return;
+				const seq = Number((await res.json()).seq) || 0;
+				if (seq !== lastSeq) {
+					lastSeq = seq;
+					refresh();
+				}
+			} catch {
+				/* нет связи – спросим через 3 секунды */
+			}
+		}, 3_000);
 	}
 
 	function onVisibility() {
@@ -85,7 +103,7 @@ export function startLive(): () => void {
 			if (!source && !polling) {
 				open();
 				refresh();
-			}
+			} else if (polling) refresh();
 		} else {
 			hideTimer = setTimeout(close, 30_000);
 		}

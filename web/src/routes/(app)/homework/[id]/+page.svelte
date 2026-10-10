@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import { Paperclip, MessageCircle, Check, RotateCcw, Clock, Pencil } from '@lucide/svelte';
 	import Button from '$lib/ui/Button.svelte';
+	import { LESSON_LABELS } from '$lib/schedule/kindLabels';
 	import { del, get, put } from '$lib/api';
 	import {
 		fmtAgo,
@@ -194,9 +195,11 @@
 					<dt>К паре</dt>
 					<dd>
 						<a class="lesson-link num" href="/schedule/{item.lesson.id}"
-							>{fmtWeekdayShort(item.lesson.startsAt)}, {fmtDate(item.lesson.startsAt)}, {fmtTime(
+							>{LESSON_LABELS[item.lesson.kind] ?? 'Пара'} · {fmtWeekdayShort(
 								item.lesson.startsAt
-							)}{item.lesson.place ? ` · ${item.lesson.place}` : ''}</a
+							)}, {fmtDate(item.lesson.startsAt)}, {fmtTime(item.lesson.startsAt)}{item.lesson.place
+								? ` · ${item.lesson.place}`
+								: ''}</a
 						>
 					</dd>
 				</div>

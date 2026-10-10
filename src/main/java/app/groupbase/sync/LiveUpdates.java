@@ -2,6 +2,7 @@ package app.groupbase.sync;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -38,6 +39,17 @@ public class LiveUpdates implements DisposableBean, SmartLifecycle {
 
   private volatile long lastPing = System.currentTimeMillis();
 
+  /**
+   * Кто без потока событий спрашивал номер состояния (туннель копит поток) и когда: и они на сайте.
+   */
+  private final Map<Long, Long> polledAt = new ConcurrentHashMap<>();
+
+  /** Сколько после последнего вопроса человек ещё считается на сайте (спрашивают раз в 3 с). */
+  static final long POLL_ONLINE_MS = 15_000;
+
+  /** Кто был на сайте при прошлой проверке: сменился – страницам событие «presence». */
+  private volatile Set<Long> lastOnline = Set.of();
+
   public LiveUpdates(JdbcClient db) {
     this.db = db;
   }
@@ -70,9 +82,14 @@ public class LiveUpdates implements DisposableBean, SmartLifecycle {
     return clients.size();
   }
 
-  void tick() {
+  synchronized void tick() {
     if (clients.isEmpty()) {
       return;
+    }
+    Set<Long> now = online();
+    if (!now.equals(lastOnline)) {
+      lastOnline = Set.copyOf(now);
+      clients.forEach(c -> send(c, "presence", "{}"));
     }
     try {
       long seq = maxSeq();
@@ -108,13 +125,46 @@ public class LiveUpdates implements DisposableBean, SmartLifecycle {
         .single();
   }
 
-  /** Что-то изменилось (любой успешный запрос-изменение): страницы перечитают себя за секунду. */
+  /**
+   * Что-то изменилось (любой успешный запрос-изменение): страницы узнают сразу – проверка журнала
+   * запускается тут же, не дожидаясь своей секунды (1.0.2: комментарии появляются у всех сразу).
+   */
   public void bump() {
     try {
       db.sql("UPDATE data_version SET v = v + 1 WHERE id = 1").update();
     } catch (RuntimeException ex) {
       // База занята – изменение всё равно увидят по журналу или следующему изменению.
     }
+    ScheduledExecutorService t = timer;
+    if (t != null) {
+      try {
+        t.execute(this::tick);
+      } catch (RuntimeException ex) {
+        // Сервер останавливается – страницам уже не до обновлений.
+      }
+    }
+  }
+
+  /**
+   * Номер состояния без потока событий – для страниц, до которых поток не доходит (туннель копит
+   * ответ): они спрашивают его раз в несколько секунд и перечитывают себя, только когда он
+   * сменился.
+   */
+  public long current(long userId) {
+    polledAt.put(userId, System.currentTimeMillis());
+    return maxSeq();
+  }
+
+  /**
+   * Кто сейчас на сайте (1.0.2): открыт поток событий или недавно спрашивали номер состояния. Ни
+   * IP, ни устройств – только номера людей.
+   */
+  public Set<Long> online() {
+    long since = System.currentTimeMillis() - POLL_ONLINE_MS;
+    polledAt.values().removeIf(t -> t < since);
+    Set<Long> out = new java.util.HashSet<>(polledAt.keySet());
+    clients.forEach(c -> out.add(c.userId()));
+    return out;
   }
 
   private static String seq(long seq) {

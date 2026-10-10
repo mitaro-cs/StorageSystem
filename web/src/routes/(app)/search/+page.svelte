@@ -7,6 +7,8 @@
 	import { fmtAgo, fmtDue } from '$lib/format';
 	import { fly, stagger } from '$lib/motion';
 	import { session } from '$lib/session.svelte';
+	import { sortedSubjects } from '$lib/data.svelte';
+	import Select from '$lib/ui/Select.svelte';
 	import type { SearchKind, SearchResult, SearchSegment } from '$lib/types';
 	import Empty from '$lib/ui/Empty.svelte';
 	import Skeleton from '$lib/ui/Skeleton.svelte';
@@ -16,15 +18,29 @@
 		{ value: 'homework', label: 'Задания' },
 		{ value: 'news', label: 'Новости' },
 		{ value: 'material', label: 'Материалы' },
-		{ value: 'subject', label: 'Предметы' }
+		{ value: 'subject', label: 'Предметы' },
+		{ value: 'file', label: 'В файлах' }
 	];
-	const ICONS = { homework: CalendarCheck, news: Newspaper, material: FileText, subject: BookOpen };
+	const ICONS = {
+		homework: CalendarCheck,
+		news: Newspaper,
+		material: FileText,
+		subject: BookOpen,
+		file: FileText
+	};
 	const HISTORY = 'gb-searches';
 
 	let q = $state(page.url.searchParams.get('q') ?? '');
 	let kind = $state<SearchKind | 'all'>(
 		(page.url.searchParams.get('kind') as SearchKind | null) ?? 'all'
 	);
+	// Предмет и порядок (1.0.2) – тоже в адресе: ссылкой можно поделиться.
+	let subject = $state(Number(page.url.searchParams.get('subject')) || 0);
+	let sort = $state<'rank' | 'new'>(page.url.searchParams.get('sort') === 'new' ? 'new' : 'rank');
+	const subjectOptions = $derived([
+		{ value: 0, label: 'Все предметы' },
+		...sortedSubjects(session.groupId).map((s) => ({ value: s.id, label: s.name }))
+	]);
 	let result = $state<SearchResult | null>(null);
 	let loading = $state(false);
 	let history = $state<string[]>([]);
@@ -54,12 +70,19 @@
 	$effect(() => {
 		const query = q.trim();
 		const k = kind;
+		const sub = subject;
+		const order = sort;
 		const group = session.groupId;
 		const my = ++seq;
 		if (query.length < 2) result = null;
 		loading = query.length >= 2;
 		const t = setTimeout(async () => {
-			const qs = [query ? `q=${encodeURIComponent(query)}` : '', k !== 'all' ? `kind=${k}` : '']
+			const qs = [
+				query ? `q=${encodeURIComponent(query)}` : '',
+				k !== 'all' ? `kind=${k}` : '',
+				sub ? `subject=${sub}` : '',
+				order === 'new' ? 'sort=new' : ''
+			]
 				.filter(Boolean)
 				.join('&');
 			try {
@@ -91,12 +114,25 @@
 		return kindOf === 'homework' ? `срок ${fmtDue(date)}` : fmtAgo(date);
 	}
 
+	// Стрелки: из поля – к первому результату, дальше – по списку (1.0.2).
+	function onkeydown(e: KeyboardEvent) {
+		if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+		const links = [...document.querySelectorAll<HTMLAnchorElement>('.results a.hit')];
+		if (!links.length) return;
+		const at = links.indexOf(document.activeElement as HTMLAnchorElement);
+		const next = e.key === 'ArrowDown' ? at + 1 : at - 1;
+		e.preventDefault();
+		if (next < 0) inputEl?.focus();
+		else links[Math.min(next, links.length - 1)].focus();
+	}
+
 	function text(segs: SearchSegment[]): string {
 		return segs.map((s) => s.text).join('');
 	}
 </script>
 
 <svelte:head><title>{q ? `${q} · ` : ''}Поиск · Campus</title></svelte:head>
+<svelte:window {onkeydown} />
 
 <h1 class="title">Поиск</h1>
 
@@ -128,6 +164,28 @@
 		</button>
 	{/each}
 </div>
+
+<div class="tools">
+	<span class="pick"><Select bind:value={subject} options={subjectOptions} label="Предмет" /></span>
+	<div class="seg" role="radiogroup" aria-label="Порядок">
+		<button
+			role="radio"
+			aria-checked={sort === 'rank'}
+			class:on={sort === 'rank'}
+			onclick={() => (sort = 'rank')}>Подходящие</button
+		>
+		<button
+			role="radio"
+			aria-checked={sort === 'new'}
+			class:on={sort === 'new'}
+			onclick={() => (sort = 'new')}>Новые</button
+		>
+	</div>
+</div>
+<p class="faint small syntax">
+	<code>"точная фраза"</code> – слова подряд · <code>-слово</code> – без него · ищем и внутри PDF, Word
+	и конспектов
+</p>
 
 {#if q.trim().length < 2}
 	{#if history.length}
@@ -171,6 +229,7 @@
 							>{#each r.title as s, j (j)}{#if s.hit}<mark>{s.text}</mark
 									>{:else}{s.text}{/if}{/each}</strong
 						>
+						{#if r.file}<span class="file faint small"><FileText size={13} /> {r.file}</span>{/if}
 						{#if r.snippet.length && r.kind !== 'subject'}
 							<span class="snip"
 								>{#each r.snippet as s, j (j)}{#if s.hit}<mark>{s.text}</mark
@@ -196,6 +255,54 @@
 {/if}
 
 <style>
+	.tools {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px;
+		margin: calc(-1 * var(--s3)) 0 var(--s2);
+	}
+	.pick {
+		min-width: 200px;
+		flex: 1;
+		max-width: 320px;
+	}
+	.seg {
+		display: inline-flex;
+		padding: 3px;
+		border-radius: var(--r-full);
+		background: var(--surface-2);
+	}
+	.seg button {
+		height: 32px;
+		padding: 0 14px;
+		border: 0;
+		border-radius: var(--r-full);
+		background: none;
+		color: var(--text-2);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.seg button.on {
+		background: var(--surface);
+		color: var(--text);
+		box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+	}
+	.syntax {
+		margin: 0 0 var(--s4);
+	}
+	.syntax code {
+		padding: 1px 6px;
+		border-radius: 6px;
+		background: var(--surface-2);
+		font-size: 12px;
+	}
+	.file {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+	}
 	.title {
 		margin: var(--s2) 0 var(--s4);
 	}

@@ -12,7 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 class SearchController {
 
-  private static final Set<String> KINDS = Set.of("homework", "news", "material", "subject");
+  private static final Set<String> KINDS =
+      Set.of("homework", "news", "material", "subject", "file");
 
   private final SearchService search;
 
@@ -25,13 +26,15 @@ class SearchController {
       Actor actor,
       @RequestParam String q,
       @RequestParam(required = false) Long group,
-      @RequestParam(required = false) String kind) {
+      @RequestParam(required = false) String kind,
+      @RequestParam(required = false) Long subject,
+      @RequestParam(required = false) String sort) {
     if (q.length() > 200) {
       throw ApiException.invalid("q", "Запрос слишком длинный");
     }
     if (kind != null && !KINDS.contains(kind)) {
       throw ApiException.invalid("kind", "Неизвестный раздел поиска");
     }
-    return search.search(actor, q, group, kind);
+    return search.search(actor, q, group, kind, subject, "new".equals(sort));
   }
 }

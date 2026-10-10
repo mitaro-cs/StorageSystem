@@ -378,7 +378,9 @@ export function search(s: Snapshot, q: URLSearchParams): SearchResult {
 		homework: [],
 		news: [],
 		material: [],
-		subject: []
+		subject: [],
+		// Текст внутри файлов есть только на сервере.
+		file: []
 	};
 	if (stems.length) {
 		for (const h of s.homework)

@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.util.stream.Stream;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** «Состояние сервера» для администратора: версия, место на диске, резервные копии, обновления. */
@@ -41,16 +42,26 @@ class StatusController {
   private final BackupService backups;
   private final UpdateCheck updates;
   private final app.groupbase.desktop.DesktopBridge bridge;
+  private final app.groupbase.status.Monitor monitor;
 
   StatusController(
       GroupbaseProperties props,
       BackupService backups,
       UpdateCheck updates,
-      app.groupbase.desktop.DesktopBridge bridge) {
+      app.groupbase.desktop.DesktopBridge bridge,
+      app.groupbase.status.Monitor monitor) {
+    this.monitor = monitor;
     this.props = props;
     this.backups = backups;
     this.updates = updates;
     this.bridge = bridge;
+  }
+
+  /** Мониторинг хоста (1.0.2): час – по минуте, сутки – по 15 минут. */
+  @Require(Permission.MANAGE_INSTANCE)
+  @GetMapping("/api/admin/monitor")
+  app.groupbase.status.Monitor.View monitor(@RequestParam(defaultValue = "hour") String range) {
+    return "day".equals(range) ? monitor.view(24 * 60, 15) : monitor.view(60, 1);
   }
 
   @Require(Permission.MANAGE_INSTANCE)
