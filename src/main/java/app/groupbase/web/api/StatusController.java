@@ -104,8 +104,7 @@ class StatusController {
   private UpdateCheck.Update update() {
     String v = bridge.availableUpdate();
     if (v != null) {
-      return new UpdateCheck.Update(
-          v, "https://github.com/mitaro-cs/StorageSystem/releases/tag/v" + v);
+      return new UpdateCheck.Update(v, "https://github.com/mitaro-cs/Campus/releases/tag/v" + v);
     }
     return updates.available();
   }

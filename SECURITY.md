@@ -3,7 +3,7 @@
 ## Как сообщить об уязвимости
 
 Пожалуйста, **не публикуйте уязвимость в открытых issue**. Сообщите приватно через
-[GitHub Security Advisories](https://github.com/mitaro-cs/StorageSystem/security/advisories/new)
+[GitHub Security Advisories](https://github.com/mitaro-cs/Campus/security/advisories/new)
 («Report a vulnerability»). Опишите, что можно сделать, как это воспроизвести и какая версия
 затронута. Мы ответим в течение недели и договоримся о сроках исправления и раскрытия.
 

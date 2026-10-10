@@ -72,6 +72,23 @@ class UpdateCheckTest {
   }
 
   @Test
+  void followsRedirectWhenTheRepositoryWasRenamed() throws Exception {
+    URI target = github();
+    // Прежний адрес отвечает 301 на новый – как GitHub после переименования репозитория.
+    github.createContext(
+        "/old",
+        ex -> {
+          ex.getResponseHeaders().add("Location", target.toString());
+          ex.sendResponseHeaders(301, -1);
+          ex.close();
+        });
+    URI old = URI.create("http://127.0.0.1:" + github.getAddress().getPort() + "/old");
+    var r = new UpdateCheck(true, clock, old, () -> "0.4.6").checkNow();
+    assertThat(r.error()).isNull();
+    assertThat(r.latest()).isEqualTo("0.5.0");
+  }
+
+  @Test
   void latestVersionIsNotAnUpdate() throws Exception {
     UpdateCheck u = new UpdateCheck(true, clock, github(), () -> "0.5.0");
     assertThat(u.checkNow().latest()).isEqualTo("0.5.0");

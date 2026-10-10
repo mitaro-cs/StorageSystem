@@ -38,7 +38,7 @@ public class UpdateCheck {
   public record Result(String latest, long checkedAt, String error) {}
 
   static final URI LATEST =
-      URI.create("https://api.github.com/repos/mitaro-cs/StorageSystem/releases/latest");
+      URI.create("https://api.github.com/repos/mitaro-cs/Campus/releases/latest");
   private static final Duration EVERY = Duration.ofHours(12);
 
   /** Кнопку можно нажимать сколько угодно: удачный ответ GitHub помним 15 секунд. */
@@ -50,8 +50,13 @@ public class UpdateCheck {
   private final Clock clock;
   private final URI source;
   private final Supplier<String> current;
+  // Перенаправления – по ним: репозиторий переименовали (StorageSystem → Campus), и GitHub на
+  // прежний адрес отвечал 301 – «Не удалось проверить» (1.0.2). NORMAL не уходит с https на http.
   private final HttpClient http =
-      HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+      HttpClient.newBuilder()
+          .connectTimeout(Duration.ofSeconds(5))
+          .followRedirects(HttpClient.Redirect.NORMAL)
+          .build();
   private final AtomicBoolean running = new AtomicBoolean();
   private final ReentrantLock checking = new ReentrantLock();
   private volatile Update latest;

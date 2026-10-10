@@ -650,3 +650,7 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
 - Необязательное с первого кадра – `lib/shell/extras.ts` (одним файлом после показа): плашка связи
   `NetPill`, переход, `warm`. Её значки иначе утяжеляли «Сегодня».
 - Страницы входа (`(auth)` макет) чистят `lib/cache.ts`: дальше может войти другой человек.
+- Репозиторий – `mitaro-cs/Campus` (переименован из StorageSystem): `UpdateCheck.LATEST`,
+  `VapidKeys.PROJECT`, ссылка выпуска в `StatusController`, `tauri.conf.json` (обновление
+  оболочки). `UpdateCheck` идёт по перенаправлениям (`Redirect.NORMAL`): на старый адрес GitHub
+  отвечал 301, и проверка обновлений падала (1.0.2).
