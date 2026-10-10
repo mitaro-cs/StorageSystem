@@ -175,7 +175,8 @@
 	{/if}
 {/if}
 
-{#if archivedCount}
+<!-- Архив виден и пустым тому, кто может его вести: прошлый семестр заполняют вручную (1.0.2). -->
+{#if archivedCount || (target && can('manage_subjects', target.id))}
 	<section class="others">
 		<button
 			class="fold"

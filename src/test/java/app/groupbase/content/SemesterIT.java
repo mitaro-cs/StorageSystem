@@ -90,6 +90,70 @@ class SemesterIT extends IntegrationTest {
     assertThat(has(student.api().get("/api/homework").json(), hw)).isTrue();
   }
 
+  private static int unread(TestUser u) {
+    return u.api().get("/api/notifications/unread").json().get("count").asInt();
+  }
+
+  @Test
+  void pastSemesterIsFilledByHandWithoutBotheringTheGroup() throws InterruptedException {
+    long g = newGroup("Ручной архив");
+    TestUser headman = newUser(g, "headman");
+    TestUser student = newUser(g, "student");
+    String url = "/api/groups/" + g + "/semesters";
+
+    // Пустой архив – только «вручную»; без этого по-прежнему нужны предметы.
+    assertThat(headman.api().post(url, Map.of("name", "Весна 2025")).status()).isEqualTo(400);
+    var r = headman.api().post(url, Map.of("name", "Весна 2025", "manual", true));
+    assertThat(r.status()).as(r.body()).isEqualTo(200);
+    long sem = r.json().get("id").asLong();
+    assertThat(r.json().get("subjects").asInt()).isZero();
+
+    String add = "/api/semesters/" + sem + "/subjects";
+    assertThat(student.api().post(add, Map.of("name", "Химия")).status()).isEqualTo(403);
+    var s = headman.api().post(add, Map.of("name", "Химия " + uniq(), "teacher", "Иванов И. И."));
+    assertThat(s.status()).as(s.body()).isEqualTo(200);
+    long subject = s.json().get("id").asLong();
+    assertThat(s.json().get("archived").asBoolean()).isTrue();
+    assertThat(s.json().get("semester").asLong()).isEqualTo(sem);
+
+    // Материалы и задания – как в обычный предмет, но группе не приходят уведомления, а задание
+    // не попадает в текущие списки.
+    var note =
+        headman
+            .api()
+            .post(
+                "/api/subjects/" + subject + "/materials",
+                Map.of("kind", "note", "description", "Билеты прошлого года\n1. Кислоты"));
+    assertThat(note.status()).as(note.body()).isEqualTo(200);
+    long hw =
+        headman
+            .api()
+            .post(
+                "/api/homework",
+                Map.of(
+                    "subjectId", subject, "title", "Лаба 1", "dueAt", clock.millis() + 86_400_000L))
+            .json()
+            .get("id")
+            .asLong();
+    assertThat(has(student.api().get("/api/homework").json(), hw)).isFalse();
+    assertThat(student.api().get("/api/subjects/" + subject + "/materials").status())
+        .isEqualTo(200);
+
+    // Для сравнения – новость группе: она уведомление даёт, архив – нет.
+    headman
+        .api()
+        .post("/api/news", Map.of("groupIds", List.of(g), "title", "Собрание", "body", "Завтра"));
+    long until = System.currentTimeMillis() + 5000;
+    while (unread(student) < 1 && System.currentTimeMillis() < until) {
+      Thread.sleep(25);
+    }
+    Thread.sleep(300);
+    assertThat(unread(student)).isEqualTo(1);
+
+    var list = headman.api().get(url).json().get("items");
+    assertThat(list.get(0).get("subjects").asInt()).isEqualTo(1);
+  }
+
   @Test
   void defaultNameFollowsAcademicYear() {
     assertThat(SemesterService.defaultName(LocalDate.of(2026, 1, 20)))

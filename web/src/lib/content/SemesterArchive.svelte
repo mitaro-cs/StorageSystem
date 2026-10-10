@@ -5,9 +5,17 @@
 	import type { Semester, Subject } from '$lib/types';
 	import Button from '$lib/ui/Button.svelte';
 	import Menu from '$lib/ui/Menu.svelte';
-	import { loadSemesters, renameSemester, restoreSemester } from './semesters';
+	import {
+		addArchivedSubject,
+		createManualSemester,
+		loadSemesters,
+		renameSemester,
+		restoreSemester
+	} from './semesters';
 
 	// «Предметы → Архив» по семестрам (0.9.7): каждый архив – своим разделом, без семестра – в конце.
+	// С 1.0.2 архив можно заполнить и вручную: «Прошлый семестр» – пустой архив, «Добавить предмет» –
+	// предмет сразу в него (дальше файлы и конспекты – на странице предмета).
 	let {
 		archived,
 		groupId,
@@ -41,7 +49,8 @@
 	const sections = $derived(
 		semesters
 			.map((sem) => ({ sem, list: archived.filter((s) => s.semester === sem.id) }))
-			.filter((x) => x.list.length > 0)
+			// Пустой архив видит тот, кто его заполняет.
+			.filter((x) => x.list.length > 0 || canManage)
 	);
 	const loose = $derived(
 		archived.filter((s) => !s.semester || !semesters.some((x) => x.id === s.semester))
@@ -50,7 +59,12 @@
 
 {#if canManage && groupId !== null}
 	<div class="tools">
-		<Button size="s" onclick={() => (creating = true)}><Plus size={15} /> Архив семестра</Button>
+		<Button size="s" onclick={() => createManualSemester(groupId!, load)}
+			><Plus size={15} /> Прошлый семестр</Button
+		>
+		<Button size="s" variant="ghost" onclick={() => (creating = true)}
+			><Archive size={15} /> Отправить предметы в архив</Button
+		>
 	</div>
 {/if}
 
@@ -67,6 +81,9 @@
 			>
 			{#if canManage}
 				<span class="menu">
+					<Button size="s" variant="ghost" onclick={() => addArchivedSubject(sem)}
+						><Plus size={15} /> Добавить предмет</Button
+					>
 					<Menu
 						label="Действия с архивом"
 						items={[
@@ -74,15 +91,25 @@
 								label: 'Переименовать',
 								onclick: () => renameSemester(sem, load)
 							},
-							{ label: 'Вернуть предметы', onclick: () => restoreSemester(sem) }
+							{
+								label: list.length ? 'Вернуть предметы' : 'Убрать пустой архив',
+								onclick: () => restoreSemester({ ...sem, subjects: list.length }, load)
+							}
 						]}
 					/>
 				</span>
 			{/if}
 		</header>
-		<div class="grid">
-			{#each list as s, i (s.id)}{@render card(s, i)}{/each}
-		</div>
+		{#if list.length}
+			<div class="grid">
+				{#each list as s, i (s.id)}{@render card(s, i)}{/each}
+			</div>
+		{:else}
+			<p class="faint small empty">
+				Пока пусто. «Добавить предмет» – и загрузите в него файлы, конспекты и задания прошлого
+				семестра.
+			</p>
+		{/if}
 	</section>
 {/each}
 
@@ -112,6 +139,8 @@
 <style>
 	.tools {
 		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
 		justify-content: flex-end;
 		margin-bottom: var(--s3);
 	}
@@ -132,7 +161,16 @@
 		font-size: 16px;
 	}
 	.menu {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
 		margin-left: auto;
+	}
+	.empty {
+		margin: 0;
+		padding: 14px 16px;
+		border: 1px dashed var(--border-strong);
+		border-radius: var(--r);
 	}
 	.grid {
 		display: grid;

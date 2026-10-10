@@ -44,6 +44,15 @@ class SemesterController {
     return Map.of("status", "ok");
   }
 
+  /** Предмет прямо в архив (1.0.2) – заполнить прошлый семестр вручную. */
+  @PostMapping("/api/semesters/{id}/subjects")
+  app.groupbase.content.SubjectService.SubjectView addSubject(
+      Actor actor,
+      @PathVariable long id,
+      @RequestBody app.groupbase.content.SubjectService.Input in) {
+    return semesters.addSubject(actor, id, in);
+  }
+
   /** Расформировать: предметы возвращаются в текущие. */
   @DeleteMapping("/api/semesters/{id}")
   Map<String, String> restore(Actor actor, @PathVariable long id) {

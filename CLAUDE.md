@@ -685,6 +685,21 @@ SemVer (бета младше выпуска). Заметки – раздел `
   неделе» и столбики (тёплая шкала `--amber` → `--danger`, не акцент: в «Классике» он чёрный).
   На «Сегодня» – из ленивого `todayExtras`, место занято `.week-load` (`min-height` = высота блока,
   подпись пика в одну строку); день – к `#day-<полночь>` в «Дедлайнах». Данные – те же `upcoming`.
+- Скорость у группы (1.0.2): `lib/rum.ts` (из ленивого `shell/extras`, не в окне хоста) – замеры
+  `PerformanceObserver` по `/api/` (без `/api/live` и самих замеров) и загрузка страницы, раз в
+  3 мин `POST /api/monitor/timings {device, net, via, api[], load}` (`request`, не `api`: не трогает
+  кеш и очередь). Сервер – `status/ClientTimings` (сутки по часам, ключ «устройство × сеть × путь»,
+  не чаще раза в минуту от человека, `timings.json`), `GET /api/admin/monitor/clients`. Ручка – в
+  `QUIET` `LiveBumpFilter`, мимо `MonitorFilter` и `PeerForwardFilter`. Фронт – `settings/monitor/ClientTable`.
+- Копии (1.0.2): `BackupService.verify` (весь zip читается – CRC, база – `PRAGMA integrity_check`)
+  **до** ротации – сломанная копия удаляется и не вытесняет хорошие. Второй диск – `backup/Drives`
+  (тома Windows / `/Volumes` / `/media`, `/mnt`; без диска данных и системы; путь только из
+  найденных), `settings` `backup.mirror`, `PUT /api/admin/backups/mirror {path}`; `syncMirror` –
+  после копии и раз в 20 мин (`BackupJob`): копия → `.part` → SHA-256 → на место, там тоже `keep`.
+- Архив вручную (1.0.2): `POST /api/groups/{id}/semesters {name, manual: true}` – пустой архив,
+  `POST /api/semesters/{id}/subjects {name…}` – `SemesterService.addSubject` (создать и сразу в
+  архив). Архивному предмету уведомлений нет (`Notifier.followers`). Фронт – «Прошлый семестр» и
+  «Добавить предмет» в `SemesterArchive`; пустые архивы видны тем, кто ведёт предметы.
 - Репозиторий – `mitaro-cs/Campus` (переименован из StorageSystem): `UpdateCheck.LATEST`,
   `VapidKeys.PROJECT`, ссылка выпуска в `StatusController`, `tauri.conf.json` (обновление
   оболочки). `UpdateCheck` идёт по перенаправлениям (`Redirect.NORMAL`): на старый адрес GitHub
