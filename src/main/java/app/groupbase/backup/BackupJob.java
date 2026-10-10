@@ -31,7 +31,12 @@ class BackupJob {
   @Scheduled(initialDelayString = "PT3M", fixedDelayString = "PT20M")
   void tick() {
     // Пока инстанс не настроен, копировать нечего; сайт на другом компьютере — здесь данные старые.
-    if (users.count() == 0 || !hosts.serving() || !backups.due(clock.millis())) {
+    if (users.count() == 0 || !hosts.serving()) {
+      return;
+    }
+    if (!backups.due(clock.millis())) {
+      // Флешку вставили после копии – дубль ложится сейчас (уже есть – ничего не делается).
+      backups.syncMirror();
       return;
     }
     try {

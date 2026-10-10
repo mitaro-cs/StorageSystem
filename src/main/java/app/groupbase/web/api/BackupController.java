@@ -5,6 +5,7 @@ import app.groupbase.auth.Actor;
 import app.groupbase.auth.Permission;
 import app.groupbase.backup.BackupService;
 import app.groupbase.backup.CloudFolders;
+import app.groupbase.backup.Drives;
 import app.groupbase.backup.RestoreStager;
 import app.groupbase.web.ApiException;
 import app.groupbase.web.Require;
@@ -31,6 +32,12 @@ class BackupController {
 
   record Choice(String label, String path) {}
 
+  /** Диск для дубля: имя, путь и свободное место. */
+  record DriveChoice(String label, String path, long free) {}
+
+  /** Второй диск (1.0.2): выбранный (и подключён ли он сейчас) и какие найдены. */
+  record MirrorView(DriveChoice chosen, boolean present, List<DriveChoice> drives) {}
+
   record View(
       boolean enabled,
       int keep,
@@ -38,9 +45,12 @@ class BackupController {
       Choice cloud,
       List<Choice> choices,
       BackupService.Status status,
-      List<BackupService.Info> items) {}
+      List<BackupService.Info> items,
+      MirrorView mirror) {}
 
   record SettingsBody(String cloud) {}
+
+  record MirrorBody(String path) {}
 
   private final BackupService backups;
   private final RestoreStager restore;
@@ -80,7 +90,45 @@ class BackupController {
         chosen,
         found.stream().map(f -> new Choice(f.label(), f.path().toString())).toList(),
         backups.status(),
-        backups.list());
+        backups.list(),
+        mirror());
+  }
+
+  private MirrorView mirror() {
+    List<DriveChoice> drives =
+        Drives.detect(props.dataDir()).stream()
+            .map(d -> new DriveChoice(d.label(), d.path().toString(), d.free()))
+            .toList();
+    BackupService.Mirror m = backups.mirror();
+    if (m == null) {
+      return new MirrorView(null, false, drives);
+    }
+    DriveChoice chosen =
+        drives.stream()
+            .filter(d -> d.path().equals(m.root().toString()))
+            .findFirst()
+            .orElse(
+                new DriveChoice(
+                    m.root().getFileName() == null
+                        ? m.root().toString()
+                        : m.root().getFileName().toString(),
+                    m.root().toString(),
+                    0));
+    return new MirrorView(chosen, m.present(), drives);
+  }
+
+  /** Второй диск для дубля копий; пустой путь – не делать дубль. Дубль ложится сразу, фоном. */
+  @Require(Permission.MANAGE_INSTANCE)
+  @PutMapping("/mirror")
+  View chooseMirror(Actor actor, @RequestBody MirrorBody b) throws IOException {
+    try {
+      backups.chooseMirror(b.path() == null || b.path().isBlank() ? null : Path.of(b.path()));
+    } catch (IllegalArgumentException e) {
+      throw ApiException.invalid("path", e.getMessage());
+    }
+    audit.log(actor, null, "backup.mirror", "instance", null);
+    Thread.ofVirtual().name("backup-mirror").start(backups::syncMirror);
+    return list();
   }
 
   @Require(Permission.MANAGE_INSTANCE)

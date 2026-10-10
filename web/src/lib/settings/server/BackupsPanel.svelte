@@ -51,6 +51,17 @@
 		}
 	}
 
+	async function chooseMirror(path: string | null) {
+		try {
+			b = await put<Backups>('/api/admin/backups/mirror', { path });
+			toast(path ? 'Дубль каждой копии – на этот диск' : 'Дубль на второй диск выключен', 'ok');
+			// Дубль ложится фоном – через пару секунд покажем итог.
+			if (path) setTimeout(load, 2500);
+		} catch (e) {
+			toastError(e);
+		}
+	}
+
 	async function openFolder() {
 		try {
 			await post('/api/desktop/open', { what: 'backups' });
@@ -137,6 +148,18 @@
 				{#if b.status.lastError}
 					<p class="small bad">Последняя попытка не удалась: {b.status.lastError}</p>
 				{/if}
+				{#if b.status.verifiedAt && b.status.lastOkAt}
+					<p class="small ok">✓ Проверена: архив читается, база цела</p>
+				{/if}
+				{#if b.mirror?.chosen}
+					{#if b.status.mirrorError}
+						<p class="small warn">{b.status.mirrorError}</p>
+					{:else if b.status.mirrorOkAt}
+						<p class="small ok">
+							✓ Дубль на «{b.mirror.chosen.label}» – {fmtAgo(b.status.mirrorOkAt)}
+						</p>
+					{/if}
+				{/if}
 			</div>
 		</div>
 		<div class="row wrap">
@@ -171,6 +194,47 @@
 			облачной папки.
 		</p>
 	{/if}
+	{#if b.mirror}
+		<h3 class="sub">Дубль на второй диск</h3>
+		<p class="small muted lead">
+			Каждая копия ляжет ещё и на флешку или внешний диск – и будет сверена с оригиналом. Диск
+			вынули – дубль запишется, когда его вставите.
+		</p>
+		<div class="choices" role="radiogroup" aria-label="Второй диск для копий">
+			<button
+				role="radio"
+				aria-checked={!b.mirror.chosen}
+				class:on={!b.mirror.chosen}
+				onclick={() => chooseMirror(null)}
+			>
+				<span class="head"><strong>Без дубля</strong></span>
+				<span class="small">Копии – только там, где выбрано выше</span>
+			</button>
+			{#each b.mirror.drives as d (d.path)}
+				<button
+					role="radio"
+					aria-checked={b.mirror.chosen?.path === d.path}
+					class:on={b.mirror.chosen?.path === d.path}
+					onclick={() => chooseMirror(d.path)}
+				>
+					<span class="head"><HardDrive size={18} /> <strong>{d.label}</strong></span>
+					<span class="small num">Свободно {fmtSize(d.free)}</span>
+				</button>
+			{/each}
+			{#if b.mirror.chosen && !b.mirror.drives.some((d) => d.path === b?.mirror?.chosen?.path)}
+				<button role="radio" aria-checked="true" class="on" disabled>
+					<span class="head"><HardDrive size={18} /> <strong>{b.mirror.chosen.label}</strong></span>
+					<span class="small">Не подключён – дубль ляжет, когда вставите</span>
+				</button>
+			{/if}
+		</div>
+		{#if b.mirror.drives.length === 0 && !b.mirror.chosen}
+			<p class="faint small">
+				Вставьте флешку или подключите внешний диск к компьютеру с сайтом и обновите страницу.
+			</p>
+		{/if}
+	{/if}
+
 	<p class="tip amber small">
 		<span
 			>В копии все данные группы и ключи шифрования файлов. Храните её только в своём личном облаке
@@ -239,6 +303,18 @@
 	}
 	.bad {
 		color: var(--danger);
+	}
+	.ok {
+		color: var(--ok);
+	}
+	.warn {
+		color: var(--amber);
+	}
+	.state p {
+		margin: 2px 0 0;
+	}
+	.lead {
+		margin: calc(-1 * var(--s2)) 0 var(--s3);
 	}
 	.sub {
 		margin: var(--s5) 0 var(--s3);

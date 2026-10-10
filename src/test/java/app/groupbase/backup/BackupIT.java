@@ -1,9 +1,11 @@
 package app.groupbase.backup;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import app.groupbase.ApiClient;
 import app.groupbase.IntegrationTest;
+import app.groupbase.store.SettingsStore;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,6 +17,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /** Резервные копии из админки: создать, скачать, восстановить при следующем запуске. */
 class BackupIT extends IntegrationTest {
@@ -124,6 +128,64 @@ class BackupIT extends IntegrationTest {
             () -> BackupService.restore(zip, data, m -> {}))
         .hasMessageContaining("Подозрительный путь");
     assertThat(dir.resolve("outside.txt")).doesNotExist();
+  }
+
+  @Autowired BackupService backups;
+  @Autowired SettingsStore settings;
+
+  @Test
+  void everyCopyIsVerifiedAndMirroredToTheSecondDisk(@TempDir Path usb) throws IOException {
+    ApiClient a = admin();
+    settings.set(BackupService.SETTING_MIRROR, usb.toString());
+    var created = a.post("/api/admin/backups", Map.of());
+    assertThat(created.status()).as(created.body()).isEqualTo(200);
+    String name = created.json().get("name").asString();
+
+    // Проверена (архив читается, база цела) и лежит на втором диске – байт в байт.
+    var view = a.get("/api/admin/backups").json();
+    assertThat(view.get("status").get("verifiedAt").asLong()).isPositive();
+    assertThat(view.get("status").get("mirrorOkAt").asLong()).isPositive();
+    assertThat(view.get("mirror").get("chosen").get("path").asString()).isEqualTo(usb.toString());
+    assertThat(view.get("mirror").get("present").asBoolean()).isTrue();
+    Path copy = usb.resolve(BackupService.CLOUD_SUBDIR).resolve(name);
+    assertThat(BackupService.sha256(copy))
+        .isEqualTo(BackupService.sha256(backups.dir().resolve(name)));
+    assertThat(BackupService.verify(copy, props.dataDir()).entries()).isGreaterThan(2);
+
+    // Диск вынули: копии делаются, о дубле – понятная причина; вставили – дубль ложится сам.
+    Path gone = usb.resolveSibling(usb.getFileName() + "-gone");
+    Files.move(usb, gone);
+    backups.syncMirror();
+    assertThat(backups.status().mirrorError()).contains("не подключён");
+    Files.move(gone, usb);
+    Files.delete(copy);
+    backups.syncMirror();
+    assertThat(copy).exists();
+    assertThat(backups.status().mirrorError()).isNull();
+
+    // Выбрать можно только найденный диск.
+    var bad = a.put("/api/admin/backups/mirror", Map.of("path", "/etc"));
+    assertThat(bad.status()).isEqualTo(400);
+    settings.set(BackupService.SETTING_MIRROR, "");
+  }
+
+  @Test
+  void brokenCopyIsCaughtByVerification(@TempDir Path dir) throws IOException {
+    admin();
+    BackupService.Info info = backups.create();
+    Path good = backups.dir().resolve(info.name());
+    byte[] bytes = Files.readAllBytes(good);
+    // Порча посередине архива: CRC части не сойдётся.
+    for (int i = bytes.length / 2; i < bytes.length / 2 + 64; i++) {
+      bytes[i] ^= (byte) 0x5a;
+    }
+    Path broken = dir.resolve(info.name());
+    Files.write(broken, bytes);
+    assertThatThrownBy(() -> BackupService.verify(broken, dir)).isInstanceOf(IOException.class);
+    assertThat(BackupService.verify(good, dir).bytes()).isPositive();
+    try (var files = Files.list(dir)) {
+      assertThat(files.filter(p -> p.getFileName().toString().startsWith(".verify-"))).isEmpty();
+    }
   }
 
   @Test

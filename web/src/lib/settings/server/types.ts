@@ -32,8 +32,28 @@ export interface Backups {
 	dir: string;
 	cloud: { label: string; path: string } | null;
 	choices: { label: string; path: string }[];
-	status: { lastOkAt: number | null; lastError: string | null; lastErrorAt: number | null };
+	status: {
+		lastOkAt: number | null;
+		lastError: string | null;
+		lastErrorAt: number | null;
+		/** Последняя копия проверена: архив читается, база цела (1.0.2). */
+		verifiedAt?: number | null;
+		mirrorOkAt?: number | null;
+		mirrorError?: string | null;
+	};
 	items: BackupInfo[];
+	/** Второй диск для дубля (1.0.2; у старых серверов поля нет). */
+	mirror?: {
+		chosen: Drive | null;
+		present: boolean;
+		drives: Drive[];
+	};
+}
+
+export interface Drive {
+	label: string;
+	path: string;
+	free: number;
 }
 
 export interface Status {

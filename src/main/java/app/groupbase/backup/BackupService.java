@@ -41,8 +41,20 @@ public class BackupService {
 
   public record Info(String name, long size, long createdAt) {}
 
-  /** Итог последнего автоматического бэкапа. */
-  public record Status(Long lastOkAt, String lastError, Long lastErrorAt) {}
+  /**
+   * Итог последнего автоматического бэкапа, его проверки (1.0.2: копия открывается, база цела) и
+   * дубля на втором диске.
+   */
+  public record Status(
+      Long lastOkAt,
+      String lastError,
+      Long lastErrorAt,
+      Long verifiedAt,
+      Long mirrorOkAt,
+      String mirrorError) {}
+
+  /** Второй диск для дубля копий: выбранный и сейчас ли он подключён. */
+  public record Mirror(Path root, boolean present) {}
 
   /** Выбранная папка облачного диска (корень); копии кладутся в её подпапку. */
   static final String SETTING_DIR = "backup.dir";
@@ -51,6 +63,13 @@ public class BackupService {
   static final String SETTING_ERROR = "backup.last_error";
   static final String SETTING_ERROR_AT = "backup.last_error_at";
   public static final String CLOUD_SUBDIR = "groupbase-backups";
+
+  /** Второй диск (корень) для дубля каждой копии (1.0.2). */
+  static final String SETTING_MIRROR = "backup.mirror";
+
+  static final String SETTING_VERIFIED = "backup.verified_at";
+  static final String SETTING_MIRROR_OK = "backup.mirror_ok_at";
+  static final String SETTING_MIRROR_ERROR = "backup.mirror_error";
 
   static final String DB = "groupbase.db";
   static final String CLOUDPUB = "tools/cloudpub/client.toml";
@@ -100,7 +119,32 @@ public class BackupService {
     return new Status(
         settings.get(SETTING_OK).map(Long::parseLong).orElse(null),
         settings.get(SETTING_ERROR).filter(s -> !s.isBlank()).orElse(null),
-        settings.get(SETTING_ERROR_AT).map(Long::parseLong).orElse(null));
+        settings.get(SETTING_ERROR_AT).map(Long::parseLong).orElse(null),
+        settings.get(SETTING_VERIFIED).filter(s -> !s.isBlank()).map(Long::parseLong).orElse(null),
+        settings.get(SETTING_MIRROR_OK).filter(s -> !s.isBlank()).map(Long::parseLong).orElse(null),
+        settings.get(SETTING_MIRROR_ERROR).filter(s -> !s.isBlank()).orElse(null));
+  }
+
+  /** Выбранный второй диск; null – дубль не делается. */
+  public Mirror mirror() {
+    return settings
+        .get(SETTING_MIRROR)
+        .filter(s -> !s.isBlank())
+        .map(Path::of)
+        .map(p -> new Mirror(p, Files.isDirectory(p) && Files.isWritable(p)))
+        .orElse(null);
+  }
+
+  /** Выбор второго диска – только из найденных {@link Drives} или «не делать дубль» (null). */
+  public void chooseMirror(Path root) {
+    if (root != null
+        && Drives.detect(props.dataDir()).stream()
+            .noneMatch(d -> d.path().equals(root.toAbsolutePath().normalize()))) {
+      throw new IllegalArgumentException("Такого диска нет – подключите его и обновите страницу");
+    }
+    settings.set(SETTING_MIRROR, root == null ? "" : root.toAbsolutePath().normalize().toString());
+    settings.set(SETTING_MIRROR_OK, "");
+    settings.set(SETTING_MIRROR_ERROR, "");
   }
 
   /**
@@ -156,12 +200,129 @@ public class BackupService {
       Files.deleteIfExists(part);
       throw e;
     }
+    // Проверка до ротации: сломанная копия не должна вытеснить хорошую старую.
+    try {
+      verify(part, props.dataDir());
+    } catch (IOException e) {
+      Files.deleteIfExists(part);
+      throw new IOException("Копия не прошла проверку: " + e.getMessage(), e);
+    }
     Path target = dir.resolve(name);
     Files.move(part, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     rotate();
     settings.set(SETTING_OK, String.valueOf(now));
     settings.set(SETTING_ERROR, "");
+    settings.set(SETTING_VERIFIED, String.valueOf(clock.millis()));
+    syncMirror();
     return new Info(name, Files.size(target), now);
+  }
+
+  /**
+   * Дубль самой свежей копии на втором диске, если её там ещё нет (диск вставили позже – дубль
+   * ляжет при следующей проверке). Сверка – SHA-256 с оригиналом; там тоже хранятся последние
+   * {@code keep}. Ошибка дубля не роняет основную копию – она только видна в «Резервных копиях».
+   */
+  public synchronized void syncMirror() {
+    Mirror m = mirror();
+    if (m == null) {
+      return;
+    }
+    if (!m.present()) {
+      settings.set(SETTING_MIRROR_ERROR, "Диск не подключён – дубль ляжет, когда его вставите");
+      return;
+    }
+    try {
+      List<Info> all = list();
+      if (all.isEmpty()) {
+        return;
+      }
+      Info latest = all.get(0);
+      Path dir = m.root().resolve(CLOUD_SUBDIR);
+      Files.createDirectories(dir);
+      Path target = dir.resolve(latest.name());
+      if (!Files.isRegularFile(target) || Files.size(target) != latest.size()) {
+        Path source = dir().resolve(latest.name());
+        Path part = dir.resolve(latest.name() + ".part");
+        try {
+          Files.copy(source, part, StandardCopyOption.REPLACE_EXISTING);
+          if (!sha256(source).equals(sha256(part))) {
+            throw new IOException("дубль не совпал с оригиналом – диск неисправен или переполнен");
+          }
+        } catch (IOException e) {
+          Files.deleteIfExists(part);
+          throw e;
+        }
+        Files.move(part, target, StandardCopyOption.REPLACE_EXISTING);
+        rotate(dir);
+      }
+      settings.set(SETTING_MIRROR_OK, String.valueOf(clock.millis()));
+      settings.set(SETTING_MIRROR_ERROR, "");
+    } catch (IOException | RuntimeException e) {
+      String why = e.getMessage() == null ? e.toString() : e.getMessage();
+      settings.set(SETTING_MIRROR_ERROR, "Дубль не записан: " + why);
+    }
+  }
+
+  /** Сколько проверено в копии. */
+  public record Verified(int entries, long bytes) {}
+
+  /**
+   * Открывается ли копия: это копия сайта, каждая часть архива читается целиком (ZIP сверяет
+   * CRC-32), база внутри проходит {@code PRAGMA integrity_check}. Временная база – в {@code tmp}.
+   */
+  public static Verified verify(Path zip, Path tmp) throws IOException {
+    requireBackup(readManifest(zip));
+    int entries = 0;
+    long bytes = 0;
+    boolean hasDb = false;
+    Files.createDirectories(tmp);
+    Path db = tmp.resolve(".verify-" + System.nanoTime() + ".db");
+    try (ZipInputStream in = new ZipInputStream(Files.newInputStream(zip))) {
+      byte[] buf = new byte[64 * 1024];
+      for (ZipEntry e; (e = in.getNextEntry()) != null; ) {
+        entries++;
+        if (e.getName().equals(DB)) {
+          hasDb = true;
+          bytes += Files.copy(in, db, StandardCopyOption.REPLACE_EXISTING);
+        } else {
+          for (int n; (n = in.read(buf)) > 0; ) {
+            bytes += n;
+          }
+        }
+      }
+      if (!hasDb) {
+        throw new IOException("в архиве нет базы");
+      }
+      try (java.sql.Connection c =
+              java.sql.DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath());
+          java.sql.Statement st = c.createStatement();
+          java.sql.ResultSet rs = st.executeQuery("PRAGMA integrity_check")) {
+        String result = rs.next() ? rs.getString(1) : "";
+        if (!"ok".equalsIgnoreCase(result)) {
+          throw new IOException("база повреждена: " + result);
+        }
+      } catch (java.sql.SQLException e) {
+        throw new IOException("база не открывается: " + e.getMessage(), e);
+      }
+    } catch (java.util.zip.ZipException e) {
+      throw new IOException("архив повреждён: " + e.getMessage(), e);
+    } finally {
+      Files.deleteIfExists(db);
+    }
+    return new Verified(entries, bytes);
+  }
+
+  static String sha256(Path file) throws IOException {
+    try (java.io.InputStream in = Files.newInputStream(file)) {
+      java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+      byte[] buf = new byte[64 * 1024];
+      for (int n; (n = in.read(buf)) > 0; ) {
+        md.update(buf, 0, n);
+      }
+      return java.util.HexFormat.of().formatHex(md.digest());
+    } catch (java.security.NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   /**
@@ -240,8 +401,11 @@ public class BackupService {
   }
 
   public List<Info> list() throws IOException {
+    return list(dir());
+  }
+
+  static List<Info> list(Path dir) throws IOException {
     List<Info> out = new ArrayList<>();
-    Path dir = dir();
     if (!Files.isDirectory(dir)) {
       return out;
     }
@@ -267,9 +431,13 @@ public class BackupService {
 
   /** Оставляет {@code keep} самых новых. */
   public void rotate() throws IOException {
-    List<Info> all = list();
+    rotate(dir());
+  }
+
+  private void rotate(Path dir) throws IOException {
+    List<Info> all = list(dir);
     for (int i = Math.max(1, props.backup().keep()); i < all.size(); i++) {
-      Files.deleteIfExists(dir().resolve(all.get(i).name()));
+      Files.deleteIfExists(dir.resolve(all.get(i).name()));
     }
   }
 
