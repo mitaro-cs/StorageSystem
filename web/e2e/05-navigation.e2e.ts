@@ -25,9 +25,12 @@ test('палитра Ctrl+K и горячие клавиши', async ({ page }) 
 	await page.keyboard.press('g');
 	await page.keyboard.press('d');
 	await expect(page).toHaveURL(/\/homework$/);
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('Домашние задания');
 	await page.keyboard.press('g');
 	await page.keyboard.press('h');
 	await expect(page).toHaveURL(/\/$/);
+	// Адрес меняется на кадр раньше, чем дорисуется страница (анимация смены раздела) – ждём её.
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('Привет');
 
 	await page.keyboard.press('n');
 	await expect(page.getByRole('dialog', { name: 'Новое задание' })).toBeVisible();

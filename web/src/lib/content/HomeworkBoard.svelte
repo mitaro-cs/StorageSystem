@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { offline } from '$lib/offline/engine';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { Plus, GraduationCap } from '@lucide/svelte';
 	import { get, qs } from '$lib/api';
@@ -96,14 +96,15 @@
 		countOverdue();
 	}
 
-	// Горячая клавиша «n» и палитра открывают форму через ?new=1.
-	$effect(() => {
-		if (page.url.searchParams.get('new') === '1') {
-			composer = true;
-			const url = new URL(page.url);
-			url.searchParams.delete('new');
-			goto(url.pathname + url.search, { replaceState: true, noScroll: true, keepFocus: true });
-		}
+	// Горячая клавиша «n» и палитра открывают форму через ?new=1. Адрес чистим после перехода
+	// (afterNavigate): замена адреса посреди перехода прерывала его, страница создавалась заново,
+	// и форма не открывалась (1.0.1, с анимацией смены раздела).
+	afterNavigate(() => {
+		if (page.url.searchParams.get('new') !== '1') return;
+		composer = true;
+		const url = new URL(page.url);
+		url.searchParams.delete('new');
+		goto(url.pathname + url.search, { replaceState: true, noScroll: true, keepFocus: true });
 	});
 </script>
 
