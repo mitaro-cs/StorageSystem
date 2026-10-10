@@ -650,6 +650,32 @@ java -jar target/groupbase.jar doctor -d ./data-dev   # проверка дан�
 - Необязательное с первого кадра – `lib/shell/extras.ts` (одним файлом после показа): плашка связи
   `NetPill`, переход, `warm`. Её значки иначе утяжеляли «Сегодня».
 - Страницы входа (`(auth)` макет) чистят `lib/cache.ts`: дальше может войти другой человек.
+- Комментарии сразу (1.0.2): `LiveUpdates.bump()` будит рассылку сразу, без ожидания секунды;
+  запасной опрос – `GET /api/live/seq` раз в 3 с (без SSE через туннель). `Comments.svelte` –
+  оптимистично: временный комментарий (`sending`, отрицательный id) до ответа, при живой перезагрузке
+  не теряется.
+- «К паре» в форме задания – вид пары (`KIND_COLORS` и подпись). Подписи видов для страницы
+  задания – `schedule/kindLabels.ts` (lessons.ts их **не** импортирует: модуль уезжал в отдельный
+  файл и расписание выходило за бюджет).
+- Реакции на новости (1.0.2): `post_reactions` (V36, триггеры в `changes`), `NewsService.react`,
+  `PUT /api/news/{id}/reactions {emoji, value}`, набор – `NewsService.REACTIONS`; фронт –
+  `content/Reactions.svelte` (лениво из `NewsCard`, место в подвале занято сразу).
+- Кто на сайте (1.0.2): `LiveUpdates.online()` – подключённые к SSE и опрашивавшие `/live/seq` за
+  15 с; событие `presence` при изменении; `sync/Presence` – люди из общих групп (администратор –
+  все), `GET /api/presence`. Фронт – `lib/presence.svelte.ts` (исключён из `common` в
+  vite.config.ts), `content/OnlineNow` на «Сегодня», точка в `MemberList`. Необязательное «Сегодня»
+  (`FirstSteps`, `OnlineNow`, меню новости) – одним ленивым `content/todayExtras.ts`.
+- Мониторинг (1.0.2): `status/Monitor` – кольцо на 1440 минут (запросы, ошибки 5xx, гистограмма
+  времени, проверки адреса сайта `GET <publicUrl>/api/health` раз в минуту, онлайн, работал ли),
+  `monitor.json` в каталоге данных (раз в 5 мин и при остановке). Время запросов – `web/MonitorFilter`
+  (без `/api/live*`, presence, health, самого мониторинга и ручек компьютеров). `GET
+  /api/admin/monitor?range=hour|day` (`manage_instance`). Фронт – `settings/MonitorPanel`,
+  `settings/monitor/LineChart` (SVG, одна ось, пропуски – где сервер не работал), `Uptime`.
+- Поиск в файлах (1.0.2): `files/FileText` (раз в 30 с, в виртуальном потоке; PDFBox для PDF,
+  docx/pptx/xlsx/OpenDocument – XML из zip, текст – по расширению; до 40 МБ и 1 млн знаков) →
+  `file_text` (статус) и FTS5 `file_search` (V37). `SearchService` вид `file` – с теми же правами,
+  что материалы, вложения заданий и новостей; фильтр `subject`, `sort=new`. Запрос
+  (`SearchQuery.fts`): `"фраза"` – подряд без основы слова, `-слово` – NOT (только запрет – пусто).
 - Репозиторий – `mitaro-cs/Campus` (переименован из StorageSystem): `UpdateCheck.LATEST`,
   `VapidKeys.PROJECT`, ссылка выпуска в `StatusController`, `tauri.conf.json` (обновление
   оболочки). `UpdateCheck` идёт по перенаправлениям (`Redirect.NORMAL`): на старый адрес GitHub
