@@ -170,26 +170,75 @@ public class UpdateCheck {
     return null;
   }
 
-  /** Сравнение версий вида 1.2.3 (всё, что не цифры, отбрасывается). */
+  /**
+   * Сравнение версий по SemVer: 1.0.2-beta.1 < 1.0.2-beta.2 < 1.0.2. Раньше всё, кроме цифр,
+   * отбрасывалось, и бета 1.0.2-beta.1 (1.0.2.1) считалась новее выпуска 1.0.2 – тем, кто ставил
+   * бету, выпуск не предлагался.
+   */
   public static boolean newer(String candidate, String current) {
-    int[] a = parts(candidate);
-    int[] b = parts(current);
-    for (int i = 0; i < Math.max(a.length, b.length); i++) {
-      int x = i < a.length ? a[i] : 0;
-      int y = i < b.length ? b[i] : 0;
-      if (x != y) {
-        return x > y;
-      }
-    }
-    return false;
+    return compare(candidate, current) > 0;
   }
 
-  private static int[] parts(String v) {
-    String[] p = v.replaceAll("[^0-9.]", "").split("\\.");
-    int[] out = new int[p.length];
-    for (int i = 0; i < p.length; i++) {
-      out[i] = p[i].isEmpty() ? 0 : Integer.parseInt(p[i]);
+  static int compare(String a, String b) {
+    String[] x = split(a);
+    String[] y = split(b);
+    int c = compareIds(x[0].split("\\."), y[0].split("\\."), true);
+    if (c != 0) {
+      return c;
     }
-    return out;
+    // Без предварительной части версия старше той же с ней (1.0.2 > 1.0.2-beta.1).
+    if (x[1].isEmpty() || y[1].isEmpty()) {
+      return Boolean.compare(x[1].isEmpty(), y[1].isEmpty());
+    }
+    return compareIds(x[1].split("\\."), y[1].split("\\."), false);
+  }
+
+  /** Основная часть и предварительная (после «-»), без «v» в начале и сборки после «+». */
+  private static String[] split(String v) {
+    String s = v.strip().replaceFirst("^[vV]", "");
+    int plus = s.indexOf('+');
+    if (plus >= 0) {
+      s = s.substring(0, plus);
+    }
+    int dash = s.indexOf('-');
+    return dash < 0
+        ? new String[] {s, ""}
+        : new String[] {s.substring(0, dash), s.substring(dash + 1)};
+  }
+
+  /**
+   * Части по очереди: числа – как числа, число младше слова, слова – по алфавиту. В основной части
+   * недостающее – ноль (1.0 = 1.0.0), в предварительной более длинная старше (beta < beta.1).
+   */
+  private static int compareIds(String[] a, String[] b, boolean core) {
+    for (int i = 0; i < Math.max(a.length, b.length); i++) {
+      if (!core && (i >= a.length || i >= b.length)) {
+        return Integer.compare(a.length, b.length);
+      }
+      String x = i < a.length ? a[i] : "0";
+      String y = i < b.length ? b[i] : "0";
+      long nx = number(x);
+      long ny = number(y);
+      int c;
+      if (core || (nx >= 0 && ny >= 0)) {
+        c = Long.compare(Math.max(nx, 0), Math.max(ny, 0));
+      } else if (nx >= 0 || ny >= 0) {
+        c = nx >= 0 ? -1 : 1;
+      } else {
+        c = x.compareTo(y);
+      }
+      if (c != 0) {
+        return c;
+      }
+    }
+    return 0;
+  }
+
+  /** Число из части версии или -1, если там не только цифры. */
+  private static long number(String part) {
+    if (part.isEmpty() || part.length() > 18 || !part.chars().allMatch(Character::isDigit)) {
+      return -1;
+    }
+    return Long.parseLong(part);
   }
 }

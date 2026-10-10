@@ -55,6 +55,18 @@ class UpdateCheckTest {
   }
 
   @Test
+  void betaIsOlderThanItsRelease() {
+    assertThat(UpdateCheck.newer("1.0.2", "1.0.2-beta.1")).isTrue();
+    assertThat(UpdateCheck.newer("1.0.2-beta.1", "1.0.2")).isFalse();
+    assertThat(UpdateCheck.newer("1.0.2-beta.1", "1.0.1")).isTrue();
+    assertThat(UpdateCheck.newer("1.0.1", "1.0.2-beta.1")).isFalse();
+    assertThat(UpdateCheck.newer("1.0.2-beta.10", "1.0.2-beta.2")).isTrue();
+    assertThat(UpdateCheck.newer("1.0.2-rc.1", "1.0.2-beta.3")).isTrue();
+    assertThat(UpdateCheck.newer("1.0.2-beta.1", "1.0.2-beta")).isTrue();
+    assertThat(UpdateCheck.newer("1.0.2+7", "1.0.2")).isFalse();
+  }
+
+  @Test
   void checkNowAsksGithubAndRemembersTheLatestRelease() throws Exception {
     UpdateCheck u = new UpdateCheck(true, clock, github(), () -> "0.4.6");
     var r = u.checkNow();
