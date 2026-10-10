@@ -98,7 +98,8 @@
 					await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
 				}
 			}
-			files = [...files, info];
+			// Убрали крестиком во время загрузки – в форму не попадает.
+			if (pending.some((x) => x.key === item.key)) files = [...files, info];
 			pending = pending.filter((x) => x.key !== item.key);
 		} catch (e) {
 			item.error = e instanceof Error ? e.message : 'Ошибка загрузки';
@@ -114,6 +115,8 @@
 	function pump() {
 		while (running < PARALLEL && queue.length) {
 			const item = queue.shift()!;
+			// Убрали из списка, пока ждал очереди, – не отправляем.
+			if (!pending.some((x) => x.key === item.key)) continue;
 			running++;
 			send(item).finally(() => {
 				running--;
@@ -130,7 +133,7 @@
 			.slice(0, room)
 			.map(named)
 			.map((file) => ({ key: ++seq, name: file.name || 'файл', file, progress: 0 }));
-		if (all.length > room) skipped = all.length - room;
+		skipped = Math.max(0, all.length - room);
 		if (!fresh.length) return;
 		pending.push(...fresh);
 		// Очередь – из реактивных копий: прогресс и ошибки видны в строках.

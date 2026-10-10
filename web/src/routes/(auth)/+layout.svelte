@@ -3,12 +3,15 @@
 	import { fly } from '$lib/motion';
 	import { cachedBackground, loadBackground, parseBackground } from '$lib/appearance';
 	import { appIcon, iconSrc } from '$lib/appIcon.svelte';
+	import { clearCache } from '$lib/cache';
 
 	let { children } = $props();
 
 	// Фон выбирает администратор; последний известный показываем сразу, пока спрашиваем сервер.
 	let bg = $state(parseBackground(cachedBackground()));
 	onMount(() => {
+		// Вход, приглашение, код: дальше может быть другой человек – ответы прежнего не показываем.
+		clearCache();
 		loadBackground()
 			.then((v) => (bg = parseBackground(v)))
 			.catch(() => {});

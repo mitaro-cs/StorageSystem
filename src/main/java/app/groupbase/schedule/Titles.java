@@ -108,6 +108,14 @@ final class Titles {
         break;
       }
     }
+    if (kind == LessonKind.RETAKE) {
+      // «Пересдача экзамена Физика»: что пересдают – тоже не название предмета.
+      for (var e : KINDS) {
+        if (e.getKey() == LessonKind.EXAM || e.getKey() == LessonKind.CREDIT) {
+          name = e.getValue().matcher(name).replaceAll(" ");
+        }
+      }
+    }
     if (kind == LessonKind.OTHER) {
       kind = kindIn(categories);
     }
