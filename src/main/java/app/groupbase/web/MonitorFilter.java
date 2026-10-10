@@ -36,6 +36,7 @@ public class MonitorFilter extends OncePerRequestFilter {
         && !uri.equals("/api/presence")
         && !uri.equals("/api/health")
         && !uri.startsWith("/api/admin/monitor")
+        && !uri.equals("/api/monitor/timings")
         && !uri.startsWith("/api/host/peer/");
   }
 

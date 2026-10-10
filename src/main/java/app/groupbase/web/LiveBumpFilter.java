@@ -33,6 +33,8 @@ public class LiveBumpFilter extends OncePerRequestFilter {
           "/api/auth/logout",
           "/api/auth/link",
           "/api/live",
+          // Замеры скорости браузерами (1.0.2) – не изменение данных.
+          "/api/monitor/timings",
           "/api/me/preferences",
           "/api/me/notifications",
           "/api/push/",

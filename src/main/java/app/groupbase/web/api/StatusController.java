@@ -43,14 +43,17 @@ class StatusController {
   private final UpdateCheck updates;
   private final app.groupbase.desktop.DesktopBridge bridge;
   private final app.groupbase.status.Monitor monitor;
+  private final app.groupbase.status.ClientTimings timings;
 
   StatusController(
       GroupbaseProperties props,
       BackupService backups,
       UpdateCheck updates,
       app.groupbase.desktop.DesktopBridge bridge,
-      app.groupbase.status.Monitor monitor) {
+      app.groupbase.status.Monitor monitor,
+      app.groupbase.status.ClientTimings timings) {
     this.monitor = monitor;
+    this.timings = timings;
     this.props = props;
     this.backups = backups;
     this.updates = updates;
@@ -62,6 +65,22 @@ class StatusController {
   @GetMapping("/api/admin/monitor")
   app.groupbase.status.Monitor.View monitor(@RequestParam(defaultValue = "hour") String range) {
     return "day".equals(range) ? monitor.view(24 * 60, 15) : monitor.view(60, 1);
+  }
+
+  /** Скорость у группы (1.0.2): по устройствам, сетям и пути – за сутки. */
+  @Require(Permission.MANAGE_INSTANCE)
+  @GetMapping("/api/admin/monitor/clients")
+  java.util.List<app.groupbase.status.ClientTimings.Row> clients() {
+    return timings.view();
+  }
+
+  /** Замеры браузера: время ответов API и открытия страницы (любой вошедший). */
+  @org.springframework.web.bind.annotation.PostMapping("/api/monitor/timings")
+  java.util.Map<String, Boolean> timings(
+      Actor actor,
+      @org.springframework.web.bind.annotation.RequestBody
+          app.groupbase.status.ClientTimings.Report report) {
+    return java.util.Map.of("accepted", timings.report(actor.id(), report));
   }
 
   @Require(Permission.MANAGE_INSTANCE)

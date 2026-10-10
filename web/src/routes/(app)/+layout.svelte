@@ -31,10 +31,14 @@
 	// анимация смены раздела (пока код не пришёл – без неё), разделы заранее (через 2,5 с).
 	let extras = $state<typeof import('$lib/shell/extras')>();
 	onMount(() => {
+		let stopRum: (() => void) | undefined;
 		import('$lib/shell/extras').then((m) => {
 			extras = m;
 			setTimeout(m.warm, 2500);
+			// Окно на компьютере хоста не меряется – оно в той же машине, что сервер.
+			if (session.me && !session.me.hostWindow) stopRum = m.startRum();
 		});
+		return () => stopRum?.();
 	});
 	onNavigate((n) => extras?.transition(n));
 	onMount(startBell);

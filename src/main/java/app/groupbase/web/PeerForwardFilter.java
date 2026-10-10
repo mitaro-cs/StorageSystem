@@ -57,6 +57,8 @@ public class PeerForwardFilter extends OncePerRequestFilter {
         || uri.startsWith("/api/setup/")
         || uri.equals("/api/health")
         || uri.equals("/api/live")
+        // Замеры скорости – того компьютера, на который пришли (1.0.2).
+        || uri.equals("/api/monitor/timings")
         // Обновления у каждого компьютера свои – проверяет сам.
         || uri.equals("/api/admin/update-check");
   }

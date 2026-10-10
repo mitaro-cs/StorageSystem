@@ -6,17 +6,22 @@
 	import { firstName } from '$lib/names';
 	import LineChart from './monitor/LineChart.svelte';
 	import Uptime from './monitor/Uptime.svelte';
-	import type { MonitorView } from './monitor/types';
+	import ClientTable from './monitor/ClientTable.svelte';
+	import type { ClientRow, MonitorView } from './monitor/types';
 
 	// Мониторинг хоста (1.0.2): что с сервером сейчас и за час или сутки. Обновляется сам раз в
 	// 10 секунд, пока вкладка на экране.
 	let range = $state<'hour' | 'day'>('hour');
 	let v = $state<MonitorView | null>(null);
+	let clients = $state<ClientRow[]>([]);
 	let error = $state('');
 
 	async function load() {
 		try {
-			v = await get<MonitorView>(`/api/admin/monitor?range=${range}`);
+			[v, clients] = await Promise.all([
+				get<MonitorView>(`/api/admin/monitor?range=${range}`),
+				get<ClientRow[]>('/api/admin/monitor/clients').catch(() => clients)
+			]);
 			error = '';
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Не удалось загрузить';
@@ -158,6 +163,11 @@
 				/>
 			</section>
 		{/if}
+
+		<section class="card pane">
+			<h3 class="pane-title">Скорость у группы</h3>
+			<ClientTable rows={clients} />
+		</section>
 
 		<section class="card pane">
 			<h3 class="pane-title">На сайте</h3>

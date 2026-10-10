@@ -2,3 +2,4 @@
 export { default as NetPill } from './NetPill.svelte';
 export { transition } from './transition';
 export { warm } from '$lib/warm';
+export { startRum } from '$lib/rum';

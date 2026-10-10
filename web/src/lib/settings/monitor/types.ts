@@ -33,3 +33,16 @@ export interface MonitorView {
 	step: number;
 	points: MonitorPoint[];
 }
+
+/** Скорость у группы (1.0.2) – GET /api/admin/monitor/clients. */
+export interface ClientRow {
+	device: 'phone' | 'tablet' | 'computer';
+	net: 'wifi' | 'cellular' | 'ethernet' | 'other' | 'unknown';
+	via: 'tunnel' | 'local';
+	people: number;
+	samples: number;
+	apiP50: number | null;
+	apiP95: number | null;
+	loadP50: number | null;
+	lastAt: number;
+}
